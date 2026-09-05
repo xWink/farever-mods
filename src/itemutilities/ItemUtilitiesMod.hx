@@ -252,6 +252,23 @@ class ItemUtilitiesMod {
         return result;
     }
 
+    @:hlx.prefix(ui.BaseUI.setTip)
+    static function suppressLockEditItemTooltip(instance:Dynamic, element:Dynamic,
+        anchor:Dynamic, position:Dynamic, nesting:Dynamic):HlxPrefixResult<Dynamic> {
+        if (!lockEditMode)
+            return Continue;
+        for (entry in visibleSlots) {
+            var slot:Dynamic = entry.slot;
+            if (!isActiveLockSlot(entry, slot))
+                continue;
+            if (isAncestorOf(slot, element) || isAncestorOf(slot, anchor)) {
+                activeBaseUI = instance;
+                return SkipWith(null);
+            }
+        }
+        return Continue;
+    }
+
     @:hlx.postfix(ui.BaseUI.setTip)
     static function afterTooltipSet(instance:Dynamic, element:Dynamic, anchor:Dynamic,
         position:Dynamic, nesting:Dynamic, result:Dynamic):Dynamic {
