@@ -112,6 +112,8 @@ class ItemUtilitiesMod {
     static var visibleSlots:Array<Dynamic> = [];
     static var lockEditMode:Bool = false;
     static var lockRecords:Array<Dynamic> = [];
+    static var fingerprintCache:Map<String, String> = new Map();
+    static var nextLockReconcileAt:Float = 0;
     static var weaponPresets:Array<Dynamic> = [];
     static var selectedWeaponPresets:Array<Dynamic> = [];
     static var selectedWeaponPreset:Int = 0;
@@ -131,6 +133,8 @@ class ItemUtilitiesMod {
     static inline var TOOLTIP_BUTTON_DELAY = 0.2;
     static inline var TOOLTIP_OVERLAP_INSET = 4.0;
     static inline var PRESET_CONTROLS_WIDTH = 254.0;
+    static inline var ITEM_FINGERPRINT_VERSION = "v3|";
+    static inline var LOCK_RECONCILE_INTERVAL = 0.2;
     static inline var DEPOSIT_CRAFTING = 0;
     static inline var DEPOSIT_ALL = 1;
     static inline var DEPOSIT_FOOD = 2;
@@ -201,6 +205,8 @@ class ItemUtilitiesMod {
         // InventoryUI is recreated when changing characters. Do not retain the
         // previous hero while the new character's windows are being built.
         activeHero = null;
+        fingerprintCache = new Map();
+        nextLockReconcileAt = 0;
         activeInventoryUI = instance;
         var comp = fieldOrNull(instance, "inventoryComp");
         var inventory = fieldOrNull(comp, "inventory");
@@ -468,6 +474,8 @@ class ItemUtilitiesMod {
     }
 
     static function draw():Void {
+        refreshActiveHero();
+
         if (lockedSortActive && !lockedSortWaiting)
             transferNextLockedSortItem();
 
@@ -483,7 +491,11 @@ class ItemUtilitiesMod {
             syncSelectedWeaponPreset();
             selectPlayerInventoryComp();
             checkPresetHotkeys();
-            reconcileItemLocks();
+            var now = haxe.Timer.stamp();
+            if (now >= nextLockReconcileAt) {
+                nextLockReconcileAt = now + LOCK_RECONCILE_INTERVAL;
+                reconcileItemLocks();
+            }
             drawWeaponPresetButtons();
             if (showLockVisuals.get()) {
                 drawLockHeaderButton();
@@ -2029,6 +2041,8 @@ class ItemUtilitiesMod {
         var tracked = current.get(uid);
         if (tracked == null || tracked.characterId == null)
             return;
+        tracked.fingerprint = fingerprint;
+        fingerprintCache.set(uid, fingerprint);
         lockRecords.push({
             uid: uid,
             fingerprint: fingerprint,
@@ -2069,6 +2083,63 @@ class ItemUtilitiesMod {
         }
 
         var changed = false;
+        for (record in lockRecords) {
+            var savedFingerprint = recordString(record, "fingerprint");
+            if (savedFingerprint == null
+                || StringTools.startsWith(savedFingerprint, ITEM_FINGERPRINT_VERSION)
+                || Reflect.field(record, "legacyAmbiguous") == true)
+                continue;
+
+            var candidates:Array<Dynamic> = [];
+            for (candidateUid in current.keys()) {
+                var candidate = current.get(candidateUid);
+                if (recordAppliesToTrackedItem(record, candidate)
+                    && legacyFingerprintMatches(savedFingerprint, candidate))
+                    candidates.push(candidate);
+            }
+
+            var replacement:Dynamic = null;
+            if (StringTools.startsWith(savedFingerprint, "v2|")) {
+                var savedUid = recordString(record, "uid");
+                for (candidate in candidates) {
+                    if (candidate.uid == savedUid) {
+                        replacement = candidate;
+                        break;
+                    }
+                }
+                if (replacement == null && candidates.length == 1)
+                    replacement = candidates[0];
+                if (replacement == null) {
+                    for (candidate in candidates) {
+                        if (isSavedSlot(record, candidate)) {
+                            replacement = candidate;
+                            break;
+                        }
+                    }
+                }
+            } else if (candidates.length == 1) {
+                // The original fingerprint omitted rarity and upgrade state.
+                // Never guess between duplicates merely because one occupies
+                // the saved slot; that is how unrelated items gained locks.
+                replacement = candidates[0];
+            }
+
+            if (replacement != null) {
+                record.uid = replacement.uid;
+                record.fingerprint = replacement.fingerprint;
+                record.known = matchingUids(current, replacement.fingerprint);
+                record.missing = 0;
+                record.restored = true;
+                updateRecordLocation(record, replacement);
+                changed = true;
+            } else {
+                // Retry only when a new hero/loadout is materialized. Repeating
+                // a known-ambiguous legacy scan every frame wastes time and
+                // cannot produce a safer answer.
+                record.legacyAmbiguous = true;
+            }
+        }
+
         var claimed:Map<String, Bool> = new Map();
         for (record in lockRecords) {
             var uid = recordString(record, "uid");
@@ -2076,6 +2147,15 @@ class ItemUtilitiesMod {
             if (exact != null && recordAppliesToTrackedItem(record, exact)
                 && (Reflect.field(record, "restored") == true
                     || isSavedSlot(record, exact))) {
+                var liveFingerprint = itemFingerprint(exact.item);
+                if (liveFingerprint != null) {
+                    exact.fingerprint = liveFingerprint;
+                    fingerprintCache.set(uid, liveFingerprint);
+                    if (recordString(record, "fingerprint") != liveFingerprint) {
+                        record.fingerprint = liveFingerprint;
+                        changed = true;
+                    }
+                }
                 record.missing = 0;
                 record.restored = true;
                 // A split creates another item with the same fingerprint but
@@ -2204,6 +2284,44 @@ class ItemUtilitiesMod {
         return false;
     }
 
+    static function legacyFingerprintMatches(saved:String, tracked:Dynamic):Bool {
+        if (saved == null || tracked == null || tracked.fingerprint == null)
+            return false;
+        try {
+            var encoded = Std.string(tracked.fingerprint);
+            if (!StringTools.startsWith(encoded, ITEM_FINGERPRINT_VERSION))
+                return false;
+            var currentParts:Array<Dynamic> = cast Json.parse(encoded.substr(3));
+            if (currentParts == null || currentParts.length < 7)
+                return false;
+            if (StringTools.startsWith(saved, "v2|")) {
+                var savedParts:Array<Dynamic> = cast Json.parse(saved.substr(3));
+                if (savedParts == null || savedParts.length < 7)
+                    return false;
+                for (index in 0...7)
+                    if (Std.string(savedParts[index]) != Std.string(currentParts[index]))
+                        return false;
+                return true;
+            }
+
+            var separators = saved.split("|");
+            if (separators.length == 0
+                || separators[0] != Std.string(currentParts[0]))
+                return false;
+            if (separators.length >= 3) {
+                var affixes:Array<Dynamic> = cast Json.parse(currentParts[2]);
+                var currentAffixes:Array<String> = [];
+                if (affixes != null)
+                    for (affix in affixes) currentAffixes.push(Std.string(affix));
+                if (separators[2] != currentAffixes.join(","))
+                    return false;
+            }
+            return true;
+        } catch (_:Dynamic) {
+            return false;
+        }
+    }
+
     static function collectTrackedItems(result:Map<String, Dynamic>):Void {
         var inventories:Array<Dynamic> = [];
         var hero = resolveHero();
@@ -2222,9 +2340,15 @@ class ItemUtilitiesMod {
             for (index in 0...arrayLength(content)) {
                 var item = itemAt(inventory, index);
                 var uid = itemUid(item);
-                var fingerprint = itemFingerprint(item);
+                var fingerprint = uid == null ? null : fingerprintCache.get(uid);
+                if (uid != null && fingerprint == null) {
+                    fingerprint = itemFingerprint(item);
+                    if (fingerprint != null)
+                        fingerprintCache.set(uid, fingerprint);
+                }
                 if (uid != null && fingerprint != null)
-                    result.set(uid, { uid: uid, fingerprint: fingerprint, inventory: inventory,
+                    result.set(uid, { uid: uid, fingerprint: fingerprint,
+                        item: item, inventory: inventory,
                         location: entry.location, index: index,
                         characterId: entry.characterId });
             }
@@ -2271,6 +2395,43 @@ class ItemUtilitiesMod {
         } catch (error:Dynamic) {
             logLockError("game app", error);
             return null;
+        }
+    }
+
+    static function refreshActiveHero():Void {
+        try {
+            var app = currentGameApp();
+            if (app == null)
+                return;
+            if (gameAppType != null && getCameraHeroMember == null)
+                getCameraHeroMember = HlxRuntime.resolveMember(
+                    gameAppType,
+                    "getCameraHero"
+                );
+            var hero = getCameraHeroMember == null
+                ? null
+                : HlxRuntime.callResolved(getCameraHeroMember, [app]);
+            if (hero == null || hero == activeHero)
+                return;
+
+            activeHero = hero;
+            var loadout = fieldOrNull(hero, "loadout");
+            var inventory = fieldOrNull(loadout, "inventory");
+            if (inventory != null)
+                sourceInventory = inventory;
+            fingerprintCache = new Map();
+            nextLockReconcileAt = 0;
+            lockScanInitialized = false;
+
+            var characterId = heroPersistentId(hero);
+            for (record in lockRecords)
+                if (recordString(record, "characterId") == characterId)
+                    {
+                        record.restored = false;
+                        record.legacyAmbiguous = false;
+                    }
+        } catch (error:Dynamic) {
+            logLockError("active hero refresh", error);
         }
     }
 
@@ -2334,17 +2495,36 @@ class ItemUtilitiesMod {
         if (item == null)
             return null;
         try {
-            var kind = Std.string(HlxRuntime.resolveField(item, "kind"));
-            var flags = Std.string(HlxRuntime.resolveField(item, "flags"));
-            var affixes = HlxRuntime.resolveField(item, "afxUIDs");
-            var parts:Array<String> = [];
-            for (index in 0...arrayLength(affixes))
-                parts.push(Std.string(arrayGet(affixes, index)));
-            return kind + "|" + flags + "|" + parts.join(",");
+            return ITEM_FINGERPRINT_VERSION + Json.stringify(itemFingerprintParts(item));
         } catch (error:Dynamic) {
             logLockError("fingerprint", error);
             return null;
         }
+    }
+
+    static function itemFingerprintParts(item:Dynamic):Array<String> {
+        var flags = fieldOrNull(item, "flags");
+        var definition = fieldOrNull(item, "inf");
+        return [
+            fingerprintValue(fieldOrNull(item, "kind")),
+            fingerprintValue(fieldOrNull(flags, "value")),
+            fingerprintArray(fieldOrNull(item, "afxUIDs")),
+            fingerprintValue(fieldOrNull(item, "level")),
+            fingerprintValue(fieldOrNull(item, "upgradeLevel")),
+            fingerprintValue(fieldOrNull(item, "rarity")),
+            fingerprintValue(fieldOrNull(definition, "rarity"))
+        ];
+    }
+
+    static function fingerprintValue(value:Dynamic):String {
+        return value == null ? "<null>" : Std.string(value);
+    }
+
+    static function fingerprintArray(value:Dynamic):String {
+        var parts:Array<String> = [];
+        for (index in 0...arrayLength(value))
+            parts.push(fingerprintValue(arrayGet(value, index)));
+        return Json.stringify(parts);
     }
 
     static function playButtonClickSound(referenceButton:Dynamic):Void {
