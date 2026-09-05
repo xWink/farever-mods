@@ -966,9 +966,9 @@ class ItemUtilitiesMod {
     static function drawLockSlotOverlays():Void {
         for (entry in visibleSlots) {
             var slot:Dynamic = entry.slot;
-            if (!isActiveInventoryGridSlot(entry, slot))
+            if (!isActiveLockSlot(entry, slot))
                 continue;
-            var item = displayedSlotItem(entry, slot);
+            var item = authoritativeSlotItem(entry, slot);
             if (item == null)
                 continue;
 
@@ -1006,9 +1006,9 @@ class ItemUtilitiesMod {
             return;
         for (entry in visibleSlots) {
             var slot:Dynamic = entry.slot;
-            if (!isActiveInventoryGridSlot(entry, slot))
+            if (!isActiveLockSlot(entry, slot))
                 continue;
-            var item = displayedSlotItem(entry, slot);
+            var item = authoritativeSlotItem(entry, slot);
             if (!isItemLocked(item))
                 continue;
 
@@ -1018,7 +1018,8 @@ class ItemUtilitiesMod {
                 x = cast HlxRuntime.resolveField(slot, "absX");
                 y = cast HlxRuntime.resolveField(slot, "absY");
             } catch (_:Dynamic) continue;
-            if (!slotIntersectsInventoryViewport(entry, x, y))
+            if (isActiveInventoryGridSlot(entry, slot)
+                && !slotIntersectsInventoryViewport(entry, x, y))
                 continue;
 
             var badgeX = x + 40;
@@ -1882,6 +1883,27 @@ class ItemUtilitiesMod {
             return false;
         var viewport = fieldOrNull(playerInventoryComp, "invContent");
         return viewport != null && isUiVisible(viewport) && isAncestorOf(viewport, slot);
+    }
+
+    static function isActiveLockSlot(entry:Dynamic, slot:Dynamic):Bool {
+        return isActiveInventoryGridSlot(entry, slot)
+            || isActiveEquipmentSlot(entry, slot);
+    }
+
+    static function isActiveEquipmentSlot(entry:Dynamic, slot:Dynamic):Bool {
+        if (slot == null || activeCharacterUI == null
+            || !isUiVisible(activeCharacterUI) || !isUiVisible(slot)
+            || !isAncestorOf(activeCharacterUI, slot))
+            return false;
+        var hero = resolveHero();
+        var loadout = fieldOrNull(hero, "loadout");
+        var equipment = fieldOrNull(loadout, "equipment");
+        return equipment != null && entry.inventory == equipment;
+    }
+
+    static function authoritativeSlotItem(entry:Dynamic, slot:Dynamic):Dynamic {
+        var item = itemAt(entry.inventory, entry.index);
+        return item != null ? item : displayedSlotItem(entry, slot);
     }
 
     static function displayedSlotItem(entry:Dynamic, slot:Dynamic):Dynamic {

@@ -38,8 +38,9 @@ Locks follow items as they move between inventory and equipment. They are persis
 
 Locking visuals can be hidden without disabling or deleting saved locks. The settings menu also includes a separately confirmed **Delete all saved locks** action.
 
-An optional **Sorting ignores locked items** setting keeps every locked item in
-its exact inventory slot while sorting the unlocked items around it.
+An optional **Sorting ignores locked items (but is slower)** setting keeps
+every locked item in its exact inventory slot while sorting the unlocked items
+around it.
 
 ### Weapon presets
 
