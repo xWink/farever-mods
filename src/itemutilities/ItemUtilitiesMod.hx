@@ -133,7 +133,7 @@ class ItemUtilitiesMod {
     static inline var TOOLTIP_BUTTON_DELAY = 0.2;
     static inline var TOOLTIP_OVERLAP_INSET = 4.0;
     static inline var PRESET_CONTROLS_WIDTH = 254.0;
-    static inline var ITEM_FINGERPRINT_VERSION = "v3|";
+    static inline var ITEM_FINGERPRINT_VERSION = "v4|";
     static inline var LOCK_RECONCILE_INTERVAL = 0.2;
     static inline var DEPOSIT_CRAFTING = 0;
     static inline var DEPOSIT_ALL = 1;
@@ -898,7 +898,7 @@ class ItemUtilitiesMod {
                 continue;
             if (itemUid(item) == wantedUid)
                 return index;
-            if (fingerprintMatch < 0 && itemFingerprint(item) == wantedFingerprint)
+            if (fingerprintMatch < 0 && itemMatchesFingerprint(item, wantedFingerprint))
                 fingerprintMatch = index;
         }
         return fingerprintMatch;
@@ -909,7 +909,7 @@ class ItemUtilitiesMod {
             return false;
         var wantedUid = recordString(saved, "uid");
         return itemUid(item) == wantedUid
-            || itemFingerprint(item) == recordString(saved, "fingerprint");
+            || itemMatchesFingerprint(item, recordString(saved, "fingerprint"));
     }
 
     static function cancelPresetTransfer():Void {
@@ -2116,7 +2116,8 @@ class ItemUtilitiesMod {
             }
 
             var replacement:Dynamic = null;
-            if (StringTools.startsWith(savedFingerprint, "v2|")) {
+            if (StringTools.startsWith(savedFingerprint, "v2|")
+                || StringTools.startsWith(savedFingerprint, "v3|")) {
                 var savedUid = recordString(record, "uid");
                 for (candidate in candidates) {
                     if (candidate.uid == savedUid) {
@@ -2304,20 +2305,47 @@ class ItemUtilitiesMod {
     static function legacyFingerprintMatches(saved:String, tracked:Dynamic):Bool {
         if (saved == null || tracked == null || tracked.fingerprint == null)
             return false;
+        return legacyFingerprintMatchesEncoded(saved, Std.string(tracked.fingerprint));
+    }
+
+    static function itemMatchesFingerprint(item:Dynamic, saved:String):Bool {
+        if (item == null || saved == null)
+            return false;
+        var current = itemFingerprint(item);
+        return current != null
+            && (current == saved || legacyFingerprintMatchesEncoded(saved, current));
+    }
+
+    static function legacyFingerprintMatchesEncoded(saved:String, encoded:String):Bool {
+        if (saved == null || encoded == null)
+            return false;
         try {
-            var encoded = Std.string(tracked.fingerprint);
             if (!StringTools.startsWith(encoded, ITEM_FINGERPRINT_VERSION))
                 return false;
-            var currentParts:Array<Dynamic> = cast Json.parse(encoded.substr(3));
+            var currentParts:Array<Dynamic> = cast Json.parse(
+                encoded.substr(ITEM_FINGERPRINT_VERSION.length)
+            );
             if (currentParts == null || currentParts.length < 7)
                 return false;
-            if (StringTools.startsWith(saved, "v2|")) {
+
+            if (StringTools.startsWith(saved, "v2|")
+                || StringTools.startsWith(saved, "v3|")) {
                 var savedParts:Array<Dynamic> = cast Json.parse(saved.substr(3));
                 if (savedParts == null || savedParts.length < 7)
                     return false;
-                for (index in 0...7)
+
+                // v3 used affix-application UIDs in field 3; v4 replaces that
+                // field with the persistent gear slots. Compare the six fields
+                // whose meanings did not change.
+                for (index in [0, 1, 3, 4, 5, 6])
                     if (Std.string(savedParts[index]) != Std.string(currentParts[index]))
                         return false;
+
+                // The older v2 layout also recorded gear slots in field 8.
+                // Preserve that extra identity information when it is present.
+                if (StringTools.startsWith(saved, "v2|") && savedParts.length >= 8
+                    && Std.string(savedParts[7]) != Std.string(currentParts[2]))
+                    return false;
                 return true;
             }
 
@@ -2325,14 +2353,6 @@ class ItemUtilitiesMod {
             if (separators.length == 0
                 || separators[0] != Std.string(currentParts[0]))
                 return false;
-            if (separators.length >= 3) {
-                var affixes:Array<Dynamic> = cast Json.parse(currentParts[2]);
-                var currentAffixes:Array<String> = [];
-                if (affixes != null)
-                    for (affix in affixes) currentAffixes.push(Std.string(affix));
-                if (separators[2] != currentAffixes.join(","))
-                    return false;
-            }
             return true;
         } catch (_:Dynamic) {
             return false;
@@ -2525,7 +2545,7 @@ class ItemUtilitiesMod {
         return [
             fingerprintValue(fieldOrNull(item, "kind")),
             fingerprintValue(fieldOrNull(flags, "value")),
-            fingerprintArray(fieldOrNull(item, "afxUIDs")),
+            fingerprintArray(fieldOrNull(item, "slots")),
             fingerprintValue(fieldOrNull(item, "level")),
             fingerprintValue(fieldOrNull(item, "upgradeLevel")),
             fingerprintValue(fieldOrNull(item, "rarity")),
@@ -2538,6 +2558,11 @@ class ItemUtilitiesMod {
     }
 
     static function fingerprintArray(value:Dynamic):String {
+        // Replicated gear slots are exposed through hxbit.ArrayProxyData.
+        // Unwrap its backing array before using the common HashLink reader.
+        var inner = fieldOrNull(value, "array");
+        if (inner != null)
+            value = inner;
         var parts:Array<String> = [];
         for (index in 0...arrayLength(value))
             parts.push(fingerprintValue(arrayGet(value, index)));
@@ -2618,7 +2643,9 @@ class ItemUtilitiesMod {
             return null;
         try {
             if (arrayObjType == null)
-                arrayObjType = HlxRuntime.resolveType("hl.types.ArrayObj");
+                // ArrayObj (inventory contents) and ArrayDyn (the backing
+                // storage for hxbit gear slots) both implement ArrayAccess.
+                arrayObjType = HlxRuntime.resolveType("hl.types.ArrayAccess");
             if (arrayObjType == null)
                 return null;
             if (arrayGetDynMember == null)
