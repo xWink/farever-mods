@@ -64,6 +64,7 @@ class ItemUtilitiesMod {
     static var scrapWindowType:hl.Bytes;
     static var scrapStationType:hl.Bytes;
     static var arrayObjType:hl.Bytes;
+    static var arrayDynType:hl.Bytes;
     static var cursorType:hl.Bytes;
     static var systemType:hl.Bytes;
     static var propertiesType:hl.Bytes;
@@ -80,6 +81,8 @@ class ItemUtilitiesMod {
     static var getScrapInventoryMember:hlx.runtime.ResolvedMember;
     static var isScrappableMember:hlx.runtime.ResolvedMember;
     static var arrayGetDynMember:hlx.runtime.ResolvedMember;
+    static var arrayDynGetDynMember:hlx.runtime.ResolvedMember;
+    static var arrayDynGetLengthMember:hlx.runtime.ResolvedMember;
     static var setSystemCursorFn:Dynamic;
     static var buttonCursor:Dynamic;
     static var cursorResolutionAttempted:Bool = false;
@@ -2559,11 +2562,14 @@ class ItemUtilitiesMod {
 
     static function fingerprintArray(value:Dynamic):String {
         // Replicated gear slots are exposed through hxbit.ArrayProxyData.
-        // Unwrap its backing array before using the common HashLink reader.
+        // Its backing store is ArrayDyn, which needs its own resolved methods.
         var inner = fieldOrNull(value, "array");
-        if (inner != null)
-            value = inner;
         var parts:Array<String> = [];
+        if (inner != null) {
+            for (index in 0...arrayDynLength(inner))
+                parts.push(fingerprintValue(arrayDynGet(inner, index)));
+            return Json.stringify(parts);
+        }
         for (index in 0...arrayLength(value))
             parts.push(fingerprintValue(arrayGet(value, index)));
         return Json.stringify(parts);
@@ -2643,9 +2649,7 @@ class ItemUtilitiesMod {
             return null;
         try {
             if (arrayObjType == null)
-                // ArrayObj (inventory contents) and ArrayDyn (the backing
-                // storage for hxbit gear slots) both implement ArrayAccess.
-                arrayObjType = HlxRuntime.resolveType("hl.types.ArrayAccess");
+                arrayObjType = HlxRuntime.resolveType("hl.types.ArrayObj");
             if (arrayObjType == null)
                 return null;
             if (arrayGetDynMember == null)
@@ -2655,6 +2659,45 @@ class ItemUtilitiesMod {
             return HlxRuntime.callResolved(arrayGetDynMember, [array, index]);
         } catch (error:Dynamic) {
             trace("[ItemUtilities] typed array read failed at " + index + ": " + Std.string(error));
+            return null;
+        }
+    }
+
+    static function arrayDynLength(array:Dynamic):Int {
+        if (array == null)
+            return 0;
+        try {
+            if (arrayDynType == null)
+                arrayDynType = HlxRuntime.resolveType("hl.types.ArrayDyn");
+            if (arrayDynType == null)
+                return 0;
+            if (arrayDynGetLengthMember == null)
+                arrayDynGetLengthMember = HlxRuntime.resolveMember(arrayDynType, "get_length");
+            if (arrayDynGetLengthMember == null)
+                return 0;
+            var result = HlxRuntime.callResolved(arrayDynGetLengthMember, [array]);
+            return result == null ? 0 : cast result;
+        } catch (error:Dynamic) {
+            logLockError("gear slot count", error);
+            return 0;
+        }
+    }
+
+    static function arrayDynGet(array:Dynamic, index:Int):Dynamic {
+        if (array == null)
+            return null;
+        try {
+            if (arrayDynType == null)
+                arrayDynType = HlxRuntime.resolveType("hl.types.ArrayDyn");
+            if (arrayDynType == null)
+                return null;
+            if (arrayDynGetDynMember == null)
+                arrayDynGetDynMember = HlxRuntime.resolveMember(arrayDynType, "getDyn");
+            if (arrayDynGetDynMember == null)
+                return null;
+            return HlxRuntime.callResolved(arrayDynGetDynMember, [array, index]);
+        } catch (error:Dynamic) {
+            logLockError("gear slot read", error);
             return null;
         }
     }
