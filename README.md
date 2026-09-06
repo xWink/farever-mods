@@ -6,12 +6,16 @@ Character-name validation is intentionally unchanged.
 
 ## Installation
 
+### Easy Installation
+
+1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/7)
+
+### Manual Installation
+
 1. Install [HLX Core](https://github.com/hlx-framework/hlx-core).
 2. Install the Farever ImGui plugin required by HLX mods with settings menus.
 3. Download the latest build artifact. Install the ZIP with Vortex, or extract it directly into the Farever game directory; the archive already contains `hlx/mods/disable-profanity-filter/`.
-4. Start Farever and press `F9` to open the settings menu.
-
-The settings hotkey can be changed from inside the menu.
+4. Start Farever.
 
 ## Building (developers)
 
