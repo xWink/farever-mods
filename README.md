@@ -2,6 +2,8 @@
 
 A collection of inventory, bank, equipment, and item-safety quality-of-life tools for Farever.
 
+Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/9)!
+
 ## Features
 
 ### Bank deposit shortcuts
