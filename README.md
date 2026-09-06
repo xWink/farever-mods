@@ -4,7 +4,11 @@ Adds a **Mod Settings** button to Farever's Game Menu and presents compatible mo
 
 ![Better Mod Settings displaying checkboxes, a slider, hotkeys, tab pagination, and vertical scrolling](docs/images/better-mod-settings.png)
 
-## How to make a mod compatible with Better Mod Settings
+## Installation
+
+Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/10).
+
+## For developers: How to make a mod compatible with Better Mod Settings
 
 A compatible mod needs:
 
