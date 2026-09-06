@@ -2,7 +2,18 @@
 
 A collection of inventory, bank, equipment, and item-safety quality-of-life tools for Farever.
 
-Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/9)!
+## Installation
+
+### Easy Installation
+1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/9)!
+
+### Manual Installation
+1. Install HLX Core.
+2. Install the Farever ImGui plugin.
+3. Download the latest release or successful build artifact.
+4. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
+   `hlx/mods/item-utilities/`
+5. Launch Farever and press **F9** to configure the mod.
 
 ## Features
 
@@ -75,15 +86,6 @@ Available settings include:
 
 - [HLX Core](https://github.com/hlx-framework/hlx-core)
 - The Farever ImGui plugin used by HLX mods with overlay interfaces
-
-## Installation
-
-1. Install HLX Core.
-2. Install the Farever ImGui plugin.
-3. Download the latest release or successful build artifact.
-4. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
-   `hlx/mods/item-utilities/`
-5. Launch Farever and press **F9** to configure the mod.
 
 ## Building for development
 
