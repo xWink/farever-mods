@@ -4,7 +4,11 @@ A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Fa
 
 It only changes Farever's internal FMOD master VCA (`vca:/MASTER`). It does **not** change the Windows volume mixer or mute other applications.
 
-## Installation
+## Easy Installation
+
+### 1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/6)
+
+## Manual Installation
 
 ### 1. Install HLX Core
 
@@ -60,38 +64,6 @@ Farever\
 ```
 
 Fully close and relaunch Farever after installing or replacing the mod.
-
-## Using the settings menu
-
-The settings menu opens automatically the **first time** the mod is run so the player can see the available options. After it has been shown once, it stays closed on future game launches unless you reopen it manually.
-
-The default menu hotkey is:
-
-```text
-F9
-```
-
-Press **F9** at any time while Farever is focused to reopen the **Mute on Unfocus** window. The window can be closed with its **X** button.
-
-The menu contains:
-
-- **Enable** — turns the unfocused-audio behavior on or off.
-- **Background volume %** — sets Farever's volume while the game is unfocused. The default is **0%**, which fully mutes the game.
-- **Change hotkey** — click this, then press the key combination you want to use to reopen the menu.
-
-Hotkeys can use a normal keyboard key by itself or combinations with **Ctrl**, **Shift**, **Alt**, and **Win/Super**. For example:
-
-```text
-Ctrl + Shift + F9
-```
-
-While changing the hotkey, hold the modifier keys first and then press the main key. Press **Esc** to cancel without changing it.
-
-Settings are saved automatically to:
-
-```text
-Farever\hlx\mods\mute-unfocused\config.json
-```
 
 ## How it works
 
