@@ -40,7 +40,11 @@ The plugin may also include its supporting `imgui\fonts` folder under `hlx\plugi
 
 Do not place `imgui64.hdll` loose beside `Farever.exe`.
 
-### 3. Install this mod
+### 3. Install Better Mod Settings
+
+Follow the installation instructions to download [Better Mod Settings](https://github.com/xWink/farever-better-mod-settings).
+
+### 4. Install this mod
 
 Download the latest build artifact ZIP. Install it with Vortex, or extract the ZIP directly into the Farever game directory. The archive already contains the complete game-relative path:
 
