@@ -6,10 +6,15 @@ Look at an enemy and press Farever's existing Lock Target binding to lock it. Pr
 
 The mod uses Farever's existing `lockedTarget`, `SkillTarget`, and `hard-lock` HUD systems rather than implementing a separate combat targeting system.
 
-For every attack that Farever immediately submits as `Target(autoTarget)`, including normal staff attacks, the mod replaces the last-second `autoTarget` choice with a native `SkillTarget.Target` containing the locked enemy. This prevents another enemy under the crosshair from stealing the attack. Skills that enter Farever's manual point/ground-targeting mode continue through the original targeting path.
+For every attack that Farever immediately submits as `Target(autoTarget)`, including normal staff attacks, the mod replaces the last-second `autoTarget` choice with a native `SkillTarget.Target` containing the locked enemy. This prevents another enemy under the crosshair from stealing the attack. Skills that enter Farever's manual point/ground-targeting mode continue through the original targeting path
 
 ## Installation
 
+### Easy Installation
+
+1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/9)
+
+### Manual Installation
 1. Install [HLX Core](https://www.nexusmods.com/site/mods/2118?tab=files) in the Farever game directory.
 2. Install the [Farever ImGui plugin](https://www.nexusmods.com/farever/mods/4) so `imgui64.hdll` is located at `Farever\hlx\plugins\imgui64.hdll`.
 3. Download the latest build artifact ZIP. Install it with Vortex, or extract it directly into the Farever game directory; the archive already contains `hlx\mods\fix-target-lock\fix-target-lock.hl`.
