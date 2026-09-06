@@ -11,9 +11,10 @@ A collection of inventory, bank, equipment, and item-safety quality-of-life tool
 1. Install HLX Core.
 2. Install the Farever ImGui plugin.
 3. Download the latest release or successful build artifact.
-4. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
+4. Install [Better Mod Settings](https://github.com/xWink/farever-better-mod-settings)
+5. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
    `hlx/mods/item-utilities/`
-5. Launch Farever.
+6. Launch Farever.
 
 ## Features
 
