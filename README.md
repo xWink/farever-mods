@@ -13,7 +13,7 @@ A collection of inventory, bank, equipment, and item-safety quality-of-life tool
 3. Download the latest release or successful build artifact.
 4. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
    `hlx/mods/item-utilities/`
-5. Launch Farever and press **F9** to configure the mod.
+5. Launch Farever.
 
 ## Features
 
@@ -69,8 +69,6 @@ Adds three weapon preset buttons and a **Set** button beside **Appearance** on t
 Each preset can also be assigned its own configurable keyboard shortcut, including Ctrl, Shift, Alt, or Windows-key combinations. Preset hotkeys work without opening the Character Profile page.
 
 ### Settings
-
-Press **F9 (default)** to open the settings menu. The settings hotkey is configurable.
 
 Available settings include:
 
