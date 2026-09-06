@@ -12,7 +12,7 @@ For every attack that Farever immediately submits as `Target(autoTarget)`, inclu
 
 ### Easy Installation
 
-1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/9)
+1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/8)
 
 ### Manual Installation
 1. Install [HLX Core](https://www.nexusmods.com/site/mods/2118?tab=files) in the Farever game directory.
@@ -30,7 +30,6 @@ The settings window opens automatically the first time the mod runs.
 - **Disable automatic camera movement** prevents Farever from pulling the camera's yaw and pitch toward the locked enemy, leaving camera rotation under manual control while preserving the normal locked-camera sensitivity. It is disabled by default.
 - Use Farever's normal **Lock Target** key or controller binding to toggle a target lock.
 - Farever's native animated hard-lock indicator appears above the locked enemy.
-- Press `F9` to reopen the settings window. The settings hotkey can be changed from the window.
 
 Settings are saved to `Farever\hlx\mods\fix-target-lock\config.json`.
 
