@@ -2,8 +2,6 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true)
 
-This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/mute-on-unfocus).
-
 A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Farever** that lowers or mutes the game's own audio when the Farever window loses focus and restores the previous volume when you return to the game.
 
 It only changes Farever's internal FMOD master VCA (`vca:/MASTER`). It does **not** change the Windows volume mixer or mute other applications.

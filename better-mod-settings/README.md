@@ -2,8 +2,6 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings&expanded=true)
 
-This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/better-mod-settings).
-
 Adds a **Mod Settings** button to Farever's Game Menu and presents compatible mods' settings in a native game window.
 
 ![Better Mod Settings displaying checkboxes, a slider, hotkeys, tab pagination, and vertical scrolling](docs/images/better-mod-settings.png)

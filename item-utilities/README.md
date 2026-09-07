@@ -2,8 +2,6 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=item-utilities&expanded=true)
 
-This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/item-utilities).
-
 A collection of inventory, bank, equipment, and item-safety quality-of-life tools for Farever.
 
 ## Installation

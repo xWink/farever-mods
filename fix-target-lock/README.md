@@ -2,8 +2,6 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true)
 
-This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/fix-target-lock).
-
 An unofficial HLX mod that restores Farever's non-functional **Lock Target** action.
 
 Look at an enemy and press Farever's existing Lock Target binding to lock it. Press the same binding again to unlock. While locked, Farever routes single-target attacks to that enemy even if another enemy moves under the crosshair. Area-of-effect and point-targeted skills keep their normal targeting.
