@@ -1,0 +1,132 @@
+name: Import repository histories
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.migration/**'
+      - '.github/workflows/import-history.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: import-repository-histories
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify the prepared history bundle
+        shell: bash
+        run: |
+          printf '%s\n' '776b40de91d19a0ffcf912954214f65fa4e8158e8070a1df0df049271059a987  .migration/farever-mods.bundle' | sha256sum --check
+          git bundle verify .migration/farever-mods.bundle
+          cp .migration/farever-mods.bundle "$RUNNER_TEMP/farever-mods.bundle"
+
+      - name: Import complete histories and remove migration files
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags "$RUNNER_TEMP/farever-mods.bundle" \
+            'refs/heads/main:refs/remotes/migration/main' \
+            'refs/tags/archive/*:refs/tags/archive/*'
+          test "$(git rev-parse refs/remotes/migration/main)" = '34c961a851b23c4c20acea9859b23a68691ced32'
+          git checkout -B main refs/remotes/migration/main
+          # Keep the prepared project tree and retain the bootstrap commit as a
+          # parent, making the push a fast-forward without rewriting any history.
+          git merge --allow-unrelated-histories --no-commit --no-ff -s ours "$GITHUB_SHA"
+          git commit -m 'Complete migration of five mods with their original histories'
+          git push origin HEAD:refs/heads/main
+          git push origin 'refs/tags/archive/*:refs/tags/archive/*'
+
+      - name: Tag and start each mod's first release build
+        shell: bash
+        run: |
+          git tag -a 'better-mod-settings/v1.0.1' -m 'Better Mod Settings v1.0.1
+
+          First release from xWink/farever-mods. Includes the latest main source imported from xWink/farever-better-mod-settings. The repository migration preserves the mod source, installed folder, and settings filenames.
+          Install farever-better-mod-settings.zip with Vortex, or extract it into the Farever game directory.'
+          git push origin 'refs/tags/better-mod-settings/v1.0.1'
+          # GITHUB_TOKEN pushes do not trigger push workflows; dispatch explicitly.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run 'build-better-mod-settings.yml' --ref 'better-mod-settings/v1.0.1'; then
+              dispatched=true
+              break
+            fi
+            sleep 5
+          done
+          test "$dispatched" = true
+          git tag -a 'item-utilities/v1.2.2' -m 'Item Utilities v1.2.2
+
+          First release from xWink/farever-mods. Includes the latest main source imported from xWink/farever-item-utilities. The repository migration preserves the mod source, installed folder, and settings filenames.
+          Install farever-item-utilities.zip with Vortex, or extract it into the Farever game directory.'
+          git push origin 'refs/tags/item-utilities/v1.2.2'
+          # GITHUB_TOKEN pushes do not trigger push workflows; dispatch explicitly.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run 'build-item-utilities.yml' --ref 'item-utilities/v1.2.2'; then
+              dispatched=true
+              break
+            fi
+            sleep 5
+          done
+          test "$dispatched" = true
+          git tag -a 'disable-profanity-filter/v1.1.1' -m 'Disable Profanity Filter v1.1.1
+
+          First release from xWink/farever-mods. Includes the latest main source imported from xWink/farever-disable-profanity-filter. The repository migration preserves the mod source, installed folder, and settings filenames.
+          Install farever-disable-profanity-filter.zip with Vortex, or extract it into the Farever game directory.'
+          git push origin 'refs/tags/disable-profanity-filter/v1.1.1'
+          # GITHUB_TOKEN pushes do not trigger push workflows; dispatch explicitly.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run 'build-disable-profanity-filter.yml' --ref 'disable-profanity-filter/v1.1.1'; then
+              dispatched=true
+              break
+            fi
+            sleep 5
+          done
+          test "$dispatched" = true
+          git tag -a 'mute-on-unfocus/v1.2.1' -m 'Mute on Unfocus v1.2.1
+
+          First release from xWink/farever-mods. Includes the latest main source imported from xWink/farever-mute-on-unfocus. The repository migration preserves the mod source, installed folder, and settings filenames.
+          Install farever-mute-on-unfocus.zip with Vortex, or extract it into the Farever game directory.'
+          git push origin 'refs/tags/mute-on-unfocus/v1.2.1'
+          # GITHUB_TOKEN pushes do not trigger push workflows; dispatch explicitly.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run 'build-mute-on-unfocus.yml' --ref 'mute-on-unfocus/v1.2.1'; then
+              dispatched=true
+              break
+            fi
+            sleep 5
+          done
+          test "$dispatched" = true
+          git tag -a 'fix-target-lock/v1.2.1' -m 'Fix Target Lock v1.2.1
+
+          First release from xWink/farever-mods. Includes the latest main source imported from xWink/farever-fix-target-lock. The repository migration preserves the mod source, installed folder, and settings filenames.
+          Install farever-fix-target-lock.zip with Vortex, or extract it into the Farever game directory.'
+          git push origin 'refs/tags/fix-target-lock/v1.2.1'
+          # GITHUB_TOKEN pushes do not trigger push workflows; dispatch explicitly.
+          dispatched=false
+          for attempt in 1 2 3 4 5; do
+            if gh workflow run 'build-fix-target-lock.yml' --ref 'fix-target-lock/v1.2.1'; then
+              dispatched=true
+              break
+            fi
+            sleep 5
+          done
+          test "$dispatched" = true
