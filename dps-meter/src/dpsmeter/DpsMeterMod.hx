@@ -47,7 +47,7 @@ class DpsMeterMod {
             writer.update(now);
         } catch (e:Dynamic) logError(e);
         // A UI failure must never stop the collector or discard a finished report.
-        try view.update(collector.model, writer, G.field(instance, "hero") != null, now) catch (e:Dynamic) logError(e);
+        try view.update(collector.model, G.field(instance, "hero") != null, now) catch (e:Dynamic) logError(e);
     }
     static function logError(error:Dynamic):Void {
         var now = haxe.Timer.stamp();

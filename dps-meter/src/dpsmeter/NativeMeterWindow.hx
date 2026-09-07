@@ -19,9 +19,7 @@ class NativeMeterWindow {
     var rowsRoot:Dynamic;
     var title:Dynamic;
     var subtitle:Dynamic;
-    var footer:Dynamic;
     var modeButton:Dynamic;
-    var uploadButton:Dynamic;
     var lockButton:Dynamic;
     var dragSurface:Dynamic;
     var resizeSurface:Dynamic;
@@ -45,7 +43,7 @@ class NativeMeterWindow {
     var createRetry:Float = 0;
     public function new(config:MeterConfig) this.config = config;
 
-    public function update(model:CombatModel, writer:RunWriter, active:Bool, now:Float):Void {
+    public function update(model:CombatModel, active:Bool, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");
         if (owner != null && owner != ui) dispose();
         if (window != null && G.field(window, "removed") == true) dispose();
@@ -65,11 +63,12 @@ class NativeMeterWindow {
         show(window, true);
         if (width != config.width || height != config.height || headerHeight != measuredHeaderHeight()) layout();
         updateDrag();
+        centerTitle();
         clampToScreen();
         position(window, config.x, config.y);
         if (now - lastRefresh >= 0.20) {
             lastRefresh = now;
-            refresh(model, writer, now);
+            refresh(model, now);
         }
     }
 
@@ -102,6 +101,9 @@ class NativeMeterWindow {
         title = G.field(header, "headerTitle");
         setText(title, "DPS Meter");
         absolute(header, title);
+        var left = G.enumeration("h2d.Align", "Left");
+        G.call("h2d.Text", "set_textAlign", title, [left]);
+        style(title, "text-align", left);
         var close = G.field(header, "closeBtn");
         if (close != null) absolute(header, close);
         if (close != null) G.call("ui.UIElement", "set_onClick", close, [() -> {
@@ -113,11 +115,10 @@ class NativeMeterWindow {
         flow(toolbar, "set_verticalSpacing", 5);
         flow(toolbar, "set_multiline", true);
         modeButton = button(toolbar, "Current", () -> { mode = (mode + 1) % 4; selectedPlayer = ""; lastRefresh = -1; });
-        uploadButton = button(toolbar, "Upload: On", () -> { config.sendLogs = !config.sendLogs; config.save(); lastRefresh = -1; });
         lockButton = button(toolbar, "Locked", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
         var reset = button(toolbar, "Reset", () -> { modelResetRequested = true; selectedPlayer = ""; });
-        for (control in [modeButton, uploadButton, lockButton, reset]) padding(control, 6);
-        size(modeButton, 88, 34); size(uploadButton, 112, 34); size(lockButton, 100, 34); size(reset, 60, 34);
+        for (control in [modeButton, lockButton, reset]) padding(control, 6);
+        size(modeButton, 88, 34); size(lockButton, 100, 34); size(reset, 60, 34);
         absolute(header, G.field(toolbar, "obj"));
 
         body = node("options-content", dom, [0], "dpsMeterBody");
@@ -131,12 +132,13 @@ class NativeMeterWindow {
         for (child in children(container)) show(child, false);
         var parent = G.field(container, "dom");
         content = node("flow", parent, [], "dpsMeterContent", "vertical");
-        flow(content, "set_verticalSpacing", 5);
+        flow(content, "set_verticalSpacing", 12);
+        style(G.field(content, "obj"), "vspacing", 12);
         subtitle = label(content, "Waiting for combat");
         rowsRoot = node("flow", content, [], "dpsMeterRows", "vertical");
-        flow(rowsRoot, "set_verticalSpacing", 5);
+        flow(rowsRoot, "set_verticalSpacing", 12);
+        style(G.field(rowsRoot, "obj"), "vspacing", 12);
         flow(rowsRoot, "set_overflow", G.enumeration("h2d.FlowOverflow", "Scroll"));
-        footer = label(content, "");
         for (object in [window, frameBackground, windowContent, header, bodyObject, options, container, G.field(content, "obj"), G.field(toolbar, "obj")]) {
             if (object == null) continue;
             padding(object, 0);
@@ -213,6 +215,11 @@ class NativeMeterWindow {
     function measuredHeaderHeight():Int {
         return 44 + Std.int(Math.max(34, G.integer(G.call("h2d.Flow", "get_outerHeight", G.field(toolbar, "obj"))))) + 6;
     }
+    function centerTitle():Void {
+        // Measure after native styles have applied; keep centering through resize/hover.
+        var textWidth = G.number(G.call("h2d.Text", "get_textWidth", title));
+        position(title, Math.max(8, (width - 16 - textWidth) / 2), 6);
+    }
     function layout():Void {
         width = config.width; height = config.height;
         var innerWidth = width - 16;
@@ -224,9 +231,9 @@ class NativeMeterWindow {
         if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
         size(header, innerWidth, headerHeight);
         position(header, 8, 0);
-        G.call("ui.comp.FmtText", "set_maxWidthText", title, [innerWidth - 52]);
+        G.call("ui.comp.FmtText", "set_maxWidthText", title, [innerWidth - 80]);
         G.call("ui.comp.FmtText", "set_useEllipsis", title, [true]);
-        position(title, 8, 6);
+        centerTitle();
         var close = G.field(header, "closeBtn");
         if (close != null) position(close, innerWidth - 32, 4);
         position(toolbarObject, 8, 44);
@@ -235,13 +242,11 @@ class NativeMeterWindow {
         var bodyObject = G.field(body, "obj");
         var options = G.field(bodyObject, "optionsList");
         for (object in [bodyObject, options, container]) { size(object, innerWidth, bodyHeight); position(object, 0, 0); }
-        size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 16);
-        position(G.field(content, "obj"), 8, 8);
-        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 70)));
-        for (label in [subtitle, footer]) {
-            G.call("ui.comp.FmtText", "set_maxWidthText", label, [width - 48]);
-            G.call("ui.comp.FmtText", "set_useEllipsis", label, [true]);
-        }
+        size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
+        position(G.field(content, "obj"), 8, 12);
+        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 58)));
+        G.call("ui.comp.FmtText", "set_maxWidthText", subtitle, [width - 48]);
+        G.call("ui.comp.FmtText", "set_useEllipsis", subtitle, [true]);
         G.set(dragSurface, "width", width - 65.0);
         // This surface covers only the title row, above the clickable toolbar.
         position(dragSurface, 12, 5);
@@ -260,6 +265,8 @@ class NativeMeterWindow {
     }
     function makeRow(index:Int):Dynamic {
         var d = node("element", rowsRoot, [], "dpsMeterRow" + index, "vertical");
+        flow(d, "set_verticalSpacing", 4);
+        style(G.field(d, "obj"), "vspacing", 4);
         var name = label(d, "");
         var details = label(d, "");
         var barDom = node("base-gauge", d, [], "dpsMeterBar" + index);
@@ -272,19 +279,18 @@ class NativeMeterWindow {
         sizeRow(row);
         return row;
     }
-    function refresh(model:CombatModel, writer:RunWriter, now:Float):Void {
+    function refresh(model:CombatModel, now:Float):Void {
         if (modelResetRequested) {
             modelResetRequested = false;
             model.session = new Fight(now);
         }
         var modes = ["Current", "Last", "Boss", "Session"];
         G.call("ui.comp.Button", "setText", modeButton, [modes[mode]]);
-        G.call("ui.comp.Button", "setText", uploadButton, [config.sendLogs ? "Upload: On" : "Upload: Off"]);
         G.call("ui.comp.Button", "setText", lockButton, [config.unlocked ? "Unlocked" : "Locked"]);
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
         var fight:Null<Fight> = switch (mode) {
-            case 0: model.boss != null ? model.boss : model.current != null ? model.current : model.lastCombat;
+            case 0: model.current;
             case 1: model.lastCombat;
             case 2: model.boss != null ? model.boss : model.lastBoss;
             default: model.session;
@@ -327,7 +333,6 @@ class NativeMeterWindow {
             G.call("ui.comp.BaseGauge", "set_max", row.bar, [Math.max(1, selected == null ? total : selected.damage)]);
             G.call("ui.comp.BaseGauge", "set_value", row.bar, [amount]);
         }
-        setText(footer, (config.sendLogs ? writer.status : "Upload disabled") + (config.unlocked ? "  ·  drag title / resize corner" : ""));
     }
     function beginDrag(event:Dynamic, resize:Bool):Void {
         if (!config.unlocked || G.integer(G.field(event, "button")) != 0) return;

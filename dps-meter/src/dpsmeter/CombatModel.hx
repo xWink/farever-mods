@@ -155,16 +155,23 @@ class CombatModel {
     public var activityId:String = "";
     var lastKillSource:String = "";
     var lastKillAmount:Float = -1;
+    var partyInCombat:Bool = false;
+    var lastPartyDamage:Float = -1;
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
+        partyInCombat = false; lastPartyDamage = -1;
         // Already completed reports remain queued across character/zone changes.
     }
     public function update(now:Float, anyPartyInCombat:Bool):Void {
+        var leftCombat = partyInCombat && !anyPartyInCombat;
+        partyInCombat = anyPartyInCombat;
         if (anyPartyInCombat && current == null) current = new Fight(now);
-        if (!anyPartyInCombat && current != null && now - current.last > 1) {
+        // Honor a real combat exit immediately. Keep a short grace period only
+        // for damage that arrives before the replicated combat flag.
+        if (!anyPartyInCombat && current != null && (leftCombat || now - lastPartyDamage > 1)) {
             current.closed = now; lastCombat = current; current = null;
         }
         if (boss != null && now - boss.last > 8) {
@@ -181,8 +188,14 @@ class CombatModel {
         if (info == null) return;
         var member = party.exists(e.source) || e.source == me;
         if (member) {
-            if (current == null) current = new Fight(e.time);
-            current.add(e, info); session.add(e, info);
+            session.add(e, info);
+            if (e.effect != 1) lastPartyDamage = e.time;
+            // Resting heals still contribute to Session, but cannot start or
+            // indefinitely extend a Current encounter after combat has ended.
+            if (e.effect != 1 || partyInCombat || current != null) {
+                if (current == null) current = new Fight(e.time);
+                current.add(e, info);
+            }
         }
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
         var bossHit = e.effect != 1 && (e.bossFlags & 0x38) != 0;

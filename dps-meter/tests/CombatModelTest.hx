@@ -85,6 +85,32 @@ class CombatModelTest {
         m.me = "2"; m.profiles["2"] = player("2", "Different character", true); m.party["2"] = true;
         m.record(event(111, "2"));
         check(m.boss.start == 111 && !m.boss.players.exists("9007199254740993"), "Character/zone changes do not merge old encounters");
+
+        m = model();
+        m.update(100, true);
+        m.record(event(100, m.me, 100, false, false));
+        m.record(event(101, m.me, 150, true, false));
+        m.update(101.1, false);
+        check(m.current == null && m.lastCombat != null && m.boss == null,
+            "Leaving combat after an ordinary mob immediately ends Current");
+        var previous = m.lastCombat;
+        check(previous.players[m.me].damage == 250 && previous.duration(200) == 1,
+            "Last keeps the completed damage and a frozen duration");
+        m.record(event(102, m.me, 20, false, false, m.me, 1));
+        m.update(103, false);
+        check(m.current == null && m.lastCombat == previous && m.session.players[m.me].heal == 20,
+            "Resting healing remains in Session without reopening Current or replacing Last");
+        m.record(event(104, m.me, 75, false, false, "another-mob"));
+        check(m.current.start == 104 && m.current.players[m.me].damage == 75 && m.lastCombat == previous,
+            "The next ordinary mob starts a separate encounter");
+
+        m = model();
+        m.record(event(100, m.me, 100, true, false));
+        m.update(100.25, false);
+        check(m.current != null, "Damage can arrive before the replicated combat flag");
+        m.record(event(101.2, m.me, 20, false, false, m.me, 1));
+        m.update(101.25, false);
+        check(m.current == null, "Healing cannot prolong the grace period after the last damage");
         Sys.println(checks + " combat/report checks passed");
     }
 }
