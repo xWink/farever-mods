@@ -1,0 +1,8 @@
+-lib hlx-runtime
+-lib hl-imgui
+-D hl-ver=1.16.0
+-cp src
+-main bettermodsettings.BetterModSettingsMod
+-dce full
+-hl build/better-mod-settings/better-mod-settings.hl
+
