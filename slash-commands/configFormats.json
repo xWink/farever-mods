@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Slash Commands",
+  "configFile": "config.json",
+  "configs": [
+    {
+      "key": "enabled",
+      "type": "checkbox",
+      "label": "Enabled"
+    }
+  ]
+}

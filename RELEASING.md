@@ -11,6 +11,7 @@ build; the matching workflow publishes only that project's ZIP.
 | `disable-profanity-filter` | `farever-disable-profanity-filter.zip` | `hlx/mods/disable-profanity-filter/` |
 | `mute-on-unfocus` | `farever-mute-on-unfocus.zip` | `hlx/mods/mute-unfocused/` |
 | `fix-target-lock` | `farever-fix-target-lock.zip` | `hlx/mods/fix-target-lock/` |
+| `slash-commands` | `farever-slash-commands.zip` | `hlx/mods/slash-commands/` |
 
 ## Procedure
 

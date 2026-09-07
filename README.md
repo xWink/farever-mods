@@ -11,6 +11,7 @@ Each project has its own source, build, installable ZIP, and versioned releases.
 | Disable Profanity Filter | [disable-profanity-filter](disable-profanity-filter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter&expanded=true) |
 | Mute on Unfocus | [mute-on-unfocus](mute-on-unfocus/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true) |
 | Fix Target Lock | [fix-target-lock](fix-target-lock/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true) |
+| Slash Commands | [slash-commands](slash-commands/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-slash-commands.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=slash-commands&expanded=true) |
 
 ## Installing
 
@@ -43,7 +44,7 @@ directory. Mute on Unfocus retains the installed module name `mute-unfocused`.
 Each mod has its own workflow in `.github/workflows/build-<project>.yml`:
 
 - Pushes to `main` and pull requests build only projects whose directory or
-  workflow changed. Changing the shared `_build-mod.yml` builds all five.
+  workflow changed. Changing the shared `_build-mod.yml` builds every project.
 - Each workflow can also be run manually on `main` to produce an installable build artifact.
 - A tag such as `item-utilities/v1.2.2` builds and releases only Item Utilities.
   Versions are independent; there is no repository-wide version.

@@ -1,0 +1,51 @@
+name: Slash Commands
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['slash-commands/v*']
+    paths:
+      - 'slash-commands/**'
+      - '.github/workflows/build-slash-commands.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'slash-commands/**'
+      - '.github/workflows/build-slash-commands.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  test:
+    name: Test commands
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Check parsing and connection data
+        working-directory: slash-commands
+        run: haxe test.hxml
+
+  build:
+    needs: test
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: slash-commands
+      module: slash-commands
+      title: Slash Commands
+      requirements: Requires HLX Core.

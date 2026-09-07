@@ -15,6 +15,10 @@ on:
         description: Human-readable mod name
         required: true
         type: string
+      requirements:
+        description: Installation requirements written into the archive
+        default: Requires HLX Core and the Farever ImGui plugin.
+        type: string
 
 permissions:
   contents: read
@@ -33,6 +37,7 @@ jobs:
     env:
       PROJECT: ${{ inputs.project }}
       MODULE: ${{ inputs.module }}
+      INSTALL_REQUIREMENTS: ${{ inputs.requirements }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,7 +81,7 @@ jobs:
             cp configFormats.json "$destination/"
           fi
           printf '%s\n' \
-            'Requires HLX Core and the Farever ImGui plugin.' \
+            "$INSTALL_REQUIREMENTS" \
             'Install with Vortex, or extract the archive into the Farever game folder.' \
             > "$destination/README.txt"
 
