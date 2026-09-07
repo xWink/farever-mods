@@ -96,7 +96,7 @@ jobs:
           path: package
       - name: Create installation archive
         working-directory: package
-        run: zip -r ../farever-dps-meter.zip hlx uploader.exe
+        run: zip -r ../farever-dps-meter.zip hlx
       - name: Publish release
         shell: bash
         run: |

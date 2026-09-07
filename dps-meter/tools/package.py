@@ -19,7 +19,7 @@ for source, target in [
     (project / "tools/start-uploader.ps1", module / "start-uploader.ps1"),
     (project / "README.md", module / "README.md"),
     (project / "vendor/README.md", module / "UPLOADER-NOTICE.md"),
-    (binary, package / "uploader.exe"),
+    (binary, module / "uploader.exe"),
 ]:
     shutil.copy2(source, target)
 print("Packaged dps-meter.hl and the verified original uploader; no DLL or user config included")

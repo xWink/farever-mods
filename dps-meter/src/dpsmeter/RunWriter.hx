@@ -14,14 +14,18 @@ class RunWriter {
     var pending:Array<Dynamic> = [];
     var retryAt:Float = 0;
     var draftsRecovered:Bool = false;
+    final moduleRoot:String;
+    final logsDirectory:String;
     public function new() {
+        moduleRoot = FileSystem.fullPath("hlx/mods/dps-meter");
+        // The uploader resolves its configuration and queue beside its executable.
+        logsDirectory = moduleRoot + "/logs";
         // Only plain strings cross threads; game objects and UI stay on the game thread.
         Thread.create(() -> {
             var child:Process = null;
             try {
-                var script = FileSystem.fullPath("hlx/mods/dps-meter/start-uploader.ps1");
-                var directory = haxe.io.Path.directory(script);
-                var command = "& {\n" + File.getContent(script) + "\n} -ModuleRoot '" + StringTools.replace(directory, "'", "''") + "'";
+                var script = moduleRoot + "/start-uploader.ps1";
+                var command = "& {\n" + File.getContent(script) + "\n} -ModuleRoot '" + StringTools.replace(moduleRoot, "'", "''") + "'";
                 child = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command]);
                 var output = child.stdout.readAll().toString();
                 var error = child.stderr.readAll().toString();
@@ -55,10 +59,10 @@ class RunWriter {
         }
         if (gamePid > 0 && !draftsRecovered) {
             draftsRecovered = true;
-            if (FileSystem.exists("logs")) for (name in FileSystem.readDirectory("logs")) {
+            if (FileSystem.exists(logsDirectory)) for (name in FileSystem.readDirectory(logsDirectory)) {
                 if (!StringTools.startsWith(name, "run_") || !StringTools.endsWith(name, ".pending")) continue;
                 try {
-                    var path = "logs/" + name;
+                    var path = logsDirectory + "/" + name;
                     var item:Dynamic = haxe.Json.parse(File.getContent(path));
                     if (item.report == null || item.timestamp == null || item.boss == null) continue;
                     item.draft = path;
@@ -68,13 +72,13 @@ class RunWriter {
         }
         if (now < retryAt || pending.length == 0) return;
         try {
-            if (!FileSystem.exists("logs")) FileSystem.createDirectory("logs");
+            if (!FileSystem.exists(logsDirectory)) FileSystem.createDirectory(logsDirectory);
             while (pending.length > 0) {
                 var item = pending[0];
                 // Preserve a recoverable draft if process discovery is unavailable.
                 // It stays outside the uploader's .json queue until a PID is known.
                 if (gamePid <= 0) {
-                    var draft = "logs/run_" + item.timestamp;
+                    var draft = logsDirectory + "/run_" + item.timestamp;
                     var draftPath = draft + ".pending";
                     var index = 1;
                     while (FileSystem.exists(draftPath)) draftPath = draft + "_" + index++ + ".pending";
@@ -83,11 +87,11 @@ class RunWriter {
                     continue;
                 }
                 item.report.session_id = item.boss + "-" + item.timestamp + "-" + gamePid;
-                var stem = "logs/run_" + item.timestamp;
+                var stem = logsDirectory + "/run_" + item.timestamp;
                 var path = stem + ".json";
                 var n = 1;
-                while (FileSystem.exists(path) || FileSystem.exists("logs/sent/" + haxe.io.Path.withoutDirectory(path))
-                    || FileSystem.exists("logs/rejected/" + haxe.io.Path.withoutDirectory(path))) path = stem + "_" + n++ + ".json";
+                while (FileSystem.exists(path) || FileSystem.exists(logsDirectory + "/sent/" + haxe.io.Path.withoutDirectory(path))
+                    || FileSystem.exists(logsDirectory + "/rejected/" + haxe.io.Path.withoutDirectory(path))) path = stem + "_" + n++ + ".json";
                 var temp = path.substr(0, path.length - 5) + ".tmp";
                 File.saveContent(temp, haxe.Json.stringify(item.report, null, "  "));
                 FileSystem.rename(temp, path);

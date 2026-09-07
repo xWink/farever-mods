@@ -7,14 +7,24 @@ uploads to [Farever Logs](https://fareverlogs.fr/).
 
 Install [HLX Core](https://github.com/hlx-framework/hlx-core), then extract this
 mod's build archive into the Farever game directory (or install with Vortex).
-The archive contains `hlx/mods/dps-meter/dps-meter.hl` and the original
-`uploader.exe` in the game directory. ImGui is not required.
+All mod files, including `dps-meter.hl` and the original `uploader.exe`, are
+contained in `hlx/mods/dps-meter/`. The uploader's `uploader.ini`, `uploader.log`,
+and `logs/` queue also live in this mod folder. ImGui is not required.
 
 Use DPS Meter in place of the original Group DPS `dinput8.dll` collector to avoid
 running two collectors that export the same encounters. Keep DLLs belonging to
-unrelated mods. The shared uploader/config/log directory retains the original
-layout. Installation does not replace `uploader.ini`, `group-dps.ini`, or saved
-meter settings.
+unrelated mods. Installation does not replace `uploader.ini`, `group-dps.ini`, or
+saved meter settings.
+
+### Upgrading from the game-folder uploader
+
+Close Farever and let the old uploader finish before upgrading. To preserve its
+settings and queued reports, move the old `uploader.ini`, `uploader.log`, and
+uploader-owned `logs/` contents from the game directory into
+`hlx/mods/dps-meter/`, preserving the `logs/` subdirectories. Do not overwrite
+existing files or copy reports into both queues. Existing files in the game
+directory are not migrated automatically. The old game-folder `uploader.exe`
+can be removed if no other mod uses it.
 
 ## Controls
 
@@ -58,7 +68,8 @@ The encounter logic reproduces the inspected Group DPS build's rules:
 Reports contain session ID, duration, boss/difficulty/activity metadata, character
 names and in-game UIDs, class, damage/DPS/healing counters, weapons observed,
 equipped skills, and per-skill statistics. Reports are written through a temporary
-file, then renamed into `logs/run_*.json`.
+file, then renamed into `hlx/mods/dps-meter/logs/run_*.json`. All uploader paths
+below are relative to `hlx/mods/dps-meter/`.
 
 The **unchanged supplied uploader.exe** handles the original protocol:
 
