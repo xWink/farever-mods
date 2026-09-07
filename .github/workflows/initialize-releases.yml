@@ -26,13 +26,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore historical version tags
-        shell: bash
+      - name: Remove the partial historical tag import
         run: |
-          git show '6463de5719a36b0238a01c6939b522bef5c7c168:.migration/farever-mods.bundle' > "$RUNNER_TEMP/farever-mods.bundle"
-          echo "776b40de91d19a0ffcf912954214f65fa4e8158e8070a1df0df049271059a987  $RUNNER_TEMP/farever-mods.bundle" | sha256sum --check
-          git fetch --no-tags "$RUNNER_TEMP/farever-mods.bundle" 'refs/tags/archive/*:refs/tags/archive/*'
-          git push origin 'refs/tags/archive/*:refs/tags/archive/*'
+          if git show-ref --verify --quiet refs/tags/archive/mute-on-unfocus/v1.0.0; then
+            git push origin --delete refs/tags/archive/mute-on-unfocus/v1.0.0
+          fi
 
       - name: Tag and start each mod's first release build
         shell: bash
