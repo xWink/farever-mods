@@ -17,6 +17,7 @@ class DpsMeterMod {
         view = new NativeMeterWindow(config);
         writer = new RunWriter();
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> config.load());
+        trace("[DpsMeter] Initialized; uploader deferred until the first game update");
     }
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {

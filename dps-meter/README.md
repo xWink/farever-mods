@@ -88,8 +88,11 @@ It watches the game PID and makes up to three pending passes after game exit.
 Inspect `uploader.log` for actual server results.
 
 The small PowerShell launcher discovers the parent game PID and starts the helper
-without a console. This runs off the game thread. No execution-policy setting is
-changed. If startup fails, consult the HLX log; reports remain local.
+in the background after the first game update. Mod loading creates no worker
+thread or child process. The game checks a startup-status file without waiting
+for process output or completion; a stuck launcher times out after 30 seconds.
+No execution-policy setting is changed. If startup fails, consult the HLX log;
+reports remain local.
 If the game PID could not be discovered, reports are saved as `.pending` drafts
 and recovered on the next successful launcher startup.
 

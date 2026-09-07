@@ -4,13 +4,15 @@ import dpsmeter.CombatModel.Fight;
 import sys.FileSystem;
 import sys.io.File;
 import sys.io.Process;
-import sys.thread.Thread;
-import sys.thread.Deque;
 
 class RunWriter {
-    public var status(default, null):String = "Starting uploader";
+    public var status(default, null):String = "Waiting for game startup";
     public var gamePid(default, null):Int = 0;
-    var startup:Deque<String> = new Deque();
+    var launcher:Process;
+    var startupPath:String;
+    var startupStarted:Bool = false;
+    var startupDeadline:Float = 0;
+    var nextStartupPoll:Float = 0;
     var pending:Array<Dynamic> = [];
     var retryAt:Float = 0;
     var draftsRecovered:Bool = false;
@@ -20,24 +22,53 @@ class RunWriter {
         moduleRoot = FileSystem.fullPath("hlx/mods/dps-meter");
         // The uploader resolves its configuration and queue beside its executable.
         logsDirectory = moduleRoot + "/logs";
-        // Only plain strings cross threads; game objects and UI stay on the game thread.
-        Thread.create(() -> {
-            var child:Process = null;
-            try {
-                var script = moduleRoot + "/start-uploader.ps1";
-                var command = "& {\n" + File.getContent(script) + "\n} -ModuleRoot '" + StringTools.replace(moduleRoot, "'", "''") + "'";
-                child = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command]);
-                var output = child.stdout.readAll().toString();
-                var error = child.stderr.readAll().toString();
-                var code = child.exitCode();
-                child.close(); child = null;
-                for (line in output.split("\n")) if (StringTools.startsWith(StringTools.trim(line), "PID=")) startup.add(StringTools.trim(line));
-                if (code != 0) startup.add("ERROR " + StringTools.trim(error));
-            } catch (e:Dynamic) {
-                if (child != null) child.close();
-                startup.add("ERROR " + Std.string(e));
+        // Do not start threads or processes while HLX is still loading mods.
+    }
+    function pollStartup(now:Float):Void {
+        if (startupStarted && launcher == null) return;
+        try {
+            if (!startupStarted) {
+                startupStarted = true;
+                startupDeadline = now + 30;
+                startupPath = moduleRoot + "/uploader-startup-" + DateTools.format(Date.now(), "%Y%m%d-%H%M%S")
+                    + "-" + Std.random(0x3fffffff) + ".json";
+                var script = File.getContent(moduleRoot + "/start-uploader.ps1");
+                var command = "& {\n" + script + "\n} -ModuleRoot '" + StringTools.replace(moduleRoot, "'", "''")
+                    + "' -ResultPath '" + StringTools.replace(startupPath, "'", "''") + "'";
+                trace("[DpsMeter] Starting uploader after first game update");
+                launcher = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command], true);
+                status = "Starting uploader";
             }
-        });
+            if (now < nextStartupPoll) return;
+            nextStartupPoll = now + 0.25;
+            if (FileSystem.exists(startupPath)) {
+                var response:Dynamic = haxe.Json.parse(File.getContent(startupPath));
+                if (Std.isOfType(response.gamePid, Int) && response.gamePid > 0) gamePid = response.gamePid;
+                if (response.running != true || gamePid == 0) throw "Uploader startup failed: " + response.error;
+                status = "Uploader running";
+                trace("[DpsMeter] Uploader started for game PID " + gamePid);
+                closeLauncher(false);
+            } else {
+                // Never read pipes or wait for a process to exit on the game thread.
+                var code = launcher.exitCode(false);
+                if (code != null) throw "Launcher exited with code " + code + " without a startup result";
+                if (now >= startupDeadline) throw "Launcher timed out after 30 seconds";
+            }
+        } catch (e:Dynamic) {
+            status = "Uploader unavailable; check HLX log";
+            trace("[DpsMeter] " + e);
+            closeLauncher(true);
+        }
+    }
+    function closeLauncher(kill:Bool):Void {
+        if (launcher != null) {
+            // Only the short-lived launcher is stopped; the uploader stays independent.
+            if (kill) try launcher.kill() catch (_:Dynamic) {}
+            try launcher.close() catch (_:Dynamic) {}
+            launcher = null;
+        }
+        if (startupPath != null) for (path in [startupPath, startupPath + ".tmp"])
+            try { if (FileSystem.exists(path)) FileSystem.deleteFile(path); } catch (_:Dynamic) {}
     }
     public function enqueue(fight:Fight):Void {
         var timestamp = DateTools.format(Date.now(), "%Y%m%d-%H%M%S");
@@ -47,16 +78,7 @@ class RunWriter {
         pending.push({report: report, timestamp: timestamp, boss: fight.bossKind});
     }
     public function update(now:Float):Void {
-        var message:String;
-        while ((message = startup.pop(false)) != null) {
-            if (StringTools.startsWith(message, "PID=")) {
-                var id = Std.parseInt(message.substr(4));
-                if (id != null && id > 0) { gamePid = id; status = "Uploader running"; }
-            } else {
-                status = "Uploader unavailable; check HLX log";
-                trace("[DpsMeter] " + message);
-            }
-        }
+        pollStartup(now);
         if (gamePid > 0 && !draftsRecovered) {
             draftsRecovered = true;
             if (FileSystem.exists(logsDirectory)) for (name in FileSystem.readDirectory(logsDirectory)) {

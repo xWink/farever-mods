@@ -61,7 +61,7 @@ jobs:
           if-no-files-found: error
 
   launcher:
-    name: Validate Windows launcher syntax
+    name: Test Windows launcher
     runs-on: windows-latest
     timeout-minutes: 5
     steps:
@@ -75,6 +75,9 @@ jobs:
           [void][System.Management.Automation.Language.Parser]::ParseFile(
             "$PWD/dps-meter/tools/start-uploader.ps1", [ref]$tokens, [ref]$parseErrors)
           if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+      - name: Test startup with a local helper stub
+        shell: powershell
+        run: ./dps-meter/tests/LauncherTest.ps1
 
   release:
     needs: [build, launcher]
