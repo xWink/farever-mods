@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Mute on Unfocus",
+  "configFile": "config.json",
+  "configs": [
+    {
+      "key": "enabled",
+      "type": "checkbox",
+      "label": "Enabled"
+    },
+    {
+      "key": "backgroundVolume",
+      "type": "slider",
+      "label": "Background volume %",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Haxe/HLX local build output
+build/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
