@@ -1,6 +1,6 @@
 # Farever Disable Profanity Filter
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter%2Fv&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter&expanded=true)
 
 This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/disable-profanity-filter).
 

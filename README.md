@@ -6,11 +6,11 @@ Each project has its own source, build, installable ZIP, and versioned releases.
 
 | Mod | Source | CI builds | Releases |
 | --- | --- | --- | --- |
-| Better Mod Settings | [better-mod-settings](better-mod-settings/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=better-mod-settings%2Fv&expanded=true) |
-| Item Utilities | [item-utilities](item-utilities/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=item-utilities%2Fv&expanded=true) |
-| Disable Profanity Filter | [disable-profanity-filter](disable-profanity-filter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter%2Fv&expanded=true) |
-| Mute on Unfocus | [mute-on-unfocus](mute-on-unfocus/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus%2Fv&expanded=true) |
-| Fix Target Lock | [fix-target-lock](fix-target-lock/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=fix-target-lock%2Fv&expanded=true) |
+| Better Mod Settings | [better-mod-settings](better-mod-settings/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=better-mod-settings&expanded=true) |
+| Item Utilities | [item-utilities](item-utilities/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=item-utilities&expanded=true) |
+| Disable Profanity Filter | [disable-profanity-filter](disable-profanity-filter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter&expanded=true) |
+| Mute on Unfocus | [mute-on-unfocus](mute-on-unfocus/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true) |
+| Fix Target Lock | [fix-target-lock](fix-target-lock/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true) |
 
 ## Installing
 

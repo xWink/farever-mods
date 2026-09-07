@@ -1,6 +1,6 @@
 # Better Mod Settings
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings%2Fv&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings&expanded=true)
 
 This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/better-mod-settings).
 

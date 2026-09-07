@@ -1,6 +1,6 @@
 # Farever Mute When Unfocused
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus%2Fv&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true)
 
 This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/mute-on-unfocus).
 

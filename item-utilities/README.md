@@ -1,6 +1,6 @@
 # Farever Item Utilities
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=item-utilities%2Fv&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=item-utilities&expanded=true)
 
 This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/item-utilities).
 

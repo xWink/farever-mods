@@ -1,6 +1,6 @@
 # Farever Fix Target Lock
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=fix-target-lock%2Fv&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true)
 
 This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/fix-target-lock).
 
