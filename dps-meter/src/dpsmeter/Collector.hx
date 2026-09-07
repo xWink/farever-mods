@@ -79,12 +79,17 @@ class Collector {
         if (uid == "" || uid == "0") uid = G.uid(source);
         if (info == null && !model.profiles.exists(uid)) return;
         var skill = G.field(damage, "baseSkill");
+        var skillId = G.text(G.field(skill, "kind"));
+        // Remote heroes may not have populated equipment caches. As in the
+        // original meter, an observed class skill can fill in their class.
+        var attributed = model.profiles[uid];
+        if (attributed != null && attributed.className == "") attributed.className = inferClass(skillId);
         var inf = G.field(target, "inf");
         var kind = G.text(G.field(target, "kind"));
         if (kind == "") kind = G.text(G.field(inf, "id"));
         model.record({time: now, source: uid, amount: G.number(G.field(damage, "_amount")),
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
-            effect: G.integer(G.field(damage, "effect")), skill: G.text(G.field(skill, "kind")),
+            effect: G.integer(G.field(damage, "effect")), skill: skillId,
             target: G.uid(target), bossKind: kind, bossFlags: G.integer(G.field(inf, "flags")),
             bossLevel: G.integer(G.field(target, "_level")), bossFoeId: G.integer(G.field(target, "foeId"))});
     }
@@ -125,7 +130,8 @@ class Collector {
         return info;
     }
     static function addSkill(list:Array<String>, skill:Dynamic):Void {
-        var id = G.text(G.field(skill, "kind"));
+        // Hero.skillSlots contains skill IDs; the other caches hold Skill objects.
+        var id = Std.isOfType(skill, String) ? G.text(skill) : G.text(G.field(skill, "kind"));
         if (id != "" && list.indexOf(id) < 0) list.push(id);
     }
     public static function inferClass(id:String):String {

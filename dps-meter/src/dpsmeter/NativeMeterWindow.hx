@@ -21,6 +21,8 @@ class NativeMeterWindow {
     var subtitle:Dynamic;
     var modeButton:Dynamic;
     var lockButton:Dynamic;
+    var lockIcon:Dynamic;
+    var lockIconUnlocked:Null<Bool>;
     var dragSurface:Dynamic;
     var resizeSurface:Dynamic;
     var grip:Dynamic;
@@ -115,10 +117,15 @@ class NativeMeterWindow {
         flow(toolbar, "set_verticalSpacing", 5);
         flow(toolbar, "set_multiline", true);
         modeButton = button(toolbar, "Current", () -> { mode = (mode + 1) % 4; selectedPlayer = ""; lastRefresh = -1; });
-        lockButton = button(toolbar, "Locked", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
+        lockButton = button(toolbar, "", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
+        // Draw with the game's vector renderer, avoiding missing font glyphs/assets.
+        lockIcon = G.create("h2d.Graphics", [lockButton]);
+        absolute(lockButton, lockIcon);
+        position(lockIcon, 7, 6);
+        lockIconUnlocked = null;
         var reset = button(toolbar, "Reset", () -> { modelResetRequested = true; selectedPlayer = ""; });
         for (control in [modeButton, lockButton, reset]) padding(control, 6);
-        size(modeButton, 88, 34); size(lockButton, 100, 34); size(reset, 60, 34);
+        size(modeButton, 88, 34); size(lockButton, 34, 34); size(reset, 60, 34);
         absolute(header, G.field(toolbar, "obj"));
 
         body = node("options-content", dom, [0], "dpsMeterBody");
@@ -190,6 +197,24 @@ class NativeMeterWindow {
         G.call("ui.UIElement", "set_onClick", obj, [click]);
         return obj;
     }
+    function updateLockIcon():Void {
+        if (lockIconUnlocked == config.unlocked) return;
+        lockIconUnlocked = config.unlocked;
+        G.call("h2d.Graphics", "clear", lockIcon);
+        G.call("h2d.Graphics", "lineStyle", lockIcon, [2.0, 0x5b4334, 1.0]);
+        // The unlocked shackle lifts clear of the right side of the body.
+        var top = config.unlocked ? 1.0 : 4.0;
+        G.call("h2d.Graphics", "moveTo", lockIcon, [6.0, 11.0]);
+        G.call("h2d.Graphics", "lineTo", lockIcon, [6.0, top + 4]);
+        G.call("h2d.Graphics", "curveTo", lockIcon, [6.0, top, 10.0, top]);
+        G.call("h2d.Graphics", "curveTo", lockIcon, [14.0, top, 14.0, top + 4]);
+        G.call("h2d.Graphics", "lineTo", lockIcon, [14.0, config.unlocked ? 7.0 : 11.0]);
+        G.call("h2d.Graphics", "drawRect", lockIcon, [3.0, 11.0, 14.0, 10.0]);
+        G.call("h2d.Graphics", "moveTo", lockIcon, [10.0, 15.0]);
+        G.call("h2d.Graphics", "lineTo", lockIcon, [10.0, 18.0]);
+        G.call("ui.UIElement", "set_textTip", lockButton, [config.unlocked
+            ? "Unlocked — click to lock the window" : "Locked — click to move and resize the window"]);
+    }
     function flow(dom:Dynamic, method:String, value:Dynamic):Void G.call("h2d.Flow", method, G.field(dom, "obj"), [value]);
     function style(object:Dynamic, property:String, value:Dynamic):Void {
         var dom = G.field(object, "dom");
@@ -256,25 +281,58 @@ class NativeMeterWindow {
         lastRefresh = -1;
     }
     function sizeRow(row:Dynamic):Void {
-        for (label in [row.name, row.details]) {
-            G.call("ui.comp.FmtText", "set_maxWidthText", label, [width - 75]);
-            G.call("ui.comp.FmtText", "set_useEllipsis", label, [true]);
-        }
-        G.call("ui.comp.BaseGauge", "set_barWidth", row.bar, [width - 70]);
-        size(row.bar, width - 70, 9);
+        var rowWidth = width - 70;
+        size(row.obj, rowWidth);
+        size(row.heading, rowWidth);
+        G.call("ui.comp.FmtText", "set_maxWidthText", row.details, [rowWidth - 60]);
+        G.call("ui.comp.FmtText", "set_maxWidthText", row.extra, [rowWidth]);
+        G.call("ui.comp.BaseGauge", "set_barWidth", row.bar, [rowWidth]);
+        size(row.bar, rowWidth, 9);
+        alignRow(row);
+    }
+    function alignRow(row:Dynamic):Void {
+        var rowWidth = width - 70;
+        // Measure native text, not spaces: numbers keep a common right edge.
+        G.call("ui.comp.FmtText", "updateScale", row.details);
+        var detailWidth = G.number(G.call("h2d.Text", "get_textWidth", row.details)) * G.number(G.field(row.details, "scaleX"), 1);
+        G.call("ui.comp.FmtText", "set_maxWidthText", row.name, [Std.int(Math.max(1, rowWidth - detailWidth - 12))]);
+        // Restore the full name when widening a previously ellipsized row.
+        setText(row.name, row.caption);
+        G.call("ui.comp.FmtText", "updateScale", row.name);
+        var lineHeight = 0.0;
+        for (text in [row.name, row.details]) lineHeight = Math.max(lineHeight,
+            G.number(G.call("h2d.Text", "get_textHeight", text)) * G.number(G.field(text, "scaleY"), 1));
+        var h = Std.int(Math.ceil(Math.max(18, lineHeight)));
+        if (row.lineHeight != h) { row.lineHeight = h; size(row.heading, rowWidth, h); }
+        position(row.name, 0, 0);
+        position(row.details, rowWidth - detailWidth, 0);
     }
     function makeRow(index:Int):Dynamic {
         var d = node("element", rowsRoot, [], "dpsMeterRow" + index, "vertical");
         flow(d, "set_verticalSpacing", 4);
         style(G.field(d, "obj"), "vspacing", 4);
-        var name = label(d, "");
-        var details = label(d, "");
+        var heading = node("flow", d, [], "dpsMeterRowHeading" + index, "horizontal");
+        var headingObject = G.field(heading, "obj");
+        padding(headingObject, 0);
+        var name = label(heading, "");
+        var details = label(heading, "");
+        for (text in [name, details]) {
+            absolute(headingObject, text);
+            var left = G.enumeration("h2d.Align", "Left");
+            G.call("h2d.Text", "set_textAlign", text, [left]);
+            style(text, "text-align", left);
+        }
+        G.call("ui.comp.FmtText", "set_useEllipsis", name, [true]);
+        var extra = label(d, "");
+        G.call("ui.comp.FmtText", "set_useEllipsis", extra, [true]);
+        show(extra, false);
         var barDom = node("base-gauge", d, [], "dpsMeterBar" + index);
         var bar = G.field(barDom, "obj");
         G.call("ui.comp.BaseGauge", "set_barHeight", bar, [7]);
         G.call("ui.comp.BaseGauge", "set_showValues", bar, [false]);
         var obj = G.field(d, "obj");
-        var row:Dynamic = {obj: obj, name: name, details: details, bar: bar, uid: ""};
+        var row:Dynamic = {obj: obj, heading: headingObject, name: name, details: details,
+            extra: extra, bar: bar, uid: "", caption: "", lineHeight: 0, color: -1};
         G.call("ui.UIElement", "set_onClick", obj, [() -> { selectedPlayer = row.uid; lastRefresh = -1; }]);
         sizeRow(row);
         return row;
@@ -286,7 +344,7 @@ class NativeMeterWindow {
         }
         var modes = ["Current", "Last", "Boss", "Session"];
         G.call("ui.comp.Button", "setText", modeButton, [modes[mode]]);
-        G.call("ui.comp.Button", "setText", lockButton, [config.unlocked ? "Unlocked" : "Locked"]);
+        updateLockIcon();
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
         var fight:Null<Fight> = switch (mode) {
@@ -318,18 +376,25 @@ class NativeMeterWindow {
             if (selected == null) {
                 var p = ranked[i]; row.uid = p.info.uid; amount = p.damage;
                 color = classColor(p.info.className);
-                label = (i + 1) + ". " + p.info.name + (p.info.isMe ? " (you)" : "")
-                    + (p.info.className == "" ? "" : "  ·  " + p.info.className);
-                detail = compact(p.damage) + " damage  ·  " + compact(seconds > 0 ? p.damage / seconds : 0)
-                    + " DPS  ·  " + Std.int(total > 0 ? p.damage * 100 / total : 0) + "%";
+                label = (i + 1) + ". " + p.info.name;
+                detail = compact(p.damage) + " (" + compact(seconds > 0 ? p.damage / seconds : 0)
+                    + ", " + Std.int(total > 0 ? p.damage * 100 / total : 0) + "%)";
             } else {
                 var id = skillIds[i]; var s = selected.skills[id]; row.uid = "";
                 amount = s.damage; color = classColor(selected.info.className); label = id;
-                detail = compact(s.damage) + " damage  ·  " + s.casts + " casts  ·  " + s.hits + " hits  ·  " + s.crits + " crits";
+                detail = compact(s.damage) + " damage";
+                setText(row.extra, s.casts + " casts  ·  " + s.hits + " hits  ·  " + s.crits + " crits");
             }
-            setText(row.name, label); setText(row.details, detail);
-            G.call("h2d.Text", "set_textColor", row.name, [color]);
-            G.set(row.bar, "color", color); G.set(row.bar, "fullColor", color);
+            row.caption = label;
+            setText(row.details, detail);
+            show(row.extra, selected != null);
+            alignRow(row);
+            if (row.color != color) {
+                row.color = color;
+                G.set(row.bar, "color", color); G.set(row.bar, "fullColor", color);
+                // Inline styles preserve the class tint through native CSS updates.
+                style(row.bar, "color", color); style(row.bar, "full-color", color);
+            }
             G.call("ui.comp.BaseGauge", "set_max", row.bar, [Math.max(1, selected == null ? total : selected.damage)]);
             G.call("ui.comp.BaseGauge", "set_value", row.bar, [amount]);
         }
@@ -409,7 +474,8 @@ class NativeMeterWindow {
     static function show(obj:Dynamic, visible:Bool):Void { if (obj != null) G.call("h2d.Object", "set_visible", obj, [visible]); }
     static function setText(obj:Dynamic, value:String):Void { if (obj != null) G.call("ui.comp.FmtText", "set_text", obj, [value]); }
     static function classColor(name:String):Int return switch (name) {
-        case "warrior": 0xb34432; case "cleric": 0x9a781c; case "mage": 0x476cb0; case "rogue": 0x537d38; default: 0x5b4334;
+        // Original dinput8.dll palette at RVA 0x139e0, converted COLORREF -> RGB.
+        case "warrior": 0xc95846; case "cleric": 0xd9b054; case "mage": 0x62b2c2; case "rogue": 0xa370be; default: 0xa89884;
     };
     static function compact(n:Float):String {
         return n >= 1000000 ? Std.string(SkillStats.rounded(n / 1000000, 2)) + "M"

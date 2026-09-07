@@ -31,12 +31,18 @@ can be removed if no other mod uses it.
 - **F10:** show/hide.
 - **F11:** lock/unlock the window. When unlocked, drag the header to move it and
   the lower-right frame grip to resize the whole window. Position and size are saved.
+- The header's padlock button also locks/unlocks; its open shackle means the
+  window can be moved and resized.
 - The meter controls sit in the header below the draggable title; narrow windows
   wrap the controls within the header. The body contains the combat totals and rows.
 - **Current / Last / Boss / Session:** cycle the displayed totals.
 - **Current** clears when the party leaves combat; **Last** retains the finished
   encounter. Healing outside combat does not start another Current encounter.
 - Click a player row to inspect skills; click a skill row to return.
+- Player rows show rank/name on the left and `damage (DPS, team damage %)` on
+  the right. Long names shorten with an ellipsis to keep the totals readable.
+  Bars use the original meter's class colors: warrior red, cleric gold, mage teal,
+  and rogue purple; unknown classes use a neutral tan.
 - **Upload boss kills to fareverlogs.fr** in Better Mod Settings toggles new
   boss-report exports. Already queued reports can still upload.
 - **Reset:** clear the session totals.
