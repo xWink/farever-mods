@@ -13,11 +13,13 @@ settings, config descriptors, and bundled images were copied without changes.
 | Mute on Unfocus | `dc20d1b760ad32cc219205042e781aefaf996c5b` | `v1.2.0` | `mute-on-unfocus/v1.2.1` |
 | Fix Target Lock | `e86f5339df420316171cde83782661dce1d45764` | `v1.2.0` | `fix-target-lock/v1.2.1` |
 
-Original version tags are retained here as `archive/<project>/<original-tag>`
-to avoid collisions. Historical commits and tags retain their original
-repository-root paths. For example:
+Original version tags remain in the original repositories. Their commits are
+included in this repository's imported histories and retain their original
+repository-root paths. To browse a historical release by tag locally, fetch it
+under a project-specific prefix. For example:
 
 ```sh
+git fetch https://github.com/xWink/farever-item-utilities.git refs/tags/v1.2.1:refs/tags/archive/item-utilities/v1.2.1
 git log archive/item-utilities/v1.2.1 -- src/itemutilities/ItemUtilitiesMod.hx
 ```
 

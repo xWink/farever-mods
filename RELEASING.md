@@ -54,6 +54,7 @@ GitHub has one repository-wide Releases list and one repository-wide Latest
 marker. Use the per-project release links in the README to find the appropriate
 mod. The workflows do not set a repository-wide Latest release.
 
-Tags under `archive/<project>/v...` preserve original repository releases for
-source history. They retain the original root layout and do not trigger the
-new release workflows. Older published ZIPs remain linked in `MIGRATION.md`.
+Original release tags and ZIPs remain in the original repositories, linked in
+`MIGRATION.md`. That document also explains how to fetch a historical tag locally
+under `archive/<project>/v...` when needed. Such tags retain the original root
+layout and do not trigger the new release workflows.
