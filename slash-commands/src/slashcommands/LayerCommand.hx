@@ -4,6 +4,8 @@ enum LayerAction {
     Show;
     Transfer(serverID:String);
     Usage;
+    QueryLayers;
+    LayersUsage;
 }
 
 class LayerCommand {
@@ -12,6 +14,8 @@ class LayerCommand {
         if (text == null)
             return null;
         var tokens = ~/\s+/g.split(StringTools.trim(text));
+        if (tokens[0].toLowerCase() == "/layers")
+            return tokens.length == 1 ? QueryLayers : LayersUsage;
         if (tokens[0].toLowerCase() != "/layer")
             return null;
         if (tokens.length == 1)

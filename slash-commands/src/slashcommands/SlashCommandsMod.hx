@@ -10,7 +10,7 @@ import sys.io.File;
 @:build(hlx.runtime.Mod.build())
 class SlashCommandsMod {
     static inline var CONFIG_PATH = "hlx/mods/slash-commands/config.json";
-    static inline var USAGE = "Use /layer to show your layer, or /layer <full layer ID> to join one.";
+    static inline var USAGE = "Use /layer for your layer, /layer <full layer ID> to join, or /layers to query the server.";
 
     static var enabled = true;
     static var transferring = false;
@@ -21,6 +21,10 @@ class SlashCommandsMod {
     static var chatError:ResolvedMember;
     static var lineType:hl.Bytes;
     static var setText:ResolvedMember;
+    static var queryRealm:ResolvedMember;
+    static var printJSON:ResolvedMember;
+    static var querying = false;
+    static var querySerial = 0;
 
     static function main():Void {
         loadConfig();
@@ -55,11 +59,93 @@ class SlashCommandsMod {
                     reply(instance, id == null ? "Your current layer ID is unavailable." : "Current layer: " + id);
                 case Transfer(id):
                     requestTransfer(instance, id);
+                case QueryLayers:
+                    requestLayers(instance);
+                case LayersUsage:
+                    reply(instance, "Use /layers with no arguments to query the current realm for layer IDs.");
             }
         } catch (error:Dynamic) {
             reportError(instance, error);
         }
         return Skip;
+    }
+
+    static function requestLayers(chat:Dynamic):Void {
+        if (querying) {
+            reply(chat, "A layer query is already in progress.");
+            return;
+        }
+        var app = currentApp();
+        var info = connectionInfo(app);
+        var network = HlxRuntime.resolveType("lib.Network");
+        var realm:Dynamic = network == null ? null : HlxRuntime.resolveStaticField(network, "realmId");
+        if (info == null || realm == null || field(app, "host") == null) {
+            reply(chat, "The current realm is unavailable. Wait until your character has loaded.");
+            return;
+        }
+        if (queryRealm == null)
+            queryRealm = resolve("mpman.Realms", "loadRealmDetails", true);
+        if (printJSON == null)
+            printJSON = resolve("haxe.format.JsonPrinter", "print", true);
+        if (delay == null)
+            delay = resolve("haxe.Timer", "delay", true);
+        if (queryRealm == null || printJSON == null || delay == null) {
+            reply(chat, "The realm query is unavailable in this game build.");
+            return;
+        }
+
+        var serial = ++querySerial;
+        querying = true;
+        reply(chat, "Requesting layer IDs from the current realm...");
+        try {
+            schedule(function() {
+                if (!querying || querySerial != serial)
+                    return;
+                querying = false;
+                querySerial++;
+                if (enabled && currentApp() == app && connectionInfo(app) == info)
+                    reply(chat, "The layer query timed out. Try /layers again.");
+            }, 15000);
+            // Verified in mpman/Realms.hx: loadRealmDetails sends the real
+            // authenticated `realm/query` request with {realm: realmId}.
+            // It does not resolve/matchmake a destination or join any lobby.
+            HlxRuntime.callResolved(queryRealm, [realm, function(response:Dynamic) {
+                if (!querying || querySerial != serial)
+                    return;
+                querying = false;
+                if (!enabled || currentApp() != app || connectionInfo(app) != info)
+                    return;
+                try {
+                    if (response == null) {
+                        reply(chat, "The server did not return realm details. The query may be unavailable or rejected.");
+                        return;
+                    }
+                    // Serialize with the game's printer so native ArrayObj /
+                    // ArrayDyn values are handled by their own module. Parse
+                    // locally only for read-only inspection, never reconnects.
+                    var json:Dynamic = HlxRuntime.callResolved(printJSON, [response, null, null]);
+                    if (json == null || !Std.isOfType(json, String))
+                        throw "Could not read the realm query response.";
+                    var data:Dynamic = Json.parse(json);
+                    var ids = LayerQuery.serverIDs(data);
+                    trace("[SlashCommands] realm/query " + LayerQuery.shape(data));
+                    if (ids.length == 0) {
+                        reply(chat, "The server response supplied no layer IDs. It does not provide a complete layer list.");
+                        return;
+                    }
+                    reply(chat, "Server-reported IDs for this realm (completeness and availability unconfirmed):");
+                    var currentID = layerID(info);
+                    for (id in ids)
+                        reply(chat, id + (id == currentID ? " (current layer)" : ""));
+                } catch (error:Dynamic) {
+                    reportError(chat, error);
+                }
+            }]);
+        } catch (error:Dynamic) {
+            querying = false;
+            querySerial++;
+            reportError(chat, error);
+        }
     }
 
     static function requestTransfer(chat:Dynamic, id:String):Void {
