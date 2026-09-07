@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Disable Profanity Filter",
+  "configFile": "config.json",
+  "configs": [
+    {
+      "key": "disableProfanityFilter",
+      "type": "checkbox",
+      "label": "Enabled"
+    }
+  ]
+}
