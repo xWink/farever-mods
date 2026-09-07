@@ -30,7 +30,9 @@ can be removed if no other mod uses it.
 
 - **F10:** show/hide.
 - **F11:** lock/unlock the window. When unlocked, drag the header to move it and
-  the lower-right grip to resize it. Position and size are saved.
+  the lower-right frame grip to resize the whole window. Position and size are saved.
+- The meter controls sit in the header below the draggable title; narrow windows
+  wrap the controls within the header. The body contains the combat totals and rows.
 - **Current / Last / Boss / Session:** cycle the displayed totals.
 - Click a player row to inspect skills; click a skill row to return.
 - **Upload:** toggle new boss-report exports. Already queued reports can still upload.

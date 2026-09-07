@@ -9,8 +9,13 @@ class NativeMeterWindow {
     public var window(default, null):Dynamic;
     var owner:Dynamic;
     var root:Dynamic;
+    var windowContent:Dynamic;
+    var frameBackground:Dynamic;
+    var header:Dynamic;
+    var toolbar:Dynamic;
     var body:Dynamic;
     var container:Dynamic;
+    var content:Dynamic;
     var rowsRoot:Dynamic;
     var title:Dynamic;
     var subtitle:Dynamic;
@@ -28,6 +33,7 @@ class NativeMeterWindow {
     var lastRefresh:Float = -1;
     var width:Int = 0;
     var height:Int = 0;
+    var headerHeight:Int = 0;
     var dragging:Bool = false;
     var resizing:Bool = false;
     var startMouseX:Float = 0;
@@ -57,7 +63,7 @@ class NativeMeterWindow {
             }
         }
         show(window, true);
-        if (width != config.width || height != config.height) layout();
+        if (width != config.width || height != config.height || headerHeight != measuredHeaderHeight()) layout();
         updateDrag();
         clampToScreen();
         position(window, config.x, config.y);
@@ -82,16 +88,37 @@ class NativeMeterWindow {
         G.call("h2d.Object", "addChild", root, [window]);
         absolute(root, window);
         var dom = G.field(window, "dom");
+        // TitleWindow redirects added content into a separate native flow.
+        // Resize that wrapper and the decorative frame along with the window.
+        windowContent = G.field(dom, "contentRoot");
+        if (windowContent == null || windowContent == window) throw "Native window content wrapper was not found";
+        frameBackground = null;
+        for (child in children(window)) if (G.field(child, "bgMask") != null) { frameBackground = child; break; }
+        if (frameBackground != null) absolute(window, frameBackground);
         var component = G.staticCall("domkit.Component", "get", ["options-window", null]);
         if (component != null) G.set(dom, "component", component);
-        var header = G.field(window, "header");
+        header = G.field(window, "header");
         G.set(header, "headText", "DPS Meter");
         title = G.field(header, "headerTitle");
         setText(title, "DPS Meter");
+        absolute(header, title);
         var close = G.field(header, "closeBtn");
+        if (close != null) absolute(header, close);
         if (close != null) G.call("ui.UIElement", "set_onClick", close, [() -> {
             config.visible = false; config.save(); show(window, false);
         }]);
+
+        toolbar = node("flow", G.field(header, "dom"), [], "dpsMeterToolbar", "horizontal");
+        flow(toolbar, "set_horizontalSpacing", 5);
+        flow(toolbar, "set_verticalSpacing", 5);
+        flow(toolbar, "set_multiline", true);
+        modeButton = button(toolbar, "Current", () -> { mode = (mode + 1) % 4; selectedPlayer = ""; lastRefresh = -1; });
+        uploadButton = button(toolbar, "Upload: On", () -> { config.sendLogs = !config.sendLogs; config.save(); lastRefresh = -1; });
+        lockButton = button(toolbar, "Locked", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
+        var reset = button(toolbar, "Reset", () -> { modelResetRequested = true; selectedPlayer = ""; });
+        for (control in [modeButton, uploadButton, lockButton, reset]) padding(control, 6);
+        size(modeButton, 88, 34); size(uploadButton, 112, 34); size(lockButton, 100, 34); size(reset, 60, 34);
+        absolute(header, G.field(toolbar, "obj"));
 
         body = node("options-content", dom, [0], "dpsMeterBody");
         var bodyObject = G.field(body, "obj");
@@ -103,20 +130,25 @@ class NativeMeterWindow {
         // Preserve OptionsList > Block ancestry, but remove its stock settings rows.
         for (child in children(container)) show(child, false);
         var parent = G.field(container, "dom");
-        var content = node("flow", parent, [], "dpsMeterContent", "vertical");
+        content = node("flow", parent, [], "dpsMeterContent", "vertical");
         flow(content, "set_verticalSpacing", 5);
-        var toolbar = node("flow", content, [], "dpsMeterToolbar", "horizontal");
-        flow(toolbar, "set_horizontalSpacing", 5);
-        flow(toolbar, "set_multiline", true);
-        modeButton = button(toolbar, "Current", () -> { mode = (mode + 1) % 4; selectedPlayer = ""; lastRefresh = -1; });
-        uploadButton = button(toolbar, "Upload: On", () -> { config.sendLogs = !config.sendLogs; config.save(); lastRefresh = -1; });
-        lockButton = button(toolbar, "Locked", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
-        button(toolbar, "Reset", () -> { modelResetRequested = true; selectedPlayer = ""; });
         subtitle = label(content, "Waiting for combat");
         rowsRoot = node("flow", content, [], "dpsMeterRows", "vertical");
         flow(rowsRoot, "set_verticalSpacing", 5);
         flow(rowsRoot, "set_overflow", G.enumeration("h2d.FlowOverflow", "Scroll"));
         footer = label(content, "");
+        for (object in [window, frameBackground, windowContent, header, bodyObject, options, container, G.field(content, "obj"), G.field(toolbar, "obj")]) {
+            if (object == null) continue;
+            padding(object, 0);
+            G.call("h2d.Flow", "set_overflow", object, [G.enumeration("h2d.FlowOverflow", "Limit")]);
+            style(object, "overflow", G.enumeration("h2d.FlowOverflow", "Limit"));
+        }
+        absolute(window, windowContent);
+        absolute(window, header);
+        absolute(windowContent, bodyObject);
+        absolute(bodyObject, options);
+        absolute(options, container);
+        absolute(container, G.field(content, "obj"));
         grip = G.create("h2d.Graphics", [window]);
         G.call("h2d.Graphics", "beginFill", grip, [0x866342, 1.0]);
         G.call("h2d.Graphics", "moveTo", grip, [0.0, 18.0]);
@@ -157,6 +189,14 @@ class NativeMeterWindow {
         return obj;
     }
     function flow(dom:Dynamic, method:String, value:Dynamic):Void G.call("h2d.Flow", method, G.field(dom, "obj"), [value]);
+    function style(object:Dynamic, property:String, value:Dynamic):Void {
+        var dom = G.field(object, "dom");
+        if (dom != null) G.call("domkit.Properties", "initStyle", dom, [property, value]);
+    }
+    function padding(object:Dynamic, value:Int):Void {
+        G.call("h2d.Flow", "set_padding", object, [value]);
+        for (side in ["left", "right", "top", "bottom"]) style(object, "padding-" + side, value);
+    }
     function size(object:Dynamic, w:Int, h:Int = -1):Void {
         G.call("h2d.Flow", "set_minWidth", object, [w]);
         G.call("h2d.Flow", "set_maxWidth", object, [w]);
@@ -170,21 +210,43 @@ class NativeMeterWindow {
             if (h >= 0) for (property in ["height", "min-height", "max-height"]) G.call("domkit.Properties", "initStyle", d, [property, h]);
         }
     }
+    function measuredHeaderHeight():Int {
+        return 44 + Std.int(Math.max(34, G.integer(G.call("h2d.Flow", "get_outerHeight", G.field(toolbar, "obj"))))) + 6;
+    }
     function layout():Void {
         width = config.width; height = config.height;
-        size(window, width);
-        size(G.field(body, "obj"), width - 16, height - 65);
-        size(G.field(G.field(body, "obj"), "optionsList"), width - 24);
-        size(container, width - 24, height - 75);
-        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(65, height - 170)));
+        var innerWidth = width - 16;
+        var toolbarObject = G.field(toolbar, "obj");
+        size(toolbarObject, innerWidth - 16);
+        headerHeight = measuredHeaderHeight();
+        var bodyHeight = height - headerHeight - 8;
+        size(window, width, height);
+        if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
+        size(header, innerWidth, headerHeight);
+        position(header, 8, 0);
+        G.call("ui.comp.FmtText", "set_maxWidthText", title, [innerWidth - 52]);
+        G.call("ui.comp.FmtText", "set_useEllipsis", title, [true]);
+        position(title, 8, 6);
+        var close = G.field(header, "closeBtn");
+        if (close != null) position(close, innerWidth - 32, 4);
+        position(toolbarObject, 8, 44);
+        size(windowContent, innerWidth, bodyHeight);
+        position(windowContent, 8, headerHeight);
+        var bodyObject = G.field(body, "obj");
+        var options = G.field(bodyObject, "optionsList");
+        for (object in [bodyObject, options, container]) { size(object, innerWidth, bodyHeight); position(object, 0, 0); }
+        size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 16);
+        position(G.field(content, "obj"), 8, 8);
+        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 70)));
         for (label in [subtitle, footer]) {
             G.call("ui.comp.FmtText", "set_maxWidthText", label, [width - 48]);
             G.call("ui.comp.FmtText", "set_useEllipsis", label, [true]);
         }
         G.set(dragSurface, "width", width - 65.0);
+        // This surface covers only the title row, above the clickable toolbar.
         position(dragSurface, 12, 5);
-        position(resizeSurface, width - 24, height - 24);
-        position(grip, width - 24, height - 26);
+        position(resizeSurface, width - 22, height - 22);
+        position(grip, width - 18, height - 18);
         for (row in rows) sizeRow(row);
         lastRefresh = -1;
     }
@@ -327,8 +389,16 @@ class NativeMeterWindow {
     }
     static function absolute(parent:Dynamic, child:Dynamic):Void {
         var p = G.call("h2d.Flow", "getProperties", parent, [child]);
-        G.set(p, "isAbsolute", true);
+        G.call("h2d.FlowProperties", "set_isAbsolute", p, [true]);
         G.set(p, "horizontalAlign", null); G.set(p, "verticalAlign", null);
+        G.set(p, "offsetX", 0); G.set(p, "offsetY", 0);
+        // Keep native CSS from restoring automatic centering on hover/reflow.
+        var dom = G.field(child, "dom");
+        if (dom != null) {
+            G.call("domkit.Properties", "initStyle", dom, ["position", true]);
+            for (key in ["halign", "valign"]) G.call("domkit.Properties", "initStyle", dom, [key, null]);
+            for (key in ["offset-x", "offset-y"]) G.call("domkit.Properties", "initStyle", dom, [key, 0]);
+        }
     }
     static function position(obj:Dynamic, x:Float, y:Float):Void G.call("h2d.Object", "setPosition", obj, [x, y]);
     static function show(obj:Dynamic, visible:Bool):Void { if (obj != null) G.call("h2d.Object", "set_visible", obj, [visible]); }
