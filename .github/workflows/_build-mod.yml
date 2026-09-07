@@ -1,0 +1,136 @@
+name: Build and release one mod
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        description: Subproject directory and release tag prefix
+        required: true
+        type: string
+      module:
+        description: Installed HLX module directory and binary name
+        required: true
+        type: string
+      title:
+        description: Human-readable mod name
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.project }}
+        shell: bash
+    env:
+      PROJECT: ${{ inputs.project }}
+      MODULE: ${{ inputs.module }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        run: |
+          version="${GITHUB_REF_NAME#"$PROJECT"/v}"
+          if [[ "$GITHUB_REF_NAME" != "$PROJECT/v$version" ]] ||
+             [[ ! "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Expected a release tag like $PROJECT/v1.2.3 or $PROJECT/v1.2.3-rc.1" >&2
+            exit 1
+          fi
+
+      - name: Set up Haxe
+        uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+
+      - name: Configure haxelib
+        run: |
+          mkdir -p "$HOME/haxelib"
+          haxelib setup "$HOME/haxelib"
+
+      - name: Install HLX dependencies
+        run: |
+          haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+          haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
+
+      - name: Compile
+        run: haxe compile.hxml
+
+      - name: Package
+        run: |
+          destination="package/hlx/mods/$MODULE"
+          mkdir -p "$destination"
+          cp "build/$MODULE/$MODULE.hl" "$destination/"
+          if [[ "$PROJECT" != "better-mod-settings" ]]; then
+            cp configFormats.json "$destination/"
+          fi
+          printf '%s\n' \
+            'Requires HLX Core and the Farever ImGui plugin.' \
+            'Install with Vortex, or extract the archive into the Farever game folder.' \
+            > "$destination/README.txt"
+
+      - name: Upload installable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: farever-${{ inputs.project }}
+          path: ${{ inputs.project }}/package/
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}/v', inputs.project))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PROJECT: ${{ inputs.project }}
+      MOD_TITLE: ${{ inputs.title }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download this mod's build
+        uses: actions/download-artifact@v4
+        with:
+          name: farever-${{ inputs.project }}
+          path: package
+
+      - name: Create installable ZIP
+        working-directory: package
+        run: zip -r "../farever-$PROJECT.zip" hlx
+
+      - name: Publish this mod's release
+        shell: bash
+        run: |
+          release_options=()
+          if [[ "${GITHUB_REF_NAME#"$PROJECT"/v}" == *-* ]]; then
+            release_options+=(--prerelease)
+          fi
+          # A retry must not overwrite an already published release.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists."
+            exit 0
+          fi
+          gh release create "$GITHUB_REF_NAME" "farever-$PROJECT.zip" \
+            --verify-tag \
+            --title "$MOD_TITLE ${GITHUB_REF_NAME#*/}" \
+            --notes-from-tag \
+            --latest=false \
+            "${release_options[@]}"

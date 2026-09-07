@@ -1,5 +1,9 @@
 # Better Mod Settings
 
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings%2Fv&expanded=true)
+
+This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/better-mod-settings).
+
 Adds a **Mod Settings** button to Farever's Game Menu and presents compatible mods' settings in a native game window.
 
 ![Better Mod Settings displaying checkboxes, a slider, hotkeys, tab pagination, and vertical scrolling](docs/images/better-mod-settings.png)
@@ -139,5 +143,6 @@ Bus notifications require HLX Core `0.0.7` or newer. Without the subscription, B
 Requires [HLX Core](https://github.com/hlx-framework/hlx-core) and the Farever `hl-imgui` library.
 
 ```sh
+cd better-mod-settings
 haxe compile.hxml
 ```

@@ -1,0 +1,33 @@
+name: Item Utilities
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['item-utilities/v*']
+    paths:
+      - 'item-utilities/**'
+      - '.github/workflows/build-item-utilities.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'item-utilities/**'
+      - '.github/workflows/build-item-utilities.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: item-utilities
+      module: item-utilities
+      title: Item Utilities
+

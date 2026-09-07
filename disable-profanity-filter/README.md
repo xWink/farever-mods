@@ -1,5 +1,9 @@
 # Farever Disable Profanity Filter
 
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter%2Fv&expanded=true)
+
+This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/disable-profanity-filter).
+
 An HLX mod for Farever that lets you disable the client-side profanity filter used for chat messages and speech bubbles.
 
 Character-name validation is intentionally unchanged.
@@ -14,7 +18,7 @@ Character-name validation is intentionally unchanged.
 
 1. Install [HLX Core](https://github.com/hlx-framework/hlx-core).
 2. Install the Farever ImGui plugin required by HLX mods with settings menus.
-3. Install [Better Mod Settings](https://github.com/xWink/farever-better-mod-settings)
+3. Install [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings)
 4. Download the latest build artifact. Install the ZIP with Vortex, or extract it directly into the Farever game directory; the archive already contains `hlx/mods/disable-profanity-filter/`.
 5. Start Farever.
 
@@ -23,6 +27,7 @@ Character-name validation is intentionally unchanged.
 Install Haxe 4.3.7, HLX Runtime, and `hl-imgui`, then run:
 
 ```sh
+cd disable-profanity-filter
 haxe compile.hxml
 ```
 

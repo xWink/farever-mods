@@ -1,0 +1,33 @@
+name: Disable Profanity Filter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['disable-profanity-filter/v*']
+    paths:
+      - 'disable-profanity-filter/**'
+      - '.github/workflows/build-disable-profanity-filter.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'disable-profanity-filter/**'
+      - '.github/workflows/build-disable-profanity-filter.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: disable-profanity-filter
+      module: disable-profanity-filter
+      title: Disable Profanity Filter
+

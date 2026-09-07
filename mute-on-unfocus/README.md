@@ -1,5 +1,9 @@
 # Farever Mute When Unfocused
 
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus%2Fv&expanded=true)
+
+This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/mute-on-unfocus).
+
 A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Farever** that lowers or mutes the game's own audio when the Farever window loses focus and restores the previous volume when you return to the game.
 
 It only changes Farever's internal FMOD master VCA (`vca:/MASTER`). It does **not** change the Windows volume mixer or mute other applications.
@@ -42,7 +46,7 @@ Do not place `imgui64.hdll` loose beside `Farever.exe`.
 
 ### 3. Install Better Mod Settings
 
-Follow the installation instructions to download [Better Mod Settings](https://github.com/xWink/farever-better-mod-settings).
+Follow the installation instructions to download [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings).
 
 ### 4. Install this mod
 
@@ -95,9 +99,10 @@ haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-r
 haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 ```
 
-Then run from the repository root:
+Then run from the `mute-on-unfocus` subproject directory:
 
 ```text
+cd mute-on-unfocus
 haxe compile.hxml
 ```
 

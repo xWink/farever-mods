@@ -1,0 +1,4 @@
+# Generated outputs in each independent subproject.
+**/build/
+**/package/
+**/dist/

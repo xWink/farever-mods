@@ -1,0 +1,33 @@
+name: Mute on Unfocus
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['mute-on-unfocus/v*']
+    paths:
+      - 'mute-on-unfocus/**'
+      - '.github/workflows/build-mute-on-unfocus.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mute-on-unfocus/**'
+      - '.github/workflows/build-mute-on-unfocus.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: mute-on-unfocus
+      module: mute-unfocused
+      title: Mute on Unfocus
+

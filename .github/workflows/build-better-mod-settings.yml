@@ -1,0 +1,33 @@
+name: Better Mod Settings
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['better-mod-settings/v*']
+    paths:
+      - 'better-mod-settings/**'
+      - '.github/workflows/build-better-mod-settings.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'better-mod-settings/**'
+      - '.github/workflows/build-better-mod-settings.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: better-mod-settings
+      module: better-mod-settings
+      title: Better Mod Settings
+

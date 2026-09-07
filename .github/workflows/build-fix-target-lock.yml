@@ -1,0 +1,33 @@
+name: Fix Target Lock
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['fix-target-lock/v*']
+    paths:
+      - 'fix-target-lock/**'
+      - '.github/workflows/build-fix-target-lock.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'fix-target-lock/**'
+      - '.github/workflows/build-fix-target-lock.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: fix-target-lock
+      module: fix-target-lock
+      title: Fix Target Lock
+

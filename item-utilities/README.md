@@ -1,5 +1,9 @@
 # Farever Item Utilities
 
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=item-utilities%2Fv&expanded=true)
+
+This mod is maintained in [`xWink/farever-mods`](https://github.com/xWink/farever-mods/tree/main/item-utilities).
+
 A collection of inventory, bank, equipment, and item-safety quality-of-life tools for Farever.
 
 ## Installation
@@ -11,7 +15,7 @@ A collection of inventory, bank, equipment, and item-safety quality-of-life tool
 1. Install HLX Core.
 2. Install the Farever ImGui plugin.
 3. Download the latest release or successful build artifact.
-4. Install [Better Mod Settings](https://github.com/xWink/farever-better-mod-settings)
+4. Install [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings)
 5. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
    `hlx/mods/item-utilities/`
 6. Launch Farever.
@@ -91,6 +95,7 @@ Available settings include:
 Install Haxe 4.3.7, HLX Runtime, and `hl-imgui`, then run:
 
 ```sh
+cd item-utilities
 haxe compile.hxml
 ```
 
