@@ -39,7 +39,13 @@ built-in `GITHUB_TOKEN`; no additional release secret is required.
 
 Push release tags individually. GitHub does not create tag-push events when
 more than three tags are pushed at once. A build started with **Run workflow**
-only uploads a build artifact; it does not publish a release.
+on `main` only uploads a build artifact. Running the workflow on one of its
+release tags builds and publishes that release, which also allows recovery if
+a tag-push event was missed:
+
+```sh
+gh workflow run build-item-utilities.yml --ref item-utilities/v1.2.3
+```
 
 Release retries leave existing releases intact. Do not move a published tag to
 different source; publish a new version instead.

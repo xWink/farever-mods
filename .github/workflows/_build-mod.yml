@@ -90,7 +90,7 @@ jobs:
   release:
     name: Release
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, format('refs/tags/{0}/v', inputs.project))
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, format('refs/tags/{0}/v', inputs.project))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

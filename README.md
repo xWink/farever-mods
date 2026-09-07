@@ -44,7 +44,7 @@ Each mod has its own workflow in `.github/workflows/build-<project>.yml`:
 
 - Pushes to `main` and pull requests build only projects whose directory or
   workflow changed. Changing the shared `_build-mod.yml` builds all five.
-- Each workflow can also be run manually to produce an installable build artifact.
+- Each workflow can also be run manually on `main` to produce an installable build artifact.
 - A tag such as `item-utilities/v1.2.2` builds and releases only Item Utilities.
   Versions are independent; there is no repository-wide version.
 - Releases contain one Vortex-compatible ZIP named `farever-<project>.zip`.
