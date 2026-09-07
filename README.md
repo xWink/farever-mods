@@ -11,6 +11,7 @@ Each project has its own source, build, installable ZIP, and versioned releases.
 | Disable Profanity Filter | [disable-profanity-filter](disable-profanity-filter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter&expanded=true) |
 | Mute on Unfocus | [mute-on-unfocus](mute-on-unfocus/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true) |
 | Fix Target Lock | [fix-target-lock](fix-target-lock/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true) |
+| DPS Meter | [dps-meter](dps-meter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=dps-meter%2Fv&expanded=true) |
 
 ## Installing
 
@@ -18,6 +19,8 @@ Download the ZIP for the mod you want. Install it with Vortex, or extract it int
 the Farever game directory. Each archive contains just that mod under
 `hlx/mods/`. Installation requirements and Nexus Mods links are in each project's
 README. Existing installed mod folders and config filenames are unchanged.
+DPS Meter also includes the original `uploader.exe` helper in the game directory.
+It uses native game UI and requires HLX Core without the ImGui plugin.
 
 ## Building
 

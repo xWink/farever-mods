@@ -1,0 +1,113 @@
+name: DPS Meter
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['dps-meter/v*']
+    paths:
+      - 'dps-meter/**'
+      - '.github/workflows/build-dps-meter.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dps-meter/**'
+      - '.github/workflows/build-dps-meter.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dps-meter
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^dps-meter/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo 'Expected dps-meter/vX.Y.Z' >&2
+            exit 1
+          fi
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Install HLX runtime
+        run: |
+          mkdir -p "$HOME/haxelib"
+          haxelib setup "$HOME/haxelib"
+          haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+      - name: Test encounter tracking and report format
+        run: haxe -cp src -cp tests -main CombatModelTest --interp
+      - name: Compile HLX mod
+        run: haxe compile.hxml
+      - name: Package and verify original uploader
+        run: python tools/package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: farever-dps-meter
+          path: dps-meter/package/
+          if-no-files-found: error
+
+  launcher:
+    name: Validate Windows launcher syntax
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD/dps-meter/tools/start-uploader.ps1", [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+
+  release:
+    needs: [build, launcher]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/tags/dps-meter/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: farever-dps-meter
+          path: package
+      - name: Create installation archive
+        working-directory: package
+        run: zip -r ../farever-dps-meter.zip hlx uploader.exe
+      - name: Publish release
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists."
+            exit 0
+          fi
+          release_options=()
+          if [[ "${GITHUB_REF_NAME#dps-meter/v}" == *-* ]]; then
+            release_options+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" farever-dps-meter.zip \
+            --verify-tag --title "DPS Meter ${GITHUB_REF_NAME#*/}" \
+            --notes-from-tag --latest=false "${release_options[@]}"
