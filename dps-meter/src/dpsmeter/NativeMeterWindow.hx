@@ -49,7 +49,9 @@ class NativeMeterWindow {
         var ui = G.current("ui.BaseUI", "current");
         if (owner != null && owner != ui) dispose();
         if (window != null && G.field(window, "removed") == true) dispose();
-        if (!config.visible || !config.enabled || !active || ui == null) {
+        // A fresh character or instance has no encounter to show or fade out.
+        if (!config.visible || !config.enabled || !active || ui == null
+            || (config.hideOutOfCombat && model.displayedFight() == null)) {
             if (window != null) show(window, false);
             outOfCombatSince = -1;
             finishDrag();

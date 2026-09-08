@@ -37,6 +37,8 @@ can be removed if no other mod uses it.
   with a default of 3. After the delay, the whole window fades out over 0.4 seconds.
   The first damaging hit that starts the timer brings it back immediately;
   entering combat alone does not. A zero delay starts the fade immediately.
+  On game or instance load, the window stays hidden until an encounter has damage
+  to show, including a one-shot result.
 - The compact header shows the detected boss's name aligned left and the encounter
   timer aligned right, with a background spanning the window's full width.
   Boss names use the game's localized, phase-aware display names. The body
