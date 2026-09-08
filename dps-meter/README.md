@@ -105,8 +105,12 @@ It does not open a separate Windows overlay or block gameplay as a modal menu.
 Better Mod Settings exposes the toggles and hotkeys. The first launch imports
 compatible options from `group-dps.ini` if present; subsequent settings live in
 `hlx/mods/dps-meter/config.json`.
-The optional `me` override and comma-separated `group` fallback can be edited in
-that JSON file. Native window dimensions include its header and controls.
+The optional `me` override marks a matching character name as `is_me` in reports;
+the game still determines which hero's combat state the meter follows. The
+comma-separated `group` names are a fallback outside rifts when the game's party
+roster has been unavailable for more than five seconds. Both can normally stay
+empty. The legacy `debug` value is saved for compatibility but has no effect.
+Native window dimensions include its header and controls.
 
 ## Collection and uploads
 
@@ -146,7 +150,9 @@ poll_sec=5
 keep_days=7
 ```
 
-It creates `uploader.ini` if absent. JSON files are POSTed as `application/json`,
+The launcher creates `uploader.ini` without a comment header if it is absent.
+On startup it also removes the original five-line French header from existing
+files, preserving settings and other comments. JSON files are POSTed as `application/json`,
 with an optional Bearer token. HTTP 2xx moves files to `logs/sent/`; every 4xx,
 including 429, moves them to `logs/rejected/`. Other failures remain queued.
 Successful files older than `keep_days` are purged on startup; zero keeps them.
