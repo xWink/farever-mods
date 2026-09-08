@@ -7,7 +7,7 @@ typedef PlayerInfo = {
 };
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
-    target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int
+    target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String
 };
 
 class SkillStats {
@@ -91,6 +91,7 @@ class Fight {
     public var closed:Float = 0;
     public var defeated:Bool = false;
     public var bossKind:String = "";
+    public var bossName:String = "";
     public var bossUid:String = "";
     public var bossLevel:Int = 0;
     public var bossFoeId:Int = 0;
@@ -114,7 +115,7 @@ class Fight {
     public function copy():Fight {
         var result = new Fight(start);
         result.last = last; result.closed = closed; result.defeated = defeated;
-        result.bossKind = bossKind; result.bossUid = bossUid; result.bossLevel = bossLevel;
+        result.bossKind = bossKind; result.bossName = bossName; result.bossUid = bossUid; result.bossLevel = bossLevel;
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.me = me; result.participants = participants.copy();
         for (id => p in players) {
@@ -158,7 +159,7 @@ class CombatModel {
     var lastKillAmount:Float = -1;
     var lastKillTarget:String = "";
     var lastKillTime:Float = -1;
-    var partyInCombat:Bool = false;
+    var inCombat:Bool = false;
     var lastPartyDamage:Float = -1;
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
@@ -166,36 +167,44 @@ class CombatModel {
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         lastKillTarget = ""; lastKillTime = -1;
-        partyInCombat = false; lastPartyDamage = -1;
+        inCombat = false; lastPartyDamage = -1;
         // Already completed reports remain queued across character/zone changes.
     }
-    public function update(now:Float, anyPartyInCombat:Bool):Void {
-        var leftCombat = partyInCombat && !anyPartyInCombat;
-        partyInCombat = anyPartyInCombat;
-        // Honor a real combat exit immediately. Keep a short grace period only
-        // for damage that arrives before the replicated combat flag. A lingering
-        // flag alone must neither keep an idle encounter alive nor reopen one.
-        if (current != null && ((!anyPartyInCombat && (leftCombat || now - lastPartyDamage > 1))
-            || now - lastPartyDamage >= CURRENT_IDLE_SECONDS)) finishCurrent(now);
+    public function update(now:Float, localInCombat:Bool):Void {
+        // Poll only the local hero as a backup for native entry/exit callbacks.
+        if (localInCombat && !inCombat) onCombatEnter(me, now);
+        else if (!localInCombat && inCombat) onCombatExit(me, now);
+        // Unconfirmed damage can arrive before the combat state. Inactivity is
+        // only a fallback for that case, never a reason to split active combat.
+        if (!inCombat && current != null && now - lastPartyDamage >= CURRENT_IDLE_SECONDS)
+            finishCurrent(lastPartyDamage);
         if (boss != null && now - boss.last > 8) {
             boss.closed = now; lastBoss = boss; boss = null;
         }
     }
-    public function currentDuration():Float {
-        // Display elapsed damage time, so idle frames and resting heals cannot
-        // keep lowering DPS while we wait for the combat-exit notification.
-        return current == null ? 0 : Math.max(0.001, lastPartyDamage - current.start);
+    public function onCombatEnter(heroUid:String, now:Float):Void {
+        if (me == "" || heroUid != me) return;
+        inCombat = true;
+        // Keep any first hit delivered just before the entry notification.
+        if (current == null) current = new Fight(now);
+    }
+    public function displayedFight():Null<Fight> {
+        return current != null ? current : lastCombat;
     }
     public function onCombatExit(heroUid:String, now:Float):Void {
         // The local character's exit is an encounter boundary even if another
         // party member still has a combat flag, or we re-enter between polls.
         if (me == "" || heroUid != me) return;
-        partyInCombat = false;
+        inCombat = false;
         if (current != null) finishCurrent(now);
     }
     function finishCurrent(now:Float):Void {
-        current.last = Math.max(current.start, lastPartyDamage);
-        current.closed = now; lastCombat = current; current = null;
+        // Freeze the same elapsed time used by the live view, including time
+        // spent dodging or waiting in combat. Boss reports use a separate Fight.
+        current.last = Math.max(current.start, now);
+        current.closed = now;
+        if (current.players.iterator().hasNext()) lastCombat = current;
+        current = null;
     }
     public function record(e:DamageEvent):Void {
         if (!Math.isFinite(e.amount) || e.amount <= 0 || e.source == "" || e.source == "0") return;
@@ -213,7 +222,7 @@ class CombatModel {
         if (member) {
             // Also separate encounters if a damage callback precedes the next
             // update after a long idle period.
-            if (current != null && e.time - lastPartyDamage >= CURRENT_IDLE_SECONDS) finishCurrent(e.time);
+            if (!inCombat && current != null && e.time - lastPartyDamage >= CURRENT_IDLE_SECONDS) finishCurrent(lastPartyDamage);
             session.add(e, info);
             if (e.effect != 1) lastPartyDamage = e.time;
             // Resting heals still contribute to Session, but cannot start or
@@ -225,6 +234,10 @@ class CombatModel {
         }
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
         var bossHit = e.effect != 1 && (e.bossFlags & 0x38) != 0;
+        if (bossHit && member && current != null) {
+            current.bossKind = e.bossKind;
+            current.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
+        }
         if (bossHit && member && (boss == null || (boss.bossKind != e.bossKind && e.time - boss.last > 15))) {
             var previous = lastBoss;
             var resume = previous != null && previous.me == me && previous.bossKind == e.bossKind

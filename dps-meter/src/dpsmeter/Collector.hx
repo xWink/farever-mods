@@ -37,14 +37,12 @@ class Collector {
         if (group != null) roster = G.array(G.field(group, "players"), true);
         var members:Map<String, Bool> = [];
         var hasMe = false;
-        var anyCombat = G.field(hero, "isInCombat") == true;
         for (p in roster) {
             if (p == player || G.field(p, "isMe") == true) hasMe = true;
             var h = G.field(p, "hero");
             var info = profile(h);
             if (info == null) continue;
             members[info.uid] = true;
-            if (G.field(h, "isInCombat") == true) anyCombat = true;
         }
         if (hasMe) { groupMembers = members; lastGroupSeen = now; }
         else if (now - lastGroupSeen > 5) groupMembers = [];
@@ -55,7 +53,7 @@ class Collector {
             for (p in model.profiles) if (names.indexOf(p.name.toLowerCase()) >= 0) model.party[p.uid] = true;
         }
         // Encounter timing must not depend on optional activity/report metadata.
-        model.update(now, anyCombat);
+        model.update(now, G.field(hero, "isInCombat") == true);
         var layerConfig = G.field(layer, "config");
         model.difficulty = G.integer(G.field(layerConfig, "difficulty"), -1);
         model.activityId = G.text(G.field(layerConfig, "activityID"));
@@ -88,10 +86,17 @@ class Collector {
         var inf = G.field(target, "inf");
         var kind = G.text(G.field(target, "kind"));
         if (kind == "") kind = G.text(G.field(inf, "id"));
+        var bossFlags = G.integer(G.field(inf, "flags"));
+        var bossName = "";
+        if ((bossFlags & 0x38) != 0) {
+            // Use the game's localized, phase-aware name instead of its data ID.
+            try bossName = G.text(G.call("ent.Unit", "getName", target)) catch (_:Dynamic) {}
+            if (bossName == "") bossName = kind;
+        }
         model.record({time: now, source: uid, amount: G.number(G.field(damage, "_amount")),
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
             effect: G.integer(G.field(damage, "effect")), skill: skillId,
-            target: G.uid(target), bossKind: kind, bossFlags: G.integer(G.field(inf, "flags")),
+            target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
             bossLevel: G.integer(G.field(target, "_level")), bossFoeId: G.integer(G.field(target, "foeId"))});
     }
     public function profile(h:Dynamic):Null<PlayerInfo> {

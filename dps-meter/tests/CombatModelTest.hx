@@ -95,8 +95,8 @@ class CombatModelTest {
         check(m.current == null && m.lastCombat != null && m.boss == null,
             "Leaving combat after an ordinary mob immediately ends Current");
         var previous = m.lastCombat;
-        check(previous.players[m.me].damage == 250 && previous.duration(200) == 1,
-            "Last keeps the completed damage and a frozen duration");
+        check(previous.players[m.me].damage == 250 && Math.abs(previous.duration(200) - 1.1) < 0.00001,
+            "Last keeps the completed damage and freezes elapsed time at combat exit");
         m.record(event(102, m.me, 20, false, false, m.me, 1));
         m.update(103, false);
         check(m.current == null && m.lastCombat == previous && m.session.players[m.me].heal == 20,
@@ -110,40 +110,54 @@ class CombatModelTest {
         m.update(100.25, false);
         check(m.current != null, "Damage can arrive before the replicated combat flag");
         m.record(event(101.2, m.me, 20, false, false, m.me, 1));
-        m.update(101.25, false);
-        check(m.current == null, "Healing cannot prolong the grace period after the last damage");
+        m.update(108, false);
+        check(m.current == null, "Healing cannot prolong the fallback for damage without a combat-entry notification");
 
         m = model();
-        m.update(100, true);
-        check(m.current == null, "A combat flag alone cannot start the damage timer");
+        m.onCombatEnter("2", 100);
+        check(m.current == null, "Another hero's entry does not start our timer");
+        m.onCombatEnter(m.me, 100);
+        check(m.current != null && m.current.duration(102) == 2 && !m.current.players.iterator().hasNext(),
+            "Native combat entry starts the timer even before anyone deals damage");
         m.record(event(101, m.me, 100, false, false));
         m.record(event(102, m.me, 150, true, false));
         m.update(106, true);
-        check(m.currentDuration() == 1 && m.current.players[m.me].damage / m.currentDuration() == 250,
-            "Idle frames after the final hit do not increase Current time or lower DPS");
+        check(m.displayedFight().duration(106) == 6 && m.current.players[m.me].damage == 250,
+            "Elapsed time advances during combat without requiring another damage event");
         m.record(event(108, m.me, 20, false, false, m.me, 1));
-        check(m.currentDuration() == 1, "A resting heal cannot advance the damage timer even with a stale combat flag");
-        m.record(event(109, "3", 75, false, false));
-        m.update(110, true);
-        check(m.current == null && m.lastCombat != null,
-            "Eight seconds without party damage closes Current despite a true combat flag, heals, or nearby damage");
-        previous = m.lastCombat;
-        check(previous.duration(200) == 1 && previous.players[m.me].damage == 250,
-            "Last freezes at the final damage event, excluding the later heal and idle timeout");
-        m.update(111, true);
-        m.record(event(112, m.me, 20, false, false, m.me, 1));
-        check(m.current == null && m.lastCombat == previous,
-            "Stale combat flags and resting heals cannot reopen an expired encounter");
-        m.record(event(113, "2", 75, false, false, "next-mob"));
-        check(m.current.start == 113 && m.current.players["2"].damage == 75 && m.lastCombat == previous,
-            "New party damage starts a fresh encounter after a stale flag timeout");
-        m.record(event(117, "2", 25, false, false, "next-mob"));
-        check(m.currentDuration() == 4 && m.current.players["2"].damage == 100,
-            "Time between hits within an active encounter still contributes to DPS");
+        m.update(120, true);
+        check(m.current != null && m.current.start == 100 && m.current.duration(120) == 20,
+            "A long dodge/mechanic phase does not expire a fight that is still in combat");
+        m.record(event(121, "2", 50, false, false));
+        check(m.current.start == 100 && m.current.players[m.me].damage == 250 && m.current.players["2"].damage == 50,
+            "Damage after more than eight seconds of active combat stays in the same encounter");
         previous = m.current;
-        m.record(event(125, m.me, 40, false, false, "later-mob"));
-        check(m.lastCombat == previous && m.current.start == 125 && !m.current.players.exists("2"),
-            "A hit arriving before the next update cannot merge with an expired encounter");
+        m.onCombatExit(m.me, 122);
+        check(m.displayedFight() == previous && previous.duration(200) == 22,
+            "The finished encounter stays visible with its actual frozen elapsed time");
+        var finishedDps = previous.players[m.me].damage / previous.duration(122);
+        m.record(event(125, m.me, 20, false, false, m.me, 1));
+        m.update(130, false);
+        check(m.displayedFight() == previous && previous.players[m.me].damage / previous.duration(130) == finishedDps,
+            "Resting and healing cannot change the displayed previous damage or DPS");
+        m.onCombatEnter(m.me, 131);
+        check(m.displayedFight() != previous && Std.int(m.displayedFight().duration(131)) == 0
+            && !m.displayedFight().players.iterator().hasNext(),
+            "The new fight resets rows and timer together instead of applying a new clock to old totals");
+        m.record(event(132, m.me, 80, false, false));
+        check(m.current.players[m.me].damage == 80 && previous.players[m.me].damage == 250 && previous.duration(300) == 22,
+            "New encounter damage cannot mutate the finished encounter");
+
+        m = model();
+        m.record(event(100, m.me, 100, false, false));
+        m.onCombatEnter(m.me, 100.2);
+        check(m.current.start == 100 && m.current.players[m.me].damage == 100,
+            "The first hit is retained if the combat-entry event arrives just afterward");
+        m.onCombatExit(m.me, 102);
+        previous = m.lastCombat;
+        m.onCombatEnter(m.me, 103);
+        m.onCombatExit(m.me, 104);
+        check(m.displayedFight() == previous, "An empty combat does not erase the last recorded result");
 
         m = model();
         m.update(100, true);
@@ -153,22 +167,24 @@ class CombatModelTest {
         m.onCombatExit("2", 101.01);
         check(m.current == previous, "Another hero leaving combat must not reset our meter");
         m.onCombatExit(m.me, 101.02);
-        check(m.current == null && m.currentDuration() == 0 && m.lastCombat == previous,
-            "The local native combat-exit event clears Current immediately, without waiting for a poll or timeout");
+        check(m.current == null && m.displayedFight() == previous && Math.abs(previous.duration(200) - 1.02) < 0.00001,
+            "The local native exit immediately freezes the displayed encounter, without waiting for a poll or timeout");
         m.record(event(101.03, m.me, 150, true, false));
         check(m.current == null, "A late duplicate kill notification cannot reopen the finished encounter");
-        m.update(102, true);
+        m.update(102, false);
+        m.onCombatEnter(m.me, 103);
         m.record(event(103, m.me, 150, true, false, "new-mob"));
-        check(m.current.start == 103 && m.current.players[m.me].damage == 150 && Std.int(m.currentDuration()) == 0,
-            "Re-entering within eight seconds starts at zero with fresh totals even if party flags remain true");
-        check(m.lastCombat == previous && previous.players[m.me].damage == 250 && previous.duration() == 1,
+        check(m.current.start == 103 && m.current.players[m.me].damage == 150 && Std.int(m.current.duration(103)) == 0,
+            "Re-entering within eight seconds starts at zero with fresh totals");
+        check(m.lastCombat == previous && previous.players[m.me].damage == 250 && Math.abs(previous.duration() - 1.02) < 0.00001,
             "The short gap and next kill do not alter the previous encounter");
         m.onCombatExit(m.me, 103.01);
         previous = m.lastCombat;
         m.onCombatExit(m.me, 103.02);
         check(m.current == null && m.lastCombat == previous, "Duplicate exit callbacks are harmless");
+        m.onCombatEnter(m.me, 103.03);
         m.record(event(103.03, m.me, 50, false, false, "third-mob"));
-        check(m.current.start == 103.03 && m.current.players[m.me].damage == 50 && Std.int(m.currentDuration()) == 0,
+        check(m.current.start == 103.03 && m.current.players[m.me].damage == 50 && Std.int(m.current.duration(103.03)) == 0,
             "Exit and re-entry between roster polls still create separate encounters");
 
         m = model();
@@ -177,6 +193,25 @@ class CombatModelTest {
         m.onCombatExit(m.me, 100.5);
         check(m.current == null && m.boss == pendingBoss && m.session.players[m.me].damage == 100,
             "Resetting the visible encounter does not discard boss collection or session totals");
+
+        m = model();
+        var bossHit = event();
+        bossHit.bossName = "The Ancient Guardian";
+        m.record(bossHit);
+        check(m.displayedFight().bossName == "The Ancient Guardian" && m.displayedFight().bossKind == "TestBoss",
+            "The header uses the detected boss's display name while preserving its data ID");
+        m.record(event(101, m.me, 25, false, false, "add"));
+        check(m.current.bossName == "The Ancient Guardian", "Boss names persist while fighting that encounter's adds");
+        bossHit = event(102); bossHit.bossName = "The Awakened Guardian";
+        m.record(bossHit);
+        check(m.current.bossName == "The Awakened Guardian", "The displayed boss name follows phase-name changes");
+        m.onCombatExit(m.me, 103);
+        previous = m.displayedFight();
+        check(previous.bossName == "The Awakened Guardian", "The boss name stays paired with the finished encounter");
+        m.onCombatEnter(m.me, 104);
+        m.record(event(104, m.me, 50, false, false, "ordinary-mob"));
+        check(m.current.bossName == "" && previous.bossName == "The Awakened Guardian",
+            "A new ordinary fight cannot inherit the previous boss's header name");
         Sys.println(checks + " combat/report checks passed");
     }
 }

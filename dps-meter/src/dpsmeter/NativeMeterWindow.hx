@@ -19,6 +19,10 @@ class NativeMeterWindow {
     var rowsRoot:Dynamic;
     var title:Dynamic;
     var timer:Dynamic;
+    var bossLabel:Dynamic;
+    var bossCaption:String = "";
+    var bossLabelWidth:Int = -1;
+    var displayed:Null<Fight>;
     var lockButton:Dynamic;
     var lockIcon:Dynamic;
     var lockIconUnlocked:Null<Bool>;
@@ -68,7 +72,7 @@ class NativeMeterWindow {
         position(window, config.x, config.y);
         if (now - lastRefresh >= 0.20) {
             lastRefresh = now;
-            refresh(model);
+            refresh(model, now);
         }
         alignControls();
     }
@@ -125,6 +129,12 @@ class NativeMeterWindow {
         absolute(G.field(toolbar, "obj"), timer);
         G.call("h2d.Text", "set_textAlign", timer, [left]);
         style(timer, "text-align", left);
+        bossLabel = label(toolbar, "");
+        absolute(G.field(toolbar, "obj"), bossLabel);
+        G.call("h2d.Text", "set_textAlign", bossLabel, [left]);
+        style(bossLabel, "text-align", left);
+        G.call("ui.comp.FmtText", "set_useEllipsis", bossLabel, [true]);
+        bossLabelWidth = -1;
         absolute(header, G.field(toolbar, "obj"));
 
         body = node("options-content", dom, [0], "dpsMeterBody");
@@ -141,6 +151,7 @@ class NativeMeterWindow {
         flow(content, "set_verticalSpacing", 12);
         style(G.field(content, "obj"), "vspacing", 12);
         rowsRoot = node("flow", content, [], "dpsMeterRows", "vertical");
+        padding(G.field(rowsRoot, "obj"), 0);
         flow(rowsRoot, "set_verticalSpacing", 12);
         style(G.field(rowsRoot, "obj"), "vspacing", 12);
         flow(rowsRoot, "set_overflow", G.enumeration("h2d.FlowOverflow", "Scroll"));
@@ -241,6 +252,18 @@ class NativeMeterWindow {
         var textHeight = G.number(G.call("h2d.Text", "get_textHeight", timer)) * G.number(G.field(timer, "scaleY"), 1);
         position(lockButton, 0, 0);
         position(timer, width - 32 - textWidth, Math.max(0, (34 - textHeight) / 2));
+        var left = 34 + 12;
+        var right = width - 32 - textWidth - 12;
+        var available = Std.int(Math.max(1, right - left));
+        if (available != bossLabelWidth) {
+            bossLabelWidth = available;
+            G.call("ui.comp.FmtText", "set_maxWidthText", bossLabel, [available]);
+            setText(bossLabel, bossCaption);
+            G.call("ui.comp.FmtText", "updateScale", bossLabel);
+        }
+        var bossWidth = G.number(G.call("h2d.Text", "get_textWidth", bossLabel)) * G.number(G.field(bossLabel, "scaleX"), 1);
+        var bossHeight = G.number(G.call("h2d.Text", "get_textHeight", bossLabel)) * G.number(G.field(bossLabel, "scaleY"), 1);
+        position(bossLabel, (left + right - bossWidth) / 2, Math.max(0, (34 - bossHeight) / 2));
     }
     function centerTitle():Void {
         // Measure after native styles have applied; keep centering through resize/hover.
@@ -273,7 +296,7 @@ class NativeMeterWindow {
         for (object in [bodyObject, options, container]) { size(object, innerWidth, bodyHeight); position(object, 0, 0); }
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
-        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 24)));
+        size(G.field(rowsRoot, "obj"), width - 32, Std.int(Math.max(20, bodyHeight - 24)));
         G.set(dragSurface, "width", width - 65.0);
         // This surface covers only the title row, above the clickable toolbar.
         position(dragSurface, 12, 5);
@@ -282,18 +305,30 @@ class NativeMeterWindow {
         for (row in rows) sizeRow(row);
         lastRefresh = -1;
     }
+    function availableRowWidth():Int {
+        var list = G.field(rowsRoot, "obj");
+        var available = G.integer(G.call("h2d.Flow", "get_innerWidth", list), width - 32);
+        var scrollbar = G.field(list, "scrollBar");
+        // Use the full body width, reserving room only for a visible scrollbar.
+        if (scrollbar != null && G.field(scrollbar, "visible") == true)
+            available -= G.integer(G.call("h2d.Flow", "get_outerWidth", scrollbar)) + 4;
+        return Std.int(Math.max(1, available));
+    }
     function sizeRow(row:Dynamic):Void {
-        var rowWidth = width - 70;
-        size(row.obj, rowWidth);
-        size(row.heading, rowWidth);
-        G.call("ui.comp.FmtText", "set_maxWidthText", row.details, [rowWidth - 60]);
-        G.call("ui.comp.FmtText", "set_maxWidthText", row.extra, [rowWidth]);
-        G.call("ui.comp.BaseGauge", "set_barWidth", row.bar, [rowWidth]);
-        size(row.bar, rowWidth, 9);
+        var rowWidth = availableRowWidth();
+        if (row.width != rowWidth) {
+            row.width = rowWidth;
+            size(row.obj, rowWidth);
+            size(row.heading, rowWidth);
+            G.call("ui.comp.FmtText", "set_maxWidthText", row.details, [Std.int(Math.max(1, rowWidth - 60))]);
+            G.call("ui.comp.FmtText", "set_maxWidthText", row.extra, [rowWidth]);
+            G.call("ui.comp.BaseGauge", "set_barWidth", row.bar, [rowWidth]);
+            size(row.bar, rowWidth, 9);
+        }
         alignRow(row);
     }
     function alignRow(row:Dynamic):Void {
-        var rowWidth = width - 70;
+        var rowWidth:Int = row.width;
         // Measure native text, not spaces: numbers keep a common right edge.
         G.call("ui.comp.FmtText", "updateScale", row.details);
         var detailWidth = G.number(G.call("h2d.Text", "get_textWidth", row.details)) * G.number(G.field(row.details, "scaleX"), 1);
@@ -311,6 +346,7 @@ class NativeMeterWindow {
     }
     function makeRow(index:Int):Dynamic {
         var d = node("element", rowsRoot, [], "dpsMeterRow" + index, "vertical");
+        padding(G.field(d, "obj"), 0);
         flow(d, "set_verticalSpacing", 4);
         style(G.field(d, "obj"), "vspacing", 4);
         var heading = node("flow", d, [], "dpsMeterRowHeading" + index, "horizontal");
@@ -334,20 +370,25 @@ class NativeMeterWindow {
         G.call("ui.comp.BaseGauge", "set_showValues", bar, [false]);
         var obj = G.field(d, "obj");
         var row:Dynamic = {obj: obj, heading: headingObject, name: name, details: details,
-            extra: extra, bar: bar, uid: "", caption: "", lineHeight: 0, color: -1};
+            extra: extra, bar: bar, uid: "", caption: "", lineHeight: 0, color: -1, width: 0};
         G.call("ui.UIElement", "set_onClick", obj, [() -> { selectedPlayer = row.uid; lastRefresh = -1; }]);
         sizeRow(row);
         return row;
     }
-    function refresh(model:CombatModel):Void {
+    function refresh(model:CombatModel, now:Float):Void {
         updateLockIcon();
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
-        var fight = model.current;
-        if (fight == null) selectedPlayer = "";
+        var fight = model.displayedFight();
+        if (fight != displayed) { displayed = fight; selectedPlayer = ""; }
         var ranked = fight == null ? [] : fight.ranked();
-        var elapsed = model.currentDuration();
+        // Pair the rows and clock with one encounter. Closed fights retain their
+        // frozen duration until a new fight replaces the entire view.
+        var elapsed = fight == null ? 0 : fight.duration(now);
         setText(timer, duration(elapsed));
+        var bossName = fight == null ? "" : fight.bossName;
+        if (bossName != bossCaption) { bossCaption = bossName; bossLabelWidth = -1; }
+        show(bossLabel, bossCaption != "");
         // A single instant hit should not display thousands of times its damage as DPS.
         var seconds = Math.max(1, elapsed);
         var total = 0.0;
@@ -379,7 +420,7 @@ class NativeMeterWindow {
             row.caption = label;
             setText(row.details, detail);
             show(row.extra, selected != null);
-            alignRow(row);
+            sizeRow(row);
             if (row.color != color) {
                 row.color = color;
                 G.set(row.bar, "color", color); G.set(row.bar, "fullColor", color);
@@ -442,7 +483,7 @@ class NativeMeterWindow {
     public function dispose():Void {
         finishDrag();
         if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
-        owner = null; rows = []; selectedPlayer = "";
+        owner = null; rows = []; selectedPlayer = ""; displayed = null;
     }
     static function children(object:Dynamic):Array<Dynamic> {
         var count = G.integer(G.call("h2d.Object", "get_numChildren", object));
