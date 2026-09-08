@@ -28,6 +28,13 @@ class DpsMeterMod {
         if (collector != null) try collector.damage(instance, damage, haxe.Timer.stamp()) catch (e:Dynamic) logError(e);
         return Continue;
     }
+    @:hlx.postfix(ent.Hero.onLeaveCombat)
+    static function onCombatExit(instance:Dynamic, result:Void):Void {
+        // This callback runs before set_isInCombat stores false. Observe the
+        // actual exit event instead of polling that field or another party member.
+        if (collector != null && config.enabled) try collector.model.onCombatExit(G.uid(instance), haxe.Timer.stamp())
+        catch (e:Dynamic) logError(e);
+    }
     @:hlx.postfix(GameApp.update)
     static function update(instance:Dynamic, dt:Float, result:Void):Void {
         if (collector == null) return;

@@ -156,6 +156,8 @@ class CombatModel {
     public var activityId:String = "";
     var lastKillSource:String = "";
     var lastKillAmount:Float = -1;
+    var lastKillTarget:String = "";
+    var lastKillTime:Float = -1;
     var partyInCombat:Bool = false;
     var lastPartyDamage:Float = -1;
     public function new(now:Float) session = new Fight(now);
@@ -163,6 +165,7 @@ class CombatModel {
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
+        lastKillTarget = ""; lastKillTime = -1;
         partyInCombat = false; lastPartyDamage = -1;
         // Already completed reports remain queued across character/zone changes.
     }
@@ -183,6 +186,13 @@ class CombatModel {
         // keep lowering DPS while we wait for the combat-exit notification.
         return current == null ? 0 : Math.max(0.001, lastPartyDamage - current.start);
     }
+    public function onCombatExit(heroUid:String, now:Float):Void {
+        // The local character's exit is an encounter boundary even if another
+        // party member still has a combat flag, or we re-enter between polls.
+        if (me == "" || heroUid != me) return;
+        partyInCombat = false;
+        if (current != null) finishCurrent(now);
+    }
     function finishCurrent(now:Float):Void {
         current.last = Math.max(current.start, lastPartyDamage);
         current.closed = now; lastCombat = current; current = null;
@@ -190,8 +200,12 @@ class CombatModel {
     public function record(e:DamageEvent):Void {
         if (!Math.isFinite(e.amount) || e.amount <= 0 || e.source == "" || e.source == "0") return;
         if (e.kill) {
-            if (e.source == lastKillSource && e.amount == lastKillAmount) return;
+            // Equal lethal hits against different mobs (or in a later fight)
+            // are distinct events, not duplicate notifications of one kill.
+            if (e.source == lastKillSource && e.amount == lastKillAmount && e.target == lastKillTarget
+                && e.time >= lastKillTime && e.time - lastKillTime <= 0.1) return;
             lastKillSource = e.source; lastKillAmount = e.amount;
+            lastKillTarget = e.target; lastKillTime = e.time;
         }
         var info = profiles[e.source];
         if (info == null) return;

@@ -144,6 +144,39 @@ class CombatModelTest {
         m.record(event(125, m.me, 40, false, false, "later-mob"));
         check(m.lastCombat == previous && m.current.start == 125 && !m.current.players.exists("2"),
             "A hit arriving before the next update cannot merge with an expired encounter");
+
+        m = model();
+        m.update(100, true);
+        m.record(event(100, m.me, 100, false, false));
+        m.record(event(101, m.me, 150, true, false));
+        previous = m.current;
+        m.onCombatExit("2", 101.01);
+        check(m.current == previous, "Another hero leaving combat must not reset our meter");
+        m.onCombatExit(m.me, 101.02);
+        check(m.current == null && m.currentDuration() == 0 && m.lastCombat == previous,
+            "The local native combat-exit event clears Current immediately, without waiting for a poll or timeout");
+        m.record(event(101.03, m.me, 150, true, false));
+        check(m.current == null, "A late duplicate kill notification cannot reopen the finished encounter");
+        m.update(102, true);
+        m.record(event(103, m.me, 150, true, false, "new-mob"));
+        check(m.current.start == 103 && m.current.players[m.me].damage == 150 && Std.int(m.currentDuration()) == 0,
+            "Re-entering within eight seconds starts at zero with fresh totals even if party flags remain true");
+        check(m.lastCombat == previous && previous.players[m.me].damage == 250 && previous.duration() == 1,
+            "The short gap and next kill do not alter the previous encounter");
+        m.onCombatExit(m.me, 103.01);
+        previous = m.lastCombat;
+        m.onCombatExit(m.me, 103.02);
+        check(m.current == null && m.lastCombat == previous, "Duplicate exit callbacks are harmless");
+        m.record(event(103.03, m.me, 50, false, false, "third-mob"));
+        check(m.current.start == 103.03 && m.current.players[m.me].damage == 50 && Std.int(m.currentDuration()) == 0,
+            "Exit and re-entry between roster polls still create separate encounters");
+
+        m = model();
+        m.record(event());
+        var pendingBoss = m.boss;
+        m.onCombatExit(m.me, 100.5);
+        check(m.current == null && m.boss == pendingBoss && m.session.players[m.me].damage == 100,
+            "Resetting the visible encounter does not discard boss collection or session totals");
         Sys.println(checks + " combat/report checks passed");
     }
 }

@@ -18,8 +18,7 @@ class NativeMeterWindow {
     var content:Dynamic;
     var rowsRoot:Dynamic;
     var title:Dynamic;
-    var subtitle:Dynamic;
-    var modeButton:Dynamic;
+    var timer:Dynamic;
     var lockButton:Dynamic;
     var lockIcon:Dynamic;
     var lockIconUnlocked:Null<Bool>;
@@ -28,7 +27,6 @@ class NativeMeterWindow {
     var grip:Dynamic;
     var rows:Array<Dynamic> = [];
     var config:MeterConfig;
-    var mode:Int = 0;
     var selectedPlayer:String = "";
     var lastRefresh:Float = -1;
     var width:Int = 0;
@@ -63,15 +61,16 @@ class NativeMeterWindow {
             }
         }
         show(window, true);
-        if (width != config.width || height != config.height || headerHeight != measuredHeaderHeight()) layout();
+        if (width != config.width || height != config.height) layout();
         updateDrag();
         centerTitle();
         clampToScreen();
         position(window, config.x, config.y);
         if (now - lastRefresh >= 0.20) {
             lastRefresh = now;
-            refresh(model, now);
+            refresh(model);
         }
+        alignControls();
     }
 
     function build(ui:Dynamic):Void {
@@ -113,19 +112,19 @@ class NativeMeterWindow {
         }]);
 
         toolbar = node("flow", G.field(header, "dom"), [], "dpsMeterToolbar", "horizontal");
-        flow(toolbar, "set_horizontalSpacing", 5);
-        flow(toolbar, "set_verticalSpacing", 5);
-        flow(toolbar, "set_multiline", true);
-        modeButton = button(toolbar, "Current", () -> { mode = (mode + 1) % 4; selectedPlayer = ""; lastRefresh = -1; });
         lockButton = button(toolbar, "", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
+        absolute(G.field(toolbar, "obj"), lockButton);
         // Draw with the game's vector renderer, avoiding missing font glyphs/assets.
         lockIcon = G.create("h2d.Graphics", [lockButton]);
         absolute(lockButton, lockIcon);
         position(lockIcon, 7, 6);
         lockIconUnlocked = null;
-        var reset = button(toolbar, "Reset", () -> { modelResetRequested = true; selectedPlayer = ""; });
-        for (control in [modeButton, lockButton, reset]) padding(control, 6);
-        size(modeButton, 88, 34); size(lockButton, 34, 34); size(reset, 60, 34);
+        padding(lockButton, 6);
+        size(lockButton, 34, 34);
+        timer = label(toolbar, "0:00");
+        absolute(G.field(toolbar, "obj"), timer);
+        G.call("h2d.Text", "set_textAlign", timer, [left]);
+        style(timer, "text-align", left);
         absolute(header, G.field(toolbar, "obj"));
 
         body = node("options-content", dom, [0], "dpsMeterBody");
@@ -141,7 +140,6 @@ class NativeMeterWindow {
         content = node("flow", parent, [], "dpsMeterContent", "vertical");
         flow(content, "set_verticalSpacing", 12);
         style(G.field(content, "obj"), "vspacing", 12);
-        subtitle = label(content, "Waiting for combat");
         rowsRoot = node("flow", content, [], "dpsMeterRows", "vertical");
         flow(rowsRoot, "set_verticalSpacing", 12);
         style(G.field(rowsRoot, "obj"), "vspacing", 12);
@@ -176,7 +174,6 @@ class NativeMeterWindow {
         width = 0; height = 0;
         layout();
     }
-    public var modelResetRequested:Bool = false;
     function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String, ?layout:String):Dynamic {
         var attributes:Dynamic = {id: id};
         if (layout != null) Reflect.setField(attributes, "layout", layout);
@@ -237,8 +234,13 @@ class NativeMeterWindow {
             if (h >= 0) for (property in ["height", "min-height", "max-height"]) G.call("domkit.Properties", "initStyle", d, [property, h]);
         }
     }
-    function measuredHeaderHeight():Int {
-        return 44 + Std.int(Math.max(34, G.integer(G.call("h2d.Flow", "get_outerHeight", G.field(toolbar, "obj"))))) + 6;
+    function alignControls():Void {
+        // Measure after native styles apply, keeping the timer against the right
+        // edge as the window is resized or the number of digits changes.
+        var textWidth = G.number(G.call("h2d.Text", "get_textWidth", timer)) * G.number(G.field(timer, "scaleX"), 1);
+        var textHeight = G.number(G.call("h2d.Text", "get_textHeight", timer)) * G.number(G.field(timer, "scaleY"), 1);
+        position(lockButton, 0, 0);
+        position(timer, width - 32 - textWidth, Math.max(0, (34 - textHeight) / 2));
     }
     function centerTitle():Void {
         // Measure after native styles have applied; keep centering through resize/hover.
@@ -249,8 +251,8 @@ class NativeMeterWindow {
         width = config.width; height = config.height;
         var innerWidth = width - 16;
         var toolbarObject = G.field(toolbar, "obj");
-        size(toolbarObject, innerWidth - 16);
-        headerHeight = measuredHeaderHeight();
+        size(toolbarObject, innerWidth - 16, 34);
+        headerHeight = 84;
         var bodyHeight = height - headerHeight - 8;
         size(window, width, height);
         if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
@@ -262,6 +264,8 @@ class NativeMeterWindow {
         var close = G.field(header, "closeBtn");
         if (close != null) position(close, innerWidth - 32, 4);
         position(toolbarObject, 8, 44);
+        G.call("ui.comp.FmtText", "set_maxWidthText", timer, [innerWidth - 62]);
+        alignControls();
         size(windowContent, innerWidth, bodyHeight);
         position(windowContent, 8, headerHeight);
         var bodyObject = G.field(body, "obj");
@@ -269,9 +273,7 @@ class NativeMeterWindow {
         for (object in [bodyObject, options, container]) { size(object, innerWidth, bodyHeight); position(object, 0, 0); }
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
-        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 58)));
-        G.call("ui.comp.FmtText", "set_maxWidthText", subtitle, [width - 48]);
-        G.call("ui.comp.FmtText", "set_useEllipsis", subtitle, [true]);
+        size(G.field(rowsRoot, "obj"), width - 48, Std.int(Math.max(20, bodyHeight - 24)));
         G.set(dragSurface, "width", width - 65.0);
         // This surface covers only the title row, above the clickable toolbar.
         position(dragSurface, 12, 5);
@@ -337,38 +339,24 @@ class NativeMeterWindow {
         sizeRow(row);
         return row;
     }
-    function refresh(model:CombatModel, now:Float):Void {
-        if (modelResetRequested) {
-            modelResetRequested = false;
-            model.session = new Fight(now);
-        }
-        var modes = ["Current", "Last", "Boss", "Session"];
-        G.call("ui.comp.Button", "setText", modeButton, [modes[mode]]);
+    function refresh(model:CombatModel):Void {
         updateLockIcon();
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
-        var fight:Null<Fight> = switch (mode) {
-            case 0: model.current;
-            case 1: model.lastCombat;
-            case 2: model.boss != null ? model.boss : model.lastBoss;
-            default: model.session;
-        };
+        var fight = model.current;
+        if (fight == null) selectedPlayer = "";
         var ranked = fight == null ? [] : fight.ranked();
-        var seconds = fight == null ? 0.0 : fight == model.current ? model.currentDuration()
-            : fight.duration(fight == model.boss ? now : null);
+        var elapsed = model.currentDuration();
+        setText(timer, duration(elapsed));
         // A single instant hit should not display thousands of times its damage as DPS.
-        if (fight != null) seconds = Math.max(1, seconds);
+        var seconds = Math.max(1, elapsed);
         var total = 0.0;
         for (p in ranked) total += p.damage;
-        var caption = fight == null ? "Waiting for combat" : (fight.bossKind != "" ? fight.bossKind : modes[mode])
-            + "  ·  " + duration(seconds) + "  ·  " + compact(total) + " damage";
-        setText(subtitle, caption);
         var selected = fight == null ? null : fight.players[selectedPlayer];
         var skillIds:Array<String> = [];
         if (selected != null) {
             skillIds = [for (id in selected.skills.keys()) id];
             skillIds.sort((a, b) -> Reflect.compare(selected.skills[b].damage, selected.skills[a].damage));
-            setText(subtitle, selected.info.name + "  ·  " + duration(seconds) + "  ·  click a row to return");
         }
         var count = selected == null ? ranked.length : skillIds.length;
         while (rows.length < count) rows.push(makeRow(rows.length));
