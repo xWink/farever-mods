@@ -153,7 +153,10 @@ class NativeMeterWindow {
         padding(G.field(rowsRoot, "obj"), 0);
         flow(rowsRoot, "set_verticalSpacing", 12);
         style(G.field(rowsRoot, "obj"), "vspacing", 12);
-        flow(rowsRoot, "set_overflow", G.enumeration("h2d.FlowOverflow", "Scroll"));
+        // Preserve native clipping, wheel scrolling and the scrollbar through CSS updates.
+        var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
+        flow(rowsRoot, "set_overflow", scroll);
+        style(G.field(rowsRoot, "obj"), "overflow", scroll);
         for (object in [window, frameBackground, windowContent, header, bodyObject, options, container, G.field(content, "obj"), G.field(toolbar, "obj")]) {
             if (object == null) continue;
             padding(object, 0);
@@ -415,7 +418,7 @@ class NativeMeterWindow {
         if (dragging) { config.x = startX + p.x - startMouseX; config.y = startY + p.y - startMouseY; }
         else {
             config.width = Std.int(Math.max(360, Math.min(1200, startWidth + p.x - startMouseX)));
-            config.height = Std.int(Math.max(220, Math.min(1000, startHeight + p.y - startMouseY)));
+            config.height = Std.int(Math.max(MeterConfig.MIN_HEIGHT, Math.min(1000, startHeight + p.y - startMouseY)));
             if (config.width != width || config.height != height) layout();
         }
     }

@@ -6,6 +6,7 @@ import sys.io.File;
 
 class MeterConfig {
     public static inline var PATH = "hlx/mods/dps-meter/config.json";
+    public static inline var MIN_HEIGHT:Int = 110;
     public var enabled:Bool = true;
     public var visible:Bool = true;
     public var hideOutOfCombat:Bool = false;
@@ -40,7 +41,7 @@ class MeterConfig {
                     Reflect.setField(this, key, key == "x" || key == "y" ? Std.parseFloat(Std.string(value)) : Std.int(value));
             }
             width = Std.int(Math.max(360, Math.min(1200, width)));
-            height = Std.int(Math.max(220, Math.min(1000, height)));
+            height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, height)));
             hideDelay = Std.int(Math.max(0, Math.min(10, hideDelay)));
             // Populate new options for existing installs so Mod Settings shows
             // the same defaults that the meter uses.
@@ -63,7 +64,7 @@ class MeterConfig {
                 case "overlay_x": if (n != null) x = n;
                 case "overlay_y": if (n != null) y = n;
                 case "overlay_w": if (n != null) width = Std.int(Math.max(360, n));
-                case "overlay_h": if (n != null && n > 0) height = Std.int(Math.max(220, n));
+                case "overlay_h": if (n != null && n > 0) height = Std.int(Math.max(MIN_HEIGHT, n));
                 default:
             }
         }

@@ -31,6 +31,7 @@ can be removed if no other mod uses it.
 - **F10:** show/hide.
 - **F11:** lock/unlock the window. When unlocked, drag the header to move it and
   the lower-right frame grip to resize the whole window. Position and size are saved.
+  The window can be shortened to a minimum height of 110 pixels.
 - **Unlock window movement and resizing** in Better Mod Settings also controls locking.
 - **Hide when out of combat** in Better Mod Settings enables automatic hiding
   (off by default). **Hiding delay (seconds)** ranges from 0 to 10,
@@ -60,6 +61,8 @@ can be removed if no other mod uses it.
   Displayed DPS uses a minimum duration of one second for instant hits; uploaded
   report calculations are unchanged.
 - Click a player row to inspect skills; click a skill row to return.
+- Player and skill lists scroll with the mouse wheel or native scrollbar when
+  they exceed the body height. Rows stay clipped inside the body; the header stays fixed.
 - Player rows show rank/name on the left and `damage (DPS, team damage %)` on
   the right, using the body's full inner width except for a visible scrollbar.
   Long names shorten with an ellipsis to keep the totals readable.
