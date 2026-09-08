@@ -103,18 +103,38 @@ class Collector {
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
-        var info = profile(source);
-        // weakSource is the attribution used by the original collector. Do not
-        // silently remap an NPC/summon to a different player account.
+        var skill = G.field(damage, "baseSkill");
         var uid = G.text(G.field(damage, "weakSource"));
         if (uid == "" || uid == "0") uid = G.uid(source);
+        var summoner = G.field(source, "summonOwner");
+        var summonSkill = G.field(source, "summonSourceSkill");
+        if (summonSkill != null) {
+            // Use the exact skill that created this minion. The native resolver
+            // follows nested summons, child skills and Status.instigatorSkill.
+            // Resolve on the actual type so Status's override is preserved.
+            var origin = G.call(hl.Type.getDynamic(summonSkill).getTypeName(), "getSourceSkill", summonSkill);
+            if (G.text(G.field(origin, "kind")) != "") skill = origin;
+            // A source-skill link can arrive before summonOwner during replication.
+            if (summoner == null && origin != null)
+                summoner = G.call(hl.Type.getDynamic(origin).getTypeName(), "getSourceObject", origin);
+        }
+        if (summoner != null) {
+            // Ownership is independent of whether a minion inherits its owner's
+            // combat stats. Follow every summonOwner even for nested summons.
+            while (summoner != null) {
+                source = summoner;
+                summoner = G.field(source, "summonOwner");
+            }
+            source = G.call("ent.GameObject", "resolveProxy", source);
+            uid = G.uid(source);
+        }
+        var info = profile(source);
         if (info == null && !model.profiles.exists(uid)) return;
         if (G.field(layer, "isRift") == true) {
             model.enableRift();
             // A newly arrived player's hit can precede the next roster refresh.
             if (G.field(source, "layer") == layer) model.party[uid] = true;
         }
-        var skill = G.field(damage, "baseSkill");
         var skillId = G.text(G.field(skill, "kind"));
         // Remote heroes may not have populated equipment caches. As in the
         // original meter, an observed class skill can fill in their class.
