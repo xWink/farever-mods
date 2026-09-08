@@ -45,7 +45,7 @@ class MeterConfig {
             // Populate new options for existing installs so Mod Settings shows
             // the same defaults that the meter uses.
             if (!Reflect.hasField(data, "hideOutOfCombat") || !Reflect.hasField(data, "hideDelay")) save();
-        } catch (e:Dynamic) trace("[DpsMeter] Could not read settings: " + e);
+        } catch (_:Dynamic) {}
     }
     function importLegacy():Void {
         if (!FileSystem.exists("group-dps.ini")) return;
@@ -73,6 +73,6 @@ class MeterConfig {
             hideOutOfCombat: hideOutOfCombat, hideDelay: hideDelay,
             sendLogs: sendLogs, debug: debug, me: me, group: group, x: x, y: y,
             width: width, height: height, toggleHotkey: toggleHotkey, unlockHotkey: unlockHotkey}, null, "  "))
-        catch (e:Dynamic) trace("[DpsMeter] Could not save settings: " + e);
+        catch (_:Dynamic) {}
     }
 }

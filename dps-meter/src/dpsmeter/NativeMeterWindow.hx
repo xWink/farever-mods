@@ -56,9 +56,9 @@ class NativeMeterWindow {
             return;
         }
         var opacity:Float = 1;
-        // Combat entry shows the meter even before its first attack. A one-shot
-        // also gets a chance to display its result before the hiding delay.
-        if (!config.hideOutOfCombat || model.inCombat || model.displayedFight() != displayed) outOfCombatSince = -1;
+        // Show the meter when damage starts its timer, not on combat entry alone.
+        // One-shot results also get the normal hiding delay before fading.
+        if (!config.hideOutOfCombat || model.current != null || model.displayedFight() != displayed) outOfCombatSince = -1;
         else {
             if (outOfCombatSince < 0) outOfCombatSince = now;
             var progress = Math.max(0, Math.min(1, (now - outOfCombatSince - config.hideDelay) / HIDE_FADE_SECONDS));
@@ -72,9 +72,8 @@ class NativeMeterWindow {
         }
         if (window == null) {
             if (now < createRetry) return;
-            try build(ui) catch (e:Dynamic) {
+            try build(ui) catch (_:Dynamic) {
                 constructing = false; dispose(); createRetry = now + 10;
-                trace("[DpsMeter] Native window could not be created: " + e);
                 return;
             }
         }

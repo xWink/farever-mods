@@ -35,7 +35,8 @@ can be removed if no other mod uses it.
 - **Hide when out of combat** in Better Mod Settings enables automatic hiding
   (off by default). **Hiding delay (seconds)** ranges from 0 to 10,
   with a default of 3. After the delay, the whole window fades out over 0.4 seconds.
-  Entering combat brings it back immediately. A zero delay starts the fade immediately.
+  The first damaging hit that starts the timer brings it back immediately;
+  entering combat alone does not. A zero delay starts the fade immediately.
 - The compact header shows the detected boss's name aligned left and the encounter
   timer aligned right, with a background spanning the window's full width.
   Boss names use the game's localized, phase-aware display names. The body
@@ -122,8 +123,8 @@ The small PowerShell launcher discovers the parent game PID and starts the helpe
 in the background after the first game update. Mod loading creates no worker
 thread or child process. The game checks a startup-status file without waiting
 for process output or completion; a stuck launcher times out after 30 seconds.
-No execution-policy setting is changed. If startup fails, consult the HLX log;
-reports remain local.
+No execution-policy setting is changed. If startup fails, reports remain local.
+The HLX mod does not emit trace logs.
 If the game PID could not be discovered, reports are saved as `.pending` drafts
 and recovered on the next successful launcher startup.
 

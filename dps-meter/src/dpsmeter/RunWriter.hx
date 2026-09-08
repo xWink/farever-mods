@@ -35,7 +35,6 @@ class RunWriter {
                 var script = File.getContent(moduleRoot + "/start-uploader.ps1");
                 var command = "& {\n" + script + "\n} -ModuleRoot '" + StringTools.replace(moduleRoot, "'", "''")
                     + "' -ResultPath '" + StringTools.replace(startupPath, "'", "''") + "'";
-                trace("[DpsMeter] Starting uploader after first game update");
                 launcher = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command], true);
                 status = "Starting uploader";
             }
@@ -46,7 +45,6 @@ class RunWriter {
                 if (Std.isOfType(response.gamePid, Int) && response.gamePid > 0) gamePid = response.gamePid;
                 if (response.running != true || gamePid == 0) throw "Uploader startup failed: " + response.error;
                 status = "Uploader running";
-                trace("[DpsMeter] Uploader started for game PID " + gamePid);
                 closeLauncher(false);
             } else {
                 // Never read pipes or wait for a process to exit on the game thread.
@@ -54,9 +52,8 @@ class RunWriter {
                 if (code != null) throw "Launcher exited with code " + code + " without a startup result";
                 if (now >= startupDeadline) throw "Launcher timed out after 30 seconds";
             }
-        } catch (e:Dynamic) {
-            status = "Uploader unavailable; check HLX log";
-            trace("[DpsMeter] " + e);
+        } catch (_:Dynamic) {
+            status = "Uploader unavailable";
             closeLauncher(true);
         }
     }
@@ -89,7 +86,7 @@ class RunWriter {
                     if (item.report == null || item.timestamp == null || item.boss == null) continue;
                     item.draft = path;
                     pending.push(item);
-                } catch (e:Dynamic) trace("[DpsMeter] Could not recover draft " + name + ": " + e);
+                } catch (_:Dynamic) {}
             }
         }
         if (now < retryAt || pending.length == 0) return;
@@ -120,12 +117,10 @@ class RunWriter {
                 pending.shift();
                 if (item.draft != null && FileSystem.exists(item.draft)) FileSystem.deleteFile(item.draft);
                 status = "Run queued for upload";
-                trace("[DpsMeter] " + path + " written");
             }
-        } catch (e:Dynamic) {
+        } catch (_:Dynamic) {
             retryAt = now + 5;
             status = "Could not save run; retrying";
-            trace("[DpsMeter] " + e);
         }
     }
 }
