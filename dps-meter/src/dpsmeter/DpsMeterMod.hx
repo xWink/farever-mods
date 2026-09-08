@@ -9,17 +9,19 @@ class DpsMeterMod {
     static var config:MeterConfig;
     static var collector:Collector;
     static var view:NativeMeterWindow;
+    static var recapView:NativeRiftRecapWindow;
     static var writer:RunWriter;
     static function main():Void {
         config = new MeterConfig(); config.load();
         collector = new Collector(config);
         view = new NativeMeterWindow(config);
+        recapView = new NativeRiftRecapWindow();
         writer = new RunWriter();
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> config.load());
     }
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
-        return NativeMeterWindow.constructing ? Skip : Continue;
+        return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing ? Skip : Continue;
     }
     @:hlx.prefix(ent.Unit.rpcReceiveDamage__impl)
     static function onDamage(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void> {
@@ -58,5 +60,6 @@ class DpsMeterMod {
         } catch (_:Dynamic) {}
         // A UI failure must never stop the collector or discard a finished report.
         try view.update(collector.model, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
+        try recapView.update(collector.model, config.enabled, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
     }
 }

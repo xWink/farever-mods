@@ -2,6 +2,7 @@ package dpsmeter;
 
 import dpsmeter.CombatModel;
 import dpsmeter.GameAccess as G;
+import dpsmeter.NativeUi.*;
 
 /** Native DOMKit components and game fonts; no ImGui or external overlay window. */
 class NativeMeterWindow {
@@ -17,7 +18,7 @@ class NativeMeterWindow {
     var body:Dynamic;
     var container:Dynamic;
     var content:Dynamic;
-    var rowsRoot:Dynamic;
+    var chart:NativeDamageChart;
     var timer:Dynamic;
     var bossLabel:Dynamic;
     var bossCaption:String = "";
@@ -26,9 +27,7 @@ class NativeMeterWindow {
     var dragSurface:Dynamic;
     var resizeSurface:Dynamic;
     var grip:Dynamic;
-    var rows:Array<Dynamic> = [];
     var config:MeterConfig;
-    var selectedPlayer:String = "";
     var lastRefresh:Float = -1;
     var width:Int = 0;
     var height:Int = 0;
@@ -90,6 +89,7 @@ class NativeMeterWindow {
             lastRefresh = now;
             refresh(model, now);
         }
+        chart.update(model.displayedFight(), now);
         alignControls();
     }
 
@@ -149,14 +149,7 @@ class NativeMeterWindow {
         content = node("flow", parent, [], "dpsMeterContent", "vertical");
         flow(content, "set_verticalSpacing", 12);
         style(G.field(content, "obj"), "vspacing", 12);
-        rowsRoot = node("flow", content, [], "dpsMeterRows", "vertical");
-        padding(G.field(rowsRoot, "obj"), 0);
-        flow(rowsRoot, "set_verticalSpacing", 12);
-        style(G.field(rowsRoot, "obj"), "vspacing", 12);
-        // Preserve native clipping, wheel scrolling and the scrollbar through CSS updates.
-        var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
-        flow(rowsRoot, "set_overflow", scroll);
-        style(G.field(rowsRoot, "obj"), "overflow", scroll);
+        chart = new NativeDamageChart(content, "dpsMeterRows");
         for (object in [window, frameBackground, windowContent, header, bodyObject, options, container, G.field(content, "obj"), G.field(toolbar, "obj")]) {
             if (object == null) continue;
             padding(object, 0);
@@ -186,42 +179,6 @@ class NativeMeterWindow {
         G.set(resizeSurface, "cursor", G.enumeration("hxd.Cursor", "ResizeNWSE"));
         width = 0; height = 0;
         layout();
-    }
-    function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String, ?layout:String):Dynamic {
-        var attributes:Dynamic = {id: id};
-        if (layout != null) Reflect.setField(attributes, "layout", layout);
-        var result = G.staticCall("domkit.Properties", "createNew", [component, parent, args, attributes]);
-        if (result == null) throw "Could not create " + component;
-        return result;
-    }
-    function label(parent:Dynamic, value:String):Dynamic {
-        // DOMKit's native text component supplies the same fonts as Options.
-        var d = node("text", parent, [value], "dpsMeterText");
-        var obj = G.field(d, "obj");
-        G.call("h2d.Text", "set_textColor", obj, [0x5b4334]);
-        return obj;
-    }
-    function flow(dom:Dynamic, method:String, value:Dynamic):Void G.call("h2d.Flow", method, G.field(dom, "obj"), [value]);
-    function style(object:Dynamic, property:String, value:Dynamic):Void {
-        var dom = G.field(object, "dom");
-        if (dom != null) G.call("domkit.Properties", "initStyle", dom, [property, value]);
-    }
-    function padding(object:Dynamic, value:Int):Void {
-        G.call("h2d.Flow", "set_padding", object, [value]);
-        for (side in ["left", "right", "top", "bottom"]) style(object, "padding-" + side, value);
-    }
-    function size(object:Dynamic, w:Int, h:Int = -1):Void {
-        G.call("h2d.Flow", "set_minWidth", object, [w]);
-        G.call("h2d.Flow", "set_maxWidth", object, [w]);
-        if (h >= 0) {
-            G.call("h2d.Flow", "set_minHeight", object, [h]);
-            G.call("h2d.Flow", "set_maxHeight", object, [h]);
-        }
-        var d = G.field(object, "dom");
-        if (d != null) {
-            for (property in ["width", "min-width", "max-width"]) G.call("domkit.Properties", "initStyle", d, [property, w]);
-            if (h >= 0) for (property in ["height", "min-height", "max-height"]) G.call("domkit.Properties", "initStyle", d, [property, h]);
-        }
     }
     function alignControls():Void {
         // Measure after native styles apply, keeping the timer against the right
@@ -263,92 +220,20 @@ class NativeMeterWindow {
         for (object in [bodyObject, options, container]) { size(object, innerWidth, bodyHeight); position(object, 0, 0); }
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
-        size(G.field(rowsRoot, "obj"), width - 32, Std.int(Math.max(20, bodyHeight - 24)));
+        chart.resize(width - 32, Std.int(Math.max(20, bodyHeight - 24)));
         // With no header buttons, the whole header can be used to drag.
         G.set(dragSurface, "width", headerWidth * 1.0);
         G.set(dragSurface, "height", headerHeight * 1.0);
         position(dragSurface, 0, 0);
         position(resizeSurface, width - 22, height - 22);
         position(grip, width - 18, height - 18);
-        for (row in rows) sizeRow(row);
         lastRefresh = -1;
-    }
-    function availableRowWidth():Int {
-        var list = G.field(rowsRoot, "obj");
-        var available = G.integer(G.call("h2d.Flow", "get_innerWidth", list), width - 32);
-        var scrollbar = G.field(list, "scrollBar");
-        // Use the full body width, reserving room only for a visible scrollbar.
-        if (scrollbar != null && G.field(scrollbar, "visible") == true)
-            available -= G.integer(G.call("h2d.Flow", "get_outerWidth", scrollbar)) + 4;
-        return Std.int(Math.max(1, available));
-    }
-    function sizeRow(row:Dynamic):Void {
-        var rowWidth = availableRowWidth();
-        if (row.width != rowWidth) {
-            row.width = rowWidth;
-            size(row.obj, rowWidth);
-            size(row.heading, rowWidth);
-            G.call("ui.comp.FmtText", "set_maxWidthText", row.details, [Std.int(Math.max(1, rowWidth - 60))]);
-            G.call("ui.comp.FmtText", "set_maxWidthText", row.extra, [rowWidth]);
-            G.call("ui.comp.BaseGauge", "set_barWidth", row.bar, [rowWidth]);
-            size(row.bar, rowWidth, 9);
-        }
-        alignRow(row);
-    }
-    function alignRow(row:Dynamic):Void {
-        var rowWidth:Int = row.width;
-        // Measure native text, not spaces: numbers keep a common right edge.
-        G.call("ui.comp.FmtText", "updateScale", row.details);
-        var detailWidth = G.number(G.call("h2d.Text", "get_textWidth", row.details)) * G.number(G.field(row.details, "scaleX"), 1);
-        G.call("ui.comp.FmtText", "set_maxWidthText", row.name, [Std.int(Math.max(1, rowWidth - detailWidth - 12))]);
-        // Restore the full name when widening a previously ellipsized row.
-        setText(row.name, row.caption);
-        G.call("ui.comp.FmtText", "updateScale", row.name);
-        var lineHeight = 0.0;
-        for (text in [row.name, row.details]) lineHeight = Math.max(lineHeight,
-            G.number(G.call("h2d.Text", "get_textHeight", text)) * G.number(G.field(text, "scaleY"), 1));
-        var h = Std.int(Math.ceil(Math.max(18, lineHeight)));
-        if (row.lineHeight != h) { row.lineHeight = h; size(row.heading, rowWidth, h); }
-        position(row.name, 0, 0);
-        position(row.details, rowWidth - detailWidth, 0);
-    }
-    function makeRow(index:Int):Dynamic {
-        var d = node("element", rowsRoot, [], "dpsMeterRow" + index, "vertical");
-        padding(G.field(d, "obj"), 0);
-        flow(d, "set_verticalSpacing", 4);
-        style(G.field(d, "obj"), "vspacing", 4);
-        var heading = node("flow", d, [], "dpsMeterRowHeading" + index, "horizontal");
-        var headingObject = G.field(heading, "obj");
-        padding(headingObject, 0);
-        var name = label(heading, "");
-        var details = label(heading, "");
-        for (text in [name, details]) {
-            absolute(headingObject, text);
-            var left = G.enumeration("h2d.Align", "Left");
-            G.call("h2d.Text", "set_textAlign", text, [left]);
-            style(text, "text-align", left);
-        }
-        G.call("ui.comp.FmtText", "set_useEllipsis", name, [true]);
-        var extra = label(d, "");
-        G.call("ui.comp.FmtText", "set_useEllipsis", extra, [true]);
-        show(extra, false);
-        var barDom = node("base-gauge", d, [], "dpsMeterBar" + index);
-        var bar = G.field(barDom, "obj");
-        G.call("ui.comp.BaseGauge", "set_barHeight", bar, [7]);
-        G.call("ui.comp.BaseGauge", "set_showValues", bar, [false]);
-        var obj = G.field(d, "obj");
-        var row:Dynamic = {obj: obj, heading: headingObject, name: name, details: details,
-            extra: extra, bar: bar, uid: "", caption: "", lineHeight: 0, color: -1, width: 0};
-        G.call("ui.UIElement", "set_onClick", obj, [() -> { selectedPlayer = row.uid; lastRefresh = -1; }]);
-        sizeRow(row);
-        return row;
     }
     function refresh(model:CombatModel, now:Float):Void {
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
         var fight = model.displayedFight();
-        if (fight != displayed) { displayed = fight; selectedPlayer = ""; }
-        var ranked = fight == null ? [] : fight.ranked();
+        displayed = fight;
         // Pair the rows and clock with one encounter. Closed fights retain their
         // frozen duration until a new fight replaces the entire view.
         var elapsed = fight == null ? 0 : fight.duration(now);
@@ -356,47 +241,6 @@ class NativeMeterWindow {
         var bossName = fight == null ? "" : fight.bossName;
         if (bossName != bossCaption) { bossCaption = bossName; bossLabelWidth = -1; }
         show(bossLabel, bossCaption != "");
-        // A single instant hit should not display thousands of times its damage as DPS.
-        var seconds = Math.max(1, elapsed);
-        var total = 0.0;
-        for (p in ranked) total += p.damage;
-        var selected = fight == null ? null : fight.players[selectedPlayer];
-        var skillIds:Array<String> = [];
-        if (selected != null) {
-            skillIds = [for (id in selected.skills.keys()) id];
-            skillIds.sort((a, b) -> Reflect.compare(selected.skills[b].damage, selected.skills[a].damage));
-        }
-        var count = selected == null ? ranked.length : skillIds.length;
-        while (rows.length < count) rows.push(makeRow(rows.length));
-        for (i in 0...rows.length) {
-            var row = rows[i]; show(row.obj, i < count);
-            if (i >= count) continue;
-            var amount:Float; var color:Int; var label:String; var detail:String;
-            if (selected == null) {
-                var p = ranked[i]; row.uid = p.info.uid; amount = p.damage;
-                color = classColor(p.info.className);
-                label = (i + 1) + ". " + p.info.name;
-                detail = compact(p.damage) + " (" + compact(seconds > 0 ? p.damage / seconds : 0)
-                    + ", " + Std.int(total > 0 ? p.damage * 100 / total : 0) + "%)";
-            } else {
-                var id = skillIds[i]; var s = selected.skills[id]; row.uid = "";
-                amount = s.damage; color = classColor(selected.info.className); label = id;
-                detail = compact(s.damage) + " damage";
-                setText(row.extra, s.casts + " casts  ·  " + s.hits + " hits  ·  " + s.crits + " crits");
-            }
-            row.caption = label;
-            setText(row.details, detail);
-            show(row.extra, selected != null);
-            sizeRow(row);
-            if (row.color != color) {
-                row.color = color;
-                G.set(row.bar, "color", color); G.set(row.bar, "fullColor", color);
-                // Inline styles preserve the class tint through native CSS updates.
-                style(row.bar, "color", color); style(row.bar, "full-color", color);
-            }
-            G.call("ui.comp.BaseGauge", "set_max", row.bar, [Math.max(1, selected == null ? total : selected.damage)]);
-            G.call("ui.comp.BaseGauge", "set_value", row.bar, [amount]);
-        }
     }
     function beginDrag(event:Dynamic, resize:Bool):Void {
         if (!config.unlocked || G.integer(G.field(event, "button")) != 0) return;
@@ -450,36 +294,7 @@ class NativeMeterWindow {
     public function dispose():Void {
         finishDrag();
         if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
-        owner = null; rows = []; selectedPlayer = ""; displayed = null;
+        owner = null; chart = null; displayed = null;
         outOfCombatSince = -1;
     }
-    static function children(object:Dynamic):Array<Dynamic> {
-        var count = G.integer(G.call("h2d.Object", "get_numChildren", object));
-        return [for (i in 0...count) G.call("h2d.Object", "getChildAt", object, [i])];
-    }
-    static function absolute(parent:Dynamic, child:Dynamic):Void {
-        var p = G.call("h2d.Flow", "getProperties", parent, [child]);
-        G.call("h2d.FlowProperties", "set_isAbsolute", p, [true]);
-        G.set(p, "horizontalAlign", null); G.set(p, "verticalAlign", null);
-        G.set(p, "offsetX", 0); G.set(p, "offsetY", 0);
-        // Keep native CSS from restoring automatic centering on hover/reflow.
-        var dom = G.field(child, "dom");
-        if (dom != null) {
-            G.call("domkit.Properties", "initStyle", dom, ["position", true]);
-            for (key in ["halign", "valign"]) G.call("domkit.Properties", "initStyle", dom, [key, null]);
-            for (key in ["offset-x", "offset-y"]) G.call("domkit.Properties", "initStyle", dom, [key, 0]);
-        }
-    }
-    static function position(obj:Dynamic, x:Float, y:Float):Void G.call("h2d.Object", "setPosition", obj, [x, y]);
-    static function show(obj:Dynamic, visible:Bool):Void { if (obj != null) G.call("h2d.Object", "set_visible", obj, [visible]); }
-    static function setText(obj:Dynamic, value:String):Void { if (obj != null) G.call("ui.comp.FmtText", "set_text", obj, [value]); }
-    static function classColor(name:String):Int return switch (name) {
-        // Original dinput8.dll palette at RVA 0x139e0, converted COLORREF -> RGB.
-        case "warrior": 0xc95846; case "cleric": 0xd9b054; case "mage": 0x62b2c2; case "rogue": 0xa370be; default: 0xa89884;
-    };
-    static function compact(n:Float):String {
-        return n >= 1000000 ? Std.string(SkillStats.rounded(n / 1000000, 2)) + "M"
-            : n >= 1000 ? Std.string(SkillStats.rounded(n / 1000, 1)) + "k" : Std.string(Math.fround(n));
-    }
-    static function duration(n:Float):String return Std.int(n / 60) + ":" + StringTools.lpad(Std.string(Std.int(n) % 60), "0", 2);
 }

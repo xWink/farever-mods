@@ -2,13 +2,16 @@ package dpsmeter;
 
 import dpsmeter.CombatModel;
 
+typedef RiftRecap = {gate:Null<Fight>, boss:Fight};
+
 /** One continuous gates encounter followed by one continuous boss encounter. */
 class RiftTracker {
     static inline var FINAL_DAMAGE_SECONDS:Float = 0.5;
-    var phase:Int = 0; // 0: monsters, 1: boss, 2: finished
+    var phase:Int = 0; // 0: gates, 1: boss, 2: finished
     var fights:Array<Null<Fight>> = [null, null];
     var ended:Array<Float> = [-1, -1];
     var exported:Array<Bool> = [false, false];
+    var recapQueued:Bool = false;
     public var current(get, never):Null<Fight>;
     public var last(get, never):Null<Fight>;
 
@@ -64,9 +67,9 @@ class RiftTracker {
         if (fight == null) {
             if (e.effect == 1) return;
             fight = new Fight(e.time);
-            fight.phase = index == 0 ? "rift phase" : "boss phase";
+            fight.phase = index == 0 ? "gate phase" : "boss phase";
             fight.isBoss = index == 1;
-            fight.bossName = index == 0 ? "Rift phase" : "Boss phase";
+            fight.bossName = index == 0 ? "Gate Phase" : "Boss Phase";
             fight.difficulty = difficulty;
             fight.activityId = activityId;
             fight.me = me;
@@ -89,11 +92,17 @@ class RiftTracker {
         }
     }
 
-    public function drain(now:Float, completed:Array<Fight>, force:Bool = false):Void {
+    public function drain(now:Float, completed:Array<Fight>, recaps:Array<RiftRecap>, force:Bool = false):Void {
         for (index in 0...2) {
             if (ended[index] < 0 || exported[index] || (!force && now < ended[index] + FINAL_DAMAGE_SECONDS)) continue;
             exported[index] = true;
             if (fights[index] != null) completed.push(fights[index]);
+        }
+        // Finalize both snapshots after the same grace period as the uploads,
+        // so the recap includes late killing blows and is queued only once.
+        if (phase == 2 && exported[0] && exported[1] && !recapQueued && fights[1] != null) {
+            recapQueued = true;
+            recaps.push({gate: fights[0] == null ? null : fights[0].copy(), boss: fights[1].copy()});
         }
     }
 }

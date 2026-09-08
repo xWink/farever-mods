@@ -69,7 +69,7 @@ can be removed if no other mod uses it.
   Bars use the original meter's class colors: warrior red, cleric gold, mage teal,
   and rogue purple; unknown classes use a neutral tan.
 - **Upload combat logs to fareverlogs.fr** in Better Mod Settings toggles new
-  boss and rift-phase report exports. Already queued reports can still upload.
+  boss and gate-phase report exports. Already queued reports can still upload.
 
 ## Rifts
 
@@ -77,26 +77,35 @@ In rifts, the meter treats every player present in the instance as a party membe
 Their damage and healing count from the notifications visible to your client,
 including players who join after the rift starts.
 
-- **Rift phase:** starts on the first damaging hit against a monster and keeps
+- **Gate Phase:** starts on the first damaging hit against a monster and keeps
   one timer and set of totals across every wave, even when your character leaves
   combat. It ends when the gates objective completes or its timer expires. An
   observed hit on the final boss also ends this phase if the activity update has
   not arrived yet. Elites do not start the boss phase.
-- **Boss phase:** starts with the first hit on the final boss. All present players'
+- **Boss Phase:** starts with the first hit on the final boss. All present players'
   subsequent damage, including damage to adds, belongs to this phase. Leaving
   combat or gaps in damage do not split it; defeating the boss ends it.
 
 A full rift observed from the first wave through the boss produces two JSON
-reports when uploads are enabled. Reports carry `phase: "rift phase"` or
+reports when uploads are enabled. Reports carry `phase: "gate phase"` or
 `phase: "boss phase"`. The monster report has `is_boss: false`; the boss report
 keeps the real boss's identity and `is_boss: true`. Late killing blows are retained
 before each report is queued once. Joining late only records damage your client
 observes, and leaving early does not export an unfinished phase.
 
-The header shows **Rift phase** during waves and the game's boss name during the
+The header shows **Gate Phase** during waves and the game's boss name during the
 boss phase. Auto-hide keeps an active phase visible through combat breaks and
 uses the usual delay and fade after the phase ends. Game and instance loading
 still leave the window hidden until there is damage to show.
+
+After the boss dies, **Rift Recap** opens with **Gate Phase** and **Boss Phase**
+charts in one native window. The recap uses frozen totals from that same rift,
+including late killing blows, and shows each phase's duration. Each chart uses
+the meter's class colors, damage/DPS/team-share numbers, independent scrolling,
+and clickable skill breakdowns. The charts sit side by side, or stack on a
+narrow screen. One **X** closes the entire recap. It also works with uploads
+disabled and does not follow the live meter's show/hide or out-of-combat fading.
+A phase with no recorded damage shows **No damage recorded**.
 
 Both reports use the existing uploader and endpoint. Acceptance and display of
 non-boss rift reports by fareverlogs.fr have not been verified; its server may

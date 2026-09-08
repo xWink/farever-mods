@@ -1,5 +1,7 @@
 package dpsmeter;
 
+import dpsmeter.RiftTracker.RiftRecap;
+
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
@@ -138,7 +140,7 @@ class Fight {
         return result;
     }
     public function reportKey():String {
-        return phase == "rift phase" ? activityId + "-rift" : bossKind;
+        return phase == "gate phase" ? activityId + "-rift" : bossKind;
     }
     public function json(timestamp:String, pid:Int):Dynamic {
         var seconds = duration();
@@ -165,6 +167,7 @@ class CombatModel {
     public var boss:Null<Fight>;
     public var lastBoss:Null<Fight>;
     public var completed:Array<Fight> = [];
+    public var recaps:Array<RiftRecap> = [];
     public var difficulty:Int = -1;
     public var activityId:String = "";
     var lastKillSource:String = "";
@@ -177,14 +180,14 @@ class CombatModel {
     var rift:Null<RiftTracker>;
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
-        if (rift != null) rift.drain(now, completed, true);
+        if (rift != null) rift.drain(now, completed, recaps, true);
         rift = null;
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         lastKillTarget = ""; lastKillTime = -1;
         inCombat = false; awaitingExitState = false; pendingFight = null;
-        // Already completed reports remain queued across character/zone changes.
+        // Completed reports and recaps remain queued across character/zone changes.
     }
     public function update(now:Float, localInCombat:Bool):Void {
         // Poll only the local hero as a backup for native entry/exit callbacks.
@@ -195,7 +198,7 @@ class CombatModel {
             awaitingExitState = false;
         } else if (!inCombat && !awaitingExitState) onCombatEnter(me, now);
         if (rift != null) {
-            rift.drain(now, completed);
+            rift.drain(now, completed, recaps);
             return;
         }
         expirePendingFight(now);
