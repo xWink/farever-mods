@@ -35,7 +35,9 @@ class RunWriter {
                 var script = File.getContent(moduleRoot + "/start-uploader.ps1");
                 var command = "& {\n" + script + "\n} -ModuleRoot '" + StringTools.replace(moduleRoot, "'", "''")
                     + "' -ResultPath '" + StringTools.replace(startupPath, "'", "''") + "'";
-                launcher = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command], true);
+                // HashLink's detached mode creates a visible console on Windows.
+                // Normal process creation applies SW_HIDE before PowerShell starts.
+                launcher = new Process("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command], false);
                 status = "Starting uploader";
             }
             if (now < nextStartupPoll) return;

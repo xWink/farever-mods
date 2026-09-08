@@ -162,7 +162,8 @@ Successful files older than `keep_days` are purged on startup; zero keeps them.
 It watches the game PID and makes up to three pending passes after game exit.
 Inspect `uploader.log` for actual server results.
 
-The small PowerShell launcher discovers the parent game PID and starts the helper
+The small PowerShell launcher starts hidden, without flashing a terminal window.
+It discovers the parent game PID and starts the helper
 in the background after the first game update. Mod loading creates no worker
 thread or child process. The game checks a startup-status file without waiting
 for process output or completion; a stuck launcher times out after 30 seconds.
