@@ -6,8 +6,11 @@ typedef RiftRecap = {gate:Null<Fight>, boss:Fight};
 
 /** One continuous gates encounter followed by one continuous boss encounter. */
 class RiftTracker {
+    public static inline var GATES_PHASE:String = "Rift: Gates";
+    public static inline var BOSS_PHASE:String = "Rift: Boss";
     static inline var FINAL_DAMAGE_SECONDS:Float = 0.5;
     var phase:Int = 0; // 0: gates, 1: boss, 2: finished
+    var targetBossKind:String = "";
     var fights:Array<Null<Fight>> = [null, null];
     var ended:Array<Float> = [-1, -1];
     var exported:Array<Bool> = [false, false];
@@ -23,11 +26,14 @@ class RiftTracker {
         return ended[0] >= 0 ? fights[0] : null;
     }
 
-    public function updateState(now:Float, gatesFinished:Bool, bossDefeated:Bool):Void {
-        if (phase == 0 && (gatesFinished || bossDefeated)) {
+    public function updateState(now:Float, bossSpawned:Bool, bossDefeated:Bool, ?bossKind:String):Void {
+        if (bossKind != null && bossKind != "") targetBossKind = bossKind;
+        if (phase == 0 && (bossSpawned || bossDefeated)) {
             finish(0, now);
             phase = 1;
         }
+        // Only the replicated KillBoss objective ends the encounter; lethal
+        // damage against a clone must not open the recap.
         if (phase == 1 && bossDefeated) {
             finish(1, now);
             phase = 2;
@@ -44,13 +50,14 @@ class RiftTracker {
     }
 
     public function record(e:DamageEvent, info:PlayerInfo, difficulty:Int, activityId:String, me:String):Void {
-        // RiftContext.onFoeKilled uses bit 16 for the final boss. The ordinary
-        // meter's wider mask also includes elites encountered during waves.
-        var bossHit = e.effect != 1 && (e.bossFlags & 16) != 0;
+        // Clones can share the boss flag. Only the unit named by KillBoss can
+        // start this phase or supply its boss identity; summons remain adds.
+        var bossHit = e.effect != 1 && e.summoned != true
+            && targetBossKind != "" && e.bossKind == targetBossKind;
         if (phase == 0 && bossHit) updateState(e.time, true, false);
         var index = phase == 2 ? 1 : phase;
         if (phase >= 1 && !bossHit) {
-            // A final wave kill can arrive after the gates objective completes.
+            // A final gate kill can arrive just after the boss appears.
             if (e.kill && e.time <= ended[0] + FINAL_DAMAGE_SECONDS
                 && (fights[1] == null || (fights[0] != null && fights[0].targets.exists(e.target)))) index = 0;
             else if (fights[1] == null) return; // Start the boss timer on its first hit.
@@ -67,9 +74,9 @@ class RiftTracker {
         if (fight == null) {
             if (e.effect == 1) return;
             fight = new Fight(e.time);
-            fight.phase = index == 0 ? "gate phase" : "boss phase";
+            fight.phase = index == 0 ? GATES_PHASE : BOSS_PHASE;
             fight.isBoss = index == 1;
-            fight.bossName = index == 0 ? "Gate Phase" : "Boss Phase";
+            fight.bossName = fight.phase;
             fight.difficulty = difficulty;
             fight.activityId = activityId;
             fight.me = me;
@@ -88,7 +95,6 @@ class RiftTracker {
             fight.bossUid = e.target;
             fight.bossLevel = e.bossLevel;
             fight.bossFoeId = e.bossFoeId;
-            if (e.kill && phase == 1) updateState(e.time, true, true);
         }
     }
 

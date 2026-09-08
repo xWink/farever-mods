@@ -9,7 +9,7 @@ typedef PlayerInfo = {
 };
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
-    target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String
+    target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool
 };
 
 class SkillStats {
@@ -140,7 +140,7 @@ class Fight {
         return result;
     }
     public function reportKey():String {
-        return phase == "gate phase" ? activityId + "-rift" : bossKind;
+        return phase == RiftTracker.GATES_PHASE ? activityId + "-rift" : bossKind;
     }
     public function json(timestamp:String, pid:Int):Dynamic {
         var seconds = duration();
@@ -244,9 +244,9 @@ class CombatModel {
         current = null; lastCombat = null; pendingFight = null;
         boss = null; lastBoss = null;
     }
-    public function updateRiftState(now:Float, gatesFinished:Bool, bossDefeated:Bool):Void {
+    public function updateRiftState(now:Float, bossSpawned:Bool, bossDefeated:Bool, bossKind:String):Void {
         if (rift == null) return;
-        rift.updateState(now, gatesFinished, bossDefeated);
+        rift.updateState(now, bossSpawned, bossDefeated, bossKind);
         current = rift.current;
         lastCombat = rift.last;
     }

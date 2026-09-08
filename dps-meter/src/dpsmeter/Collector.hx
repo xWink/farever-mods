@@ -78,20 +78,27 @@ class Collector {
         var context = G.call("st.Player", "getActivityContext", player, [activity]);
         if (context == null) context = G.field(activity, "globalCtx");
         if (context == null) return;
-        var gatesFinished = false;
+        var bossKind = "";
         var bossDefeated = false;
         for (objective in G.array(G.field(context, "objectives"), true)) {
-            switch (G.text(G.field(objective, "kind"))) {
-                case "CloseGates": gatesFinished = G.call("st.Objective", "isCompleted", objective) == true;
-                case "KillBoss": bossDefeated = G.call("st.Objective", "isCompleted", objective) == true;
-                default:
-            }
+            if (G.text(G.field(objective, "kind")) != "KillBoss") continue;
+            bossDefeated = G.call("st.Objective", "isCompleted", objective) == true;
+            var target = G.field(objective, "target");
+            if (target != null && Type.enumConstructor(target) == "Unit")
+                bossKind = G.text(Type.enumParameters(target)[0]);
+            break;
         }
-        // These are the replicated objectives and timer used by the rift HUD.
-        // The server-only RiftContext.boss/inBossFight fields are not replicated.
-        if (G.number(G.field(context, "gatesEndTime")) > 0
-            && G.number(G.call("st.activity.RiftContext", "getRemainingTime", context)) <= 0) gatesFinished = true;
-        model.updateRiftState(now, gatesFinished, bossDefeated);
+        // Countdown expiry stops new gates, but the remaining gates still need
+        // clearing. The real boss only spawns after that cleanup and its delay.
+        // RiftContext.boss is server-only; use the replicated objective's unit
+        // kind and the client's live units instead.
+        var bossSpawned = false;
+        if (bossKind != "") for (unit in G.array(G.field(layer, "units"))) {
+            if (G.text(G.field(unit, "kind")) != bossKind || G.field(unit, "summonOwner") != null) continue;
+            bossSpawned = true;
+            break;
+        }
+        model.updateRiftState(now, bossSpawned, bossDefeated, bossKind);
     }
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;
@@ -127,6 +134,7 @@ class Collector {
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
             effect: G.integer(G.field(damage, "effect")), skill: skillId,
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
+            summoned: G.field(target, "summonOwner") != null,
             bossLevel: G.integer(G.field(target, "_level")), bossFoeId: G.integer(G.field(target, "foeId"))});
     }
     public function profile(h:Dynamic):Null<PlayerInfo> {
