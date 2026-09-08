@@ -34,7 +34,7 @@ can be removed if no other mod uses it.
 - The header's padlock button also locks/unlocks; its open shackle means the
   window can be moved and resized.
 - **Hide when out of combat** in Better Mod Settings enables automatic hiding
-  (off by default). **Out-of-combat hiding delay (seconds)** ranges from 0 to 10,
+  (off by default). **Hiding delay (seconds)** ranges from 0 to 10,
   with a default of 3. After the delay, the whole window fades out over 0.4 seconds.
   Entering combat brings it back immediately. A zero delay starts the fade immediately.
 - Below the draggable title, the header has the lock on the left, the detected

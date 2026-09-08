@@ -54,7 +54,11 @@ class GameAccess {
         if (proxy) value = field(value, "array");
         var out:Array<Dynamic> = [];
         var count = integer(field(value, "length"));
-        for (i in 0...count) out.push(call("hl.types.ArrayObj", "getDyn", value, [i]));
+        if (count <= 0) return out;
+        // Replicated ArrayProxyData lists use ArrayDyn, while hero skill lists
+        // use ArrayObj. Invoke the real array's reader without reinterpreting it.
+        var type = hl.Type.getDynamic(value).getTypeName();
+        for (i in 0...count) out.push(call(type, "getDyn", value, [i]));
         return out;
     }
     public static function uid(value:Dynamic):String {
