@@ -3,9 +3,9 @@
   "displayName": "More Audio Settings",
   "configs": [
     {
-      "key": "enabled",
+      "key": "adjustUnfocusedVolume",
       "type": "checkbox",
-      "label": "Enabled"
+      "label": "Adjust unfocused volume"
     },
     {
       "key": "backgroundVolume",

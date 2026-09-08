@@ -4,6 +4,7 @@
 
 - Renamed the project, module, settings tab and archives to More Audio Settings.
 - Existing settings are imported from the previous module name on first launch.
+- Renamed the Enabled toggle to Adjust unfocused volume, preserving its saved value.
 
 ## v1.0.0 - 2026-08-25
 

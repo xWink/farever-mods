@@ -87,6 +87,10 @@ The build artifact is `farever-more-audio-settings`; the release archive is
 
 ## How it works
 
+**Adjust unfocused volume** controls only the background-volume feature. Its
+configuration key is `adjustUnfocusedVolume`; existing `enabled` values migrate
+automatically, including when the feature was turned off.
+
 The mod hooks `GameApp.update` through HLX and watches Farever's `hxd.Window.isFocused` state.
 
 When focus changes:

@@ -6,7 +6,7 @@ import modconfig.ConfigMigration;
 import hlx.runtime.ResolvedMember;
 
 typedef MoreAudioSettingsConfig = {
-    var enabled:Bool;
+    var adjustUnfocusedVolume:Bool;
     var backgroundVolume:Float;
 }
 
@@ -14,7 +14,7 @@ typedef MoreAudioSettingsConfig = {
 class MoreAudioSettingsMod {
     @:hlx.config
     static var config:MoreAudioSettingsConfig = {
-        enabled: true,
+        adjustUnfocusedVolume: true,
         backgroundVolume: 0.0
     };
 
@@ -35,6 +35,13 @@ class MoreAudioSettingsMod {
 
     static function main():Void {
         if (ConfigMigration.importLegacy("mute-unfocused")) loadConfig();
+        // Import the old toggle only when its replacement has not been saved.
+        var previous = ModConfig.load(HlxRuntime.moduleName(), {
+            enabled: config.adjustUnfocusedVolume,
+            adjustUnfocusedVolume: (null:Null<Bool>)
+        });
+        if (previous.adjustUnfocusedVolume == null)
+            config.adjustUnfocusedVolume = previous.enabled;
         config.backgroundVolume = clamp(config.backgroundVolume, 0.0, 100.0);
         config.save();
         Bus.subscribe(
@@ -74,12 +81,12 @@ class MoreAudioSettingsMod {
             if (focused) {
                 if (mutedByUs)
                     restoreVolume();
-            } else if (config.enabled && !mutedByUs) {
+            } else if (config.adjustUnfocusedVolume && !mutedByUs) {
                 applyBackgroundVolume();
             }
         }
 
-        if (!config.enabled && mutedByUs)
+        if (!config.adjustUnfocusedVolume && mutedByUs)
             restoreVolume();
     }
 
