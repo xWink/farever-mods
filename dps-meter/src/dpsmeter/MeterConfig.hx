@@ -8,6 +8,8 @@ class MeterConfig {
     public static inline var PATH = "hlx/mods/dps-meter/config.json";
     public var enabled:Bool = true;
     public var visible:Bool = true;
+    public var hideOutOfCombat:Bool = false;
+    public var hideDelay:Int = 3;
     public var unlocked:Bool = false;
     public var sendLogs:Bool = true;
     public var debug:Bool = false;
@@ -28,17 +30,21 @@ class MeterConfig {
         }
         try {
             var data:Dynamic = Json.parse(File.getContent(PATH));
-            for (key in ["enabled", "visible", "unlocked", "sendLogs", "debug"])
+            for (key in ["enabled", "visible", "hideOutOfCombat", "unlocked", "sendLogs", "debug"])
                 if (Std.isOfType(Reflect.field(data, key), Bool)) Reflect.setField(this, key, Reflect.field(data, key));
             for (key in ["me", "group"])
                 if (Std.isOfType(Reflect.field(data, key), String)) Reflect.setField(this, key, Reflect.field(data, key));
-            for (key in ["x", "y", "width", "height", "toggleHotkey", "unlockHotkey"]) {
+            for (key in ["x", "y", "width", "height", "hideDelay", "toggleHotkey", "unlockHotkey"]) {
                 var value:Dynamic = Reflect.field(data, key);
                 if (value != null && Math.isFinite(Std.parseFloat(Std.string(value))))
                     Reflect.setField(this, key, key == "x" || key == "y" ? Std.parseFloat(Std.string(value)) : Std.int(value));
             }
             width = Std.int(Math.max(360, Math.min(1200, width)));
             height = Std.int(Math.max(220, Math.min(1000, height)));
+            hideDelay = Std.int(Math.max(0, Math.min(10, hideDelay)));
+            // Populate new options for existing installs so Mod Settings shows
+            // the same defaults that the meter uses.
+            if (!Reflect.hasField(data, "hideOutOfCombat") || !Reflect.hasField(data, "hideDelay")) save();
         } catch (e:Dynamic) trace("[DpsMeter] Could not read settings: " + e);
     }
     function importLegacy():Void {
@@ -64,6 +70,7 @@ class MeterConfig {
     }
     public function save():Void {
         try File.saveContent(PATH, Json.stringify({enabled: enabled, visible: visible, unlocked: unlocked,
+            hideOutOfCombat: hideOutOfCombat, hideDelay: hideDelay,
             sendLogs: sendLogs, debug: debug, me: me, group: group, x: x, y: y,
             width: width, height: height, toggleHotkey: toggleHotkey, unlockHotkey: unlockHotkey}, null, "  "))
         catch (e:Dynamic) trace("[DpsMeter] Could not save settings: " + e);

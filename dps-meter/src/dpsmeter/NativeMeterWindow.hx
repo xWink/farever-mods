@@ -5,6 +5,7 @@ import dpsmeter.GameAccess as G;
 
 /** Native DOMKit components and game fonts; no ImGui or external overlay window. */
 class NativeMeterWindow {
+    static inline var HIDE_FADE_SECONDS:Float = 0.4;
     public static var constructing:Bool = false;
     public var window(default, null):Dynamic;
     var owner:Dynamic;
@@ -45,6 +46,7 @@ class NativeMeterWindow {
     var startWidth:Int = 0;
     var startHeight:Int = 0;
     var createRetry:Float = 0;
+    var outOfCombatSince:Float = -1;
     public function new(config:MeterConfig) this.config = config;
 
     public function update(model:CombatModel, active:Bool, now:Float):Void {
@@ -52,6 +54,22 @@ class NativeMeterWindow {
         if (owner != null && owner != ui) dispose();
         if (window != null && G.field(window, "removed") == true) dispose();
         if (!config.visible || !config.enabled || !active || ui == null) {
+            if (window != null) show(window, false);
+            outOfCombatSince = -1;
+            finishDrag();
+            return;
+        }
+        var opacity:Float = 1;
+        // Current exists only during confirmed combat. Re-entry cancels both
+        // the delay and the fade, restoring the entire window immediately.
+        if (!config.hideOutOfCombat || model.current != null) outOfCombatSince = -1;
+        else {
+            if (outOfCombatSince < 0) outOfCombatSince = now;
+            var progress = Math.max(0, Math.min(1, (now - outOfCombatSince - config.hideDelay) / HIDE_FADE_SECONDS));
+            opacity = 1 - progress * progress * (3 - 2 * progress);
+        }
+        if (opacity <= 0) {
+            // Invisible windows must also stop receiving mouse input.
             if (window != null) show(window, false);
             finishDrag();
             return;
@@ -64,6 +82,8 @@ class NativeMeterWindow {
                 return;
             }
         }
+        G.set(window, "alpha", opacity);
+        if (G.field(window, "visible") != true) lastRefresh = -1;
         show(window, true);
         if (width != config.width || height != config.height) layout();
         updateDrag();
@@ -484,6 +504,7 @@ class NativeMeterWindow {
         finishDrag();
         if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
         owner = null; rows = []; selectedPlayer = ""; displayed = null;
+        outOfCombatSince = -1;
     }
     static function children(object:Dynamic):Array<Dynamic> {
         var count = G.integer(G.call("h2d.Object", "get_numChildren", object));

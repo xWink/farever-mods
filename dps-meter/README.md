@@ -33,6 +33,10 @@ can be removed if no other mod uses it.
   the lower-right frame grip to resize the whole window. Position and size are saved.
 - The header's padlock button also locks/unlocks; its open shackle means the
   window can be moved and resized.
+- **Hide when out of combat** in Better Mod Settings enables automatic hiding
+  (off by default). **Out-of-combat hiding delay (seconds)** ranges from 0 to 10,
+  with a default of 3. After the delay, the whole window fades out over 0.4 seconds.
+  Entering combat brings it back immediately. A zero delay starts the fade immediately.
 - Below the draggable title, the header has the lock on the left, the detected
   boss's name centered between the controls, and the encounter timer on the right.
   Boss names use the game's localized, phase-aware display names. The body
