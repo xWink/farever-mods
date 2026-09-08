@@ -42,9 +42,10 @@ can be removed if no other mod uses it.
   that encounter's timer, damage, and DPS together. The finished result stays
   visible until the next fight starts at `0:00` with fresh totals.
 - Only your character's combat state controls the timer; party members still
-  contribute damage. The eight-second inactivity fallback applies only when
-  damage arrives without a confirmed combat entry. It never splits a fight
-  that is still in combat. Resting heals cannot reopen a finished encounter.
+  contribute damage during your encounter. Damage or healing while you are out
+  of combat cannot restart the timer or change the finished result. Opening hits
+  received up to half a second before combat entry are retained without starting
+  a timer on their own. No inactivity timeout splits an active encounter.
   Displayed DPS uses a minimum duration of one second for instant hits; uploaded
   report calculations are unchanged.
 - Click a player row to inspect skills; click a skill row to return.

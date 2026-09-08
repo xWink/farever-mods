@@ -33,6 +33,7 @@ class CombatModelTest {
         m.record(event(100, "3"));
         check(m.boss == null && m.current == null, "Nearby players must not start our encounter");
         m.record(event());
+        m.onCombatEnter(m.me, 100);
         m.record(event(100.1, "2"));
         m.record(event(100.2, "3"));
         check(m.boss.players.exists("3"), "Named players hitting the same boss participate in its report");
@@ -59,6 +60,7 @@ class CombatModelTest {
             "A same-frame phase resumption cannot mutate the completed report");
 
         m = model();
+        m.onCombatEnter(m.me, 100);
         m.record(event());
         m.record(event(100.2));
         m.record(event(100.7));
@@ -102,16 +104,21 @@ class CombatModelTest {
         check(m.current == null && m.lastCombat == previous && m.session.players[m.me].heal == 20,
             "Resting healing remains in Session without reopening Current or replacing Last");
         m.record(event(104, m.me, 75, false, false, "another-mob"));
+        m.onCombatEnter(m.me, 104.2);
         check(m.current.start == 104 && m.current.players[m.me].damage == 75 && m.lastCombat == previous,
             "The next ordinary mob starts a separate encounter");
 
         m = model();
         m.record(event(100, m.me, 100, true, false));
         m.update(100.25, false);
-        check(m.current != null, "Damage can arrive before the replicated combat flag");
+        check(m.displayedFight() == null, "Unconfirmed damage cannot start a visible timer");
         m.record(event(101.2, m.me, 20, false, false, m.me, 1));
         m.update(108, false);
-        check(m.current == null, "Healing cannot prolong the fallback for damage without a combat-entry notification");
+        check(m.displayedFight() == null && m.session.players[m.me].damage == 100 && m.session.players[m.me].heal == 20,
+            "Out-of-combat damage and healing remain in Session without creating a phantom encounter");
+        m.onCombatEnter(m.me, 109);
+        check(m.current.start == 109 && !m.current.players.iterator().hasNext(),
+            "Expired unconfirmed damage cannot leak into a later encounter");
 
         m = model();
         m.onCombatEnter("2", 100);
@@ -189,6 +196,7 @@ class CombatModelTest {
 
         m = model();
         m.record(event());
+        m.onCombatEnter(m.me, 100);
         var pendingBoss = m.boss;
         m.onCombatExit(m.me, 100.5);
         check(m.current == null && m.boss == pendingBoss && m.session.players[m.me].damage == 100,
@@ -198,6 +206,7 @@ class CombatModelTest {
         var bossHit = event();
         bossHit.bossName = "The Ancient Guardian";
         m.record(bossHit);
+        m.onCombatEnter(m.me, 100.2);
         check(m.displayedFight().bossName == "The Ancient Guardian" && m.displayedFight().bossKind == "TestBoss",
             "The header uses the detected boss's display name while preserving its data ID");
         m.record(event(101, m.me, 25, false, false, "add"));
@@ -212,6 +221,63 @@ class CombatModelTest {
         m.record(event(104, m.me, 50, false, false, "ordinary-mob"));
         check(m.current.bossName == "" && previous.bossName == "The Awakened Guardian",
             "A new ordinary fight cannot inherit the previous boss's header name");
+
+        m = model();
+        m.onCombatEnter(m.me, 100);
+        m.record(event(100, m.me, 100, false, false));
+        m.onCombatExit(m.me, 102);
+        previous = m.displayedFight();
+        m.update(102.01, true);
+        m.update(102.25, true);
+        check(m.current == null && m.displayedFight() == previous && previous.duration(102.25) == 2,
+            "A stale true combat poll cannot restart the timer after a native exit");
+        // These are distinct events, so lethal-hit deduplication cannot mask a restart.
+        m.record(event(102.3, m.me, 40, false, false, "late-hit"));
+        m.record(event(102.4, "2", 75, true, false, "ally-target"));
+        check(m.current == null && m.displayedFight() == previous && previous.players[m.me].damage == 100,
+            "Delayed local hits and a party member's kill cannot reopen or alter the finished encounter");
+        m.update(102.5, false);
+        for (time in 103...114) {
+            m.record(event(time, "2", 25, false, false, "ally-target"));
+            m.update(time, false);
+        }
+        check(m.current == null && m.displayedFight() == previous && previous.duration(114) == 2
+            && previous.players[m.me].damage / previous.duration(114) == 50,
+            "Continuous party damage while resting leaves the last timer, damage, and DPS frozen beyond eight seconds");
+        m.record(event(114, m.me, 80, false, false, "new-mob"));
+        m.onCombatEnter(m.me, 114.2);
+        check(m.current.start == 114 && m.current.players[m.me].damage == 80 && !m.current.players.exists("2")
+            && previous.players[m.me].damage == 100,
+            "A genuine entry retains its opening hit but excludes earlier out-of-combat damage");
+        check(m.session.players[m.me].damage == 220,
+            "Applying a buffered opening hit does not count it twice in Session");
+        m.update(117, true);
+        check(m.current.duration(117) == 3 && m.current.players[m.me].damage == 80,
+            "The confirmed timer still advances without further damage");
+
+        m.onCombatExit(m.me, 118);
+        m.record(event(118.1, m.me, 30, false, false, "third-mob"));
+        m.onCombatEnter(m.me, 118.2);
+        check(m.current.start == 118.1 && m.current.players[m.me].damage == 30,
+            "A real native re-entry works even before the next poll acknowledges the exit");
+        m.onCombatExit(m.me, 119);
+        m.update(119.1, false);
+        m.update(120, true);
+        check(m.current.start == 120 && !m.current.players.iterator().hasNext(),
+            "Polling still recovers a new combat entry after observing the previous exit");
+
+        m = model();
+        m.record(event(100, "2", 60, false, false));
+        m.reset(100.1);
+        m.me = "2"; m.profiles["2"] = player("2", "Different character", true); m.party["2"] = true;
+        m.onCombatEnter("2", 100.2);
+        check(!m.current.players.iterator().hasNext(), "A character or zone reset clears buffered opening damage");
+
+        m = model();
+        m.record(event(100, m.me, 100, false, true));
+        m.record(event(101, m.me, 150, true, true));
+        check(m.current == null && m.completed.length == 1 && m.completed[0].players[m.me].damage == 250,
+            "Boss report collection remains independent of the visible encounter's combat-entry requirement");
         Sys.println(checks + " combat/report checks passed");
     }
 }

@@ -143,7 +143,9 @@ class Fight {
 
 /** Pure encounter logic, independently exercised without a running game or HTTP requests. */
 class CombatModel {
-    static inline var CURRENT_IDLE_SECONDS:Float = 8;
+    // Damage and the replicated combat entry can arrive in either order.
+    // Keep a short buffer without starting a visible encounter on damage alone.
+    static inline var ENTRY_DAMAGE_SECONDS:Float = 0.5;
     public var profiles:Map<String, PlayerInfo> = [];
     public var party:Map<String, Bool> = [];
     public var me:String = "";
@@ -160,33 +162,44 @@ class CombatModel {
     var lastKillTarget:String = "";
     var lastKillTime:Float = -1;
     var inCombat:Bool = false;
-    var lastPartyDamage:Float = -1;
+    var awaitingExitState:Bool = false;
+    var pendingDamage:Array<DamageEvent> = [];
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         lastKillTarget = ""; lastKillTime = -1;
-        inCombat = false; lastPartyDamage = -1;
+        inCombat = false; awaitingExitState = false; pendingDamage = [];
         // Already completed reports remain queued across character/zone changes.
     }
     public function update(now:Float, localInCombat:Bool):Void {
         // Poll only the local hero as a backup for native entry/exit callbacks.
-        if (localInCombat && !inCombat) onCombatEnter(me, now);
-        else if (!localInCombat && inCombat) onCombatExit(me, now);
-        // Unconfirmed damage can arrive before the combat state. Inactivity is
-        // only a fallback for that case, never a reason to split active combat.
-        if (!inCombat && current != null && now - lastPartyDamage >= CURRENT_IDLE_SECONDS)
-            finishCurrent(lastPartyDamage);
+        // A native exit runs before the game's flag is stored. A stale true
+        // must not undo that exit; first observe false, or a new native entry.
+        if (!localInCombat) {
+            if (inCombat) onCombatExit(me, now);
+            awaitingExitState = false;
+        } else if (!inCombat && !awaitingExitState) onCombatEnter(me, now);
+        prunePendingDamage(now);
         if (boss != null && now - boss.last > 8) {
             boss.closed = now; lastBoss = boss; boss = null;
         }
     }
     public function onCombatEnter(heroUid:String, now:Float):Void {
         if (me == "" || heroUid != me) return;
+        if (inCombat) return;
         inCombat = true;
-        // Keep any first hit delivered just before the entry notification.
-        if (current == null) current = new Fight(now);
+        awaitingExitState = false;
+        current = new Fight(now);
+        prunePendingDamage(now);
+        for (e in pendingDamage) {
+            var info = profiles[e.source];
+            if (info == null) continue;
+            current.start = Math.min(current.start, e.time);
+            addToCurrent(e, info);
+        }
+        pendingDamage = [];
     }
     public function displayedFight():Null<Fight> {
         return current != null ? current : lastCombat;
@@ -196,7 +209,20 @@ class CombatModel {
         // party member still has a combat flag, or we re-enter between polls.
         if (me == "" || heroUid != me) return;
         inCombat = false;
+        awaitingExitState = true;
+        pendingDamage = [];
         if (current != null) finishCurrent(now);
+    }
+    function prunePendingDamage(now:Float):Void {
+        while (pendingDamage.length > 0 && now - pendingDamage[0].time > ENTRY_DAMAGE_SECONDS)
+            pendingDamage.shift();
+    }
+    function addToCurrent(e:DamageEvent, info:PlayerInfo):Void {
+        current.add(e, info);
+        if (e.effect != 1 && (e.bossFlags & 0x38) != 0) {
+            current.bossKind = e.bossKind;
+            current.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
+        }
     }
     function finishCurrent(now:Float):Void {
         // Freeze the same elapsed time used by the live view, including time
@@ -220,24 +246,17 @@ class CombatModel {
         if (info == null) return;
         var member = party.exists(e.source) || e.source == me;
         if (member) {
-            // Also separate encounters if a damage callback precedes the next
-            // update after a long idle period.
-            if (!inCombat && current != null && e.time - lastPartyDamage >= CURRENT_IDLE_SECONDS) finishCurrent(lastPartyDamage);
             session.add(e, info);
-            if (e.effect != 1) lastPartyDamage = e.time;
-            // Resting heals still contribute to Session, but cannot start or
-            // indefinitely extend a Current encounter after combat has ended.
-            if (e.effect != 1 || current != null) {
-                if (current == null) current = new Fight(e.time);
-                current.add(e, info);
+            if (current != null) addToCurrent(e, info);
+            else if (e.effect != 1) {
+                // Late hits and party damage while resting still count toward
+                // reports/Session, but only combat entry can start the timer.
+                prunePendingDamage(e.time);
+                pendingDamage.push(e);
             }
         }
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
         var bossHit = e.effect != 1 && (e.bossFlags & 0x38) != 0;
-        if (bossHit && member && current != null) {
-            current.bossKind = e.bossKind;
-            current.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
-        }
         if (bossHit && member && (boss == null || (boss.bossKind != e.bossKind && e.time - boss.last > 15))) {
             var previous = lastBoss;
             var resume = previous != null && previous.me == me && previous.bossKind == e.bossKind
