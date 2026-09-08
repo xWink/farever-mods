@@ -66,7 +66,7 @@ class NativeKillPopups {
         var scene = G.field(owner, "s2d");
         var top = localPoint(0, 0);
         var bottom = localPoint(G.number(G.field(scene, "width"), 1920), G.number(G.field(scene, "height"), 1080));
-        var width = Std.int(Math.max(1, Math.min(900, bottom.x - top.x - 40)));
+        var width = Std.int(Math.max(1, bottom.x - top.x - 40));
         var y = top.y + (bottom.y - top.y) * 0.18;
         for (row in rows.copy()) {
             var enabled = switch (row.category) {
@@ -77,6 +77,10 @@ class NativeKillPopups {
             if (now >= row.expires || !enabled) {
                 rows.remove(row); G.call("h2d.Object", "remove", row.object); continue;
             }
+            // Widen both native flows so their CSS cannot constrain the title.
+            size(row.object, width);
+            size(G.field(row.object, "texts"), width);
+            G.call("ui.comp.FmtText", "set_textMultiline", row.title, [false]);
             G.call("ui.comp.FmtText", "set_maxWidthText", row.title, [width]);
             G.call("ui.comp.FmtText", "updateScale", row.title);
             G.call("h2d.Flow", "reflow", row.object);
