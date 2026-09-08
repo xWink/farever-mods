@@ -7,12 +7,14 @@ on:
     tags: ['fix-target-lock/v*']
     paths:
       - 'fix-target-lock/**'
+      - 'shared/**'
       - '.github/workflows/build-fix-target-lock.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
       - 'fix-target-lock/**'
+      - 'shared/**'
       - '.github/workflows/build-fix-target-lock.yml'
       - '.github/workflows/_build-mod.yml'
 

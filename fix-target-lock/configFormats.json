@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "displayName": "Fix Target Lock",
-  "configFile": "config.json",
   "configs": [
     {
       "key": "enabled",

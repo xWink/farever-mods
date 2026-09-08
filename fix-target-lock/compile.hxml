@@ -2,6 +2,7 @@
 -lib hl-imgui
 -D hl-ver=1.16.0
 -cp src
+-cp ../shared/src
 -main fixtargetlock.FixTargetLockMod
 -dce full
 -hl build/fix-target-lock/fix-target-lock.hl

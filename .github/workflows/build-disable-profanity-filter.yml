@@ -7,12 +7,14 @@ on:
     tags: ['disable-profanity-filter/v*']
     paths:
       - 'disable-profanity-filter/**'
+      - 'shared/**'
       - '.github/workflows/build-disable-profanity-filter.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
       - 'disable-profanity-filter/**'
+      - 'shared/**'
       - '.github/workflows/build-disable-profanity-filter.yml'
       - '.github/workflows/_build-mod.yml'
 

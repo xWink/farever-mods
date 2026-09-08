@@ -1,21 +1,29 @@
 package fixtargetlock;
 
-import haxe.Json;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import modconfig.ConfigMigration;
 import hlx.runtime.HlxPrefixControl;
-import sys.FileSystem;
-import sys.io.File;
+
+typedef TargetLockConfig = {
+    var enabled:Bool;
+    var autoUnlockOnDeath:Bool;
+    var quickSwapTarget:Bool;
+    var disableCameraMovement:Bool;
+}
 
 @:build(hlx.runtime.Mod.build())
 class FixTargetLockMod {
-    static inline var CONFIG_PATH = "hlx/mods/fix-target-lock/config.json";
+    @:hlx.config
+    static var config:TargetLockConfig = {
+        enabled: true,
+        autoUnlockOnDeath: true,
+        quickSwapTarget: false,
+        disableCameraMovement: false
+    };
+
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
         "better-mod-settings/config-changed/";
-
-    static var enabled:Bool = true;
-    static var autoUnlockOnDeath:Bool = true;
-    static var quickSwapTarget:Bool = false;
-    static var disableCameraMovement:Bool = false;
 
     static var inputType:hl.Bytes;
     static var playerControllerType:hl.Bytes;
@@ -42,8 +50,8 @@ class FixTargetLockMod {
     static var lastStatus:String = "Waiting for Farever";
 
     static function main():Void {
-        loadConfig();
-        saveConfig();
+        if (ConfigMigration.importLegacy()) loadConfig();
+        config.save();
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
             onBetterModSettingsChanged
@@ -56,7 +64,7 @@ class FixTargetLockMod {
 
         try {
             applyFeatureFlag();
-            if (!enabled) {
+            if (!config.enabled) {
                 lastStatus = "Disabled";
                 return;
             }
@@ -77,7 +85,7 @@ class FixTargetLockMod {
             if (inLock == true) {
                 var swapped = false;
                 var aimedTarget:Dynamic = HlxRuntime.resolveField(instance, "autoTarget");
-                if (quickSwapTarget && aimedTarget != null) {
+                if (config.quickSwapTarget && aimedTarget != null) {
                     var lockedTarget = getLockedTarget(instance);
                     if (lockedTarget != aimedTarget) {
                         HlxRuntime.callResolved(lockTargetMember, [instance, aimedTarget]);
@@ -132,7 +140,7 @@ class FixTargetLockMod {
     // continue through Farever's original targeting path.
     @:hlx.prefix(client.UnitController.startSkillAim)
     static function forceLockedAttackTarget(instance:Dynamic, skill:Dynamic, callback:Dynamic, input:String):HlxPrefixControl {
-        if (!enabled || instance != lastController)
+        if (!config.enabled || instance != lastController)
             return Continue;
 
         try {
@@ -216,7 +224,7 @@ class FixTargetLockMod {
     }
 
     static function autoUnlockDeadTarget(controller:Dynamic):Bool {
-        if (!autoUnlockOnDeath)
+        if (!config.autoUnlockOnDeath)
             return false;
 
         var inLock:Dynamic = HlxRuntime.resolveField(controller, "inLock");
@@ -269,7 +277,7 @@ class FixTargetLockMod {
 
         // Keep Farever's lock mode enabled outside the camera update. Other
         // systems use this flag for locked sensitivity and targeting behavior.
-        var desired = enabled ? true : originalTargetLock;
+        var desired = config.enabled ? true : originalTargetLock;
         if (lastAppliedTargetLock == desired)
             return;
 
@@ -280,7 +288,7 @@ class FixTargetLockMod {
     @:hlx.prefix(client.GameCamera.postUpdate)
     static function beforeCameraPostUpdate(instance:Dynamic, dt:Float):HlxPrefixControl {
         cameraUpdateTargetLock = null;
-        if (!enabled || !disableCameraMovement)
+        if (!config.enabled || !config.disableCameraMovement)
             return Continue;
 
         try {
@@ -334,36 +342,17 @@ class FixTargetLockMod {
     }
 
     static function onBetterModSettingsChanged(_:Dynamic):Void {
-        var wasEnabled = enabled;
+        var wasEnabled = config.enabled;
         loadConfig();
-        if (wasEnabled && !enabled)
+        if (wasEnabled && !config.enabled)
             disableAndUnlock();
-        else if (!wasEnabled && enabled) {
+        else if (!wasEnabled && config.enabled) {
             lastAppliedTargetLock = null;
             applyFeatureFlag();
         }
     }
 
     static function loadConfig():Void {
-        try {
-            if (!FileSystem.exists(CONFIG_PATH))
-                return;
-            var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
-            if (Reflect.hasField(data, "enabled")) enabled = Reflect.field(data, "enabled");
-            if (Reflect.hasField(data, "autoUnlockOnDeath")) autoUnlockOnDeath = Reflect.field(data, "autoUnlockOnDeath");
-            if (Reflect.hasField(data, "quickSwapTarget")) quickSwapTarget = Reflect.field(data, "quickSwapTarget");
-            if (Reflect.hasField(data, "disableCameraMovement")) disableCameraMovement = Reflect.field(data, "disableCameraMovement");
-        } catch (_:Dynamic) {}
-    }
-
-    static function saveConfig():Void {
-        try {
-            File.saveContent(CONFIG_PATH, Json.stringify({
-                enabled: enabled,
-                autoUnlockOnDeath: autoUnlockOnDeath,
-                quickSwapTarget: quickSwapTarget,
-                disableCameraMovement: disableCameraMovement
-            }, null, "  "));
-        } catch (_:Dynamic) {}
+        config = ModConfig.load(HlxRuntime.moduleName(), config);
     }
 }

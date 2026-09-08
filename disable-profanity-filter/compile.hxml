@@ -2,6 +2,7 @@
 -lib hl-imgui
 -D hl-ver=1.16.0
 -cp src
+-cp ../shared/src
 -main disableprofanityfilter.DisableProfanityFilterMod
 -dce full
 -hl build/disable-profanity-filter/disable-profanity-filter.hl

@@ -142,9 +142,11 @@ open-world tracking.
 
 The window uses the game's TitleWindow, OptionsContent, text, buttons, and gauges.
 It does not open a separate Windows overlay or block gameplay as a modal menu.
-Better Mod Settings exposes the toggles and hotkeys. The first launch imports
-compatible options from `group-dps.ini` if present; subsequent settings live in
-`hlx/mods/dps-meter/config.json`.
+Better Mod Settings exposes the toggles and hotkeys. Settings use HLX native persistence at
+`hlx/config/dps-meter/config.json`. On upgrade, the previous
+`hlx/mods/dps-meter/config.json` is imported when no native file exists, preserving
+options and window placement. If neither JSON file exists, compatible options
+are imported from `group-dps.ini` if present. Old files are left intact.
 The optional `me` override marks a matching character name as `is_me` in reports;
 the game still determines which hero's combat state the meter follows. The
 comma-separated `group` names are a fallback outside rifts when the game's party

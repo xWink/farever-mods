@@ -1,10 +1,11 @@
 package dpsmeter;
 
+import dpsmeter.MeterConfig.MeterSettings;
 import dpsmeter.GameAccess as G;
 
 /** Observe the local character's saved counters, including shared kill credit. */
 class KillNotifications {
-    var config:MeterConfig;
+    var config:MeterSettings;
     var popups:NativeKillPopups;
     var hero:Dynamic;
     var layer:Dynamic;
@@ -14,7 +15,7 @@ class KillNotifications {
     var dirty:Bool = true;
     var nextRead:Float = 0;
 
-    public function new(config:MeterConfig) {
+    public function new(config:MeterSettings) {
         this.config = config;
         popups = new NativeKillPopups(config);
     }

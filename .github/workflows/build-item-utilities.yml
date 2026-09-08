@@ -7,12 +7,14 @@ on:
     tags: ['item-utilities/v*']
     paths:
       - 'item-utilities/**'
+      - 'shared/**'
       - '.github/workflows/build-item-utilities.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
       - 'item-utilities/**'
+      - 'shared/**'
       - '.github/workflows/build-item-utilities.yml'
       - '.github/workflows/_build-mod.yml'
 

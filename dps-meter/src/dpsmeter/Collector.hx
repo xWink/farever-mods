@@ -1,11 +1,12 @@
 package dpsmeter;
 
+import dpsmeter.MeterConfig.MeterSettings;
 import dpsmeter.CombatModel;
 import dpsmeter.GameAccess as G;
 
 class Collector {
     public var model:CombatModel;
-    var config:MeterConfig;
+    var config:MeterSettings;
     var hero:Dynamic;
     var layer:Dynamic;
     var lastRoster:Float = -1;
@@ -13,7 +14,7 @@ class Collector {
     var groupMembers:Map<String, Bool> = [];
     var profileRefresh:Map<String, Float> = [];
     var profileWeapons:Map<String, Dynamic> = [];
-    public function new(config:MeterConfig) {
+    public function new(config:MeterSettings) {
         this.config = config;
         model = new CombatModel(haxe.Timer.stamp());
     }

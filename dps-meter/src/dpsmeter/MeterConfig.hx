@@ -1,59 +1,61 @@
 package dpsmeter;
 
-import haxe.Json;
 import sys.FileSystem;
 import sys.io.File;
 
+typedef MeterSettings = {
+    var enabled:Bool;
+    var visible:Bool;
+    var hideOutOfCombat:Bool;
+    var hideDelay:Int;
+    var showBossKills:Bool;
+    var showIncompleteCodexKills:Bool;
+    var showCompletedCodexKills:Bool;
+    var unlocked:Bool;
+    var sendLogs:Bool;
+    var debug:Bool;
+    var me:String;
+    var group:String;
+    var x:Float;
+    var y:Float;
+    var width:Int;
+    var height:Int;
+    var toggleHotkey:Int;
+    var unlockHotkey:Int;
+}
+
+/** Meter-specific defaults, size limits and original DLL configuration import. */
 class MeterConfig {
-    public static inline var PATH = "hlx/mods/dps-meter/config.json";
     public static inline var MIN_HEIGHT:Int = 110;
-    public var enabled:Bool = true;
-    public var visible:Bool = true;
-    public var hideOutOfCombat:Bool = false;
-    public var hideDelay:Int = 3;
-    public var showBossKills:Bool = true;
-    public var showIncompleteCodexKills:Bool = true;
-    public var showCompletedCodexKills:Bool = false;
-    public var unlocked:Bool = false;
-    public var sendLogs:Bool = true;
-    public var debug:Bool = false;
-    public var me:String = "";
-    public var group:String = "";
-    public var x:Float = 60;
-    public var y:Float = 220;
-    public var width:Int = 440;
-    public var height:Int = 340;
-    public var toggleHotkey:Int = 121;
-    public var unlockHotkey:Int = 122;
-    public function new() {}
-    public function load():Void {
-        if (!FileSystem.exists(PATH)) {
-            importLegacy();
-            save();
-            return;
-        }
-        try {
-            var data:Dynamic = Json.parse(File.getContent(PATH));
-            for (key in ["enabled", "visible", "hideOutOfCombat", "unlocked", "sendLogs", "debug",
-                "showBossKills", "showIncompleteCodexKills", "showCompletedCodexKills"])
-                if (Std.isOfType(Reflect.field(data, key), Bool)) Reflect.setField(this, key, Reflect.field(data, key));
-            for (key in ["me", "group"])
-                if (Std.isOfType(Reflect.field(data, key), String)) Reflect.setField(this, key, Reflect.field(data, key));
-            for (key in ["x", "y", "width", "height", "hideDelay", "toggleHotkey", "unlockHotkey"]) {
-                var value:Dynamic = Reflect.field(data, key);
-                if (value != null && Math.isFinite(Std.parseFloat(Std.string(value))))
-                    Reflect.setField(this, key, key == "x" || key == "y" ? Std.parseFloat(Std.string(value)) : Std.int(value));
-            }
-            width = Std.int(Math.max(360, Math.min(1200, width)));
-            height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, height)));
-            hideDelay = Std.int(Math.max(0, Math.min(10, hideDelay)));
-            // Populate new options for existing installs so Mod Settings shows
-            // the same defaults that the meter uses.
-            for (key in ["hideOutOfCombat", "hideDelay", "showBossKills", "showIncompleteCodexKills", "showCompletedCodexKills"])
-                if (!Reflect.hasField(data, key)) { save(); break; }
-        } catch (_:Dynamic) {}
+
+    public static function defaults():MeterSettings return {
+        enabled: true,
+        visible: true,
+        hideOutOfCombat: false,
+        hideDelay: 3,
+        showBossKills: true,
+        showIncompleteCodexKills: true,
+        showCompletedCodexKills: false,
+        unlocked: false,
+        sendLogs: true,
+        debug: false,
+        me: "",
+        group: "",
+        x: 60,
+        y: 220,
+        width: 440,
+        height: 340,
+        toggleHotkey: 121,
+        unlockHotkey: 122
+    };
+
+    public static function normalize(config:MeterSettings):Void {
+        config.width = Std.int(Math.max(360, Math.min(1200, config.width)));
+        config.height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, config.height)));
+        config.hideDelay = Std.int(Math.max(0, Math.min(10, config.hideDelay)));
     }
-    function importLegacy():Void {
+
+    public static function importLegacy(config:MeterSettings):Void {
         if (!FileSystem.exists("group-dps.ini")) return;
         for (line in File.getContent("group-dps.ini").split("\n")) {
             var p = line.indexOf("=");
@@ -62,25 +64,16 @@ class MeterConfig {
             var value = StringTools.trim(line.substr(p + 1));
             var n = Std.parseInt(value);
             switch (key) {
-                case "me": me = value;
-                case "group": group = value;
-                case "send_logs": sendLogs = n != 0;
-                case "debug": debug = n == 1;
-                case "overlay_x": if (n != null) x = n;
-                case "overlay_y": if (n != null) y = n;
-                case "overlay_w": if (n != null) width = Std.int(Math.max(360, n));
-                case "overlay_h": if (n != null && n > 0) height = Std.int(Math.max(MIN_HEIGHT, n));
+                case "me": config.me = value;
+                case "group": config.group = value;
+                case "send_logs": config.sendLogs = n != 0;
+                case "debug": config.debug = n == 1;
+                case "overlay_x": if (n != null) config.x = n;
+                case "overlay_y": if (n != null) config.y = n;
+                case "overlay_w": if (n != null) config.width = Std.int(Math.max(360, n));
+                case "overlay_h": if (n != null && n > 0) config.height = Std.int(Math.max(MIN_HEIGHT, n));
                 default:
             }
         }
-    }
-    public function save():Void {
-        try File.saveContent(PATH, Json.stringify({enabled: enabled, visible: visible, unlocked: unlocked,
-            hideOutOfCombat: hideOutOfCombat, hideDelay: hideDelay,
-            showBossKills: showBossKills, showIncompleteCodexKills: showIncompleteCodexKills,
-            showCompletedCodexKills: showCompletedCodexKills,
-            sendLogs: sendLogs, debug: debug, me: me, group: group, x: x, y: y,
-            width: width, height: height, toggleHotkey: toggleHotkey, unlockHotkey: unlockHotkey}, null, "  "))
-        catch (_:Dynamic) {}
     }
 }

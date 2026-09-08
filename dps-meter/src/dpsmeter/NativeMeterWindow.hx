@@ -1,5 +1,6 @@
 package dpsmeter;
 
+import dpsmeter.MeterConfig.MeterSettings;
 import dpsmeter.CombatModel;
 import dpsmeter.GameAccess as G;
 import dpsmeter.NativeUi.*;
@@ -27,7 +28,7 @@ class NativeMeterWindow {
     var dragSurface:Dynamic;
     var resizeSurface:Dynamic;
     var grip:Dynamic;
-    var config:MeterConfig;
+    var config:MeterSettings;
     var lastRefresh:Float = -1;
     var width:Int = 0;
     var height:Int = 0;
@@ -42,7 +43,7 @@ class NativeMeterWindow {
     var startHeight:Int = 0;
     var createRetry:Float = 0;
     var outOfCombatSince:Float = -1;
-    public function new(config:MeterConfig) this.config = config;
+    public function new(config:MeterSettings) this.config = config;
 
     public function update(model:CombatModel, active:Bool, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");
@@ -286,7 +287,7 @@ class NativeMeterWindow {
         var surface = resizing ? resizeSurface : dragSurface;
         dragging = false; resizing = false;
         if (surface != null) G.call("h2d.Interactive", "stopDrag", surface);
-        config.save();
+        DpsMeterMod.saveConfig();
     }
     public function dispose():Void {
         finishDrag();

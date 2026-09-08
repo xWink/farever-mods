@@ -33,7 +33,7 @@ The settings window opens automatically the first time the mod runs.
 - Use Farever's normal **Lock Target** key or controller binding to toggle a target lock.
 - Farever's native animated hard-lock indicator appears above the locked enemy.
 
-Settings are saved to `Farever\hlx\mods\fix-target-lock\config.json`.
+Settings are saved to `Farever\hlx\config\fix-target-lock\config.json`.
 
 ## How it works
 

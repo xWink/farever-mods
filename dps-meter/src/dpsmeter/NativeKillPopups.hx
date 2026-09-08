@@ -1,5 +1,6 @@
 package dpsmeter;
 
+import dpsmeter.MeterConfig.MeterSettings;
 import dpsmeter.GameAccess as G;
 import dpsmeter.NativeUi.*;
 
@@ -14,13 +15,13 @@ private typedef KillPopup = {
 /** Native SmallNotify text, positioned independently of the meter window. */
 class NativeKillPopups {
     public static var constructing:Bool = false;
-    var config:MeterConfig;
+    var config:MeterSettings;
     var owner:Dynamic;
     var root:Dynamic;
     var rows:Array<KillPopup> = [];
     var fade:Float = 0.4;
 
-    public function new(config:MeterConfig) this.config = config;
+    public function new(config:MeterSettings) this.config = config;
 
     public function show(id:String, message:String, category:String, count:Int, goal:Int, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");

@@ -9,14 +9,39 @@ import imgui.Enums.ImGuiKey;
 import imgui.Enums.ImGuiStyleVar;
 import imgui.Enums.ImGuiWindowFlags;
 import imgui.ref.BoolRef;
-import sys.FileSystem;
-import sys.io.File;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import modconfig.ConfigMigration;
 import hlx.runtime.HlxPrefixResult;
+
+typedef ItemUtilitiesConfig = {
+    var enabled:Bool;
+    var showDepositMaterials:Bool;
+    var showLockVisuals:Bool;
+    var sortingIgnoresLockedItems:Bool;
+    var preset1Hotkey:Int;
+    var preset2Hotkey:Int;
+    var preset3Hotkey:Int;
+    var weaponPresets:Array<Dynamic>;
+    var selectedWeaponPresets:Array<Dynamic>;
+    var lockedItems:Array<Dynamic>;
+}
 
 @:build(hlx.runtime.Mod.build())
 class ItemUtilitiesMod {
-    static inline var CONFIG_PATH = "hlx/mods/item-utilities/config.json";
+    @:hlx.config
+    static var config:ItemUtilitiesConfig = {
+        enabled: true,
+        showDepositMaterials: true,
+        showLockVisuals: true,
+        sortingIgnoresLockedItems: false,
+        preset1Hotkey: 0,
+        preset2Hotkey: 0,
+        preset3Hotkey: 0,
+        weaponPresets: [],
+        selectedWeaponPresets: [],
+        lockedItems: []
+    };
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
         "better-mod-settings/config-changed/";
     static inline var CRAFTING_COMPONENT_TYPE = "CraftingComponent";
@@ -146,6 +171,8 @@ class ItemUtilitiesMod {
     static inline var DEPOSIT_MISC = 5;
 
     static function main():Void {
+        if (ConfigMigration.importLegacy())
+            config = ModConfig.load(HlxRuntime.moduleName(), config);
         loadConfig();
         saveConfig();
         Bus.subscribe(
@@ -2859,9 +2886,8 @@ class ItemUtilitiesMod {
 
     static function onBetterModSettingsChanged(_:Dynamic):Void {
         try {
-            if (!FileSystem.exists(CONFIG_PATH))
-                return;
-            var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
+            config = ModConfig.load(HlxRuntime.moduleName(), config);
+            var data:Dynamic = config;
             var wasEnabled = enabled.get();
             if (Reflect.hasField(data, "enabled"))
                 enabled.set(Reflect.field(data, "enabled"));
@@ -2886,8 +2912,7 @@ class ItemUtilitiesMod {
 
     static function loadConfig():Void {
         try {
-            if (!FileSystem.exists(CONFIG_PATH)) return;
-            var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
+            var data:Dynamic = config;
             if (Reflect.hasField(data, "enabled")) enabled.set(Reflect.field(data, "enabled"));
             if (Reflect.hasField(data, "showDepositMaterials")) showDepositMaterials.set(Reflect.field(data, "showDepositMaterials"));
             if (Reflect.hasField(data, "showLockVisuals"))
@@ -2977,18 +3002,17 @@ class ItemUtilitiesMod {
             });
         }
         try {
-            File.saveContent(CONFIG_PATH, Json.stringify({
-            enabled: enabled.get(),
-            showDepositMaterials: showDepositMaterials.get(),
-            showLockVisuals: showLockVisuals.get(),
-            sortingIgnoresLockedItems: sortingIgnoresLockedItems.get(),
-            preset1Hotkey: presetHotkeyKeys[0],
-            preset2Hotkey: presetHotkeyKeys[1],
-            preset3Hotkey: presetHotkeyKeys[2],
-            weaponPresets: weaponPresets,
-            selectedWeaponPresets: selectedWeaponPresets,
-            lockedItems: savedLocks
-            }, null, "  "));
+            config.enabled = enabled.get();
+            config.showDepositMaterials = showDepositMaterials.get();
+            config.showLockVisuals = showLockVisuals.get();
+            config.sortingIgnoresLockedItems = sortingIgnoresLockedItems.get();
+            config.preset1Hotkey = presetHotkeyKeys[0];
+            config.preset2Hotkey = presetHotkeyKeys[1];
+            config.preset3Hotkey = presetHotkeyKeys[2];
+            config.weaponPresets = weaponPresets;
+            config.selectedWeaponPresets = selectedWeaponPresets;
+            config.lockedItems = savedLocks;
+            config.save();
         } catch (_:Dynamic) {}
     }
 }

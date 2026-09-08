@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "displayName": "Item Utilities",
-  "configFile": "config.json",
   "configs": [
     {
       "key": "enabled",

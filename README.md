@@ -18,9 +18,24 @@ Each project has its own source, build, installable ZIP, and versioned releases.
 Download the ZIP for the mod you want. Install it with Vortex, or extract it into
 the Farever game directory. Each archive contains just that mod under
 `hlx/mods/`. Installation requirements and Nexus Mods links are in each project's
-README. Existing installed mod folders and config filenames are unchanged.
+README. Installed mod folders are unchanged.
 DPS Meter includes the original `uploader.exe` helper inside `hlx/mods/dps-meter/`.
 It uses native game UI and requires HLX Core without the ImGui plugin.
+
+## Settings
+
+All configurable mods use HLX's native `@:hlx.config` persistence at
+`hlx/config/<module-name>/config.json`. On the first launch after upgrading,
+settings are imported from the previous `hlx/mods/<module-name>/config.json`
+when no native file exists. Existing native files take priority; the old files
+are left intact as backups. This preserves hotkeys, window placement, item locks,
+and weapon presets.
+
+Update Better Mod Settings along with the mods. Its `configFormats.json`
+descriptors stay beside the `.hl` files and no longer need a `configFile` key.
+The settings menu edits the native files and applies changes immediately; it
+also recognizes the old `config.json` location for mods that have not migrated.
+The DPS Meter uploader keeps its own `uploader.ini` beside `uploader.exe`.
 
 ## Building
 
@@ -38,15 +53,16 @@ cd item-utilities
 haxe compile.hxml
 ```
 
-Each `compile.hxml` is self-contained and writes to that project's `build/`
-directory. Mute on Unfocus retains the installed module name `mute-unfocused`.
+Each `compile.hxml` writes to that project's `build/` directory. Configurable
+mods also compile the migration helper from `shared/src/`. Mute on Unfocus retains the installed module name `mute-unfocused`.
 
 ## Independent CI and releases
 
 Each mod has its own workflow in `.github/workflows/build-<project>.yml`:
 
 - Pushes to `main` and pull requests build only projects whose directory or
-  workflow changed. Changing the shared `_build-mod.yml` builds every project.
+  workflow changed. Changes under `shared/` build all mods that use the migration
+  helper; changes to `_build-mod.yml` build projects using that workflow.
 - Each workflow can also be run manually on `main` to produce an installable build artifact.
 - A tag such as `item-utilities/v1.2.2` builds and releases only Item Utilities.
   Versions are independent; there is no repository-wide version.

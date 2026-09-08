@@ -1,7 +1,6 @@
 {
   "schemaVersion": 1,
   "displayName": "DPS Meter",
-  "configFile": "config.json",
   "configs": [
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
     { "key": "visible", "type": "checkbox", "label": "Show DPS meter" },

@@ -1,20 +1,26 @@
 package muteunfocused;
 
-import haxe.Json;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import modconfig.ConfigMigration;
 import hlx.runtime.ResolvedMember;
-import sys.FileSystem;
-import sys.io.File;
+
+typedef MuteConfig = {
+    var enabled:Bool;
+    var backgroundVolume:Float;
+}
 
 @:build(hlx.runtime.Mod.build())
 class MuteUnfocusedMod {
+    @:hlx.config
+    static var config:MuteConfig = {
+        enabled: true,
+        backgroundVolume: 0.0
+    };
+
     static inline var MASTER_VCA = "vca:/MASTER";
-    static inline var CONFIG_PATH = "hlx/mods/mute-unfocused/config.json";
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
         "better-mod-settings/config-changed/";
-
-    static var enabled:Bool = true;
-    static var backgroundVolume:Float = 0.0;
 
     static var lastFocused:Bool = true;
     static var mutedByUs:Bool = false;
@@ -28,8 +34,9 @@ class MuteUnfocusedMod {
     static var setVcaVolumeMember:ResolvedMember;
 
     static function main():Void {
-        loadConfig();
-        saveConfig();
+        if (ConfigMigration.importLegacy()) loadConfig();
+        config.backgroundVolume = clamp(config.backgroundVolume, 0.0, 100.0);
+        config.save();
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
             onBetterModSettingsChanged
@@ -67,12 +74,12 @@ class MuteUnfocusedMod {
             if (focused) {
                 if (mutedByUs)
                     restoreVolume();
-            } else if (enabled && !mutedByUs) {
+            } else if (config.enabled && !mutedByUs) {
                 applyBackgroundVolume();
             }
         }
 
-        if (!enabled && mutedByUs)
+        if (!config.enabled && mutedByUs)
             restoreVolume();
     }
 
@@ -100,7 +107,7 @@ class MuteUnfocusedMod {
 
     static function applyBackgroundVolume():Void {
         savedMasterVolume = getMasterVolume();
-        setMasterVolume(backgroundVolume / 100.0);
+        setMasterVolume(config.backgroundVolume / 100.0);
         mutedByUs = true;
     }
 
@@ -114,27 +121,8 @@ class MuteUnfocusedMod {
     }
 
     static function loadConfig():Void {
-        try {
-            if (!FileSystem.exists(CONFIG_PATH))
-                return;
-
-            var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
-            if (Reflect.hasField(data, "enabled"))
-                enabled = Reflect.field(data, "enabled");
-            if (Reflect.hasField(data, "backgroundVolume"))
-                backgroundVolume = clamp(cast Reflect.field(data, "backgroundVolume"), 0.0, 100.0);
-
-        } catch (_:Dynamic) {}
-    }
-
-    static function saveConfig():Void {
-        try {
-            var data = {
-                enabled: enabled,
-                backgroundVolume: backgroundVolume
-            };
-            File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
-        } catch (_:Dynamic) {}
+        config = ModConfig.load(HlxRuntime.moduleName(), config);
+        config.backgroundVolume = clamp(config.backgroundVolume, 0.0, 100.0);
     }
 
     static inline function clamp(value:Float, min:Float, max:Float):Float {

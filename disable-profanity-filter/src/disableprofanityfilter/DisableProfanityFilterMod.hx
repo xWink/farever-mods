@@ -1,22 +1,27 @@
 package disableprofanityfilter;
 
-import haxe.Json;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import modconfig.ConfigMigration;
 import hlx.runtime.HlxPrefixResult;
-import sys.FileSystem;
-import sys.io.File;
+
+typedef ProfanityConfig = {
+    var disableProfanityFilter:Bool;
+}
 
 @:build(hlx.runtime.Mod.build())
 class DisableProfanityFilterMod {
-    static inline var CONFIG_PATH = "hlx/mods/disable-profanity-filter/config.json";
+    @:hlx.config
+    static var config:ProfanityConfig = {
+        disableProfanityFilter: true
+    };
+
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
         "better-mod-settings/config-changed/";
 
-    static var disableProfanityFilter:Bool = true;
-
     static function main():Void {
-        loadConfig();
-        saveConfig();
+        if (ConfigMigration.importLegacy()) loadConfig();
+        config.save();
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
             onBetterModSettingsChanged
@@ -33,28 +38,12 @@ class DisableProfanityFilterMod {
     // detectBadWord directly and therefore remains unchanged.
     @:hlx.prefix(HText.cleanPlayerText)
     static function beforeCleanPlayerText(text:String):HlxPrefixResult<String> {
-        if (!disableProfanityFilter)
+        if (!config.disableProfanityFilter)
             return Continue;
         return SkipWith(StringTools.htmlEscape(text));
     }
 
     static function loadConfig():Void {
-        try {
-            if (!FileSystem.exists(CONFIG_PATH))
-                return;
-
-            var data:Dynamic = Json.parse(File.getContent(CONFIG_PATH));
-            if (Reflect.hasField(data, "disableProfanityFilter"))
-                disableProfanityFilter = Reflect.field(data, "disableProfanityFilter");
-        } catch (_:Dynamic) {}
-    }
-
-    static function saveConfig():Void {
-        try {
-            var data = {
-                disableProfanityFilter: disableProfanityFilter
-            };
-            File.saveContent(CONFIG_PATH, Json.stringify(data, null, "  "));
-        } catch (_:Dynamic) {}
+        config = ModConfig.load(HlxRuntime.moduleName(), config);
     }
 }

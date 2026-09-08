@@ -2,6 +2,7 @@ package bettermodsettings;
 
 import haxe.Json;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
 import hlx.runtime.HlxPrefixResult;
 import sys.FileSystem;
 import sys.io.File;
@@ -458,12 +459,9 @@ class BetterModSettingsMod {
 
                 try {
                     var format:Dynamic = Json.parse(File.getContent(formatPath));
-                    var configFile = stringField(format, "configFile", "config.json");
-                    if (!isSafeConfigFileName(configFile)) {
-                        trace("[BetterModSettings] Skipping " + folder + ": invalid configFile");
-                        continue;
-                    }
-                    var settingsPath = folderPath + "/" + configFile;
+                    var nativePath = "hlx/config/" + folder + "/config.json";
+                    var nativeConfig = FileSystem.exists(nativePath);
+                    var settingsPath = nativeConfig ? nativePath : folderPath + "/config.json";
                     if (!FileSystem.exists(settingsPath))
                         continue;
                     var values:Dynamic = Json.parse(File.getContent(settingsPath));
@@ -474,6 +472,7 @@ class BetterModSettingsMod {
                         id: folder,
                         name: stringField(format, "displayName", folder),
                         settingsPath: settingsPath,
+                        nativeConfig: nativeConfig,
                         definitions: definitions,
                         values: values
                     });
@@ -1996,10 +1995,10 @@ class BetterModSettingsMod {
             var values:Dynamic = Json.parse(File.getContent(settingsPath));
             Reflect.setField(values, key, value);
             Reflect.setField(mod, "values", values);
-            File.saveContent(
-                settingsPath,
-                Json.stringify(values, null, "  ")
-            );
+            if (Reflect.field(mod, "nativeConfig") == true)
+                ModConfig.save(stringField(mod, "id", ""), values);
+            else
+                File.saveContent(settingsPath, Json.stringify(values, null, "  "));
             queueSettingsNotification(mod);
         } catch (error:Dynamic) {
             trace("[BetterModSettings] Could not save " + key + ": " + Std.string(error));
@@ -2031,13 +2030,6 @@ class BetterModSettingsMod {
             return fallback;
         var value:Dynamic = Reflect.field(object, key);
         return value == null ? fallback : Std.string(value);
-    }
-
-    static function isSafeConfigFileName(fileName:String):Bool {
-        return fileName.length > 0
-            && fileName.indexOf("/") < 0
-            && fileName.indexOf("\\") < 0
-            && fileName.indexOf("..") < 0;
     }
 
     static function numberField(object:Dynamic, key:String, fallback:Float):Float {

@@ -7,12 +7,14 @@ on:
     tags: ['mute-on-unfocus/v*']
     paths:
       - 'mute-on-unfocus/**'
+      - 'shared/**'
       - '.github/workflows/build-mute-on-unfocus.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
       - 'mute-on-unfocus/**'
+      - 'shared/**'
       - '.github/workflows/build-mute-on-unfocus.yml'
       - '.github/workflows/_build-mod.yml'
 

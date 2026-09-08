@@ -7,11 +7,13 @@ on:
     tags: ['dps-meter/v*']
     paths:
       - 'dps-meter/**'
+      - 'shared/**'
       - '.github/workflows/build-dps-meter.yml'
   pull_request:
     branches: [main]
     paths:
       - 'dps-meter/**'
+      - 'shared/**'
       - '.github/workflows/build-dps-meter.yml'
 
 permissions:

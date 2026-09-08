@@ -1,26 +1,45 @@
 package dpsmeter;
 
+import dpsmeter.MeterConfig.MeterSettings;
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import modconfig.ConfigMigration;
 import hlx.runtime.HlxPrefixResult;
 import dpsmeter.GameAccess as G;
 
 @:build(hlx.runtime.Mod.build())
 class DpsMeterMod {
-    static var config:MeterConfig;
+    @:hlx.config
+    static var config:MeterSettings = MeterConfig.defaults();
     static var collector:Collector;
     static var view:NativeMeterWindow;
     static var recapView:NativeRiftRecapWindow;
     static var kills:KillNotifications;
     static var writer:RunWriter;
     static function main():Void {
-        config = new MeterConfig(); config.load();
+        if (ConfigMigration.importLegacy()) reloadConfig();
+        else if (!ConfigMigration.hasNative()) MeterConfig.importLegacy(config);
+        MeterConfig.normalize(config);
+        saveConfig();
         collector = new Collector(config);
         view = new NativeMeterWindow(config);
         recapView = new NativeRiftRecapWindow();
         kills = new KillNotifications(config);
         writer = new RunWriter();
-        Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> config.load());
+        Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
+    static function reloadConfig():Void {
+        var loaded = ModConfig.load(HlxRuntime.moduleName(), config);
+        // The collector and UI share this object; keep their reference live.
+        for (key in Reflect.fields(loaded))
+            Reflect.setField(config, key, Reflect.field(loaded, key));
+        MeterConfig.normalize(config);
+    }
+
+    public static function saveConfig():Void {
+        try config.save() catch (_:Dynamic) {}
+    }
+
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
         return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing ? Skip : Continue;
@@ -62,10 +81,10 @@ class DpsMeterMod {
         var now = haxe.Timer.stamp();
         try {
             if (G.staticCall("hxd.Key", "isPressed", [config.toggleHotkey]) == true) {
-                config.visible = !config.visible; config.save();
+                config.visible = !config.visible; saveConfig();
             }
             if (G.staticCall("hxd.Key", "isPressed", [config.unlockHotkey]) == true) {
-                config.unlocked = !config.unlocked; config.save();
+                config.unlocked = !config.unlocked; saveConfig();
             }
             if (config.enabled) collector.update(instance, now);
             while (collector.model.completed.length > 0) {

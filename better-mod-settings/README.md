@@ -14,22 +14,21 @@ Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mo
 
 A compatible mod needs:
 
-1. A JSON settings file in the mod's folder.
-2. A `configFormats.json` descriptor in the same folder.
+1. An HLX native settings file at `hlx/config/<mod-name>/config.json`.
+2. A `configFormats.json` descriptor beside the mod's `.hl` file.
 3. A Better Mod Settings bus subscription so the running mod reloads its settings immediately after an edit.
 
-The resulting folder should look like this:
+The files use these locations:
 
 ```text
-hlx/mods/example-mod/
-├── example-mod.hl
-├── config.json
-└── configFormats.json
+hlx/mods/example-mod/example-mod.hl
+hlx/mods/example-mod/configFormats.json
+hlx/config/example-mod/config.json
 ```
 
 ### 1. Create the settings file
 
-Better Mod Settings edits an existing JSON object. Each exposed setting must be a top-level property whose JSON type matches its control:
+Declare your settings with `@:hlx.config` and call `config.save()` on startup to write the initial defaults. HLX loads saved values automatically and fills in missing defaults. Better Mod Settings edits the resulting JSON object. Each exposed setting must be a top-level property whose JSON type matches its control:
 
 ```json
 {
@@ -39,17 +38,16 @@ Better Mod Settings edits an existing JSON object. Each exposed setting must be 
 }
 ```
 
-The settings file must exist before the Mod Settings window opens and must contain valid JSON. It may contain additional properties that are not exposed in the UI; Better Mod Settings preserves them when saving.
+The settings file must exist before the Mod Settings window opens and must contain valid JSON. It may contain additional properties that are not exposed in the UI; Better Mod Settings preserves them when saving. For older mods, it falls back to `hlx/mods/<mod-name>/config.json` only when the native file does not exist.
 
 ### 2. Add `configFormats.json`
 
-Create `configFormats.json` beside the settings file and describe the controls in the order they should appear:
+Create `configFormats.json` beside the mod's `.hl` file and describe the controls in the order they should appear:
 
 ```json
 {
   "schemaVersion": 1,
   "displayName": "Example Mod",
-  "configFile": "config.json",
   "configs": [
     {
       "key": "enabled",
@@ -79,7 +77,6 @@ Create `configFormats.json` beside the settings file and describe the controls i
 | --- | --- | --- | --- |
 | `schemaVersion` | Recommended | Number | Use `1`. The current reader reserves this field for format evolution but does not reject or branch on it yet. |
 | `displayName` | No | String | Name shown on the mod's tab. Defaults to the mod folder name. Tabs are sorted alphabetically by this value. |
-| `configFile` | No | String | Settings filename. Defaults to `config.json`. It must be a plain filename in the same mod folder: paths, `..`, `/`, and `\` are rejected. |
 | `configs` | Yes | Array | Control definitions. Items are displayed in array order. |
 
 #### Options shared by every control
@@ -112,29 +109,41 @@ Subscribe with the mod's runtime module name so it automatically matches the ins
 
 ```haxe
 import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
 
-static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
-    "better-mod-settings/config-changed/";
-
-static function main():Void {
-    loadConfig();
-    saveConfig();
-
-    Bus.subscribe(
-        SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
-        onBetterModSettingsChanged
-    );
+typedef ExampleConfig = {
+    var enabled:Bool;
+    var volume:Int;
+    var actionHotkey:Int;
 }
 
-static function onBetterModSettingsChanged(_:Dynamic):Void {
-    loadConfig();
-    applyConfig(); // Optional: immediately apply runtime side effects.
+@:build(hlx.runtime.Mod.build())
+class ExampleMod {
+    @:hlx.config
+    static var config:ExampleConfig = {
+        enabled: true,
+        volume: 50,
+        actionHotkey: 0
+    };
+
+    static function main():Void {
+        config.save();
+        Bus.subscribe(
+            "better-mod-settings/config-changed/" + HlxRuntime.moduleName(),
+            (_:Dynamic) -> {
+                config = ModConfig.load(HlxRuntime.moduleName(), config);
+                applyConfig(); // Optional: apply runtime side effects here.
+            }
+        );
+    }
+
+    static function applyConfig():Void {}
 }
 ```
 
-If the mod already has a `main()`, add only the `Bus.subscribe(...)` call after its initial config load. The event payload is intentionally unused: the JSON file remains the source of truth, so the callback should reload it unconditionally. Do not save the old in-memory values from this callback, because that would overwrite the user's edit.
+If the mod already has a `main()`, save the initial configuration and add the `Bus.subscribe(...)` call there. The event payload is intentionally unused: the JSON file remains the source of truth, so the callback should reload it unconditionally. Do not save the old in-memory values from this callback, because that would overwrite the user's edit.
 
-Bus notifications require HLX Core `0.0.7` or newer. Without the subscription, Better Mod Settings can still edit the file, but the mod must poll the file or wait until its next load/restart to observe the change.
+Build against a current [HLX runtime](https://github.com/hlx-framework/hlx-core) with `@:hlx.config` support. Bus notifications require HLX Core `0.0.7` or newer. If other objects retain a reference to your settings, copy the loaded fields into that object instead of replacing it. Without the subscription, Better Mod Settings can still edit the file, but the mod must poll the file or wait until its next load/restart to observe the change.
 
 ## Building
 
