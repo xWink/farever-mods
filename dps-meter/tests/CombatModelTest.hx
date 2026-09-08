@@ -66,8 +66,9 @@ class CombatModelTest {
         m.record(event(101, m.me, 50, false, false, "2", 1));
         check(m.current.players[m.me].heal == 50 && m.current.players[m.me].damage == 300, "Healing remains separate from damage");
         check(m.boss.players[m.me].heal == 0, "Original boss accumulator excludes healing events");
+        m.record(event(107, "2", 50, false, false, "another-mob"));
         m.update(110, true);
-        check(m.current != null, "Combat continues while an ally is still in combat");
+        check(m.current != null, "Recent ally damage keeps the party encounter active");
         check(m.boss == null && m.completed.length == 0, "Boss inactivity times out without upload");
         m.record(event(115));
         check(m.boss.start == 100 && m.boss.players[m.me].damage == 400, "Same boss phase retains the original start time and totals");
@@ -111,6 +112,38 @@ class CombatModelTest {
         m.record(event(101.2, m.me, 20, false, false, m.me, 1));
         m.update(101.25, false);
         check(m.current == null, "Healing cannot prolong the grace period after the last damage");
+
+        m = model();
+        m.update(100, true);
+        check(m.current == null, "A combat flag alone cannot start the damage timer");
+        m.record(event(101, m.me, 100, false, false));
+        m.record(event(102, m.me, 150, true, false));
+        m.update(106, true);
+        check(m.currentDuration() == 1 && m.current.players[m.me].damage / m.currentDuration() == 250,
+            "Idle frames after the final hit do not increase Current time or lower DPS");
+        m.record(event(108, m.me, 20, false, false, m.me, 1));
+        check(m.currentDuration() == 1, "A resting heal cannot advance the damage timer even with a stale combat flag");
+        m.record(event(109, "3", 75, false, false));
+        m.update(110, true);
+        check(m.current == null && m.lastCombat != null,
+            "Eight seconds without party damage closes Current despite a true combat flag, heals, or nearby damage");
+        previous = m.lastCombat;
+        check(previous.duration(200) == 1 && previous.players[m.me].damage == 250,
+            "Last freezes at the final damage event, excluding the later heal and idle timeout");
+        m.update(111, true);
+        m.record(event(112, m.me, 20, false, false, m.me, 1));
+        check(m.current == null && m.lastCombat == previous,
+            "Stale combat flags and resting heals cannot reopen an expired encounter");
+        m.record(event(113, "2", 75, false, false, "next-mob"));
+        check(m.current.start == 113 && m.current.players["2"].damage == 75 && m.lastCombat == previous,
+            "New party damage starts a fresh encounter after a stale flag timeout");
+        m.record(event(117, "2", 25, false, false, "next-mob"));
+        check(m.currentDuration() == 4 && m.current.players["2"].damage == 100,
+            "Time between hits within an active encounter still contributes to DPS");
+        previous = m.current;
+        m.record(event(125, m.me, 40, false, false, "later-mob"));
+        check(m.lastCombat == previous && m.current.start == 125 && !m.current.players.exists("2"),
+            "A hit arriving before the next update cannot merge with an expired encounter");
         Sys.println(checks + " combat/report checks passed");
     }
 }

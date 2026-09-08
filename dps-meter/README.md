@@ -37,7 +37,11 @@ can be removed if no other mod uses it.
   wrap the controls within the header. The body contains the combat totals and rows.
 - **Current / Last / Boss / Session:** cycle the displayed totals.
 - **Current** clears when the party leaves combat; **Last** retains the finished
-  encounter. Healing outside combat does not start another Current encounter.
+  encounter. Its timer and DPS advance on damage events, so they stop changing
+  after the final hit. Eight seconds without party damage also closes Current
+  if the game's combat flag stays set. A flag or resting heal alone cannot start
+  another encounter; the next damage event does. Displayed DPS uses a minimum
+  duration of one second for instant hits; uploaded report calculations are unchanged.
 - Click a player row to inspect skills; click a skill row to return.
 - Player rows show rank/name on the left and `damage (DPS, team damage %)` on
   the right. Long names shorten with an ellipsis to keep the totals readable.

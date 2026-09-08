@@ -142,6 +142,7 @@ class Fight {
 
 /** Pure encounter logic, independently exercised without a running game or HTTP requests. */
 class CombatModel {
+    static inline var CURRENT_IDLE_SECONDS:Float = 8;
     public var profiles:Map<String, PlayerInfo> = [];
     public var party:Map<String, Bool> = [];
     public var me:String = "";
@@ -168,15 +169,23 @@ class CombatModel {
     public function update(now:Float, anyPartyInCombat:Bool):Void {
         var leftCombat = partyInCombat && !anyPartyInCombat;
         partyInCombat = anyPartyInCombat;
-        if (anyPartyInCombat && current == null) current = new Fight(now);
         // Honor a real combat exit immediately. Keep a short grace period only
-        // for damage that arrives before the replicated combat flag.
-        if (!anyPartyInCombat && current != null && (leftCombat || now - lastPartyDamage > 1)) {
-            current.closed = now; lastCombat = current; current = null;
-        }
+        // for damage that arrives before the replicated combat flag. A lingering
+        // flag alone must neither keep an idle encounter alive nor reopen one.
+        if (current != null && ((!anyPartyInCombat && (leftCombat || now - lastPartyDamage > 1))
+            || now - lastPartyDamage >= CURRENT_IDLE_SECONDS)) finishCurrent(now);
         if (boss != null && now - boss.last > 8) {
             boss.closed = now; lastBoss = boss; boss = null;
         }
+    }
+    public function currentDuration():Float {
+        // Display elapsed damage time, so idle frames and resting heals cannot
+        // keep lowering DPS while we wait for the combat-exit notification.
+        return current == null ? 0 : Math.max(0.001, lastPartyDamage - current.start);
+    }
+    function finishCurrent(now:Float):Void {
+        current.last = Math.max(current.start, lastPartyDamage);
+        current.closed = now; lastCombat = current; current = null;
     }
     public function record(e:DamageEvent):Void {
         if (!Math.isFinite(e.amount) || e.amount <= 0 || e.source == "" || e.source == "0") return;
@@ -188,11 +197,14 @@ class CombatModel {
         if (info == null) return;
         var member = party.exists(e.source) || e.source == me;
         if (member) {
+            // Also separate encounters if a damage callback precedes the next
+            // update after a long idle period.
+            if (current != null && e.time - lastPartyDamage >= CURRENT_IDLE_SECONDS) finishCurrent(e.time);
             session.add(e, info);
             if (e.effect != 1) lastPartyDamage = e.time;
             // Resting heals still contribute to Session, but cannot start or
             // indefinitely extend a Current encounter after combat has ended.
-            if (e.effect != 1 || partyInCombat || current != null) {
+            if (e.effect != 1 || current != null) {
                 if (current == null) current = new Fight(e.time);
                 current.add(e, info);
             }

@@ -54,6 +54,8 @@ class Collector {
             var names = [for (s in config.group.split(",")) StringTools.trim(s).toLowerCase()];
             for (p in model.profiles) if (names.indexOf(p.name.toLowerCase()) >= 0) model.party[p.uid] = true;
         }
+        // Encounter timing must not depend on optional activity/report metadata.
+        model.update(now, anyCombat);
         var layerConfig = G.field(layer, "config");
         model.difficulty = G.integer(G.field(layerConfig, "difficulty"), -1);
         model.activityId = G.text(G.field(layerConfig, "activityID"));
@@ -67,7 +69,6 @@ class Collector {
                 model.difficulty = G.integer(G.field(lobby, "difficulty"), -1);
             }
         }
-        model.update(now, anyCombat);
     }
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;

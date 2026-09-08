@@ -201,7 +201,7 @@ class NativeMeterWindow {
         if (lockIconUnlocked == config.unlocked) return;
         lockIconUnlocked = config.unlocked;
         G.call("h2d.Graphics", "clear", lockIcon);
-        G.call("h2d.Graphics", "lineStyle", lockIcon, [2.0, 0x5b4334, 1.0]);
+        G.call("h2d.Graphics", "lineStyle", lockIcon, [2.0, 0xffffff, 1.0]);
         // The unlocked shackle lifts clear of the right side of the body.
         var top = config.unlocked ? 1.0 : 4.0;
         G.call("h2d.Graphics", "moveTo", lockIcon, [6.0, 11.0]);
@@ -354,7 +354,10 @@ class NativeMeterWindow {
             default: model.session;
         };
         var ranked = fight == null ? [] : fight.ranked();
-        var seconds = fight == null ? 0.0 : fight.duration(fight == model.current || fight == model.boss ? now : null);
+        var seconds = fight == null ? 0.0 : fight == model.current ? model.currentDuration()
+            : fight.duration(fight == model.boss ? now : null);
+        // A single instant hit should not display thousands of times its damage as DPS.
+        if (fight != null) seconds = Math.max(1, seconds);
         var total = 0.0;
         for (p in ranked) total += p.damage;
         var caption = fight == null ? "Waiting for combat" : (fight.bossKind != "" ? fight.bossKind : modes[mode])
