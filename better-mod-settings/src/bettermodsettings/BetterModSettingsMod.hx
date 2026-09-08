@@ -777,12 +777,7 @@ class BetterModSettingsMod {
                 var slider:Dynamic = sliderProperties == null
                     ? null
                     : HlxRuntime.resolveField(sliderProperties, "obj");
-                // The native slider reserves a value column after its right
-                // arrow. Shift the complete control by that column's width so
-                // the arrow shares the checkbox/keybinding alignment guide.
-                // Flow's child offset is visual only and does not affect the
-                // fixed window measurement or the slider's internal spacing.
-                prepareSettingControl(settingParent, sliderProperties, false, 52);
+                prepareSettingControl(settingParent, sliderProperties, false);
                 if (slider != null) {
                     var targetMod = mod;
                     var targetKey = key;
@@ -1888,8 +1883,7 @@ class BetterModSettingsMod {
     static function prepareSettingControl(
         parentProperties:Dynamic,
         controlProperties:Dynamic,
-        removeBackground:Bool,
-        horizontalOffset:Int = 0
+        removeBackground:Bool
     ):Void {
         if (parentProperties == null || controlProperties == null)
             return;
@@ -1917,15 +1911,10 @@ class BetterModSettingsMod {
                     );
                     if (flowProperties != null) {
                         HlxRuntime.setField(flowProperties, "verticalAlign", middle);
-                        if (horizontalOffset != 0)
-                            HlxRuntime.setField(flowProperties, "offsetX", horizontalOffset);
                     }
                 }
                 applyInlineStyle(controlProperties, "valign", middle);
             }
-            if (horizontalOffset != 0)
-                applyInlineStyle(controlProperties, "offset-x", horizontalOffset);
-
             if (removeBackground) {
                 applyInlineStyle(controlProperties, "background-alpha", 0.0);
                 var background:Dynamic = HlxRuntime.resolveField(control, "background");
