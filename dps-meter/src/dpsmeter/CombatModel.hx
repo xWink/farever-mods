@@ -86,6 +86,7 @@ class PlayerStats {
 class Fight {
     public var players:Map<String, PlayerStats> = [];
     public var participants:Map<String, Bool> = [];
+    public var targets:Map<String, Bool> = [];
     public var start:Float;
     public var last:Float;
     public var closed:Float = 0;
@@ -102,6 +103,7 @@ class Fight {
     public function add(e:DamageEvent, info:PlayerInfo):Void {
         if (!players.exists(e.source)) players[e.source] = new PlayerStats(info);
         players[e.source].add(e, info);
+        if (e.effect != 1 && e.target != "") targets[e.target] = true;
         last = e.time;
     }
     public function duration(?now:Float):Float {
@@ -117,7 +119,7 @@ class Fight {
         result.last = last; result.closed = closed; result.defeated = defeated;
         result.bossKind = bossKind; result.bossName = bossName; result.bossUid = bossUid; result.bossLevel = bossLevel;
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
-        result.me = me; result.participants = participants.copy();
+        result.me = me; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
             var next = new PlayerStats(p.info);
             next.damage = p.damage; next.heal = p.heal; next.hits = p.hits;
@@ -144,7 +146,7 @@ class Fight {
 /** Encounter tracking and report data. */
 class CombatModel {
     // Damage and the replicated combat entry can arrive in either order.
-    // Keep a short buffer without starting a visible encounter on damage alone.
+    // Buffer opening hits without running a clock before combat is confirmed.
     static inline var ENTRY_DAMAGE_SECONDS:Float = 0.5;
     public var profiles:Map<String, PlayerInfo> = [];
     public var party:Map<String, Bool> = [];
@@ -161,16 +163,16 @@ class CombatModel {
     var lastKillAmount:Float = -1;
     var lastKillTarget:String = "";
     var lastKillTime:Float = -1;
-    var inCombat:Bool = false;
+    public var inCombat(default, null):Bool = false;
     var awaitingExitState:Bool = false;
-    var pendingDamage:Array<DamageEvent> = [];
+    var pendingFight:Null<Fight>;
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         lastKillTarget = ""; lastKillTime = -1;
-        inCombat = false; awaitingExitState = false; pendingDamage = [];
+        inCombat = false; awaitingExitState = false; pendingFight = null;
         // Already completed reports remain queued across character/zone changes.
     }
     public function update(now:Float, localInCombat:Bool):Void {
@@ -181,7 +183,7 @@ class CombatModel {
             if (inCombat) onCombatExit(me, now);
             awaitingExitState = false;
         } else if (!inCombat && !awaitingExitState) onCombatEnter(me, now);
-        prunePendingDamage(now);
+        expirePendingFight(now);
         if (boss != null && now - boss.last > 8) {
             boss.closed = now; lastBoss = boss; boss = null;
         }
@@ -191,18 +193,18 @@ class CombatModel {
         if (inCombat) return;
         inCombat = true;
         awaitingExitState = false;
-        current = new Fight(now);
-        prunePendingDamage(now);
-        for (e in pendingDamage) {
-            var info = profiles[e.source];
-            if (info == null) continue;
-            current.start = Math.min(current.start, e.time);
-            addToCurrent(e, info);
-        }
-        pendingDamage = [];
+        expirePendingFight(now);
+        // Entry alone never starts the clock. Retain an opening hit if its
+        // damage notification preceded entry; otherwise wait for first damage.
+        current = pendingFight;
+        if (current != null) current.closed = 0;
+        pendingFight = null;
     }
     public function displayedFight():Null<Fight> {
-        return current != null ? current : lastCombat;
+        if (current != null) return current;
+        // One-shots may never produce a replicated combat-entry transition.
+        // Show the confirmed kill immediately, with an already-frozen clock.
+        return hasLocalKill(pendingFight) ? pendingFight : lastCombat;
     }
     public function onCombatExit(heroUid:String, now:Float):Void {
         // The local character's exit is an encounter boundary even if another
@@ -210,18 +212,26 @@ class CombatModel {
         if (me == "" || heroUid != me) return;
         inCombat = false;
         awaitingExitState = true;
-        pendingDamage = [];
+        finishPendingFight();
         if (current != null) finishCurrent(now);
     }
-    function prunePendingDamage(now:Float):Void {
-        while (pendingDamage.length > 0 && now - pendingDamage[0].time > ENTRY_DAMAGE_SECONDS)
-            pendingDamage.shift();
+    function hasLocalKill(fight:Null<Fight>):Bool {
+        return fight != null && fight.players.exists(me) && fight.players[me].kills > 0;
     }
-    function addToCurrent(e:DamageEvent, info:PlayerInfo):Void {
-        current.add(e, info);
+    function finishPendingFight():Void {
+        if (hasLocalKill(pendingFight)) lastCombat = pendingFight;
+        pendingFight = null;
+    }
+    function expirePendingFight(now:Float):Void {
+        // Bound the whole buffer, so remote party damage while resting cannot
+        // accumulate indefinitely and get imported into the next encounter.
+        if (pendingFight != null && now - pendingFight.start > ENTRY_DAMAGE_SECONDS) finishPendingFight();
+    }
+    function addToFight(fight:Fight, e:DamageEvent, info:PlayerInfo):Void {
+        fight.add(e, info);
         if (e.effect != 1 && (e.bossFlags & 0x38) != 0) {
-            current.bossKind = e.bossKind;
-            current.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
+            fight.bossKind = e.bossKind;
+            fight.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
         }
     }
     function finishCurrent(now:Float):Void {
@@ -247,12 +257,24 @@ class CombatModel {
         var member = party.exists(e.source) || e.source == me;
         if (member) {
             session.add(e, info);
-            if (current != null) addToCurrent(e, info);
-            else if (e.effect != 1) {
-                // Late hits and party damage while resting still count toward
-                // reports/Session, but only combat entry can start the timer.
-                prunePendingDamage(e.time);
-                pendingDamage.push(e);
+            if (inCombat) {
+                if (current == null && e.effect != 1) current = new Fight(e.time);
+                if (current != null) addToFight(current, e, info);
+            } else if (e.effect != 1) {
+                expirePendingFight(e.time);
+                if (e.kill && lastCombat != null && e.target != "" && lastCombat.targets.exists(e.target)
+                    && e.time >= lastCombat.closed && e.time - lastCombat.closed <= ENTRY_DAMAGE_SECONDS) {
+                    // Unit.receiveDamage handles death before sending its damage
+                    // RPC. Reconcile that final blow if exit arrived first, while
+                    // retaining the finished duration and not reopening the clock.
+                    var end = lastCombat.last;
+                    addToFight(lastCombat, e, info);
+                    lastCombat.last = end;
+                } else {
+                    if (pendingFight == null) pendingFight = new Fight(e.time);
+                    addToFight(pendingFight, e, info);
+                    pendingFight.closed = e.time;
+                }
             }
         }
         // Match the DLL's target.inf.flags mask, including world/elite bosses.

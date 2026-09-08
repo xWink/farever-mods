@@ -56,9 +56,9 @@ class NativeMeterWindow {
             return;
         }
         var opacity:Float = 1;
-        // Current exists only during confirmed combat. Re-entry cancels both
-        // the delay and the fade, restoring the entire window immediately.
-        if (!config.hideOutOfCombat || model.current != null) outOfCombatSince = -1;
+        // Combat entry shows the meter even before its first attack. A one-shot
+        // also gets a chance to display its result before the hiding delay.
+        if (!config.hideOutOfCombat || model.inCombat || model.displayedFight() != displayed) outOfCombatSince = -1;
         else {
             if (outOfCombatSince < 0) outOfCombatSince = now;
             var progress = Math.max(0, Math.min(1, (now - outOfCombatSince - config.hideDelay) / HIDE_FADE_SECONDS));
