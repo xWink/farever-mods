@@ -11,6 +11,9 @@ class MeterConfig {
     public var visible:Bool = true;
     public var hideOutOfCombat:Bool = false;
     public var hideDelay:Int = 3;
+    public var showBossKills:Bool = true;
+    public var showIncompleteCodexKills:Bool = true;
+    public var showCompletedCodexKills:Bool = false;
     public var unlocked:Bool = false;
     public var sendLogs:Bool = true;
     public var debug:Bool = false;
@@ -31,7 +34,8 @@ class MeterConfig {
         }
         try {
             var data:Dynamic = Json.parse(File.getContent(PATH));
-            for (key in ["enabled", "visible", "hideOutOfCombat", "unlocked", "sendLogs", "debug"])
+            for (key in ["enabled", "visible", "hideOutOfCombat", "unlocked", "sendLogs", "debug",
+                "showBossKills", "showIncompleteCodexKills", "showCompletedCodexKills"])
                 if (Std.isOfType(Reflect.field(data, key), Bool)) Reflect.setField(this, key, Reflect.field(data, key));
             for (key in ["me", "group"])
                 if (Std.isOfType(Reflect.field(data, key), String)) Reflect.setField(this, key, Reflect.field(data, key));
@@ -45,7 +49,8 @@ class MeterConfig {
             hideDelay = Std.int(Math.max(0, Math.min(10, hideDelay)));
             // Populate new options for existing installs so Mod Settings shows
             // the same defaults that the meter uses.
-            if (!Reflect.hasField(data, "hideOutOfCombat") || !Reflect.hasField(data, "hideDelay")) save();
+            for (key in ["hideOutOfCombat", "hideDelay", "showBossKills", "showIncompleteCodexKills", "showCompletedCodexKills"])
+                if (!Reflect.hasField(data, key)) { save(); break; }
         } catch (_:Dynamic) {}
     }
     function importLegacy():Void {
@@ -72,6 +77,8 @@ class MeterConfig {
     public function save():Void {
         try File.saveContent(PATH, Json.stringify({enabled: enabled, visible: visible, unlocked: unlocked,
             hideOutOfCombat: hideOutOfCombat, hideDelay: hideDelay,
+            showBossKills: showBossKills, showIncompleteCodexKills: showIncompleteCodexKills,
+            showCompletedCodexKills: showCompletedCodexKills,
             sendLogs: sendLogs, debug: debug, me: me, group: group, x: x, y: y,
             width: width, height: height, toggleHotkey: toggleHotkey, unlockHotkey: unlockHotkey}, null, "  "))
         catch (_:Dynamic) {}

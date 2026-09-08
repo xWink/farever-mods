@@ -71,6 +71,30 @@ can be removed if no other mod uses it.
 - **Upload combat logs to fareverlogs.fr** in Better Mod Settings toggles new
   boss and gate-phase report exports. Already queued reports can still upload.
 
+## Kill notifications
+
+Three settings control text popups centered in the upper part of the screen:
+
+- **Show boss kills** (on by default): `Boss name: 7 kills`.
+- **Show incomplete Codex kills** (on by default): `Monster name: 17 / 30 kills`.
+  The kill that earns the Codex XP reward still displays `30 / 30`.
+- **Show completed Codex kills** (off by default): `Monster name: 43 kills`,
+  continuing the full total after that reward is earned.
+
+Bosses use the boss setting; the two Codex settings apply to other Codex enemies.
+Completion means the game's XP reward threshold, not the final Codex rank.
+Counts come from the current character's saved, server-synchronized progress,
+including kills credited through the game's party/rift rules and kills made
+before installing the mod. Loading a character or instance does not replay old
+counts. Toggling a setting also does not replay previous kills.
+
+The popups use native SmallNotify text with no background and the game's
+notification duration/fade timing. Up to three enemy counts appear together;
+repeated kills of the same enemy update its existing line. They work independently
+of the meter window's visibility and upload setting. The mod replaces the native
+recurring Codex count notification while enabled and retains the native reward
+and milestone notifications.
+
 ## Rifts
 
 In rifts, the meter treats every player present in the instance as a party member.
