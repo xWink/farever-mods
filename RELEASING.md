@@ -9,7 +9,7 @@ build; the matching workflow publishes only that project's ZIP.
 | `better-mod-settings` | `farever-better-mod-settings.zip` | `hlx/mods/better-mod-settings/` |
 | `item-utilities` | `farever-item-utilities.zip` | `hlx/mods/item-utilities/` |
 | `disable-profanity-filter` | `farever-disable-profanity-filter.zip` | `hlx/mods/disable-profanity-filter/` |
-| `mute-on-unfocus` | `farever-mute-on-unfocus.zip` | `hlx/mods/mute-unfocused/` |
+| `more-audio-settings` | `farever-more-audio-settings.zip` | `hlx/mods/more-audio-settings/` |
 | `fix-target-lock` | `farever-fix-target-lock.zip` | `hlx/mods/fix-target-lock/` |
 | `dps-meter` | `farever-dps-meter.zip` | `hlx/mods/dps-meter/` (including `uploader.exe`) |
 

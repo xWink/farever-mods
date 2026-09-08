@@ -1,13 +1,13 @@
 # v1.0.0
 
-Initial release of Farever Mute When Unfocused.
+Initial release of More Audio Settings.
 
 ## Install
 
-Copy `mute-unfocused.hl` to:
+Copy `more-audio-settings.hl` to:
 
 ```text
-Farever\hlx\mods\mute-unfocused\mute-unfocused.hl
+Farever\hlx\mods\more-audio-settings\more-audio-settings.hl
 ```
 
 Requires HLX Core.

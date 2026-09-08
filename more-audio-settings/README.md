@@ -1,6 +1,6 @@
-# Farever Mute When Unfocused
+# More Audio Settings
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-more-audio-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=more-audio-settings&expanded=true)
 
 A small unofficial [HLX](https://github.com/hlx-framework/hlx-core) mod for **Farever** that lowers or mutes the game's own audio when the Farever window loses focus and restores the previous volume when you return to the game.
 
@@ -51,7 +51,7 @@ Follow the installation instructions to download [Better Mod Settings](https://g
 Download the latest build artifact ZIP. Install it with Vortex, or extract the ZIP directly into the Farever game directory. The archive already contains the complete game-relative path:
 
 ```text
-hlx\mods\mute-unfocused\mute-unfocused.hl
+hlx\mods\more-audio-settings\more-audio-settings.hl
 ```
 
 The final layout should look roughly like:
@@ -65,11 +65,25 @@ Farever\
     │   └── imgui\
     │       └── fonts\
     └── mods\
-        └── mute-unfocused\
-            └── mute-unfocused.hl
+        └── more-audio-settings\
+            └── more-audio-settings.hl
 ```
 
 Fully close and relaunch Farever after installing or replacing the mod.
+
+### Upgrading from the previous name
+
+Remove `mute-unfocused.hl` and `configFormats.json` from the old
+`hlx/mods/mute-unfocused/` folder so only More Audio Settings loads and appears
+in the settings menu. Keep any old `config.json` until the first launch.
+
+Settings now live at `hlx/config/more-audio-settings/config.json`. The first
+launch imports `hlx/config/mute-unfocused/config.json`, or the older mod-local
+`hlx/mods/mute-unfocused/config.json` if necessary. Existing More Audio Settings
+configurations take priority, and the old settings files remain as backups.
+
+The build artifact is `farever-more-audio-settings`; the release archive is
+`farever-more-audio-settings.zip`. Release tags use `more-audio-settings/vX.Y.Z`.
 
 ## How it works
 
@@ -97,17 +111,17 @@ haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-r
 haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 ```
 
-Then run from the `mute-on-unfocus` subproject directory:
+Then run from the `more-audio-settings` subproject directory:
 
 ```text
-cd mute-on-unfocus
+cd more-audio-settings
 haxe compile.hxml
 ```
 
 The output is:
 
 ```text
-build/mute-unfocused/mute-unfocused.hl
+build/more-audio-settings/more-audio-settings.hl
 ```
 
 The repository includes a minimal `h3d.impl.DX12Driver` compile-time wrapper so this mod can build without distributing Farever's proprietary generated game library.
@@ -119,7 +133,7 @@ This mod is tied to Farever's internal API and the current HLX/ImGui integration
 If Farever stops launching after an update, remove:
 
 ```text
-Farever\hlx\mods\mute-unfocused\
+Farever\hlx\mods\more-audio-settings\
 ```
 
 and relaunch the game.

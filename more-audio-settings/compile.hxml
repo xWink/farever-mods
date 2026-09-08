@@ -1,0 +1,8 @@
+-lib hlx-runtime
+-lib hl-imgui
+-D hl-ver=1.16.0
+-cp src
+-cp ../shared/src
+-main moreaudiosettings.MoreAudioSettingsMod
+-dce full
+-hl build/more-audio-settings/more-audio-settings.hl

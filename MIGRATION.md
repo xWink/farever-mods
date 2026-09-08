@@ -10,7 +10,7 @@ settings, config descriptors, and bundled images were copied without changes.
 | Better Mod Settings | `e6751b645719ba5d7bb3771b9e3478d322c3254a` | `v1.0.0` | `better-mod-settings/v1.0.1` |
 | Item Utilities | `7581d9e0f82b29f6463c3078bd9e29e4e0d39872` | `v1.2.1` | `item-utilities/v1.2.2` |
 | Disable Profanity Filter | `6b139e0618f8327fe126f8ce970c420ec605f759` | `v1.1.0` | `disable-profanity-filter/v1.1.1` |
-| Mute on Unfocus | `dc20d1b760ad32cc219205042e781aefaf996c5b` | `v1.2.0` | `mute-on-unfocus/v1.2.1` |
+| More Audio Settings | `dc20d1b760ad32cc219205042e781aefaf996c5b` | `v1.2.0` | `mute-on-unfocus/v1.2.1` |
 | Fix Target Lock | `e86f5339df420316171cde83782661dce1d45764` | `v1.2.0` | `fix-target-lock/v1.2.1` |
 
 Original version tags remain in the original repositories. Their commits are
@@ -32,8 +32,13 @@ Earlier release binaries and release notes remain in the original repositories:
 - [Better Mod Settings releases](https://github.com/xWink/farever-better-mod-settings/releases)
 - [Item Utilities releases](https://github.com/xWink/farever-item-utilities/releases)
 - [Disable Profanity Filter releases](https://github.com/xWink/farever-disable-profanity-filter/releases)
-- [Mute on Unfocus releases](https://github.com/xWink/farever-mute-on-unfocus/releases)
+- [More Audio Settings earlier releases](https://github.com/xWink/farever-mute-on-unfocus/releases)
 - [Fix Target Lock releases](https://github.com/xWink/farever-fix-target-lock/releases)
 
 Issues, pull requests, and previous Actions runs remain in their original
 repositories. New development and releases belong in `xWink/farever-mods`.
+
+More Audio Settings was originally imported as `mute-on-unfocus` and installed
+as `mute-unfocused`. The historical release tag and original repository link
+above retain their old names. Current builds, module folders, archives and
+release tags use `more-audio-settings`.

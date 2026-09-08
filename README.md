@@ -9,7 +9,7 @@ Each project has its own source, build, installable ZIP, and versioned releases.
 | Better Mod Settings | [better-mod-settings](better-mod-settings/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=better-mod-settings&expanded=true) |
 | Item Utilities | [item-utilities](item-utilities/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=item-utilities&expanded=true) |
 | Disable Profanity Filter | [disable-profanity-filter](disable-profanity-filter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-disable-profanity-filter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=disable-profanity-filter&expanded=true) |
-| Mute on Unfocus | [mute-on-unfocus](mute-on-unfocus/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-mute-on-unfocus.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=mute-on-unfocus&expanded=true) |
+| More Audio Settings | [more-audio-settings](more-audio-settings/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-more-audio-settings.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=more-audio-settings&expanded=true) |
 | Fix Target Lock | [fix-target-lock](fix-target-lock/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-fix-target-lock.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=fix-target-lock&expanded=true) |
 | DPS Meter | [dps-meter](dps-meter/) | [Build](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml) | [Downloads](https://github.com/xWink/farever-mods/releases?q=dps-meter%2Fv&expanded=true) |
 
@@ -54,7 +54,7 @@ haxe compile.hxml
 ```
 
 Each `compile.hxml` writes to that project's `build/` directory. Configurable
-mods also compile the migration helper from `shared/src/`. Mute on Unfocus retains the installed module name `mute-unfocused`.
+mods also compile the migration helper from `shared/src/`.
 
 ## Independent CI and releases
 

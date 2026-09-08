@@ -1,21 +1,21 @@
-name: Mute on Unfocus
+name: More Audio Settings
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['mute-on-unfocus/v*']
+    tags: ['more-audio-settings/v*']
     paths:
-      - 'mute-on-unfocus/**'
+      - 'more-audio-settings/**'
       - 'shared/**'
-      - '.github/workflows/build-mute-on-unfocus.yml'
+      - '.github/workflows/build-more-audio-settings.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'mute-on-unfocus/**'
+      - 'more-audio-settings/**'
       - 'shared/**'
-      - '.github/workflows/build-mute-on-unfocus.yml'
+      - '.github/workflows/build-more-audio-settings.yml'
       - '.github/workflows/_build-mod.yml'
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
   build:
     uses: ./.github/workflows/_build-mod.yml
     with:
-      project: mute-on-unfocus
-      module: mute-unfocused
-      title: Mute on Unfocus
+      project: more-audio-settings
+      module: more-audio-settings
+      title: More Audio Settings
 

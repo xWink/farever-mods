@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "displayName": "Mute on Unfocus",
+  "displayName": "More Audio Settings",
   "configs": [
     {
       "key": "enabled",

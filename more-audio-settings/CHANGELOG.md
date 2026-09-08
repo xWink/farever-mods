@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Renamed the project, module, settings tab and archives to More Audio Settings.
+- Existing settings are imported from the previous module name on first launch.
+
 ## v1.0.0 - 2026-08-25
 
 - Initial working release.

@@ -1,19 +1,19 @@
-package muteunfocused;
+package moreaudiosettings;
 
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import modconfig.ConfigMigration;
 import hlx.runtime.ResolvedMember;
 
-typedef MuteConfig = {
+typedef MoreAudioSettingsConfig = {
     var enabled:Bool;
     var backgroundVolume:Float;
 }
 
 @:build(hlx.runtime.Mod.build())
-class MuteUnfocusedMod {
+class MoreAudioSettingsMod {
     @:hlx.config
-    static var config:MuteConfig = {
+    static var config:MoreAudioSettingsConfig = {
         enabled: true,
         backgroundVolume: 0.0
     };
@@ -34,7 +34,7 @@ class MuteUnfocusedMod {
     static var setVcaVolumeMember:ResolvedMember;
 
     static function main():Void {
-        if (ConfigMigration.importLegacy()) loadConfig();
+        if (ConfigMigration.importLegacy("mute-unfocused")) loadConfig();
         config.backgroundVolume = clamp(config.backgroundVolume, 0.0, 100.0);
         config.save();
         Bus.subscribe(
