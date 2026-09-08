@@ -72,7 +72,7 @@ class RunWriter {
         // Freeze the report before phase resumption can mutate the encounter.
         var report = fight.json(timestamp, gamePid);
         if (report.players.length == 0) return;
-        pending.push({report: report, timestamp: timestamp, boss: fight.bossKind});
+        pending.push({report: report, timestamp: timestamp, boss: fight.reportKey()});
     }
     public function update(now:Float):Void {
         pollStartup(now);

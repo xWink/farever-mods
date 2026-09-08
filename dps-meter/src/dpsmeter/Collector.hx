@@ -33,8 +33,11 @@ class Collector {
         model.me = mine.uid;
         var player = G.field(hero, "player");
         var group = G.field(player, "group");
+        var inRift = G.field(layer, "isRift") == true;
+        if (inRift) model.enableRift();
         var roster:Array<Dynamic> = [];
-        if (group != null) roster = G.array(G.field(group, "players"), true);
+        if (inRift) roster = G.array(G.field(layer, "players"), true);
+        else if (group != null) roster = G.array(G.field(group, "players"), true);
         var members:Map<String, Bool> = [];
         var hasMe = false;
         for (p in roster) {
@@ -46,18 +49,19 @@ class Collector {
         }
         if (hasMe) { groupMembers = members; lastGroupSeen = now; }
         else if (now - lastGroupSeen > 5) groupMembers = [];
-        model.party = groupMembers.copy();
+        model.party = inRift ? members : groupMembers.copy();
         model.party[mine.uid] = true;
-        if (!hasMe && now - lastGroupSeen > 5) {
+        if (!inRift && !hasMe && now - lastGroupSeen > 5) {
             var names = [for (s in config.group.split(",")) StringTools.trim(s).toLowerCase()];
             for (p in model.profiles) if (names.indexOf(p.name.toLowerCase()) >= 0) model.party[p.uid] = true;
         }
-        // Encounter timing must not depend on optional activity/report metadata.
-        model.update(now, G.field(hero, "isInCombat") == true);
         var layerConfig = G.field(layer, "config");
         model.difficulty = G.integer(G.field(layerConfig, "difficulty"), -1);
         model.activityId = G.text(G.field(layerConfig, "activityID"));
         if (model.activityId == "") model.activityId = G.text(G.field(G.field(layer, "mainActivity"), "kind"));
+        if (inRift) updateRiftState(player, now);
+        // Encounter timing must not depend on optional lobby/report metadata.
+        model.update(now, G.field(hero, "isInCombat") == true);
         if (group != null && model.activityId != "" && model.difficulty < 0) {
             // Never assign a stale lobby from another dungeon to an open-world boss.
             var lobbies = G.array(G.field(group, "instanceLobbies"), true);
@@ -68,6 +72,27 @@ class Collector {
             }
         }
     }
+    function updateRiftState(player:Dynamic, now:Float):Void {
+        var activity = G.field(layer, "mainActivity");
+        if (activity == null) return;
+        var context = G.call("st.Player", "getActivityContext", player, [activity]);
+        if (context == null) context = G.field(activity, "globalCtx");
+        if (context == null) return;
+        var gatesFinished = false;
+        var bossDefeated = false;
+        for (objective in G.array(G.field(context, "objectives"), true)) {
+            switch (G.text(G.field(objective, "kind"))) {
+                case "CloseGates": gatesFinished = G.call("st.Objective", "isCompleted", objective) == true;
+                case "KillBoss": bossDefeated = G.call("st.Objective", "isCompleted", objective) == true;
+                default:
+            }
+        }
+        // These are the replicated objectives and timer used by the rift HUD.
+        // The server-only RiftContext.boss/inBossFight fields are not replicated.
+        if (G.number(G.field(context, "gatesEndTime")) > 0
+            && G.number(G.call("st.activity.RiftContext", "getRemainingTime", context)) <= 0) gatesFinished = true;
+        model.updateRiftState(now, gatesFinished, bossDefeated);
+    }
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
@@ -77,6 +102,11 @@ class Collector {
         var uid = G.text(G.field(damage, "weakSource"));
         if (uid == "" || uid == "0") uid = G.uid(source);
         if (info == null && !model.profiles.exists(uid)) return;
+        if (G.field(layer, "isRift") == true) {
+            model.enableRift();
+            // A newly arrived player's hit can precede the next roster refresh.
+            if (G.field(source, "layer") == layer) model.party[uid] = true;
+        }
         var skill = G.field(damage, "baseSkill");
         var skillId = G.text(G.field(skill, "kind"));
         // Remote heroes may not have populated equipment caches. As in the

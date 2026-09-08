@@ -91,6 +91,8 @@ class Fight {
     public var last:Float;
     public var closed:Float = 0;
     public var defeated:Bool = false;
+    public var isBoss:Bool = true;
+    public var phase:String = "";
     public var bossKind:String = "";
     public var bossName:String = "";
     public var bossUid:String = "";
@@ -117,6 +119,7 @@ class Fight {
     public function copy():Fight {
         var result = new Fight(start);
         result.last = last; result.closed = closed; result.defeated = defeated;
+        result.isBoss = isBoss; result.phase = phase;
         result.bossKind = bossKind; result.bossName = bossName; result.bossUid = bossUid; result.bossLevel = bossLevel;
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.me = me; result.participants = participants.copy(); result.targets = targets.copy();
@@ -134,12 +137,17 @@ class Fight {
         }
         return result;
     }
+    public function reportKey():String {
+        return phase == "rift phase" ? activityId + "-rift" : bossKind;
+    }
     public function json(timestamp:String, pid:Int):Dynamic {
         var seconds = duration();
-        return {session_id: bossKind + "-" + timestamp + "-" + pid,
-            duration_sec: SkillStats.rounded(seconds, 3), is_boss: true, boss_kind: bossKind,
+        var result:Dynamic = {session_id: reportKey() + "-" + timestamp + "-" + pid,
+            duration_sec: SkillStats.rounded(seconds, 3), is_boss: isBoss, boss_kind: bossKind,
             difficulty: difficulty, activity_id: activityId, boss_level: bossLevel, boss_foe_id: bossFoeId,
             players: [for (p in ranked()) if (p.info.name != "") p.json(seconds)]};
+        if (phase != "") Reflect.setField(result, "phase", phase);
+        return result;
     }
 }
 
@@ -166,8 +174,11 @@ class CombatModel {
     public var inCombat(default, null):Bool = false;
     var awaitingExitState:Bool = false;
     var pendingFight:Null<Fight>;
+    var rift:Null<RiftTracker>;
     public function new(now:Float) session = new Fight(now);
     public function reset(now:Float):Void {
+        if (rift != null) rift.drain(now, completed, true);
+        rift = null;
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
         session = new Fight(now); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
@@ -183,6 +194,10 @@ class CombatModel {
             if (inCombat) onCombatExit(me, now);
             awaitingExitState = false;
         } else if (!inCombat && !awaitingExitState) onCombatEnter(me, now);
+        if (rift != null) {
+            rift.drain(now, completed);
+            return;
+        }
         expirePendingFight(now);
         if (boss != null && now - boss.last > 8) {
             boss.closed = now; lastBoss = boss; boss = null;
@@ -193,6 +208,7 @@ class CombatModel {
         if (inCombat) return;
         inCombat = true;
         awaitingExitState = false;
+        if (rift != null) return;
         expirePendingFight(now);
         // Entry alone never starts the clock. Retain an opening hit if its
         // damage notification preceded entry; otherwise wait for first damage.
@@ -212,11 +228,24 @@ class CombatModel {
         if (me == "" || heroUid != me) return;
         inCombat = false;
         awaitingExitState = true;
+        if (rift != null) return;
         finishPendingFight();
         if (current != null) finishCurrent(now);
     }
     function hasLocalKill(fight:Null<Fight>):Bool {
         return fight != null && fight.players.exists(me) && fight.players[me].kills > 0;
+    }
+    public function enableRift():Void {
+        if (rift != null) return;
+        rift = new RiftTracker();
+        current = null; lastCombat = null; pendingFight = null;
+        boss = null; lastBoss = null;
+    }
+    public function updateRiftState(now:Float, gatesFinished:Bool, bossDefeated:Bool):Void {
+        if (rift == null) return;
+        rift.updateState(now, gatesFinished, bossDefeated);
+        current = rift.current;
+        lastCombat = rift.last;
     }
     function finishPendingFight():Void {
         if (hasLocalKill(pendingFight)) lastCombat = pendingFight;
@@ -257,6 +286,12 @@ class CombatModel {
         var member = party.exists(e.source) || e.source == me;
         if (member) {
             session.add(e, info);
+            if (rift != null) {
+                rift.record(e, info, difficulty, activityId, me);
+                current = rift.current;
+                lastCombat = rift.last;
+                return;
+            }
             if (inCombat) {
                 if (current == null && e.effect != 1) current = new Fight(e.time);
                 if (current != null) addToFight(current, e, info);
@@ -277,6 +312,7 @@ class CombatModel {
                 }
             }
         }
+        if (rift != null) return;
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
         var bossHit = e.effect != 1 && (e.bossFlags & 0x38) != 0;
         if (bossHit && member && (boss == null || (boss.bossKind != e.bossKind && e.time - boss.last > 15))) {
