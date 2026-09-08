@@ -18,7 +18,6 @@ class NativeMeterWindow {
     var container:Dynamic;
     var content:Dynamic;
     var rowsRoot:Dynamic;
-    var title:Dynamic;
     var timer:Dynamic;
     var bossLabel:Dynamic;
     var bossCaption:String = "";
@@ -87,7 +86,6 @@ class NativeMeterWindow {
         show(window, true);
         if (width != config.width || height != config.height) layout();
         updateDrag();
-        centerTitle();
         clampToScreen();
         position(window, config.x, config.y);
         if (now - lastRefresh >= 0.20) {
@@ -122,18 +120,10 @@ class NativeMeterWindow {
         var component = G.staticCall("domkit.Component", "get", ["options-window", null]);
         if (component != null) G.set(dom, "component", component);
         header = G.field(window, "header");
-        G.set(header, "headText", "DPS Meter");
-        title = G.field(header, "headerTitle");
-        setText(title, "DPS Meter");
-        absolute(header, title);
+        G.set(header, "headText", "");
+        show(G.field(header, "headerTitle"), false);
+        show(G.field(header, "closeBtn"), false);
         var left = G.enumeration("h2d.Align", "Left");
-        G.call("h2d.Text", "set_textAlign", title, [left]);
-        style(title, "text-align", left);
-        var close = G.field(header, "closeBtn");
-        if (close != null) absolute(header, close);
-        if (close != null) G.call("ui.UIElement", "set_onClick", close, [() -> {
-            config.visible = false; config.save(); show(window, false);
-        }]);
 
         toolbar = node("flow", G.field(header, "dom"), [], "dpsMeterToolbar", "horizontal");
         lockButton = button(toolbar, "", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
@@ -285,28 +275,18 @@ class NativeMeterWindow {
         var bossHeight = G.number(G.call("h2d.Text", "get_textHeight", bossLabel)) * G.number(G.field(bossLabel, "scaleY"), 1);
         position(bossLabel, (left + right - bossWidth) / 2, Math.max(0, (34 - bossHeight) / 2));
     }
-    function centerTitle():Void {
-        // Measure after native styles have applied; keep centering through resize/hover.
-        var textWidth = G.number(G.call("h2d.Text", "get_textWidth", title));
-        position(title, Math.max(8, (width - 16 - textWidth) / 2), 6);
-    }
     function layout():Void {
         width = config.width; height = config.height;
         var innerWidth = width - 16;
         var toolbarObject = G.field(toolbar, "obj");
         size(toolbarObject, innerWidth - 16, 34);
-        headerHeight = 84;
+        headerHeight = 46;
         var bodyHeight = height - headerHeight - 8;
         size(window, width, height);
         if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
         size(header, innerWidth, headerHeight);
         position(header, 8, 0);
-        G.call("ui.comp.FmtText", "set_maxWidthText", title, [innerWidth - 80]);
-        G.call("ui.comp.FmtText", "set_useEllipsis", title, [true]);
-        centerTitle();
-        var close = G.field(header, "closeBtn");
-        if (close != null) position(close, innerWidth - 32, 4);
-        position(toolbarObject, 8, 44);
+        position(toolbarObject, 8, 6);
         G.call("ui.comp.FmtText", "set_maxWidthText", timer, [innerWidth - 62]);
         alignControls();
         size(windowContent, innerWidth, bodyHeight);
@@ -317,9 +297,10 @@ class NativeMeterWindow {
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
         size(G.field(rowsRoot, "obj"), width - 32, Std.int(Math.max(20, bodyHeight - 24)));
-        G.set(dragSurface, "width", width - 65.0);
-        // This surface covers only the title row, above the clickable toolbar.
-        position(dragSurface, 12, 5);
+        // The boss/timer row is also the drag handle. Leave the lock button's
+        // full hit area clear so it stays clickable when the window is unlocked.
+        G.set(dragSurface, "width", width - 76.0);
+        position(dragSurface, 60, 6);
         position(resizeSurface, width - 22, height - 22);
         position(grip, width - 18, height - 18);
         for (row in rows) sizeRow(row);

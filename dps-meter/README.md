@@ -29,7 +29,7 @@ can be removed if no other mod uses it.
 ## Controls
 
 - **F10:** show/hide.
-- **F11:** lock/unlock the window. When unlocked, drag the header to move it and
+- **F11:** lock/unlock the window. When unlocked, drag the header beside the lock to move it and
   the lower-right frame grip to resize the whole window. Position and size are saved.
 - The header's padlock button also locks/unlocks; its open shackle means the
   window can be moved and resized.
@@ -37,7 +37,7 @@ can be removed if no other mod uses it.
   (off by default). **Hiding delay (seconds)** ranges from 0 to 10,
   with a default of 3. After the delay, the whole window fades out over 0.4 seconds.
   Entering combat brings it back immediately. A zero delay starts the fade immediately.
-- Below the draggable title, the header has the lock on the left, the detected
+- The compact header has the lock on the left, the detected
   boss's name centered between the controls, and the encounter timer on the right.
   Boss names use the game's localized, phase-aware display names. The body
   contains player/skill rows without a mode label or combined damage summary.
