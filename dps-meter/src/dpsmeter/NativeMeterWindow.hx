@@ -23,9 +23,6 @@ class NativeMeterWindow {
     var bossCaption:String = "";
     var bossLabelWidth:Int = -1;
     var displayed:Null<Fight>;
-    var lockButton:Dynamic;
-    var lockIcon:Dynamic;
-    var lockIconUnlocked:Null<Bool>;
     var dragSurface:Dynamic;
     var resizeSurface:Dynamic;
     var grip:Dynamic;
@@ -126,15 +123,6 @@ class NativeMeterWindow {
         var left = G.enumeration("h2d.Align", "Left");
 
         toolbar = node("flow", G.field(header, "dom"), [], "dpsMeterToolbar", "horizontal");
-        lockButton = button(toolbar, "", () -> { config.unlocked = !config.unlocked; config.save(); lastRefresh = -1; });
-        absolute(G.field(toolbar, "obj"), lockButton);
-        // Draw with the game's vector renderer, avoiding missing font glyphs/assets.
-        lockIcon = G.create("h2d.Graphics", [lockButton]);
-        absolute(lockButton, lockIcon);
-        position(lockIcon, 7, 6);
-        lockIconUnlocked = null;
-        padding(lockButton, 6);
-        size(lockButton, 34, 34);
         timer = label(toolbar, "0:00");
         absolute(G.field(toolbar, "obj"), timer);
         G.call("h2d.Text", "set_textAlign", timer, [left]);
@@ -184,7 +172,7 @@ class NativeMeterWindow {
         G.call("h2d.Graphics", "lineTo", grip, [18.0, 18.0]);
         G.call("h2d.Graphics", "endFill", grip);
         absolute(window, grip);
-        dragSurface = G.create("h2d.Interactive", [100.0, 34.0, window, null]);
+        dragSurface = G.create("h2d.Interactive", [100.0, 46.0, window, null]);
         resizeSurface = G.create("h2d.Interactive", [22.0, 22.0, window, null]);
         absolute(window, dragSurface);
         absolute(window, resizeSurface);
@@ -208,30 +196,6 @@ class NativeMeterWindow {
         var obj = G.field(d, "obj");
         G.call("h2d.Text", "set_textColor", obj, [0x5b4334]);
         return obj;
-    }
-    function button(parent:Dynamic, text:String, click:Void->Void):Dynamic {
-        var d = node("button", parent, [text], "dpsMeterButton");
-        var obj = G.field(d, "obj");
-        G.call("ui.UIElement", "set_onClick", obj, [click]);
-        return obj;
-    }
-    function updateLockIcon():Void {
-        if (lockIconUnlocked == config.unlocked) return;
-        lockIconUnlocked = config.unlocked;
-        G.call("h2d.Graphics", "clear", lockIcon);
-        G.call("h2d.Graphics", "lineStyle", lockIcon, [2.0, 0xffffff, 1.0]);
-        // The unlocked shackle lifts clear of the right side of the body.
-        var top = config.unlocked ? 1.0 : 4.0;
-        G.call("h2d.Graphics", "moveTo", lockIcon, [6.0, 11.0]);
-        G.call("h2d.Graphics", "lineTo", lockIcon, [6.0, top + 4]);
-        G.call("h2d.Graphics", "curveTo", lockIcon, [6.0, top, 10.0, top]);
-        G.call("h2d.Graphics", "curveTo", lockIcon, [14.0, top, 14.0, top + 4]);
-        G.call("h2d.Graphics", "lineTo", lockIcon, [14.0, config.unlocked ? 7.0 : 11.0]);
-        G.call("h2d.Graphics", "drawRect", lockIcon, [3.0, 11.0, 14.0, 10.0]);
-        G.call("h2d.Graphics", "moveTo", lockIcon, [10.0, 15.0]);
-        G.call("h2d.Graphics", "lineTo", lockIcon, [10.0, 18.0]);
-        G.call("ui.UIElement", "set_textTip", lockButton, [config.unlocked
-            ? "Unlocked — click to lock the window" : "Locked — click to move and resize the window"]);
     }
     function flow(dom:Dynamic, method:String, value:Dynamic):Void G.call("h2d.Flow", method, G.field(dom, "obj"), [value]);
     function style(object:Dynamic, property:String, value:Dynamic):Void {
@@ -260,20 +224,16 @@ class NativeMeterWindow {
         // edge as the window is resized or the number of digits changes.
         var textWidth = G.number(G.call("h2d.Text", "get_textWidth", timer)) * G.number(G.field(timer, "scaleX"), 1);
         var textHeight = G.number(G.call("h2d.Text", "get_textHeight", timer)) * G.number(G.field(timer, "scaleY"), 1);
-        position(lockButton, 0, 0);
         position(timer, width - 32 - textWidth, Math.max(0, (34 - textHeight) / 2));
-        var left = 34 + 12;
-        var right = width - 32 - textWidth - 12;
-        var available = Std.int(Math.max(1, right - left));
+        var available = Std.int(Math.max(1, width - 32 - textWidth - 12));
         if (available != bossLabelWidth) {
             bossLabelWidth = available;
             G.call("ui.comp.FmtText", "set_maxWidthText", bossLabel, [available]);
             setText(bossLabel, bossCaption);
             G.call("ui.comp.FmtText", "updateScale", bossLabel);
         }
-        var bossWidth = G.number(G.call("h2d.Text", "get_textWidth", bossLabel)) * G.number(G.field(bossLabel, "scaleX"), 1);
         var bossHeight = G.number(G.call("h2d.Text", "get_textHeight", bossLabel)) * G.number(G.field(bossLabel, "scaleY"), 1);
-        position(bossLabel, (left + right - bossWidth) / 2, Math.max(0, (34 - bossHeight) / 2));
+        position(bossLabel, 0, Math.max(0, (34 - bossHeight) / 2));
     }
     function layout():Void {
         width = config.width; height = config.height;
@@ -284,9 +244,10 @@ class NativeMeterWindow {
         var bodyHeight = height - headerHeight - 8;
         size(window, width, height);
         if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
-        size(header, innerWidth, headerHeight);
-        position(header, 8, 0);
-        position(toolbarObject, 8, 6);
+        // The background spans the frame; only the text uses the body inset.
+        size(header, width, headerHeight);
+        position(header, 0, 0);
+        position(toolbarObject, 16, 6);
         G.call("ui.comp.FmtText", "set_maxWidthText", timer, [innerWidth - 62]);
         alignControls();
         size(windowContent, innerWidth, bodyHeight);
@@ -297,10 +258,10 @@ class NativeMeterWindow {
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
         size(G.field(rowsRoot, "obj"), width - 32, Std.int(Math.max(20, bodyHeight - 24)));
-        // The boss/timer row is also the drag handle. Leave the lock button's
-        // full hit area clear so it stays clickable when the window is unlocked.
-        G.set(dragSurface, "width", width - 76.0);
-        position(dragSurface, 60, 6);
+        // With no header buttons, the whole header can be used to drag.
+        G.set(dragSurface, "width", width * 1.0);
+        G.set(dragSurface, "height", headerHeight * 1.0);
+        position(dragSurface, 0, 0);
         position(resizeSurface, width - 22, height - 22);
         position(grip, width - 18, height - 18);
         for (row in rows) sizeRow(row);
@@ -377,7 +338,6 @@ class NativeMeterWindow {
         return row;
     }
     function refresh(model:CombatModel, now:Float):Void {
-        updateLockIcon();
         show(dragSurface, config.unlocked);
         show(resizeSurface, config.unlocked); show(grip, config.unlocked);
         var fight = model.displayedFight();
