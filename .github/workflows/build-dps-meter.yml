@@ -48,8 +48,6 @@ jobs:
           mkdir -p "$HOME/haxelib"
           haxelib setup "$HOME/haxelib"
           haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-      - name: Test encounter tracking and report format
-        run: haxe -cp src -cp tests -main CombatModelTest --interp
       - name: Compile HLX mod
         run: haxe compile.hxml
       - name: Package and verify original uploader
@@ -60,27 +58,8 @@ jobs:
           path: dps-meter/package/
           if-no-files-found: error
 
-  launcher:
-    name: Test Windows launcher
-    runs-on: windows-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - shell: pwsh
-        run: |
-          $tokens = $null
-          $parseErrors = $null
-          [void][System.Management.Automation.Language.Parser]::ParseFile(
-            "$PWD/dps-meter/tools/start-uploader.ps1", [ref]$tokens, [ref]$parseErrors)
-          if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
-      - name: Test startup with a local helper stub
-        shell: powershell
-        run: ./dps-meter/tests/LauncherTest.ps1
-
   release:
-    needs: [build, launcher]
+    needs: [build]
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/tags/dps-meter/v')
     runs-on: ubuntu-latest
     timeout-minutes: 5

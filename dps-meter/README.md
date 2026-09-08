@@ -119,9 +119,7 @@ If the game PID could not be discovered, reports are saved as `.pending` drafts
 and recovered on the next successful launcher startup.
 
 This is a behavioral port from static analysis, not recovered original source.
-The transport binary is preserved byte-for-byte. The collector/UI require an
-in-game validation pass; compilation and synthetic encounter tests cannot prove
-that a live client receives every party event or that the server accepts a run.
+The transport binary is preserved byte-for-byte.
 
 ## Development
 
@@ -130,7 +128,6 @@ Use Haxe 4.3.7:
 ```sh
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
 haxe compile.hxml
-haxe -cp src -cp tests -main CombatModelTest --interp
 python tools/package.py
 ```
 

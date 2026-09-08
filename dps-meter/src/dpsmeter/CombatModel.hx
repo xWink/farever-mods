@@ -141,7 +141,7 @@ class Fight {
     }
 }
 
-/** Pure encounter logic, independently exercised without a running game or HTTP requests. */
+/** Encounter tracking and report data. */
 class CombatModel {
     // Damage and the replicated combat entry can arrive in either order.
     // Keep a short buffer without starting a visible encounter on damage alone.
