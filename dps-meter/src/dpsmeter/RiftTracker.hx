@@ -7,7 +7,6 @@ typedef RiftRecap = {gate:Null<Fight>, boss:Fight};
 /** One continuous gates encounter followed by one continuous boss encounter. */
 class RiftTracker {
     public static inline var GATES_PHASE:String = "Rift: Gates";
-    public static inline var BOSS_PHASE:String = "Rift: Boss";
     static inline var FINAL_DAMAGE_SECONDS:Float = 0.5;
     var phase:Int = 0; // 0: gates, 1: boss, 2: finished
     var targetBossKind:String = "";
@@ -74,7 +73,7 @@ class RiftTracker {
         if (fight == null) {
             if (e.effect == 1) return;
             fight = new Fight(e.time);
-            fight.phase = index == 0 ? GATES_PHASE : BOSS_PHASE;
+            fight.phase = index == 0 ? GATES_PHASE : "";
             fight.isBoss = index == 1;
             fight.bossName = fight.phase;
             fight.difficulty = difficulty;
@@ -92,6 +91,7 @@ class RiftTracker {
         if (bossHit && index == 1) {
             fight.bossKind = e.bossKind;
             fight.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
+            fight.phase = "Rift: " + fight.bossName;
             fight.bossUid = e.target;
             fight.bossLevel = e.bossLevel;
             fight.bossFoeId = e.bossFoeId;

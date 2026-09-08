@@ -235,7 +235,7 @@ class NativeMeterWindow {
         // frozen duration until a new fight replaces the entire view.
         var elapsed = fight == null ? 0 : fight.duration(now);
         setText(timer, duration(elapsed));
-        var bossName = fight == null ? "" : fight.bossName;
+        var bossName = fight == null ? "" : fight.phase != "" ? fight.phase : fight.bossName;
         if (bossName != bossCaption) { bossCaption = bossName; bossLabelWidth = -1; }
         show(bossLabel, bossCaption != "");
     }

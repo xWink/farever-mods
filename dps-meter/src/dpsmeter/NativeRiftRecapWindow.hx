@@ -56,8 +56,10 @@ class NativeRiftRecapWindow {
         catch (e:Dynamic) { constructing = false; throw e; }
         constructing = false;
         G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192]);
-        // A recap is a HUD panel: it must not pause combat or close other menus.
-        root = attachBelowGameUi(ui, window);
+        // Place the recap above the game UI without pausing or closing menus.
+        root = G.field(ui, "root");
+        G.call("h2d.Flow", "addChildAt", root, [window, G.call("h2d.Object", "get_numChildren", root)]);
+        absolute(root, window);
         var dom = G.field(window, "dom");
         windowContent = G.field(dom, "contentRoot");
         for (child in children(window)) if (G.field(child, "bgMask") != null) {
@@ -102,7 +104,7 @@ class NativeRiftRecapWindow {
         absolute(bodyObject, options);
         absolute(options, container);
         addSection(container, RiftTracker.GATES_PHASE, result.gate, "dpsRiftGate");
-        addSection(container, RiftTracker.BOSS_PHASE, result.boss, "dpsRiftBoss");
+        addSection(container, result.boss.phase, result.boss, "dpsRiftBoss");
         layout();
     }
 
@@ -162,6 +164,8 @@ class NativeRiftRecapWindow {
                 position(section.obj, 16 + (columns ? i * (panelWidth + 24) : 0),
                     12 + (columns ? 0 : i * (panelHeight + 24)));
                 size(section.heading, panelWidth, 40);
+                G.call("ui.comp.FmtText", "set_maxWidthText", section.name,
+                    [Std.int(Math.max(1, panelWidth - textWidth(section.time) - 12))]);
                 var chart:NativeDamageChart = section.chart;
                 chart.resize(panelWidth, panelHeight - 40);
             }
@@ -173,6 +177,7 @@ class NativeRiftRecapWindow {
         G.call("ui.comp.FmtText", "updateScale", title);
         position(title, (width - textWidth(title)) / 2, (60 - textHeight(title)) / 2);
         for (section in sections) {
+            G.call("ui.comp.FmtText", "updateScale", section.name);
             position(section.name, 0, 4);
             position(section.time, section.width - textWidth(section.time), 4);
         }

@@ -106,7 +106,7 @@ including players who join after the rift starts.
   combat. Countdown expiry does not end it: cleanup of the remaining gates stays
   in this phase until the real boss spawns. A hit on the real boss also confirms
   the transition if it arrives before the next roster update.
-- **Rift: Boss:** starts with the first hit on the real boss identified by the
+- **Rift: \<Boss Name\>:** starts with the first hit on the real boss identified by the
   rift's KillBoss objective. All present players' subsequent damage, including
   damage to adds and clones, belongs to this phase. Leaving combat or gaps in
   damage do not split it. The server-reported KillBoss objective ends it; killing
@@ -114,22 +114,24 @@ including players who join after the rift starts.
 
 A full rift observed from the first wave through the boss produces two JSON
 reports when uploads are enabled. Reports carry `phase: "Rift: Gates"` or
-`phase: "Rift: Boss"`. The monster report has `is_boss: false`; the boss report
+`phase: "Rift: <Boss Name>"`, using the game's boss name. The monster report has
+`is_boss: false`; the boss report
 keeps the real boss's identity and `is_boss: true`. Late killing blows are retained
 before each report is queued once. Joining late only records damage your client
 observes, and leaving early does not export an unfinished phase.
 
-The header shows **Rift: Gates** during waves and the game's boss name during the
+The header shows **Rift: Gates** during waves and **Rift: \<Boss Name\>** during the
 boss phase. Auto-hide keeps an active phase visible through combat breaks and
 uses the usual delay and fade after the phase ends. Game and instance loading
 still leave the window hidden until there is damage to show.
 
-After the boss dies, **Rift Recap** opens with **Rift: Gates** and **Rift: Boss**
+After the boss dies, **Rift Recap** opens with **Rift: Gates** and **Rift: \<Boss Name\>**
 charts in one native window. The recap uses frozen totals from that same rift,
 including late killing blows, and shows each phase's duration. Each chart uses
 the meter's class colors, damage/DPS/team-share numbers, independent scrolling,
 and clickable skill breakdowns. The charts sit side by side, or stack on a
-narrow screen. One **X** closes the entire recap. It also works with uploads
+narrow screen. The recap appears in front of the game UI. One **X** closes the
+entire recap. It also works with uploads
 disabled and does not follow the live meter's show/hide or out-of-combat fading.
 A phase with no recorded damage shows **No damage recorded**.
 
