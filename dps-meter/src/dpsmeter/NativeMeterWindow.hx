@@ -225,7 +225,8 @@ class NativeMeterWindow {
         var textWidth = G.number(G.call("h2d.Text", "get_textWidth", timer)) * G.number(G.field(timer, "scaleX"), 1);
         var textHeight = G.number(G.call("h2d.Text", "get_textHeight", timer)) * G.number(G.field(timer, "scaleY"), 1);
         position(timer, width - 32 - textWidth, Math.max(0, (34 - textHeight) / 2));
-        var available = Std.int(Math.max(1, width - 32 - textWidth - 12));
+        var nameInset = 12; // Clear the native circular corner decoration.
+        var available = Std.int(Math.max(1, width - 32 - textWidth - 12 - nameInset));
         if (available != bossLabelWidth) {
             bossLabelWidth = available;
             G.call("ui.comp.FmtText", "set_maxWidthText", bossLabel, [available]);
@@ -233,7 +234,7 @@ class NativeMeterWindow {
             G.call("ui.comp.FmtText", "updateScale", bossLabel);
         }
         var bossHeight = G.number(G.call("h2d.Text", "get_textHeight", bossLabel)) * G.number(G.field(bossLabel, "scaleY"), 1);
-        position(bossLabel, 0, Math.max(0, (34 - bossHeight) / 2));
+        position(bossLabel, nameInset, Math.max(0, (34 - bossHeight) / 2));
     }
     function layout():Void {
         width = config.width; height = config.height;
@@ -244,8 +245,9 @@ class NativeMeterWindow {
         var bodyHeight = height - headerHeight - 8;
         size(window, width, height);
         if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
-        // The background spans the frame; only the text uses the body inset.
-        size(header, width, headerHeight);
+        // Keep the background just inside the frame's right edge.
+        var headerWidth = width - 2;
+        size(header, headerWidth, headerHeight);
         position(header, 0, 0);
         position(toolbarObject, 16, 6);
         G.call("ui.comp.FmtText", "set_maxWidthText", timer, [innerWidth - 62]);
@@ -259,7 +261,7 @@ class NativeMeterWindow {
         position(G.field(content, "obj"), 8, 12);
         size(G.field(rowsRoot, "obj"), width - 32, Std.int(Math.max(20, bodyHeight - 24)));
         // With no header buttons, the whole header can be used to drag.
-        G.set(dragSurface, "width", width * 1.0);
+        G.set(dragSurface, "width", headerWidth * 1.0);
         G.set(dragSurface, "height", headerHeight * 1.0);
         position(dragSurface, 0, 0);
         position(resizeSurface, width - 22, height - 22);
