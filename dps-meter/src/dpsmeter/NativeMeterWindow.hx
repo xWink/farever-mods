@@ -207,7 +207,7 @@ class NativeMeterWindow {
         var headerWidth = width - 2;
         size(header, headerWidth, headerHeight);
         position(header, 0, 0);
-        position(toolbarObject, 16, 6);
+        position(toolbarObject, 16, 9);
         G.call("ui.comp.FmtText", "set_maxWidthText", timer, [innerWidth - 62]);
         alignControls();
         size(windowContent, innerWidth, bodyHeight);
