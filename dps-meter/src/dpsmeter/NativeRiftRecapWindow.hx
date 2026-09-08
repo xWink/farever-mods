@@ -57,10 +57,7 @@ class NativeRiftRecapWindow {
         constructing = false;
         G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192]);
         // A recap is a HUD panel: it must not pause combat or close other menus.
-        root = G.field(ui, "rootOverlay");
-        if (root == null) root = G.field(ui, "root");
-        G.call("h2d.Object", "addChild", root, [window]);
-        absolute(root, window);
+        root = attachBelowGameUi(ui, window);
         var dom = G.field(window, "dom");
         windowContent = G.field(dom, "contentRoot");
         for (child in children(window)) if (G.field(child, "bgMask") != null) {

@@ -5,6 +5,15 @@ import dpsmeter.GameAccess as G;
 
 /** Shared native DOM layout and formatting for the meter and rift recap. */
 class NativeUi {
+    public static function attachBelowGameUi(ui:Dynamic, window:Dynamic):Dynamic {
+        var root = G.field(ui, "root");
+        // Stay above rootBG, but below gameRoot's HUD, menus and dialogue.
+        // Native tooltips and overlays are on higher scene layers as well.
+        var index = G.integer(G.call("h2d.Object", "getChildIndex", root, [G.field(ui, "gameRoot")]));
+        G.call("h2d.Object", "addChildAt", root, [window, index]);
+        absolute(root, window);
+        return root;
+    }
     public static function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String, ?layout:String):Dynamic {
         var attributes:Dynamic = {id: id};
         if (layout != null) Reflect.setField(attributes, "layout", layout);

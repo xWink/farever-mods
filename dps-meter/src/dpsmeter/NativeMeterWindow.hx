@@ -103,10 +103,7 @@ class NativeMeterWindow {
         G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192]);
         // Keep this persistent HUD out of BaseUI.windows: it must not pause the
         // game, consume skill input, or close inventory/Options when it appears.
-        root = G.field(ui, "rootOverlay");
-        if (root == null) root = G.field(ui, "root");
-        G.call("h2d.Object", "addChild", root, [window]);
-        absolute(root, window);
+        root = attachBelowGameUi(ui, window);
         var dom = G.field(window, "dom");
         // TitleWindow redirects added content into a separate native flow.
         // Resize that wrapper and the decorative frame along with the window.
