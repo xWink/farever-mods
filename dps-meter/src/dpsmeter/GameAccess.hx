@@ -48,7 +48,9 @@ class GameAccess {
         return HlxRuntime.constructInstanceByName(t, args.length, args);
     }
     public static function enumeration(type:String, name:String):Dynamic {
-        return HlxRuntime.constructEnum(HlxRuntime.resolveType(type), name, []);
+        // Native code compares no-argument enum values by identity. A newly
+        // allocated Scroll never matches the game's shared Scroll value.
+        return current(type, name);
     }
     public static function array(value:Dynamic, proxy:Bool = false):Array<Dynamic> {
         if (proxy) value = field(value, "array");
