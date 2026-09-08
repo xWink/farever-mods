@@ -10,7 +10,9 @@ class NativeUi {
         // Stay above rootBG, but below gameRoot's HUD, menus and dialogue.
         // Native tooltips and overlays are on higher scene layers as well.
         var index = G.integer(G.call("h2d.Object", "getChildIndex", root, [G.field(ui, "gameRoot")]));
-        G.call("h2d.Object", "addChildAt", root, [window, index]);
+        // Call Flow's override: Object.addChildAt skips the matching layout
+        // entry and leaves the root's children/properties arrays out of sync.
+        G.call("h2d.Flow", "addChildAt", root, [window, index]);
         absolute(root, window);
         return root;
     }
