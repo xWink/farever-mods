@@ -103,6 +103,9 @@ class Collector {
     }
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;
+        // Blocked hits retain their calculated amount even though no damage is dealt.
+        var blocker = G.text(G.field(damage, "blocker"));
+        if (blocker == "InvulnerableHit" || blocker == "DamageDodge") return;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
         var skill = G.field(damage, "baseSkill");
         var uid = G.text(G.field(damage, "weakSource"));

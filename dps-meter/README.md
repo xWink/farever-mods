@@ -1,12 +1,26 @@
 # DPS Meter
 
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=dps-meter&expanded=true)
+
 An HLX combat meter with a movable, resizable native Farever window and boss-kill
 uploads to [Farever Logs](https://fareverlogs.fr/).
 
 ## Installation
 
-Install [HLX Core](https://github.com/hlx-framework/hlx-core), then extract this
-mod's build archive into the Farever game directory (or install with Vortex).
+### Easy Installation
+
+1. Install [HLX Core](https://github.com/hlx-framework/hlx-core) and [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings) with Vortex.
+2. Download the latest DPS Meter [release](https://github.com/xWink/farever-mods/releases?q=dps-meter&expanded=true) or the `farever-dps-meter` artifact from a successful [build](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml), then install the ZIP with Vortex.
+3. Enable and deploy the mods, then launch Farever.
+
+### Manual Installation
+
+1. Install [HLX Core](https://github.com/hlx-framework/hlx-core).
+2. Install [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings) to configure the meter in-game.
+3. Download the latest DPS Meter [release](https://github.com/xWink/farever-mods/releases?q=dps-meter&expanded=true) or the `farever-dps-meter` artifact from a successful [build](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml).
+4. Extract the ZIP directly into the Farever game directory. The archive already contains `hlx/mods/dps-meter/`.
+5. Launch Farever.
+
 All mod files are contained in `hlx/mods/dps-meter/`. Upload settings
 (`uploader.ini`), upload history (`uploader.log`), and queued reports (`logs/`)
 also live in this folder. ImGui and an external uploader are not required.
