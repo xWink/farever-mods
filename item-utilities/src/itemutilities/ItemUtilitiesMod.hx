@@ -128,7 +128,6 @@ class ItemUtilitiesMod {
     static var hxdKeyType:hl.Bytes;
     static var isKeyPressedMember:hlx.runtime.ResolvedMember;
     static var getGameAppFn:Dynamic;
-    static var getCameraHeroMember:hlx.runtime.ResolvedMember;
     static var eReasonType:hl.Bytes;
     static var lockedItemReason:Dynamic;
 
@@ -2467,17 +2466,9 @@ class ItemUtilitiesMod {
 
     static function refreshActiveHero():Void {
         try {
-            var app = currentGameApp();
-            if (app == null)
-                return;
-            if (gameAppType != null && getCameraHeroMember == null)
-                getCameraHeroMember = HlxRuntime.resolveMember(
-                    gameAppType,
-                    "getCameraHero"
-                );
-            var hero = getCameraHeroMember == null
-                ? null
-                : HlxRuntime.callResolved(getCameraHeroMember, [app]);
+            // Inventory tracking uses the player's hero. getCameraHero() also
+            // reads the camera, which is not available during startup.
+            var hero = fieldOrNull(currentGameApp(), "hero");
             if (hero == null || hero == activeHero)
                 return;
 
@@ -2509,16 +2500,7 @@ class ItemUtilitiesMod {
             // Preset hotkeys run even while the inventory and character windows
             // have never been opened. Resolve the active hero directly from the
             // game in that case; UI-owned hero references remain useful fallbacks.
-            var app = currentGameApp();
-            if (app != null) {
-                if (gameAppType != null && getCameraHeroMember == null)
-                    getCameraHeroMember = HlxRuntime.resolveMember(
-                        gameAppType,
-                        "getCameraHero"
-                    );
-                if (getCameraHeroMember != null)
-                    activeHero = HlxRuntime.callResolved(getCameraHeroMember, [app]);
-            }
+            activeHero = fieldOrNull(currentGameApp(), "hero");
             if (activeInventoryUI != null) {
                 if (baseElementType == null)
                     baseElementType = HlxRuntime.resolveType("ui.BaseElement");
