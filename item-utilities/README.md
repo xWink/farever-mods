@@ -31,6 +31,8 @@ Adds six deposit buttons beside the bank's Sort button:
 - **Deposit demon enchantments**
 - **Deposit miscellaneous items**
 
+Deposits skip items that do not fit and continue checking the remaining items
+for room in existing bank stacks, even when the bank has no empty slots.
 The deposit buttons can be hidden from the mod settings.
 
 ### Recycler deposit shortcut
@@ -69,7 +71,7 @@ applies only to motes.
 
 ### Equipment presets
 
-Adds three equipment preset buttons and a **Set** button beside **Appearance** on the Character Profile page.
+Adds three equipment preset buttons and a **Set** button beside **Appearance** on the Character Profile page. These controls are hidden while Appearance is open.
 
 - Preset 1 is selected by default for a new character.
 - Select a preset and press **Set** to save the currently equipped weapons, head, neck, shoulders, chest, back, both rings, hands, waist, legs, feet, and trinket.

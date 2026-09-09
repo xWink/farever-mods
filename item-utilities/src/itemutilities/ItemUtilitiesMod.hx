@@ -714,6 +714,9 @@ class ItemUtilitiesMod {
     static function drawEquipmentPresetButtons():Void {
         if (activeCharacterUI == null || !isUiVisible(activeCharacterUI))
             return;
+        // The game's field is spelled "apperanceMode".
+        if (fieldOrNull(activeCharacterUI, "apperanceMode") == true)
+            return;
         var appearanceButton = fieldOrNull(activeCharacterUI, "appearanceModeBtn");
         if (appearanceButton == null || !isUiVisible(appearanceButton))
             return;
@@ -1455,9 +1458,9 @@ class ItemUtilitiesMod {
 
             var destination = findDestination(item);
             if (destination.index < 0) {
-                depositing = false;
-                status = "Bank is full. Deposited " + movedStacks + " stack" + (movedStacks == 1 ? "." : "s.");
-                return;
+                // Later items may still fit into existing bank stacks.
+                transferPosition++;
+                continue;
             }
 
             var count:Dynamic = destination.count;
@@ -1499,7 +1502,7 @@ class ItemUtilitiesMod {
         }
 
         depositing = false;
-        status = "Deposited all matching unlocked items.";
+        status = "Deposited " + movedStacks + " stack" + (movedStacks == 1 ? "." : "s.");
     }
 
     static function beginRecyclerDeposit():Void {
