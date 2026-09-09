@@ -23,6 +23,11 @@
       "label": "Sorting ignores locked items (but is slower)"
     },
     {
+      "key": "instantMoteConversion",
+      "type": "checkbox",
+      "label": "Instant Mote Conversion"
+    },
+    {
       "key": "preset1Hotkey",
       "type": "keybinding",
       "label": "Preset 1 hotkey"

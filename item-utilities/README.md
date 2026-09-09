@@ -58,6 +58,15 @@ An optional **Sorting ignores locked items (but is slower)** setting keeps
 every locked item in its exact inventory slot while sorting the unlocked items
 around it.
 
+### Instant mote conversion
+
+Enable **Instant Mote Conversion** in Better Mod Settings to complete elemental
+motes without the use animation's wait. Each **Complete** action requests one
+conversion using the game's normal recipe (5 motes into 1 fragment). The game
+still checks the ingredients, inventory space, and combat restrictions, and the
+result arrives after the server responds. This setting is off by default and
+applies only to motes.
+
 ### Equipment presets
 
 Adds three equipment preset buttons and a **Set** button beside **Appearance** on the Character Profile page.
@@ -81,6 +90,7 @@ Available settings include:
 - Show or hide bank and Recycler deposit buttons
 - Show or hide item-locking visuals
 - Keep locked items in their exact slots while sorting
+- Complete motes without the use animation's wait
 - Delete all saved locks
 - Configure or clear hotkeys for equipment presets 1–3
 - Change the settings-menu hotkey

@@ -19,6 +19,7 @@ typedef ItemUtilitiesConfig = {
     var showDepositMaterials:Bool;
     var showLockVisuals:Bool;
     var sortingIgnoresLockedItems:Bool;
+    var instantMoteConversion:Bool;
     var preset1Hotkey:Int;
     var preset2Hotkey:Int;
     var preset3Hotkey:Int;
@@ -37,6 +38,7 @@ class ItemUtilitiesMod {
         showDepositMaterials: true,
         showLockVisuals: true,
         sortingIgnoresLockedItems: false,
+        instantMoteConversion: false,
         preset1Hotkey: 0,
         preset2Hotkey: 0,
         preset3Hotkey: 0,
@@ -104,6 +106,7 @@ class ItemUtilitiesMod {
     static var getSlotStackSizeMember:hlx.runtime.ResolvedMember;
     static var getNextFreeIndexMember:hlx.runtime.ResolvedMember;
     static var requestTransferMember:hlx.runtime.ResolvedMember;
+    static var completeItemMember:hlx.runtime.ResolvedMember;
     static var getMyHeroMember:hlx.runtime.ResolvedMember;
     static var getScrapInventoryMember:hlx.runtime.ResolvedMember;
     static var isScrappableMember:hlx.runtime.ResolvedMember;
@@ -317,6 +320,27 @@ class ItemUtilitiesMod {
     static function afterWindowDisplayed(instance:Dynamic, window:Dynamic,
         root:Dynamic, result:Void):Void {
         activeBaseUI = instance;
+    }
+
+    @:hlx.prefix(st.Loadout.requestCompleteItem)
+    static function completeMoteInstantly(instance:Dynamic, item:Dynamic):HlxPrefixResult<Dynamic> {
+        if (!enabled.get() || !config.instantMoteConversion)
+            return Continue;
+        // Internal IDs cover every elemental mote, independently of language.
+        var kind:String = fieldOrNull(item, "kind");
+        if (kind == null || !StringTools.startsWith(kind, "MoteOf"))
+            return Continue;
+
+        if (completeItemMember == null)
+            completeItemMember = HlxRuntime.resolveMember(
+                HlxRuntime.resolveType("st.Loadout"), "completeItem");
+        if (completeItemMember == null)
+            return Continue;
+
+        // Keep the game's conversion checks and recipe; skip starting the
+        // Complete_Package skill, whose completion normally calls this method.
+        HlxRuntime.callResolved(completeItemMember, [instance, item, null]);
+        return Skip;
     }
 
     @:hlx.prefix(st.Loadout.canSellItem)
