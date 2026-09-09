@@ -19,8 +19,8 @@ Download the ZIP for the mod you want. Install it with Vortex, or extract it int
 the Farever game directory. Each archive contains just that mod under
 `hlx/mods/`. Installation requirements and Nexus Mods links are in each project's
 README. Installed mod folders are unchanged.
-DPS Meter includes the original `uploader.exe` helper inside `hlx/mods/dps-meter/`.
-It uses native game UI and requires HLX Core without the ImGui plugin.
+DPS Meter handles log uploads inside the HLX mod and uses native game UI.
+It requires HLX Core without the ImGui plugin or an external uploader.
 
 ## Settings
 
@@ -35,7 +35,7 @@ Update Better Mod Settings along with the mods. Its `configFormats.json`
 descriptors stay beside the `.hl` files and no longer need a `configFile` key.
 The settings menu edits the native files and applies changes immediately; it
 also recognizes the old `config.json` location for mods that have not migrated.
-The DPS Meter uploader keeps its own `uploader.ini` beside `uploader.exe`.
+DPS Meter retains upload settings in `hlx/mods/dps-meter/uploader.ini`.
 
 ## Building
 

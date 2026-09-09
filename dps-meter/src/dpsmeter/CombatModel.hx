@@ -73,15 +73,20 @@ class PlayerStats {
             total_damage: SkillStats.rounded(damage, 0), dps: SkillStats.rounded(damage / duration, 1),
             heal: SkillStats.rounded(heal, 0), hits: hits, crits: crits, kills: kills};
         Reflect.setField(result, "class", info.className);
-        if (info.weapon != null) Reflect.setField(result, "weapon", info.weapon);
-        if (weapons.length > 0) Reflect.setField(result, "weapons_seen", weapons);
+        // Reports cross into the uploader thread: detach every mutable array
+        // and weapon record from the live encounter before handing one off.
+        if (info.weapon != null) Reflect.setField(result, "weapon", copyWeapon(info.weapon));
+        if (weapons.length > 0) Reflect.setField(result, "weapons_seen", [for (weapon in weapons) copyWeapon(weapon)]);
         if (info.classSkills.length > 0 || info.weaponSkills.length > 0) {
-            var equipped:Dynamic = {weapon: info.weaponSkills};
-            Reflect.setField(equipped, "class", info.classSkills);
+            var equipped:Dynamic = {weapon: info.weaponSkills.copy()};
+            Reflect.setField(equipped, "class", info.classSkills.copy());
             Reflect.setField(result, "skills_equipped", equipped);
         }
         if (skillIds.length > 0) Reflect.setField(result, "skills", [for (id in skillIds) skills[id].json(id, duration)]);
         return result;
+    }
+    static function copyWeapon(weapon:WeaponInfo):WeaponInfo {
+        return {kind: weapon.kind, rarity: weapon.rarity, level: weapon.level, upgrade: weapon.upgrade};
     }
 }
 
@@ -142,9 +147,9 @@ class Fight {
     public function reportKey():String {
         return phase == RiftTracker.GATES_PHASE ? activityId + "-rift" : bossKind;
     }
-    public function json(timestamp:String, pid:Int):Dynamic {
+    public function json(timestamp:String, reportId:Int):Dynamic {
         var seconds = duration();
-        var result:Dynamic = {session_id: reportKey() + "-" + timestamp + "-" + pid,
+        var result:Dynamic = {session_id: reportKey() + "-" + timestamp + "-" + reportId,
             duration_sec: SkillStats.rounded(seconds, 3), is_boss: isBoss, boss_kind: bossKind,
             difficulty: difficulty, activity_id: activityId, boss_level: bossLevel, boss_foe_id: bossFoeId,
             players: [for (p in ranked()) if (p.info.name != "") p.json(seconds)]};

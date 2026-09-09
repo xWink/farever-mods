@@ -40,6 +40,19 @@ class DpsMeterMod {
         try config.save() catch (_:Dynamic) {}
     }
 
+    @:hlx.postfix(GameApp.onQuit)
+    static function finishUploads(instance:Dynamic, result:Bool):Void {
+        if (result && writer != null) writer.stop();
+    }
+
+    @:hlx.prefix(GameApp.dispose)
+    static function stopUploads(instance:Dynamic):HlxPrefixResult<Void> {
+        if (writer != null) writer.stop();
+        // A later GameApp (for example after reconnecting) starts a new worker.
+        writer = new RunWriter();
+        return Continue;
+    }
+
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
         return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing ? Skip : Continue;

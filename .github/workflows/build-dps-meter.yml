@@ -52,7 +52,7 @@ jobs:
           haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
       - name: Compile HLX mod
         run: haxe compile.hxml
-      - name: Package and verify original uploader
+      - name: Package HLX mod
         run: python tools/package.py
       - uses: actions/upload-artifact@v4
         with:
