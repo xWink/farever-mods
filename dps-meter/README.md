@@ -11,7 +11,6 @@ uploads to [Farever Logs](https://fareverlogs.fr/).
 
 1. Install [HLX Core](https://github.com/hlx-framework/hlx-core) and [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings) with Vortex.
 2. Download DPS Meter with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/11).
-3. Enable and deploy the mods, then launch Farever.
 
 ### Manual Installation
 
