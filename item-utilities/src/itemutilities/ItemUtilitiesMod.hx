@@ -22,6 +22,8 @@ typedef ItemUtilitiesConfig = {
     var preset1Hotkey:Int;
     var preset2Hotkey:Int;
     var preset3Hotkey:Int;
+    // Retain the original preset storage keys for existing configurations.
+    // Each preset's `weapons` array now also stores armor and accessories.
     var weaponPresets:Array<Dynamic>;
     var selectedWeaponPresets:Array<Dynamic>;
     var lockedItems:Array<Dynamic>;
@@ -147,7 +149,9 @@ class ItemUtilitiesMod {
     static var selectedWeaponPresetCharacterId:String;
     static var presetEquipQueue:Array<Dynamic> = [];
     static var presetEquipPosition:Int = 0;
+    static var presetInventory:Dynamic;
     static var presetEquipment:Dynamic;
+    static var presetEquippedIndexes:Array<Int> = [];
     static var presetTransferActive:Bool = false;
     static var lockScanInitialized:Bool = false;
     static var activeHero:Dynamic;
@@ -248,7 +252,7 @@ class ItemUtilitiesMod {
     @:hlx.postfix(ui.win.CharacterUI.init)
     static function afterCharacterUIInit(instance:Dynamic, result:Void):Void {
         activeCharacterUI = instance;
-        syncSelectedWeaponPreset();
+        syncSelectedEquipmentPreset();
     }
 
     @:hlx.postfix(ui.win.InventoryComp.init)
@@ -534,7 +538,7 @@ class ItemUtilitiesMod {
             if (activeInventoryUI == null || !isUiVisible(activeInventoryUI))
                 lockEditMode = false;
             ensureHeroInventory();
-            syncSelectedWeaponPreset();
+            syncSelectedEquipmentPreset();
             selectPlayerInventoryComp();
             checkPresetHotkeys();
             var now = haxe.Timer.stamp();
@@ -542,7 +546,7 @@ class ItemUtilitiesMod {
                 nextLockReconcileAt = now + LOCK_RECONCILE_INTERVAL;
                 reconcileItemLocks();
             }
-            drawWeaponPresetButtons();
+            drawEquipmentPresetButtons();
             if (showLockVisuals.get()) {
                 drawLockHeaderButton();
                 if (lockEditMode)
@@ -683,7 +687,7 @@ class ItemUtilitiesMod {
         ImGui.popStyleVar(2);
     }
 
-    static function drawWeaponPresetButtons():Void {
+    static function drawEquipmentPresetButtons():Void {
         if (activeCharacterUI == null || !isUiVisible(activeCharacterUI))
             return;
         var appearanceButton = fieldOrNull(activeCharacterUI, "appearanceModeBtn");
@@ -750,8 +754,8 @@ class ItemUtilitiesMod {
                 if (ImGui.button(Std.string(preset + 1) + "##weapon-preset",
                     new ImVec2(height, height))) {
                     playButtonClickSound(appearanceButton);
-                    selectWeaponPreset(preset);
-                    activateWeaponPreset(preset);
+                    selectEquipmentPreset(preset);
+                    activateEquipmentPreset(preset);
                 }
                 if (selected)
                     ImGui.popStyleColor(3);
@@ -761,7 +765,7 @@ class ItemUtilitiesMod {
             ImGui.sameLine();
             if (ImGui.button("Set##weapon-preset", new ImVec2(58, height))) {
                 playButtonClickSound(appearanceButton);
-                saveCurrentWeaponsToPreset(selectedWeaponPreset);
+                saveCurrentEquipmentToPreset(selectedWeaponPreset);
             }
             if (ImGui.isItemHovered())
                 setGameButtonCursor();
@@ -771,7 +775,7 @@ class ItemUtilitiesMod {
         ImGui.popStyleVar(2);
     }
 
-    static function syncSelectedWeaponPreset():Void {
+    static function syncSelectedEquipmentPreset():Void {
         var characterId = heroPersistentId(resolveHero());
         if (characterId == null || characterId == selectedWeaponPresetCharacterId)
             return;
@@ -787,7 +791,7 @@ class ItemUtilitiesMod {
         }
     }
 
-    static function selectWeaponPreset(preset:Int):Void {
+    static function selectEquipmentPreset(preset:Int):Void {
         if (preset < 0 || preset >= 3)
             return;
         var characterId = heroPersistentId(resolveHero());
@@ -806,11 +810,11 @@ class ItemUtilitiesMod {
         saveConfig();
     }
 
-    static function hasWeaponPreset(preset:Int):Bool {
-        return findWeaponPreset(heroPersistentId(resolveHero()), preset) != null;
+    static function hasEquipmentPreset(preset:Int):Bool {
+        return findEquipmentPreset(heroPersistentId(resolveHero()), preset) != null;
     }
 
-    static function findWeaponPreset(characterId:String, preset:Int):Dynamic {
+    static function findEquipmentPreset(characterId:String, preset:Int):Dynamic {
         if (characterId == null)
             return null;
         for (entry in weaponPresets)
@@ -820,7 +824,7 @@ class ItemUtilitiesMod {
         return null;
     }
 
-    static function saveCurrentWeaponsToPreset(preset:Int):Void {
+    static function saveCurrentEquipmentToPreset(preset:Int):Void {
         var hero = resolveHero();
         var characterId = heroPersistentId(hero);
         var loadout = fieldOrNull(hero, "loadout");
@@ -829,10 +833,9 @@ class ItemUtilitiesMod {
             return;
 
         var weapons:Array<Dynamic> = [];
-        var content = getContent(equipment);
-        for (index in 0...arrayLength(content)) {
+        for (index in equipmentPresetSlotIndexes()) {
             var item = itemAt(equipment, index);
-            if (item == null || !isItemType(item, "Weapon"))
+            if (item == null)
                 continue;
             weapons.push({
                 index: index,
@@ -841,7 +844,7 @@ class ItemUtilitiesMod {
             });
         }
 
-        var existing = findWeaponPreset(characterId, preset);
+        var existing = findEquipmentPreset(characterId, preset);
         if (existing == null)
             weaponPresets.push({
                 characterId: characterId,
@@ -853,27 +856,48 @@ class ItemUtilitiesMod {
         saveConfig();
     }
 
-    static function activateWeaponPreset(preset:Int):Void {
+    static function equipmentPresetSlotIndexes():Array<Int> {
+        var slotType = HlxRuntime.resolveType("st._Equipment.EquipmentSlot_Impl_");
+        var iter = HlxRuntime.resolveStaticMember(slotType, "iter");
+        var getIndex = HlxRuntime.resolveStaticMember(slotType, "getIndex");
+        var indexes:Array<Int> = [];
+        // Native display categories: Weapons, Left, Right. The latter two
+        // are the armor/accessory columns, including separate ring slots.
+        for (category in [3, 0, 1]) {
+            var slots = HlxRuntime.callResolved(iter, [category, null]);
+            for (i in 0...arrayLength(slots)) {
+                var index:Int = HlxRuntime.callResolved(getIndex, [arrayGet(slots, i)]);
+                if (index >= 0)
+                    indexes.push(index);
+            }
+        }
+        return indexes;
+    }
+
+    static function activateEquipmentPreset(preset:Int):Void {
         if (presetTransferActive)
             return;
         var hero = resolveHero();
         var characterId = heroPersistentId(hero);
-        var saved = findWeaponPreset(characterId, preset);
+        var saved = findEquipmentPreset(characterId, preset);
         var loadout = fieldOrNull(hero, "loadout");
+        var inventory = fieldOrNull(loadout, "inventory");
         var equipment = fieldOrNull(loadout, "equipment");
         var weapons:Array<Dynamic> = saved == null ? null : cast Reflect.field(saved, "weapons");
-        if (equipment == null || weapons == null || weapons.length == 0
+        if (inventory == null || equipment == null || weapons == null || weapons.length == 0
             || !resolveMembers())
             return;
 
         presetEquipQueue = weapons.copy();
         presetEquipPosition = 0;
+        presetInventory = inventory;
         presetEquipment = equipment;
+        presetEquippedIndexes = [];
         presetTransferActive = true;
-        equipNextPresetWeapon();
+        equipNextPresetItem();
     }
 
-    static function equipNextPresetWeapon():Void {
+    static function equipNextPresetItem():Void {
         if (!presetTransferActive)
             return;
         while (presetEquipPosition < presetEquipQueue.length) {
@@ -884,11 +908,13 @@ class ItemUtilitiesMod {
                 continue;
 
             var equipped = itemAt(presetEquipment, targetIndex);
-            if (presetWeaponMatches(equipped, saved))
+            if (presetItemMatches(equipped, saved)) {
+                presetEquippedIndexes.push(targetIndex);
                 continue;
+            }
 
-            var sourceIndex = findPresetWeaponInInventory(saved);
-            if (sourceIndex < 0)
+            var source = findPresetItem(saved);
+            if (source == null)
                 continue;
             if (!resolveMembers()) {
                 cancelPresetTransfer();
@@ -896,12 +922,14 @@ class ItemUtilitiesMod {
             }
 
             var callback = function(success:Bool):Void {
-                equipNextPresetWeapon();
+                if (success)
+                    presetEquippedIndexes.push(targetIndex);
+                equipNextPresetItem();
             };
             try {
                 HlxRuntime.callResolved(requestTransferMember, [
-                    sourceInventory,
-                    sourceIndex,
+                    source.inventory,
+                    source.index,
                     presetEquipment,
                     targetIndex,
                     null,
@@ -909,31 +937,37 @@ class ItemUtilitiesMod {
                     callback
                 ]);
             } catch (_:Dynamic) {
-                equipNextPresetWeapon();
+                equipNextPresetItem();
             }
             return;
         }
         cancelPresetTransfer();
     }
 
-    static function findPresetWeaponInInventory(saved:Dynamic):Int {
+    static function findPresetItem(saved:Dynamic):{ inventory:Dynamic, index:Int } {
         var wantedUid = recordString(saved, "uid");
         var wantedFingerprint = recordString(saved, "fingerprint");
-        var fingerprintMatch = -1;
-        var content = getContent(sourceInventory);
-        for (index in 0...arrayLength(content)) {
-            var item = itemAt(sourceInventory, index);
-            if (item == null || !isItemType(item, "Weapon"))
-                continue;
-            if (itemUid(item) == wantedUid)
-                return index;
-            if (fingerprintMatch < 0 && itemMatchesFingerprint(item, wantedFingerprint))
-                fingerprintMatch = index;
+        var fingerprintMatch:{ inventory:Dynamic, index:Int } = null;
+        for (inventory in [presetInventory, presetEquipment]) {
+            var content = getContent(inventory);
+            for (index in 0...arrayLength(content)) {
+                // Do not reuse a ring already assigned to an earlier slot
+                // when two saved rings have the same fingerprint.
+                if (inventory == presetEquipment && presetEquippedIndexes.indexOf(index) >= 0)
+                    continue;
+                var item = itemAt(inventory, index);
+                if (item == null)
+                    continue;
+                if (itemUid(item) == wantedUid)
+                    return { inventory: inventory, index: index };
+                if (fingerprintMatch == null && itemMatchesFingerprint(item, wantedFingerprint))
+                    fingerprintMatch = { inventory: inventory, index: index };
+            }
         }
         return fingerprintMatch;
     }
 
-    static function presetWeaponMatches(item:Dynamic, saved:Dynamic):Bool {
+    static function presetItemMatches(item:Dynamic, saved:Dynamic):Bool {
         if (item == null || saved == null)
             return false;
         var wantedUid = recordString(saved, "uid");
@@ -944,7 +978,9 @@ class ItemUtilitiesMod {
     static function cancelPresetTransfer():Void {
         presetEquipQueue = [];
         presetEquipPosition = 0;
+        presetInventory = null;
         presetEquipment = null;
+        presetEquippedIndexes = [];
         presetTransferActive = false;
     }
 
@@ -2848,8 +2884,8 @@ class ItemUtilitiesMod {
         for (preset in 0...3) {
             var key = presetHotkeyKeys[preset];
             if (key > 0 && isGameKeyPressed(key)) {
-                selectWeaponPreset(preset);
-                activateWeaponPreset(preset);
+                selectEquipmentPreset(preset);
+                activateEquipmentPreset(preset);
                 return;
             }
         }

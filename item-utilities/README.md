@@ -58,18 +58,20 @@ An optional **Sorting ignores locked items (but is slower)** setting keeps
 every locked item in its exact inventory slot while sorting the unlocked items
 around it.
 
-### Weapon presets
+### Equipment presets
 
-Adds three weapon preset buttons and a **Set** button beside **Appearance** on the Character Profile page.
+Adds three equipment preset buttons and a **Set** button beside **Appearance** on the Character Profile page.
 
 - Preset 1 is selected by default for a new character.
-- Select a preset and press **Set** to save the currently equipped weapons.
-- Pressing a configured preset immediately equips its saved weapons from the character inventory.
+- Select a preset and press **Set** to save the currently equipped weapons, head, neck, shoulders, chest, back, both rings, hands, waist, legs, feet, and trinket.
+- Pressing a configured preset equips its saved items into their original slots, using items from the character inventory or another equipment slot.
 - Activating an unset preset does nothing.
-- If one or more saved weapons are missing, available weapons are still equipped and missing entries are skipped safely.
+- If one or more saved items are missing, available items are still equipped and missing entries are skipped. Empty slots are left unchanged.
 - Presets and the currently selected preset are persisted separately for each character.
 
 Each preset can also be assigned its own configurable keyboard shortcut, including Ctrl, Shift, Alt, or Windows-key combinations. Preset hotkeys work without opening the Character Profile page.
+
+Existing weapon presets remain usable. Press **Set** again on each preset to include your current armor and accessories. Equipment changes follow the game's normal restrictions.
 
 ### Settings
 
@@ -80,7 +82,7 @@ Available settings include:
 - Show or hide item-locking visuals
 - Keep locked items in their exact slots while sorting
 - Delete all saved locks
-- Configure or clear hotkeys for weapon presets 1–3
+- Configure or clear hotkeys for equipment presets 1–3
 - Change the settings-menu hotkey
 
 ## Requirements
