@@ -17,14 +17,15 @@ For every attack that Farever immediately submits as `Target(autoTarget)`, inclu
 1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/8)
 
 ### Manual Installation
+
 1. Install [HLX Core](https://www.nexusmods.com/site/mods/2118?tab=files) in the Farever game directory.
-2. Install the [Farever ImGui plugin](https://www.nexusmods.com/farever/mods/4) so `imgui64.hdll` is located at `Farever\hlx\plugins\imgui64.hdll`.
+2. Install [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings) to configure the mod in-game.
 3. Download the latest build artifact ZIP. Install it with Vortex, or extract it directly into the Farever game directory; the archive already contains `hlx\mods\fix-target-lock\fix-target-lock.hl`.
 4. Fully close and relaunch Farever.
 
 ## Usage
 
-The settings window opens automatically the first time the mod runs.
+Open **Mod Settings** from Farever's Game Menu to configure the mod.
 
 - **Enable** restores the target-lock feature. Disabling the mod clears the current lock and restores Farever's original feature flag.
 - **Auto-unlock when target dies** clears the lock as soon as the locked enemy is defeated or despawns. It is enabled by default.
@@ -48,11 +49,10 @@ Farever already stores the target on `Hero.lockedTarget`, feeds target-based ski
 
 ## Building (for developers)
 
-Requires Haxe 4.3.x, `hlx-runtime`, and `hl-imgui`.
+Requires Haxe 4.3.x and `hlx-runtime`.
 
 ```text
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 cd fix-target-lock
 haxe compile.hxml
 ```

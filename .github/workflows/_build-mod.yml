@@ -15,6 +15,10 @@ on:
         description: Human-readable mod name
         required: true
         type: string
+      imgui:
+        description: Whether this mod requires the Farever ImGui plugin
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -59,15 +63,19 @@ jobs:
           mkdir -p "$HOME/haxelib"
           haxelib setup "$HOME/haxelib"
 
-      - name: Install HLX dependencies
-        run: |
-          haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-          haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
+      - name: Install HLX runtime
+        run: haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+
+      - name: Install ImGui
+        if: inputs.imgui
+        run: haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 
       - name: Compile
         run: haxe compile.hxml
 
       - name: Package
+        env:
+          REQUIREMENTS: ${{ inputs.imgui && 'Requires HLX Core and the Farever ImGui plugin.' || 'Requires HLX Core.' }}
         run: |
           destination="package/hlx/mods/$MODULE"
           mkdir -p "$destination"
@@ -76,7 +84,7 @@ jobs:
             cp configFormats.json "$destination/"
           fi
           printf '%s\n' \
-            'Requires HLX Core and the Farever ImGui plugin.' \
+            "$REQUIREMENTS" \
             'Install with Vortex, or extract the archive into the Farever game folder.' \
             > "$destination/README.txt"
 

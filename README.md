@@ -19,8 +19,11 @@ Download the ZIP for the mod you want. Install it with Vortex, or extract it int
 the Farever game directory. Each archive contains just that mod under
 `hlx/mods/`. Installation requirements and Nexus Mods links are in each project's
 README. Installed mod folders are unchanged.
+
+All mods require HLX Core. Only Item Utilities also requires the
+[Farever ImGui plugin](https://www.nexusmods.com/farever/mods/4), which draws its
+deposit buttons, equipment presets, and item-lock controls and icons.
 DPS Meter handles log uploads inside the HLX mod and uses native game UI.
-It requires HLX Core without the ImGui plugin or an external uploader.
 
 ## Settings
 
@@ -43,6 +46,11 @@ Use Haxe 4.3.7 and install the same dependencies used by CI:
 
 ```sh
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+```
+
+Only Item Utilities needs the additional ImGui library:
+
+```sh
 haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 ```
 

@@ -5,7 +5,7 @@ import dpsmeter.CombatModel;
 import dpsmeter.GameAccess as G;
 import dpsmeter.NativeUi.*;
 
-/** Native DOMKit components and game fonts; no ImGui or external overlay window. */
+/** Native DOMKit components and game fonts. */
 class NativeMeterWindow {
     static inline var HIDE_FADE_SECONDS:Float = 0.4;
     public static var constructing:Bool = false;

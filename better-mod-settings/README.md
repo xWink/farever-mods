@@ -147,7 +147,7 @@ Build against a current [HLX runtime](https://github.com/hlx-framework/hlx-core)
 
 ## Building
 
-Requires [HLX Core](https://github.com/hlx-framework/hlx-core) and the Farever `hl-imgui` library.
+Requires Haxe 4.3.7 and the [HLX runtime](https://github.com/hlx-framework/hlx-core).
 
 ```sh
 cd better-mod-settings

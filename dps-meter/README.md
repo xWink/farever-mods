@@ -22,7 +22,7 @@ uploads to [Farever Logs](https://fareverlogs.fr/).
 
 All mod files are contained in `hlx/mods/dps-meter/`. Upload settings
 (`uploader.ini`), upload history (`uploader.log`), and queued reports (`logs/`)
-also live in this folder. ImGui and an external uploader are not required.
+also live in this folder. An external uploader is not required.
 
 Use DPS Meter in place of the original Group DPS `dinput8.dll` collector to avoid
 running two collectors that export the same encounters. Keep DLLs belonging to
