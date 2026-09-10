@@ -36,6 +36,7 @@ private typedef TrackedInventorySlot = {
     var index:Int;
     var slot:Dynamic;
     var listIndex:Int;
+    var overlayId:String;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -151,6 +152,7 @@ class ItemUtilitiesMod {
     static var playerInventoryComp:Dynamic;
     static var visibleSlots:Array<TrackedInventorySlot> = [];
     static var slotsByObject:ObjectMap<Dynamic, TrackedInventorySlot> = new ObjectMap();
+    static var nextSlotOverlayId:Int = 0;
     static var lockEditMode:Bool = false;
     static var lockRecords:Array<Dynamic> = [];
     static var fingerprintCache:Map<String, String> = new Map();
@@ -1100,6 +1102,7 @@ class ItemUtilitiesMod {
     }
 
     static function drawLockSlotOverlays():Void {
+        var viewport = inventoryViewportBounds();
         for (entry in visibleSlots) {
             var slot:Dynamic = entry.slot;
             if (!isActiveLockSlot(entry, slot))
@@ -1117,23 +1120,40 @@ class ItemUtilitiesMod {
                 y = cast HlxRuntime.resolveField(slot, "absY");
             } catch (_:Dynamic) continue;
 
-            if (buttonCovered(x, y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE))
+            var right = x + INVENTORY_SLOT_SIZE;
+            var bottom = y + INVENTORY_SLOT_SIZE;
+            if (entry.inventory == sourceInventory) {
+                if (viewport == null)
+                    continue;
+                // Clip the input window itself, not just its drawing, so hidden
+                // rows cannot intercept clicks on the header or outside the bag.
+                x = Math.max(x, viewport.left);
+                y = Math.max(y, viewport.top);
+                right = Math.min(right, viewport.right);
+                bottom = Math.min(bottom, viewport.bottom);
+            }
+            var width = right - x;
+            var height = bottom - y;
+            if (width <= 0 || height <= 0 || buttonCovered(x, y, width, height))
                 continue;
 
             ImGui.setNextWindowPos(new ImVec2(x, y));
+            ImGui.setNextWindowSize(new ImVec2(width, height));
             ImGui.setNextWindowBgAlpha(0);
             var flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove
                 | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoFocusOnAppearing
                 | ImGuiWindowFlags.NoBackground;
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, new ImVec2(0, 0));
-            if (ImGui.begin("##item-lock-slot-" + entry.index, null, flags)) {
-                if (ImGui.invisibleButton("##toggle", new ImVec2(INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE)))
+            // Partial rows may be smaller than ImGui's default minimum window.
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, new ImVec2(1, 1));
+            if (ImGui.begin(entry.overlayId, null, flags)) {
+                if (ImGui.invisibleButton("##toggle", new ImVec2(width, height)))
                     toggleItemLock(item);
                 if (ImGui.isItemHovered())
                     setGameButtonCursor();
             }
             ImGui.end();
-            ImGui.popStyleVar();
+            ImGui.popStyleVar(2);
         }
     }
 
@@ -2068,7 +2088,15 @@ class ItemUtilitiesMod {
             entry.index = index;
             return;
         }
-        entry = { inventory: inventory, index: index, slot: slot, listIndex: visibleSlots.length };
+        // Inventory and equipment reuse slot indexes. ImGui needs a distinct,
+        // stable window ID for each UI slot, even when the tracked list moves it.
+        entry = {
+            inventory: inventory,
+            index: index,
+            slot: slot,
+            listIndex: visibleSlots.length,
+            overlayId: "##item-lock-slot-" + nextSlotOverlayId++
+        };
         slotsByObject.set(slot, entry);
         visibleSlots.push(entry);
     }
