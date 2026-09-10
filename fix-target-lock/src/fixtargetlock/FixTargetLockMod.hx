@@ -60,21 +60,10 @@ class FixTargetLockMod {
     static var lastAppliedTargetLock:Null<Bool>;
     static var cameraUpdateTargetLock:Null<Bool>;
     static var lastStatus:String = "Waiting for Farever";
-    static inline var QUICK_CAST_DIAGNOSTIC_BUILD = "qc-diag-1";
-    static inline var QUICK_CAST_DIAGNOSTIC_LIMIT = 60;
-    static var quickCastDiagnosticLines:Int = 0;
-    static var quickCastDiagnosticAttempts:Int = 0;
-    static var quickCastDiagnosticStage:String = "startup";
-    static var quickCastTraceSteps:Bool = false;
-    static var quickCastTraceFirstPoll:Bool = false;
-    static var quickCastTraceConfirmation:Bool = false;
-    static var quickCastDiagnosticErrorReported:Bool = false;
 
     static function main():Void {
-        quickCastLog("loaded");
         if (ConfigMigration.importLegacy()) loadConfig();
         config.save();
-        quickCastLog("settings: enabled=" + config.enabled + ", quickCast=" + config.quickCast);
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
             onBetterModSettingsChanged
@@ -224,51 +213,20 @@ class FixTargetLockMod {
         }
     }
 
-    @:hlx.prefix(client.UnitController.startTargetMode)
-    static function beforeStartTargetMode(instance:Dynamic, skill:Dynamic, callback:Dynamic,
-        input:Dynamic):HlxPrefixControl {
-        quickCastDiagnosticAttempts++;
-        if (quickCastDiagnosticAttempts <= 3)
-            quickCastLog("aim " + quickCastDiagnosticAttempts + ": startTargetMode prefix reached");
-        return Continue;
-    }
-
     @:hlx.postfix(client.UnitController.startTargetMode)
     static function afterStartTargetMode(instance:Dynamic, skill:Dynamic, callback:Dynamic,
         input:Dynamic, result:Dynamic):Void {
-        quickCastTraceSteps = quickCastDiagnosticAttempts <= 3;
         try {
-            quickCastStage("startTargetMode postfix reached; reading enabled");
-            var enabled = config.enabled;
-            quickCastStage("enabled=" + enabled + "; reading quickCast");
-            var quickCast = config.quickCast;
-            quickCastStage("quickCast=" + quickCast + "; comparing controller");
-            var localController = instance == lastController;
-            quickCastStage("local controller=" + localController);
-            if (enabled && quickCast && localController && input != null) {
-                // Accept the hook argument dynamically so diagnostics can run before
-                // any cross-module String conversion. Never stringify game objects.
-                quickCastStage("checking input type");
+            if (config.enabled && config.quickCast && instance == lastController && input != null) {
+                // Keep hook arguments dynamic and convert the input inside the hook.
                 if (Std.isOfType(input, String)) {
                     var key:String = cast input;
-                    quickCastStage("input=" + key + "; creating aiming state");
-                    var aim:GroundAimInput = { controller: instance, key: key, released: false };
-                    quickCastStage("aiming state created; storing state");
-                    activeGroundAim = aim;
-                    quickCastTraceFirstPoll = quickCastDiagnosticAttempts <= 3;
-                    quickCastTraceConfirmation = quickCastTraceFirstPoll;
-                    quickCastStage("aiming state armed");
-                } else {
-                    quickCastStage("input is not a String; type=" + Type.enumConstructor(Type.typeof(input)));
+                    activeGroundAim = { controller: instance, key: key, released: false };
                 }
-            } else {
-                quickCastStage("setup skipped; null input=" + (input == null));
             }
-        } catch (error:Dynamic) {
+        } catch (_:Dynamic) {
             activeGroundAim = null;
-            quickCastError(error);
         }
-        quickCastTraceSteps = false;
     }
 
     @:hlx.prefix(client.UnitController.update)
@@ -289,11 +247,8 @@ class FixTargetLockMod {
     @:hlx.postfix(client.UnitController.setJob)
     static function afterControllerJobChanged(instance:Dynamic, job:Dynamic, update:Dynamic,
         onStop:Dynamic, result:Dynamic):Dynamic {
-        if (activeGroundAim != null && activeGroundAim.controller == instance) {
-            if (quickCastDiagnosticAttempts <= 3)
-                quickCastLog("aim ended: controller job changed");
+        if (activeGroundAim != null && activeGroundAim.controller == instance)
             activeGroundAim = null;
-        }
         return result;
     }
 
@@ -308,41 +263,26 @@ class FixTargetLockMod {
         if (activeGroundAim != null && activeGroundAim.controller == updatingController
             && input == activeGroundAim.key) {
             updateGroundAimRelease();
-            if (activeGroundAim != null) {
-                if (quickCastTraceConfirmation) {
-                    quickCastLog("native confirmation query reached; released=" + activeGroundAim.released);
-                    quickCastTraceConfirmation = false;
-                }
+            if (activeGroundAim != null)
                 return SkipWith(activeGroundAim.released);
-            }
         }
         return Continue;
     }
 
     static function updateGroundAimRelease():Void {
-        quickCastTraceSteps = quickCastTraceFirstPoll;
-        quickCastTraceFirstPoll = false;
         try {
-            quickCastStage("release poll: checking settings and controller");
             if (!config.enabled || !config.quickCast || activeGroundAim.controller != lastController) {
                 activeGroundAim = null;
             } else {
-                quickCastStage("release poll: resolving input method");
                 if (!resolveGroundAimInput() || !aimInputActive()) {
                     activeGroundAim.released = false;
-                    quickCastStage("release poll paused: input unavailable or inactive");
                 } else if (!activeGroundAim.released) {
-                    var released = readAimInput(isReleasedMember, activeGroundAim.key);
-                    activeGroundAim.released = released;
-                    if (released && quickCastDiagnosticAttempts <= 3)
-                        quickCastLog("release detected for " + activeGroundAim.key);
+                    activeGroundAim.released = readAimInput(isReleasedMember, activeGroundAim.key);
                 }
             }
-        } catch (error:Dynamic) {
+        } catch (_:Dynamic) {
             activeGroundAim = null;
-            quickCastError(error);
         }
-        quickCastTraceSteps = false;
     }
 
     static function resolveGroundAimInput():Bool {
@@ -356,55 +296,24 @@ class FixTargetLockMod {
     }
 
     static function aimInputActive():Bool {
-        quickCastStage("reading Input.checkActive");
         var checkActive:Dynamic = HlxRuntime.resolveStaticField(inputType, "checkActive");
-        quickCastStage("calling Input.checkActive");
         return checkActive != null && Reflect.callMethod(null, checkActive, [null]) == true;
     }
 
     static function readAimInput(member:hlx.runtime.ResolvedMember, input:String):Bool {
         // Target mode blocks ordinary skill inputs. Match the native
         // isPressedWithoutMode query while retaining binding and focus handling.
-        quickCastStage("reading input mode flag");
         var previous:Dynamic = HlxRuntime.resolveStaticField(inputType, "_noCheckMode");
-        quickCastStage("setting input mode flag");
         HlxRuntime.setStaticField(inputType, "_noCheckMode", true);
         var result:Dynamic;
         try {
-            quickCastStage("calling Input.isReleased");
             result = HlxRuntime.callResolved(member, [input]);
         } catch (error:Dynamic) {
             HlxRuntime.setStaticField(inputType, "_noCheckMode", previous);
             throw error;
         }
-        quickCastStage("restoring input mode flag");
         HlxRuntime.setStaticField(inputType, "_noCheckMode", previous);
         return result == true;
-    }
-
-    static inline function quickCastStage(stage:String):Void {
-        quickCastDiagnosticStage = stage;
-        if (quickCastTraceSteps)
-            quickCastLog(stage);
-    }
-
-    static function quickCastError(error:Dynamic):Void {
-        // Contain repeated failures inside the mod instead of generating a
-        // Dispatcher error on every aiming update. The first failure identifies the stage.
-        if (quickCastDiagnosticErrorReported)
-            return;
-        quickCastDiagnosticErrorReported = true;
-        quickCastLog("ERROR at " + quickCastDiagnosticStage + ": " + Std.string(error));
-    }
-
-    static function quickCastLog(message:String):Void {
-        if (quickCastDiagnosticLines >= QUICK_CAST_DIAGNOSTIC_LIMIT)
-            return;
-        quickCastDiagnosticLines++;
-        if (quickCastDiagnosticLines == QUICK_CAST_DIAGNOSTIC_LIMIT)
-            trace("[QuickCast " + QUICK_CAST_DIAGNOSTIC_BUILD + "] diagnostic limit reached; further messages suppressed");
-        else
-            trace("[QuickCast " + QUICK_CAST_DIAGNOSTIC_BUILD + "] " + message);
     }
 
     static function resolveDeathCheckMembers():Bool {
@@ -550,7 +459,6 @@ class FixTargetLockMod {
     static function onBetterModSettingsChanged(_:Dynamic):Void {
         var wasEnabled = config.enabled;
         loadConfig();
-        quickCastLog("settings changed: enabled=" + config.enabled + ", quickCast=" + config.quickCast);
         if (wasEnabled && !config.enabled)
             disableAndUnlock();
         else if (!wasEnabled && config.enabled) {
