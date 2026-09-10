@@ -21,6 +21,11 @@
       "key": "disableCameraMovement",
       "type": "checkbox",
       "label": "Disable automatic camera movement"
+    },
+    {
+      "key": "holdToCast",
+      "type": "checkbox",
+      "label": "Hold to aim, release to cast"
     }
   ]
 }

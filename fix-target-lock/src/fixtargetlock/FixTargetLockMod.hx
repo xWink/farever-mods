@@ -4,12 +4,19 @@ import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import modconfig.ConfigMigration;
 import hlx.runtime.HlxPrefixControl;
+import hlx.runtime.HlxPrefixResult;
 
 typedef TargetLockConfig = {
     var enabled:Bool;
     var autoUnlockOnDeath:Bool;
     var quickSwapTarget:Bool;
     var disableCameraMovement:Bool;
+    var holdToCast:Bool;
+}
+
+private typedef GroundAimInput = {
+    var key:String;
+    var released:Bool;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -19,7 +26,8 @@ class FixTargetLockMod {
         enabled: true,
         autoUnlockOnDeath: true,
         quickSwapTarget: false,
-        disableCameraMovement: false
+        disableCameraMovement: false,
+        holdToCast: false
     };
 
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
@@ -43,6 +51,9 @@ class FixTargetLockMod {
     static var lockTargetMember:hlx.runtime.ResolvedMember;
     static var getStepByTypeMember:hlx.runtime.ResolvedMember;
     static var allowAimingMember:hlx.runtime.ResolvedMember;
+    static var isDownMember:hlx.runtime.ResolvedMember;
+    static var isReleasedMember:hlx.runtime.ResolvedMember;
+    static var activeGroundAim:GroundAimInput;
     static var lastController:Dynamic;
     static var originalTargetLock:Null<Bool>;
     static var lastAppliedTargetLock:Null<Bool>;
@@ -199,6 +210,85 @@ class FixTargetLockMod {
             trace("[FixTargetLock] strict target fallback: " + Std.string(e));
             return Continue;
         }
+    }
+
+    @:hlx.postfix(client.UnitController.startTargetMode)
+    static function afterStartTargetMode(instance:Dynamic, skill:Dynamic, callback:Dynamic,
+        input:String, result:Void):Void {
+        if (!config.enabled || !config.holdToCast || instance != lastController || input == null)
+            return;
+        if (!resolveGroundAimInput())
+            return;
+
+        var released = readAimInput(isReleasedMember, input);
+        if (!released && !readAimInput(isDownMember, input))
+            return;
+        var nativeUpdate:Float->Void = cast HlxRuntime.resolveField(instance, "currentJobFunc");
+        if (nativeUpdate == null)
+            return;
+
+        var aim:GroundAimInput = { key: input, released: released };
+        HlxRuntime.setField(instance, "currentJobFunc", function(dt:Float):Void {
+            var previous = activeGroundAim;
+            activeGroundAim = null;
+            try {
+                if (config.enabled && config.holdToCast
+                    && aimInputActive()) {
+                    // Native aiming skips confirmation on its first frame.
+                    // Remember an early release until that confirmation runs.
+                    aim.released = aim.released || readAimInput(isReleasedMember, aim.key);
+                    activeGroundAim = aim;
+                } else {
+                    aim.released = false;
+                }
+                // Preserve positioning, indicator FX, cancellation, and cast submission.
+                nativeUpdate(dt);
+            } catch (error:Dynamic) {
+                activeGroundAim = previous;
+                throw error;
+            }
+            activeGroundAim = previous;
+        });
+    }
+
+    @:hlx.prefix(lib.Input.isPressedWithoutMode)
+    static function confirmGroundAimOnRelease(input:String):HlxPrefixResult<Bool> {
+        if (activeGroundAim != null && input == activeGroundAim.key)
+            return SkipWith(activeGroundAim.released);
+        return Continue;
+    }
+
+    static function resolveGroundAimInput():Bool {
+        if (inputType == null)
+            inputType = HlxRuntime.resolveType("lib.Input");
+        if (inputType == null)
+            return false;
+        if (isDownMember == null)
+            isDownMember = HlxRuntime.resolveStaticMember(inputType, "isDown");
+        if (isReleasedMember == null)
+            isReleasedMember = HlxRuntime.resolveStaticMember(inputType, "isReleased");
+        return isDownMember != null && isReleasedMember != null;
+    }
+
+    static function aimInputActive():Bool {
+        var checkActive:hl.Ref<Bool>->Bool = cast HlxRuntime.resolveStaticField(inputType, "checkActive");
+        return checkActive != null && checkActive(null);
+    }
+
+    static function readAimInput(member:hlx.runtime.ResolvedMember, input:String):Bool {
+        // Target mode blocks ordinary skill inputs. Match the native
+        // isPressedWithoutMode query while retaining binding and focus handling.
+        var previous:Dynamic = HlxRuntime.resolveStaticField(inputType, "_noCheckMode");
+        HlxRuntime.setStaticField(inputType, "_noCheckMode", true);
+        var result:Dynamic;
+        try {
+            result = HlxRuntime.callResolved(member, [input]);
+        } catch (error:Dynamic) {
+            HlxRuntime.setStaticField(inputType, "_noCheckMode", previous);
+            throw error;
+        }
+        HlxRuntime.setStaticField(inputType, "_noCheckMode", previous);
+        return result == true;
     }
 
     static function resolveDeathCheckMembers():Bool {
