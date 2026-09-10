@@ -11,7 +11,7 @@ typedef TargetLockConfig = {
     var autoUnlockOnDeath:Bool;
     var quickSwapTarget:Bool;
     var disableCameraMovement:Bool;
-    var holdToCast:Bool;
+    var quickCast:Bool;
 }
 
 private typedef GroundAimInput = {
@@ -27,7 +27,7 @@ class FixTargetLockMod {
         autoUnlockOnDeath: true,
         quickSwapTarget: false,
         disableCameraMovement: false,
-        holdToCast: false
+        quickCast: false
     };
 
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
@@ -62,6 +62,10 @@ class FixTargetLockMod {
 
     static function main():Void {
         if (ConfigMigration.importLegacy()) loadConfig();
+        // Preserve the preference from builds using the original setting name.
+        var previous = ModConfig.load(HlxRuntime.moduleName(), { quickCast: (null:Null<Bool>), holdToCast: false });
+        if (previous.quickCast == null && previous.holdToCast)
+            config.quickCast = true;
         config.save();
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
@@ -215,7 +219,7 @@ class FixTargetLockMod {
     @:hlx.postfix(client.UnitController.startTargetMode)
     static function afterStartTargetMode(instance:Dynamic, skill:Dynamic, callback:Dynamic,
         input:String, result:Void):Void {
-        if (!config.enabled || !config.holdToCast || instance != lastController || input == null)
+        if (!config.enabled || !config.quickCast || instance != lastController || input == null)
             return;
         if (!resolveGroundAimInput())
             return;
@@ -232,7 +236,7 @@ class FixTargetLockMod {
             var previous = activeGroundAim;
             activeGroundAim = null;
             try {
-                if (config.enabled && config.holdToCast
+                if (config.enabled && config.quickCast
                     && aimInputActive()) {
                     // Native aiming skips confirmation on its first frame.
                     // Remember an early release until that confirmation runs.

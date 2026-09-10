@@ -23,9 +23,9 @@
       "label": "Disable automatic camera movement"
     },
     {
-      "key": "holdToCast",
+      "key": "quickCast",
       "type": "checkbox",
-      "label": "Hold to aim, release to cast"
+      "label": "Enable quick cast"
     }
   ]
 }
