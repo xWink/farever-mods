@@ -62,10 +62,6 @@ class FixTargetLockMod {
 
     static function main():Void {
         if (ConfigMigration.importLegacy()) loadConfig();
-        // Preserve the preference from builds using the original setting name.
-        var previous = ModConfig.load(HlxRuntime.moduleName(), { quickCast: (null:Null<Bool>), holdToCast: false });
-        if (previous.quickCast == null && previous.holdToCast)
-            config.quickCast = true;
         config.save();
         Bus.subscribe(
             SETTINGS_CHANGED_TOPIC_PREFIX + HlxRuntime.moduleName(),
