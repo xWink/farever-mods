@@ -15,6 +15,7 @@ typedef TargetLockConfig = {
 }
 
 private typedef GroundAimInput = {
+    var controller:Dynamic;
     var key:String;
     var released:Bool;
 }
@@ -51,9 +52,9 @@ class FixTargetLockMod {
     static var lockTargetMember:hlx.runtime.ResolvedMember;
     static var getStepByTypeMember:hlx.runtime.ResolvedMember;
     static var allowAimingMember:hlx.runtime.ResolvedMember;
-    static var isDownMember:hlx.runtime.ResolvedMember;
     static var isReleasedMember:hlx.runtime.ResolvedMember;
     static var activeGroundAim:GroundAimInput;
+    static var updatingController:Dynamic;
     static var lastController:Dynamic;
     static var originalTargetLock:Null<Bool>;
     static var lastAppliedTargetLock:Null<Bool>;
@@ -217,45 +218,61 @@ class FixTargetLockMod {
         input:String, result:Void):Void {
         if (!config.enabled || !config.quickCast || instance != lastController || input == null)
             return;
-        if (!resolveGroundAimInput())
-            return;
+        // Keep the game's aiming callback intact; only remember its initiating input.
+        activeGroundAim = { controller: instance, key: input, released: false };
+    }
 
-        var released = readAimInput(isReleasedMember, input);
-        if (!released && !readAimInput(isDownMember, input))
-            return;
-        var nativeUpdate:Float->Void = cast HlxRuntime.resolveField(instance, "currentJobFunc");
-        if (nativeUpdate == null)
-            return;
+    @:hlx.prefix(client.UnitController.update)
+    static function beforeControllerUpdate(instance:Dynamic, dt:Float):HlxPrefixControl {
+        updatingController = instance;
+        return Continue;
+    }
 
-        var aim:GroundAimInput = { key: input, released: released };
-        HlxRuntime.setField(instance, "currentJobFunc", function(dt:Float):Void {
-            var previous = activeGroundAim;
+    @:hlx.postfix(client.UnitController.update)
+    static function afterControllerUpdate(instance:Dynamic, dt:Float, result:Void):Void {
+        updatingController = null;
+        // Native aiming skips confirmation on its first frame. Capture a quick
+        // tap's release here so the following aiming update can still confirm it.
+        if (activeGroundAim != null && activeGroundAim.controller == instance)
+            updateGroundAimRelease();
+    }
+
+    @:hlx.postfix(client.UnitController.setJob)
+    static function afterControllerJobChanged(instance:Dynamic, job:Dynamic, update:Dynamic,
+        onStop:Dynamic, result:Dynamic):Dynamic {
+        if (activeGroundAim != null && activeGroundAim.controller == instance)
             activeGroundAim = null;
-            try {
-                if (config.enabled && config.quickCast
-                    && aimInputActive()) {
-                    // Native aiming skips confirmation on its first frame.
-                    // Remember an early release until that confirmation runs.
-                    aim.released = aim.released || readAimInput(isReleasedMember, aim.key);
-                    activeGroundAim = aim;
-                } else {
-                    aim.released = false;
-                }
-                // Preserve positioning, indicator FX, cancellation, and cast submission.
-                nativeUpdate(dt);
-            } catch (error:Dynamic) {
-                activeGroundAim = previous;
-                throw error;
-            }
-            activeGroundAim = previous;
-        });
+        return result;
+    }
+
+    @:hlx.postfix(client.UnitController.onEnd)
+    static function afterControllerEnd(instance:Dynamic, result:Void):Void {
+        if (activeGroundAim != null && activeGroundAim.controller == instance)
+            activeGroundAim = null;
     }
 
     @:hlx.prefix(lib.Input.isPressedWithoutMode)
     static function confirmGroundAimOnRelease(input:String):HlxPrefixResult<Bool> {
-        if (activeGroundAim != null && input == activeGroundAim.key)
-            return SkipWith(activeGroundAim.released);
+        if (activeGroundAim != null && activeGroundAim.controller == updatingController
+            && input == activeGroundAim.key) {
+            updateGroundAimRelease();
+            if (activeGroundAim != null)
+                return SkipWith(activeGroundAim.released);
+        }
         return Continue;
+    }
+
+    static function updateGroundAimRelease():Void {
+        if (!config.enabled || !config.quickCast || activeGroundAim.controller != lastController) {
+            activeGroundAim = null;
+            return;
+        }
+        if (!resolveGroundAimInput() || !aimInputActive()) {
+            activeGroundAim.released = false;
+            return;
+        }
+        activeGroundAim.released = activeGroundAim.released
+            || readAimInput(isReleasedMember, activeGroundAim.key);
     }
 
     static function resolveGroundAimInput():Bool {
@@ -263,16 +280,14 @@ class FixTargetLockMod {
             inputType = HlxRuntime.resolveType("lib.Input");
         if (inputType == null)
             return false;
-        if (isDownMember == null)
-            isDownMember = HlxRuntime.resolveStaticMember(inputType, "isDown");
         if (isReleasedMember == null)
             isReleasedMember = HlxRuntime.resolveStaticMember(inputType, "isReleased");
-        return isDownMember != null && isReleasedMember != null;
+        return isReleasedMember != null;
     }
 
     static function aimInputActive():Bool {
-        var checkActive:hl.Ref<Bool>->Bool = cast HlxRuntime.resolveStaticField(inputType, "checkActive");
-        return checkActive != null && checkActive(null);
+        var checkActive:Dynamic = HlxRuntime.resolveStaticField(inputType, "checkActive");
+        return checkActive != null && Reflect.callMethod(null, checkActive, [null]) == true;
     }
 
     static function readAimInput(member:hlx.runtime.ResolvedMember, input:String):Bool {
