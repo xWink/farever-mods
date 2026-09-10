@@ -1,6 +1,7 @@
 package itemutilities;
 
 import haxe.Json;
+import haxe.ds.ObjectMap;
 import imgui.ImGui;
 import imgui.Structs.ImVec2;
 import imgui.Structs.ImVec4;
@@ -28,6 +29,13 @@ typedef ItemUtilitiesConfig = {
     var weaponPresets:Array<Dynamic>;
     var selectedWeaponPresets:Array<Dynamic>;
     var lockedItems:Array<Dynamic>;
+}
+
+private typedef TrackedInventorySlot = {
+    var inventory:Dynamic;
+    var index:Int;
+    var slot:Dynamic;
+    var listIndex:Int;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -141,7 +149,8 @@ class ItemUtilitiesMod {
     // the one newly-created item with the same immutable fingerprint.
     static var inventoryComps:Array<Dynamic> = [];
     static var playerInventoryComp:Dynamic;
-    static var visibleSlots:Array<Dynamic> = [];
+    static var visibleSlots:Array<TrackedInventorySlot> = [];
+    static var slotsByObject:ObjectMap<Dynamic, TrackedInventorySlot> = new ObjectMap();
     static var lockEditMode:Bool = false;
     static var lockRecords:Array<Dynamic> = [];
     static var fingerprintCache:Map<String, String> = new Map();
@@ -286,6 +295,12 @@ class ItemUtilitiesMod {
     static function afterInventorySlotChanged(instance:Dynamic, force:hl.Ref<Bool>, result:Bool):Bool {
         registerSlot(instance);
         return result;
+    }
+
+    @:hlx.postfix(ui.BaseElement.onRemove)
+    static function afterSlotElementRemoved(instance:Dynamic, result:Void):Void {
+        // This also runs for slots inside removed windows and tooltips.
+        unregisterSlot(instance);
     }
 
     @:hlx.prefix(ui.BaseUI.setTip)
@@ -2033,23 +2048,42 @@ class ItemUtilitiesMod {
     }
 
     static function registerSlot(slot:Dynamic):Void {
+        // Initialization and item checks can run while a slot is detached.
+        // Its next attached update registers it again, even with the same item.
+        if (fieldOrNull(slot, "allocated") != true) {
+            unregisterSlot(slot);
+            return;
+        }
         var inventory = fieldOrNull(slot, "inventory");
         var rawIndex = fieldOrNull(slot, "index");
-        if (inventory == null || rawIndex == null)
+        if (inventory == null || rawIndex == null) {
+            unregisterSlot(slot);
             return;
-        var index:Int = cast rawIndex;
-        for (entry in visibleSlots) {
-            // InventorySlot instances are also created for item tooltips and
-            // equipment previews. Track each concrete UI object separately:
-            // keying by inventory/index lets a hover-created slot replace the
-            // real grid slot and leaves its badge at the tooltip's coordinates.
-            if (entry.slot == slot) {
-                entry.inventory = inventory;
-                entry.index = index;
-                return;
-            }
         }
-        visibleSlots.push({ inventory: inventory, index: index, slot: slot });
+        var index:Int = cast rawIndex;
+        // Key by the UI object so tooltip previews cannot replace grid slots.
+        var entry = slotsByObject.get(slot);
+        if (entry != null) {
+            entry.inventory = inventory;
+            entry.index = index;
+            return;
+        }
+        entry = { inventory: inventory, index: index, slot: slot, listIndex: visibleSlots.length };
+        slotsByObject.set(slot, entry);
+        visibleSlots.push(entry);
+    }
+
+    static function unregisterSlot(slot:Dynamic):Void {
+        var entry = slotsByObject.get(slot);
+        if (entry == null)
+            return;
+        slotsByObject.remove(slot);
+        // Fill the gap with the last entry, avoiding another list search or shift.
+        var last = visibleSlots.pop();
+        if (entry.listIndex < visibleSlots.length) {
+            visibleSlots[entry.listIndex] = last;
+            last.listIndex = entry.listIndex;
+        }
     }
 
     static function buttonCovered(x:Float, y:Float, width:Float, height:Float):Bool {
