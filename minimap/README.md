@@ -35,7 +35,7 @@ A compact overworld minimap with a centered player arrow.
 - Yellow rings highlight sparkling enemies and bosses.
 - Individual plant and ore filters.
 - Hover over markers to see their names below the map; scroll over the map to zoom.
-- Up/down arrows show markers more than 5 metres above or below you.
+- Up/down arrows show markers more than 15 metres above or below you.
 - Sits behind menus and tooltips without intercepting clicks.
 
 The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, gatherable, and chest markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn. Opened or inactive chests are hidden; secret orbs disappear once recorded as discovered by the game.
@@ -48,7 +48,9 @@ Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160
 
 Scroll up over the minimap to zoom in and down to zoom out, in 10% steps. The zoom is saved to the same setting. Hovering over a marker displays its name centered below the minimap, including when the map rotates or uses a circular shape.
 
-A small ivory arrow beside a marker points up when it is more than 5 metres above you, or down when it is more than 5 metres below. Markers within 5 metres of your height have no elevation arrow. This applies to every marker type and sparkling-companion edge alerts. Elevation arrows keep a fixed size and screen-up/down orientation as the map zooms or rotates.
+A small ivory arrow tucked beside a marker points up when it is more than 15 metres above you, or down when it is more than 15 metres below. Markers within 15 metres of your height have no elevation arrow. This applies to every marker type and sparkling-companion edge alerts. Elevation arrows keep a fixed size and screen-up/down orientation as the map zooms or rotates.
+
+Marker icons stay upright as the minimap rotates. Player arrows still show facing direction relative to the map, and sparkling-companion alerts point toward their targets.
 
 **Rotate minimap** keeps your arrow facing up as the terrain rotates around you. Enable **Follow camera** as well to put your camera's viewing direction at the top instead; your arrow then shows your character's facing direction relative to the camera. **Circular minimap** changes the shape, and **Show in left corner** switches to the upper-left. These options default off.
 

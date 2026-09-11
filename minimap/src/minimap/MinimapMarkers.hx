@@ -22,11 +22,19 @@ private typedef ElevationMarker = {
     var arrow:Dynamic;
 }
 
+private typedef IconMarker = {
+    var icon:Dynamic;
+    var key:String;
+    var directional:Bool;
+}
+
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
     var graphics:Dynamic;
-    var mapGraphics:Dynamic;
-    var npcGraphics:Dynamic;
+    var mapIcons:Dynamic;
+    var npcIcons:Dynamic;
+    var mapIconMarkers:Array<IconMarker> = [];
+    var npcIconMarkers:Array<IconMarker> = [];
     var mapElevations:Dynamic;
     var npcElevations:Dynamic;
     var mapElevationMarkers:Array<ElevationMarker> = [];
@@ -65,8 +73,8 @@ class MinimapMarkers {
 
     public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String) {
         this.level = level;
-        mapGraphics = G.create("h2d.Graphics", [parent]);
-        npcGraphics = G.create("h2d.Graphics", [foreground]);
+        mapIcons = G.create("h2d.Object", [parent]);
+        npcIcons = G.create("h2d.Object", [foreground]);
         mapElevations = G.create("h2d.Object", [parent]);
         npcElevations = G.create("h2d.Object", [foreground]);
         alertLayer = G.create("h2d.Object", [overlay]);
@@ -75,6 +83,9 @@ class MinimapMarkers {
     public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float, rotation:Float):Void {
         if (mapRotation != rotation) {
             mapRotation = rotation;
+            for (marker in mapIconMarkers) if (!marker.directional)
+                G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
+            for (marker in npcIconMarkers) G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
             for (marker in mapElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in npcElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
         }
@@ -95,8 +106,8 @@ class MinimapMarkers {
             hitPoints = [];
             alertTargets = [];
             // An optional marker source must not take down the working map.
-            G.call("h2d.Graphics", "clear", mapGraphics);
-            G.call("h2d.Graphics", "clear", npcGraphics);
+            trimIcons(mapIconMarkers, 0);
+            trimIcons(npcIconMarkers, 0);
             trimElevations(mapElevationMarkers, 0);
             trimElevations(npcElevationMarkers, 0);
             nextRefresh = now + 5;
@@ -118,7 +129,7 @@ class MinimapMarkers {
             drawPlayerArrow(arrow, 8, 0xffdc42);
             alertArrows.push(arrow);
             var elevation = G.create("h2d.Graphics", [alertLayer]);
-            drawPlayerArrow(elevation, 4, 0xfff3d6);
+            drawPlayerArrow(elevation, 3, 0xfff3d6);
             alertElevations.push(elevation);
         }
         alertPositions = [];
@@ -147,7 +158,7 @@ class MinimapMarkers {
             if (direction != 0) {
                 // Place height cues inward from the edge, keeping both map shapes clipped cleanly.
                 var distance = Math.sqrt(sx * sx + sy * sy);
-                var ex = px - sx * 14 / distance, ey = py - sy * 14 / distance;
+                var ex = px - sx * 10 / distance, ey = py - sy * 10 / distance;
                 G.call("h2d.Object", "setPosition", elevation, [ex, ey]);
                 G.call("h2d.Object", "set_rotation", elevation, [-direction * Math.PI / 2]);
                 alertPositions.push({x: ex, y: ey, point: point});
@@ -524,18 +535,18 @@ class MinimapMarkers {
         var difference = z - heroZ;
         // Missing height data stays unknown rather than becoming sea level.
         if (!Math.isFinite(difference)) return 0;
-        return difference > 5 ? 1 : difference < -5 ? -1 : 0;
+        return difference > 15 ? 1 : difference < -15 ? -1 : 0;
     }
 
     static function elevationOffset(point:MapPoint):Float
-        return markerRadius(point.kind) + (point.sparkling == true ? 3.5 : 1) + 6;
+        return markerRadius(point.kind) + (point.sparkling == true ? 3.5 : 1) + 3;
 
     function updateElevations(points:Array<MapPoint>, pool:Array<ElevationMarker>, parent:Dynamic, scale:Float):Void {
         trimElevations(pool, points.length);
         while (pool.length < points.length) {
             var root = G.create("h2d.Object", [parent]);
             var arrow = G.create("h2d.Graphics", [root]);
-            drawPlayerArrow(arrow, 4, 0xfff3d6);
+            drawPlayerArrow(arrow, 3, 0xfff3d6);
             pool.push({root: root, arrow: arrow});
         }
         for (i in 0...points.length) {
@@ -629,88 +640,104 @@ class MinimapMarkers {
 
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
-        G.call("h2d.Graphics", "clear", mapGraphics);
-        G.call("h2d.Graphics", "clear", npcGraphics);
-        // Group fills to keep native calls and draw batches small. Markers use
-        // world positions, so the map can scroll/rotate smoothly between samples.
-        // Services and obelisks remain readable when players gather around them.
+        // Preserve marker priority, with services above other map content.
         for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
-            var group = [for (point in points) if (point.kind == kind) point];
-            if (group.length == 0) continue;
-            for (point in group) {
+            for (point in points) if (point.kind == kind) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
             }
-            graphics = isNpc(kind) ? npcGraphics : mapGraphics;
-            var color = switch kind {
-                case "plant": 0x77df81;
-                case "ore": 0xb7bcc7;
-                case "activity": 0x7f3e91;
-                case "chest": 0xffa044;
-                case "secretOrb": 0x8fd8ff;
-                case "enemy", "boss": 0xff6860;
-                case "companion": 0x77df81;
-                case "respawn": 0xffffff;
-                case "obelisk": 0xc599ff;
-                case "npc": 0xffdf78;
-                case "bank": 0xffdc42;
-                case "demon": 0xe8a1ff;
-                case "recycler": 0x86eed4;
-                case "upgrade": 0xb4dcff;
-                case "craft": 0xffc68a;
-                default: 0x70d8ff;
-            };
-            var service = isNpc(kind) && kind != "npc" || kind == "chest";
-            var resource = kind == "plant" || kind == "ore";
-            var radius = markerRadius(kind) / scale;
-            G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
-            for (point in group) {
-                if (kind == "companion" && point.sparkling == true)
-                    G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius + 3.5 / scale, 32]);
-                else shape(point, radius + (point.sparkling == true ? 3.5 : 1) / scale);
+        }
+        var mapPoints = [for (point in hitPoints) if (!isNpc(point.kind)) point];
+        var npcPoints = [for (point in hitPoints) if (isNpc(point.kind)) point];
+        updateIcons(mapPoints, mapIconMarkers, mapIcons, scale);
+        updateIcons(npcPoints, npcIconMarkers, npcIcons, scale);
+        updateElevations([for (point in mapPoints) if (point.elevation != 0) point],
+            mapElevationMarkers, mapElevations, scale);
+        updateElevations([for (point in npcPoints) if (point.elevation != 0) point],
+            npcElevationMarkers, npcElevations, scale);
+    }
+
+    function updateIcons(points:Array<MapPoint>, pool:Array<IconMarker>, parent:Dynamic, scale:Float):Void {
+        trimIcons(pool, points.length);
+        while (pool.length < points.length)
+            pool.push({icon: G.create("h2d.Graphics", [parent]), key: "", directional: false});
+        for (i in 0...points.length) {
+            var point = points[i], marker = pool[i];
+            var key = point.kind + (point.sparkling == true ? ":spark" : "");
+            // Draw in local pixels once per appearance, then reuse the geometry
+            // as the marker moves, zooms or counter-rotates with the map.
+            if (marker.key != key) {
+                graphics = marker.icon;
+                G.call("h2d.Graphics", "clear", graphics);
+                drawIcon({kind: point.kind, sparkling: point.sparkling, heading: 0, x: 0, y: 0, z: 0});
+                marker.key = key;
             }
+            marker.directional = point.kind == "player";
+            G.call("h2d.Object", "setPosition", marker.icon, [point.x, point.y]);
+            G.call("h2d.Object", "setScale", marker.icon, [1 / scale]);
+            G.call("h2d.Object", "set_rotation", marker.icon, [marker.directional ? point.heading : -mapRotation]);
+        }
+    }
+
+    function trimIcons(pool:Array<IconMarker>, count:Int):Void {
+        while (pool.length > count) G.call("h2d.Object", "remove", pool.pop().icon);
+    }
+
+    function drawIcon(point:MapPoint):Void {
+        var kind = point.kind;
+        var color = switch kind {
+            case "plant", "companion": 0x77df81;
+            case "ore": 0xb7bcc7;
+            case "activity": 0x7f3e91;
+            case "chest": 0xffa044;
+            case "secretOrb": 0x8fd8ff;
+            case "enemy", "boss": 0xff6860;
+            case "respawn": 0xffffff;
+            case "obelisk": 0xc599ff;
+            case "npc": 0xffdf78;
+            case "bank": 0xffdc42;
+            case "demon": 0xe8a1ff;
+            case "recycler": 0x86eed4;
+            case "upgrade": 0xb4dcff;
+            case "craft": 0xffc68a;
+            default: 0x70d8ff;
+        };
+        var sparkling = point.sparkling == true;
+        var radius = markerRadius(kind);
+        G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
+        if (kind == "companion" && sparkling)
+            G.call("h2d.Graphics", "drawCircle", graphics, [0.0, 0.0, radius + 3.5, 32]);
+        else shape(point, radius + (sparkling ? 3.5 : 1));
+        G.call("h2d.Graphics", "endFill", graphics);
+        if (sparkling && (kind == "enemy" || kind == "boss" || kind == "companion")) {
+            G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
+            if (kind == "companion")
+                G.call("h2d.Graphics", "drawCircle", graphics, [0.0, 0.0, radius + 2.5, 32]);
+            else shape(point, radius + 2.5);
             G.call("h2d.Graphics", "endFill", graphics);
-            if (kind == "enemy" || kind == "boss" || kind == "companion") {
-                G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
-                // Keep the center's size and add a 2.5-pixel yellow ring.
-                for (point in group) if (point.sparkling == true) {
-                    if (kind == "companion")
-                        G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius + 2.5 / scale, 32]);
-                    else shape(point, radius + 2.5 / scale);
-                }
-                G.call("h2d.Graphics", "endFill", graphics);
-            }
             if (kind == "companion") {
                 G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
-                for (point in group) if (point.sparkling == true)
-                    G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius, 32]);
-                G.call("h2d.Graphics", "endFill", graphics);
-            }
-            G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
-            for (point in group) shape(point, radius);
-            G.call("h2d.Graphics", "endFill", graphics);
-            if (kind == "activity") {
-                G.call("h2d.Graphics", "beginFill", graphics, [0xffffff, 1.0]);
-                // Four convex arms avoid concave-path clipping at map coordinates.
-                for (point in group) for (quarter in 0...4)
-                    polygon(point, radius, [0, 0, -0.25, -0.25, 0, -0.84, 0.25, -0.25], quarter * Math.PI / 2);
-                G.call("h2d.Graphics", "endFill", graphics);
-                G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
-                for (point in group) polygon(point, radius, [0, -0.19, 0.19, 0, 0, 0.19, -0.19, 0]);
-                G.call("h2d.Graphics", "endFill", graphics);
-            }
-            if (service || resource) {
-                G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
-                for (point in group) detail(point, radius);
+                G.call("h2d.Graphics", "drawCircle", graphics, [0.0, 0.0, radius, 32]);
                 G.call("h2d.Graphics", "endFill", graphics);
             }
         }
-        // The roots follow world positions; counter-rotation keeps the height
-        // arrows screen-up/down without rebuilding marker geometry each frame.
-        updateElevations([for (point in hitPoints) if (point.elevation != 0 && !isNpc(point.kind)) point],
-            mapElevationMarkers, mapElevations, scale);
-        updateElevations([for (point in hitPoints) if (point.elevation != 0 && isNpc(point.kind)) point],
-            npcElevationMarkers, npcElevations, scale);
+        G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
+        shape(point, radius);
+        G.call("h2d.Graphics", "endFill", graphics);
+        if (kind == "activity") {
+            G.call("h2d.Graphics", "beginFill", graphics, [0xffffff, 1.0]);
+            for (quarter in 0...4)
+                polygon(point, radius, [0, 0, -0.25, -0.25, 0, -0.84, 0.25, -0.25], quarter * Math.PI / 2);
+            G.call("h2d.Graphics", "endFill", graphics);
+            G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
+            polygon(point, radius, [0, -0.19, 0.19, 0, 0, 0.19, -0.19, 0]);
+            G.call("h2d.Graphics", "endFill", graphics);
+        }
+        if ((isNpc(kind) && kind != "npc") || kind == "chest" || kind == "plant" || kind == "ore") {
+            G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
+            detail(point, radius);
+            G.call("h2d.Graphics", "endFill", graphics);
+        }
     }
 
     function shape(point:MapPoint, r:Float):Void {
