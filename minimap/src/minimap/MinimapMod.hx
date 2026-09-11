@@ -24,6 +24,15 @@ typedef MinimapSettings = {
     var showNpcs:Bool;
     var showChests:Bool;
     var showSecretOrbs:Bool;
+    var showActivities:Bool;
+    var hideCopper:Bool;
+    var hideIron:Bool;
+    var hideTin:Bool;
+    var hideTungstene:Bool;
+    var hideMadrigold:Bool;
+    var hideLavendula:Bool;
+    var hideAncientThyme:Bool;
+    var hideZealotus:Bool;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -35,7 +44,9 @@ class MinimapMod {
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         showIncompleteCodexEnemies: true, showCompletedCodexEnemies: true,
         showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true,
-        showChests: true, showSecretOrbs: true
+        showChests: true, showSecretOrbs: true, showActivities: true,
+        hideCopper: false, hideIron: false, hideTin: false, hideTungstene: false,
+        hideMadrigold: false, hideLavendula: false, hideAncientThyme: false, hideZealotus: false
     };
     static var view:MinimapView;
     static var retryAt:Float = 0;

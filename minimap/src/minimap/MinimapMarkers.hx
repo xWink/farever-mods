@@ -3,7 +3,14 @@ package minimap;
 import minimap.GameAccess as G;
 import minimap.MinimapMod.MinimapSettings;
 
-private typedef MapPoint = {var x:Float; var y:Float; var kind:String; var ?heading:Float;}
+private typedef MapPoint = {
+    var x:Float;
+    var y:Float;
+    var kind:String;
+    var ?heading:Float;
+    var ?sparkling:Bool;
+    var ?eventElement:String;
+}
 
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
@@ -19,12 +26,17 @@ class MinimapMarkers {
     var previousRadius:Float = 0;
     var classes:Map<String, String> = [];
     var gatherKinds:Map<String, String> = [];
+    var gatherFilters:Map<String, String> = [];
     var codexGoals:Map<String, Int> = [];
     var npcKinds:Map<String, String> = [];
     var landmarks:Map<String, MapPoint> = [];
     var stationSource:Dynamic;
     var stationDefinitions:Array<Dynamic> = [];
     var secretOrbs:Map<String, MapPoint> = [];
+    var activitySource:Dynamic;
+    var activityOrbSource:Dynamic;
+    var activityOrbCount:Int = 0;
+    var activities:Array<MapPoint> = [];
     var landmarkSources:Map<String, Dynamic> = [];
     var landmarkCounts:Map<String, Int> = [];
     static var reportedError:Bool = false;
@@ -134,6 +146,7 @@ class MinimapMarkers {
             var px = G.number(G.field(unit, "posx")), py = G.number(G.field(unit, "posy"));
             if (!near(px, py, x, y, radius)) continue;
             if (G.field(unit, "dying") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
+            var sparkling = false;
             if (kind == "enemy") {
                 // Player-owned summons are allies, including nested summons.
                 var source = unit;
@@ -153,9 +166,13 @@ class MinimapMarkers {
                     }
                     if (completed[id] ? !config.showCompletedCodexEnemies : !config.showIncompleteCodexEnemies) continue;
                 }
-                if ((G.integer(G.field(inf, "flags")) & 0x38) != 0) kind = "boss";
+                var flags = G.integer(G.field(inf, "flags"));
+                if ((flags & 0x38) != 0) kind = "boss";
+                // Data.Unit_flags.Spark identifies the sparkling variant.
+                sparkling = (flags & (1 << 22)) != 0;
             }
-            points.push({kind: kind, x: px, y: py, heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});
+            points.push({kind: kind, x: px, y: py, sparkling: sparkling,
+                heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});
         }
 
         if (config.showPlants || config.showOre || config.showNpcs || config.showChests) for (element in G.array(G.field(layer, "interactibles"))) {
@@ -181,8 +198,10 @@ class MinimapMarkers {
             } else if (active) {
                 // Gatherable.consume disables the entity until its next respawn.
                 // Hit points alone are unsuitable: plants don't need mining hits.
-                var kind = gatherKind(G.field(element, "gatherInf"));
-                if (kind == "plant" ? config.showPlants : kind == "ore" && config.showOre)
+                var inf = G.field(element, "gatherInf");
+                var kind = gatherKind(inf);
+                if ((kind == "plant" ? config.showPlants : kind == "ore" && config.showOre)
+                    && !hiddenResource(gatherFilters[G.text(G.field(inf, "id"))], config))
                     points.push({kind: kind, x: px, y: py});
             }
         }
@@ -202,7 +221,51 @@ class MinimapMarkers {
             // Read only: never create a progress entry while displaying it.
             if (G.call("st.player.Progress", "hasElementDiscovered", progress, [id]) != true) points.push(point);
         }
+        if (config.showActivities) {
+            refreshActivities();
+            var events = G.field(layer, "worldEvents");
+            for (point in activities) {
+                if (!near(point.x, point.y, x, y, radius)) continue;
+                if (point.eventElement != null && events != null) {
+                    var event = G.call("st.event.WorldEvents", "getEventStatus", events, [point.eventElement]);
+                    if (G.text(G.field(event, "status")) == "Disabled") continue;
+                }
+                points.push(point);
+            }
+        }
         return points;
+    }
+
+    function refreshActivities():Void {
+        var source = G.current("HActivity", "allActivities");
+        var orbs = G.current("HElement", "instanceOrbs");
+        var count = G.integer(G.field(orbs, "length"));
+        if (source == activitySource && orbs == activityOrbSource && count == activityOrbCount) return;
+        activitySource = source; activityOrbSource = orbs; activityOrbCount = count;
+        activities = [];
+        if (source == null) return;
+        // Use the native world map's released activity definitions and marker
+        // positions. Resolve prefab positions once, not on each marker refresh.
+        for (definition in G.array(G.staticCall("HActivity", "allFiltered", [level]))) {
+            if (G.field(definition, "prefab") == null) continue;
+            var position = G.staticCall("HActivity", "getPos", [definition]);
+            activities.push({kind: "activity", x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y"))});
+        }
+        // Instanced activities are marked at their overworld entrance, just as
+        // MapWindow.addActivities does, rather than at their interior position.
+        for (orb in G.array(orbs)) {
+            if (G.text(G.field(orb, "mapId")) != level || G.field(orb, "prefab") == null) continue;
+            var inf = G.field(orb, "inf");
+            var id = G.text(G.field(G.field(inf, "props"), "targetActivity"));
+            if (id == "") continue;
+            var definition = G.call("haxe.ds.StringMap", "get", source, [id]);
+            if (definition == null) continue;
+            var props = G.field(G.field(definition, "inf"), "props");
+            if (G.staticCall("Config", "checkStatus", [G.field(props, "releaseStatus")]) != true) continue;
+            var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", G.field(orb, "prefab"), [true]);
+            activities.push({kind: "activity", x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
+                eventElement: G.text(G.field(inf, "id"))});
+        }
     }
 
     static function stationKind(type:Int):String return switch type {
@@ -252,12 +315,24 @@ class MinimapMarkers {
         var id = G.text(G.field(inf, "id"));
         if (gatherKinds.exists(id)) return gatherKinds[id];
         var kind = "";
+        var filter = "";
         var current = inf;
         var seen:Map<String, Bool> = [];
         while (current != null) {
             var currentId = G.text(G.field(current, "id"));
             if (seen.exists(currentId)) break;
             seen[currentId] = true;
+            if (filter == "") filter = switch currentId {
+                case "Ore_Copper_Small", "Ore_Copper_Large": "Copper";
+                case "Ore_Iron_Small", "Ore_Iron_Big": "Iron";
+                case "Ore_Tin_Small", "Ore_Tin_Large": "Tin";
+                case "Tungstene": "Tungstene";
+                case "Madrigold_Small", "Madrigold_Large": "Madrigold";
+                case "Lavendula_Small", "Lavendula_Large": "Lavendula";
+                case "AncientThyme_Small", "AncientThyme_Large": "AncientThyme";
+                case "Zealotus_Small", "Zealotus_Large": "Zealotus";
+                default: "";
+            };
             var tool = G.text(G.field(current, "requiredTool"));
             if (currentId == "Ore" || tool == "GearPickaxe") { kind = "ore"; break; }
             if (currentId == "Plant" || tool == "GearSickle") { kind = "plant"; break; }
@@ -266,8 +341,21 @@ class MinimapMarkers {
             current = G.call("haxe.ds.StringMap", "get", G.field(G.current("Data", "gatherable"), "byId"), [parent]);
         }
         gatherKinds[id] = kind;
+        gatherFilters[id] = filter;
         return kind;
     }
+
+    static function hiddenResource(resource:String, config:MinimapSettings):Bool return switch resource {
+        case "Copper": config.hideCopper;
+        case "Iron": config.hideIron;
+        case "Tin": config.hideTin;
+        case "Tungstene": config.hideTungstene;
+        case "Madrigold": config.hideMadrigold;
+        case "Lavendula": config.hideLavendula;
+        case "AncientThyme": config.hideAncientThyme;
+        case "Zealotus": config.hideZealotus;
+        default: false;
+    };
 
     function family(object:Dynamic):String {
         var type = hl.Type.getDynamic(object);
@@ -302,13 +390,14 @@ class MinimapMarkers {
         // Group fills to keep native calls and draw batches small. Markers use
         // world positions, so the map can scroll/rotate smoothly between samples.
         // Services and obelisks remain readable when players gather around them.
-        for (kind in ["plant", "ore", "secretOrb", "chest", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
+        for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             var group = [for (point in points) if (point.kind == kind) point];
             if (group.length == 0) continue;
             graphics = isNpc(kind) ? npcGraphics : mapGraphics;
             var color = switch kind {
                 case "plant": 0x77df81;
-                case "ore": 0xf0a658;
+                case "ore": 0xb7bcc7;
+                case "activity": 0x5fddd0;
                 case "chest": 0xffa044;
                 case "secretOrb": 0x142d78;
                 case "enemy", "boss": 0xff6860;
@@ -323,14 +412,22 @@ class MinimapMarkers {
                 default: 0x70d8ff;
             };
             var service = isNpc(kind) && kind != "npc" || kind == "chest";
-            var radius = (service ? 7.0 : kind == "player" ? 7.0 : kind == "boss" ? 5.0 : kind == "obelisk" ? 4.5 : 3.5) / scale;
+            var resource = kind == "plant" || kind == "ore";
+            var radius = (service || kind == "player" ? 7.0 : kind == "activity" ? 6.0
+                : resource || kind == "boss" ? 5.0 : kind == "obelisk" ? 4.5 : 3.5) / scale;
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
-            for (point in group) shape(point, radius + 1 / scale);
+            for (point in group) shape(point, radius + (point.sparkling == true ? 3.5 : 1) / scale);
             G.call("h2d.Graphics", "endFill", graphics);
+            if (kind == "enemy" || kind == "boss") {
+                G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
+                // Keep the red center's size and add a 2.5-pixel yellow ring.
+                for (point in group) if (point.sparkling == true) shape(point, radius + 2.5 / scale);
+                G.call("h2d.Graphics", "endFill", graphics);
+            }
             G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
             for (point in group) shape(point, radius);
             G.call("h2d.Graphics", "endFill", graphics);
-            if (service) {
+            if (service || resource) {
                 G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
                 for (point in group) detail(point, radius);
                 G.call("h2d.Graphics", "endFill", graphics);
@@ -342,8 +439,18 @@ class MinimapMarkers {
         var x = point.x, y = point.y;
         switch point.kind {
             case "player":
-                // Arrow geometry points along +X, like Entity.rotationZ.
-                polygon(point, r, [1, 0, -0.8, 0.7, -0.45, 0, -0.8, -0.7], point.heading);
+                arrowShape(graphics, point.x, point.y, r, point.heading);
+            case "plant":
+                // A pointed leaf with a short stem, readable at minimap scale.
+                polygon(point, r, [-0.8, 0.65, -0.85, 0.05, -0.55, -0.55, 0.05, -0.85,
+                    0.9, -0.9, 0.85, -0.05, 0.55, 0.55, -0.05, 0.85]);
+                polygon(point, r, [-1, 0.85, -0.1, -0.05, 0.05, 0.1, -0.85, 1]);
+            case "ore":
+                polygon(point, r, [-1, 0.55, -0.9, -0.25, -0.35, -0.85,
+                    0.35, -0.75, 0.9, -0.2, 1, 0.55, 0.3, 0.85, -0.55, 0.85]);
+            case "activity":
+                G.call("h2d.Graphics", "drawRect", graphics, [x - 0.75 * r, y - r, 0.25 * r, 2 * r]);
+                polygon(point, r, [-0.5, -1, 1, -0.65, -0.5, 0.05]);
             case "bank":
                 // A bold dollar sign, built as filled geometry at any zoom.
                 polygon(point, r, [0.7, -0.8, -0.35, -0.8, -0.7, -0.5, -0.7, -0.1,
@@ -355,9 +462,12 @@ class MinimapMarkers {
                 // A chest with an arched lid; seam and lock are drawn below.
                 polygon(point, r, [-1, 0.8, -1, -0.35, -0.65, -0.8, 0.65, -0.8, 1, -0.35, 1, 0.8]);
             case "demon":
-                // Horned face, distinct from the enemy dots.
-                polygon(point, r, [-0.9, -1, -0.35, -0.4, 0.35, -0.4, 0.9, -1,
-                    0.8, 0.25, 0.45, 0.75, 0, 1, -0.45, 0.75, -0.8, 0.25]);
+                // Keep the face and horns convex so both sides triangulate
+                // independently at world-map coordinates.
+                polygon(point, r, [-0.8, -0.35, 0.8, -0.35, 0.8, 0.25,
+                    0.45, 0.75, 0, 1, -0.45, 0.75, -0.8, 0.25]);
+                polygon(point, r, [-0.9, -1, -0.2, -0.3, -0.8, 0.05]);
+                polygon(point, r, [0.9, -1, 0.8, 0.05, 0.2, -0.3]);
             case "recycler":
                 // Two chasing arrows.
                 polygon(point, r, [-0.95, 0.05, -0.95, -0.55, -0.5, -0.95, 0.45, -0.95,
@@ -380,7 +490,7 @@ class MinimapMarkers {
             case "respawn":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r / 3, y - r, r * 2 / 3, r * 2]);
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r / 3, r * 2, r * 2 / 3]);
-            case "obelisk", "ore":
+            case "obelisk":
                 G.call("h2d.Graphics", "moveTo", graphics, [x, y - r]);
                 G.call("h2d.Graphics", "lineTo", graphics, [x + r, y]);
                 G.call("h2d.Graphics", "lineTo", graphics, [x, y + r]);
@@ -390,6 +500,27 @@ class MinimapMarkers {
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, r * 2, r * 2]);
             default:
                 G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 32]);
+        }
+    }
+
+    public static function drawPlayerArrow(graphics:Dynamic, radius:Float, color:Int):Void {
+        G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
+        arrowShape(graphics, 0, 0, radius + 1, 0);
+        G.call("h2d.Graphics", "endFill", graphics);
+        G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
+        arrowShape(graphics, 0, 0, radius, 0);
+        G.call("h2d.Graphics", "endFill", graphics);
+    }
+
+    static function arrowShape(graphics:Dynamic, x:Float, y:Float, radius:Float, heading:Float):Void {
+        // Two solid triangles with one color, pointing along +X like rotationZ.
+        var c = Math.cos(heading) * radius, s = Math.sin(heading) * radius;
+        for (side in [-1, 1]) {
+            G.call("h2d.Graphics", "moveTo", graphics, [x + c, y + s]);
+            if (side < 0) G.call("h2d.Graphics", "lineTo", graphics, [x - 0.45 * c, y - 0.45 * s]);
+            G.call("h2d.Graphics", "lineTo", graphics, [x - 0.8 * c - side * 0.7 * s, y - 0.8 * s + side * 0.7 * c]);
+            if (side > 0) G.call("h2d.Graphics", "lineTo", graphics, [x - 0.45 * c, y - 0.45 * s]);
+            G.call("h2d.Graphics", "lineTo", graphics, [x + c, y + s]);
         }
     }
 
@@ -405,6 +536,12 @@ class MinimapMarkers {
 
     function detail(point:MapPoint, r:Float):Void {
         switch point.kind {
+            case "plant":
+                polygon(point, r, [-0.65, 0.5, 0.5, -0.6, 0.65, -0.5, -0.5, 0.65]);
+            case "ore":
+                polygon(point, r, [-0.55, -0.5, -0.4, -0.6, -0.1, -0.1, -0.3, 0]);
+                polygon(point, r, [-0.3, -0.15, -0.1, -0.1, -0.65, 0.45, -0.8, 0.35]);
+                polygon(point, r, [-0.1, -0.1, 0.65, -0.1, 0.7, 0.1, -0.1, 0.1]);
             case "chest":
                 G.call("h2d.Graphics", "drawRect", graphics, [point.x - r, point.y - 0.2 * r, 2 * r, 0.2 * r]);
                 G.call("h2d.Graphics", "drawRect", graphics, [point.x - 0.16 * r, point.y - 0.05 * r, 0.32 * r, 0.4 * r]);

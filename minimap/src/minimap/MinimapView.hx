@@ -163,14 +163,8 @@ class MinimapView {
         pivot = G.create("h2d.Object", [mask]);
         terrain = G.create("h2d.Object", [pivot]);
         tileLayer = G.create("h2d.Object", [terrain]);
-        // Use the same cursor artwork and heading as the native world map.
-        var tile = G.call("h2d.Tile", "clone", G.staticCall("Const", "icon", ["PlayerCursor"]));
-        var w = G.number(G.field(tile, "width"));
-        var h = G.number(G.field(tile, "height"));
-        G.set(tile, "dx", -w / 2);
-        G.set(tile, "dy", -h / 2);
-        arrow = G.create("h2d.Bitmap", [tile, mask]);
-        G.call("h2d.Object", "setScale", arrow, [20 / Math.max(1, Math.max(w, h))]);
+        arrow = G.create("h2d.Graphics", [mask]);
+        MinimapMarkers.drawPlayerArrow(arrow, 10, 0xfff3d6);
         // NPCs are a final overlay above terrain, other markers, and the player
         // cursor. Only the minimap's outer boundary clips this layer.
         npcPivot = G.create("h2d.Object", [mask]);

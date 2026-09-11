@@ -22,14 +22,16 @@ A compact overworld minimap with a centered player arrow.
 ## Highlights
 
 - A square or circular minimap using Farever's own map artwork.
-- Follows your position and shows your character's facing direction.
+- Follows your position with a flat-color arrow showing your character's facing direction.
 - Fixed orientation, character-following rotation, or camera-following rotation.
 - Adjustable zoom and size, with smooth marker edges.
 - Upper-left or upper-right placement.
 - Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
 - Distinct icons for Guild Merchants, Demon Huntresses, and crafting, upgrade, and recycling stations.
-- Treasure chest and undiscovered secret orb markers.
+- Treasure chest, undiscovered secret orb, and activity markers.
 - Enemy filters for completed and incomplete Codex entries.
+- Yellow rings highlight sparkling enemies and bosses.
+- Individual plant and ore filters.
 - Sits behind menus and tooltips without intercepting clicks.
 
 The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, gatherable, and chest markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn. Opened or inactive chests are hidden; secret orbs disappear once recorded as discovered by the game.
@@ -42,12 +44,16 @@ Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160
 
 All marker types default on. The enemy section independently controls enemies with **incomplete Codex entries**, **completed Codex entries**, and **no Codex entry**. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
 
+The **Ore** and **Plants** sections contain **Show ore** and **Show plants**, followed by individual **Hide…** options. Ore filters cover Copper, Iron, Tin, and Tungstene; plant filters cover Madrigold, Lavendula, Ancient Thyme, and Zealotus. Each filter covers both small and large nodes. All Hide options default off.
+
 | Marker | Appearance |
 | --- | --- |
+| Your character | Flat ivory arrow |
 | Other players | Larger light-blue arrow showing facing direction |
-| Plants | Green circle |
-| Ore | Orange diamond |
-| Enemies | Red circle; larger for bosses |
+| Plants | Green leaf |
+| Ore | Gray stone |
+| Enemies | Red circle; larger for bosses; thick yellow ring for sparkling variants |
+| Activities | Teal flag |
 | Respawn points | White cross |
 | Obelisks | Purple diamond |
 | NPCs | Yellow square |
@@ -59,7 +65,7 @@ All marker types default on. The enemy section independently controls enemies wi
 | Chests | Orange treasure chest |
 | Undiscovered secret orbs | Navy-blue circle |
 
-**Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
+**Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests**, **Show secret orbs**, and **Show activities** are separate options in the **Markers** section. Activity markers use the game's world-map locations, including overworld entrances for instanced activities.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it. ImGui is not required.
 
