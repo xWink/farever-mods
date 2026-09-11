@@ -411,8 +411,7 @@ class MinimapMarkers {
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
 
     static function markerRadius(kind:String):Float return switch kind {
-        case "bank", "demon", "craft", "upgrade", "recycler", "chest", "player": 7;
-        case "activity": 6;
+        case "bank", "demon", "craft", "upgrade", "recycler", "chest", "player", "activity", "companion": 7;
         case "plant", "ore", "boss": 5;
         case "obelisk": 4.5;
         default: 3.5;
@@ -502,11 +501,11 @@ class MinimapMarkers {
             var color = switch kind {
                 case "plant": 0x77df81;
                 case "ore": 0xb7bcc7;
-                case "activity": 0x5fddd0;
+                case "activity": 0x7f3e91;
                 case "chest": 0xffa044;
                 case "secretOrb": 0x8fd8ff;
                 case "enemy", "boss": 0xff6860;
-                case "companion": 0xf4b6d7;
+                case "companion": 0x77df81;
                 case "respawn": 0xffffff;
                 case "obelisk": 0xc599ff;
                 case "npc": 0xffdf78;
@@ -521,17 +520,41 @@ class MinimapMarkers {
             var resource = kind == "plant" || kind == "ore";
             var radius = markerRadius(kind) / scale;
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
-            for (point in group) shape(point, radius + (point.sparkling == true ? 3.5 : 1) / scale);
+            for (point in group) {
+                if (kind == "companion" && point.sparkling == true)
+                    G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius + 3.5 / scale, 32]);
+                else shape(point, radius + (point.sparkling == true ? 3.5 : 1) / scale);
+            }
             G.call("h2d.Graphics", "endFill", graphics);
             if (kind == "enemy" || kind == "boss" || kind == "companion") {
                 G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
                 // Keep the center's size and add a 2.5-pixel yellow ring.
-                for (point in group) if (point.sparkling == true) shape(point, radius + 2.5 / scale);
+                for (point in group) if (point.sparkling == true) {
+                    if (kind == "companion")
+                        G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius + 2.5 / scale, 32]);
+                    else shape(point, radius + 2.5 / scale);
+                }
+                G.call("h2d.Graphics", "endFill", graphics);
+            }
+            if (kind == "companion") {
+                G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
+                for (point in group) if (point.sparkling == true)
+                    G.call("h2d.Graphics", "drawCircle", graphics, [point.x, point.y, radius, 32]);
                 G.call("h2d.Graphics", "endFill", graphics);
             }
             G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
             for (point in group) shape(point, radius);
             G.call("h2d.Graphics", "endFill", graphics);
+            if (kind == "activity") {
+                G.call("h2d.Graphics", "beginFill", graphics, [0xffffff, 1.0]);
+                // Four convex arms avoid concave-path clipping at map coordinates.
+                for (point in group) for (quarter in 0...4)
+                    polygon(point, radius, [0, 0, -0.25, -0.25, 0, -0.84, 0.25, -0.25], quarter * Math.PI / 2);
+                G.call("h2d.Graphics", "endFill", graphics);
+                G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
+                for (point in group) polygon(point, radius, [0, -0.19, 0.19, 0, 0, 0.19, -0.19, 0]);
+                G.call("h2d.Graphics", "endFill", graphics);
+            }
             if (service || resource) {
                 G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
                 for (point in group) detail(point, radius);
@@ -554,8 +577,16 @@ class MinimapMarkers {
                 polygon(point, r, [-1, 0.55, -0.9, -0.25, -0.35, -0.85,
                     0.35, -0.75, 0.9, -0.2, 1, 0.55, 0.3, 0.85, -0.55, 0.85]);
             case "activity":
-                G.call("h2d.Graphics", "drawRect", graphics, [x - 0.75 * r, y - r, 0.25 * r, 2 * r]);
-                polygon(point, r, [-0.5, -1, 1, -0.65, -0.5, 0.05]);
+                G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, 2 * r, 2 * r]);
+            case "companion":
+                // Four toes and a rounded triangular pad form a flat pawprint.
+                for (side in [-1, 1]) {
+                    G.call("h2d.Graphics", "drawCircle", graphics, [x + side * 0.7 * r, y - 0.16 * r, 0.23 * r, 24]);
+                    G.call("h2d.Graphics", "drawCircle", graphics, [x + side * 0.29 * r, y - 0.63 * r, 0.23 * r, 24]);
+                }
+                polygon(point, r, [0, -0.12, 0.24, -0.02, 0.41, 0.2, 0.58, 0.48,
+                    0.57, 0.66, 0.44, 0.79, -0.44, 0.79, -0.57, 0.66, -0.58, 0.48,
+                    -0.41, 0.2, -0.24, -0.02]);
             case "bank":
                 // A bold dollar sign, built as filled geometry at any zoom.
                 polygon(point, r, [0.7, -0.8, -0.35, -0.8, -0.7, -0.5, -0.7, -0.1,

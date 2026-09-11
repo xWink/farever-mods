@@ -61,8 +61,8 @@ The **Ore** and **Plants** sections contain **Show ore** and **Show plants**, fo
 | Plants | Green leaf |
 | Ore | Gray stone |
 | Enemies | Red circle; larger for bosses; thick yellow ring for sparkling variants |
-| Companions | Pink circle; thick yellow ring for sparkling variants |
-| Activities | Teal flag |
+| Companions | Green pawprint; thick yellow ring for sparkling variants |
+| Activities | Purple square with a white four-point star |
 | Respawn points | White cross |
 | Obelisks | Purple diamond |
 | NPCs | Yellow square |
