@@ -17,6 +17,8 @@
     { "key": "showRespawnPoints", "type": "checkbox", "label": "Show respawn points" },
     { "key": "showObelisks", "type": "checkbox", "label": "Show obelisks" },
     { "key": "showNpcs", "type": "checkbox", "label": "Show NPCs" },
+    { "key": "showChests", "type": "checkbox", "label": "Show chests" },
+    { "key": "showSecretOrbs", "type": "checkbox", "label": "Show secret orbs" },
     { "type": "title", "label": "Enemies" },
     { "key": "showEnemies", "type": "checkbox", "label": "Show enemies" },
     { "key": "showIncompleteCodexEnemies", "type": "checkbox", "label": "Show incomplete Codex enemies" },

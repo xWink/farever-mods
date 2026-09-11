@@ -8,6 +8,8 @@ private typedef MapPoint = {var x:Float; var y:Float; var kind:String; var ?head
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
     var graphics:Dynamic;
+    var mapGraphics:Dynamic;
+    var npcGraphics:Dynamic;
     var level:String;
     var layer:Dynamic;
     var lastHero:Dynamic;
@@ -22,13 +24,15 @@ class MinimapMarkers {
     var landmarks:Map<String, MapPoint> = [];
     var stationSource:Dynamic;
     var stationDefinitions:Array<Dynamic> = [];
+    var secretOrbs:Map<String, MapPoint> = [];
     var landmarkSources:Map<String, Dynamic> = [];
     var landmarkCounts:Map<String, Int> = [];
     static var reportedError:Bool = false;
 
-    public function new(parent:Dynamic, level:String) {
+    public function new(parent:Dynamic, foreground:Dynamic, level:String) {
         this.level = level;
-        graphics = G.create("h2d.Graphics", [parent]);
+        mapGraphics = G.create("h2d.Graphics", [parent]);
+        npcGraphics = G.create("h2d.Graphics", [foreground]);
     }
 
     public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float):Void {
@@ -46,7 +50,8 @@ class MinimapMarkers {
             draw(points, scale);
         } catch (error:Dynamic) {
             // An optional marker source must not take down the working map.
-            G.call("h2d.Graphics", "clear", graphics);
+            G.call("h2d.Graphics", "clear", mapGraphics);
+            G.call("h2d.Graphics", "clear", npcGraphics);
             nextRefresh = now + 5;
             if (!reportedError) {
                 reportedError = true;
@@ -69,6 +74,21 @@ class MinimapMarkers {
                 if (G.text(G.field(definition, "mapId")) != level) continue;
                 if (stationKind(G.integer(G.field(G.field(definition, "inf"), "type"))) != "")
                     stationDefinitions.push(definition);
+            }
+            secretOrbs = [];
+            if (allElements != null) {
+                // Use the same objective targets as the native zone's secret
+                // orb count. This excludes puzzle orbs and instance entrances.
+                for (target in G.array(G.staticCall("ui.win.MapWindow", "getZoneRedOrbs", [null]))) {
+                    if (Type.enumConstructor(target) != "Element") continue;
+                    var id = G.text(Type.enumParameters(target)[0]);
+                    var definition = G.call("haxe.ds.StringMap", "get", allElements, [id]);
+                    if (G.text(G.field(definition, "mapId")) != level) continue;
+                    var prefab = G.field(definition, "prefab");
+                    if (prefab == null) continue;
+                    var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", prefab, [true]);
+                    secretOrbs[id] = {kind: "secretOrb", x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42"))};
+                }
             }
             changed = true;
         }
@@ -102,7 +122,9 @@ class MinimapMarkers {
     function collect(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float):Array<MapPoint> {
         var points:Array<MapPoint> = [];
         var liveNpcs:Map<String, MapPoint> = [];
-        var unitsProgress = G.field(G.field(G.field(G.field(hero, "player"), "progress"), "unitsProgress"), "map");
+        var player = G.field(hero, "player");
+        var progress = G.field(player, "progress");
+        var unitsProgress = G.field(G.field(progress, "unitsProgress"), "map");
         var completed:Map<String, Bool> = [];
         if (config.showPlayers || config.showEnemies) for (unit in G.array(G.field(layer, "units"))) {
             if (unit == hero || G.field(unit, "removed") == true) continue;
@@ -136,18 +158,26 @@ class MinimapMarkers {
             points.push({kind: kind, x: px, y: py, heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});
         }
 
-        if (config.showPlants || config.showOre || config.showNpcs) for (element in G.array(G.field(layer, "interactibles"))) {
+        if (config.showPlants || config.showOre || config.showNpcs || config.showChests) for (element in G.array(G.field(layer, "interactibles"))) {
             if (G.field(element, "removed") == true) continue;
             var category = family(element);
-            if (category != "gatherable" && category != "npc") continue;
-            if (category == "npc" ? !config.showNpcs : (!config.showPlants && !config.showOre)) continue;
+            if (category != "gatherable" && category != "npc" && category != "chest") continue;
+            if (category == "npc" && !config.showNpcs || category == "chest" && !config.showChests
+                || category == "gatherable" && !config.showPlants && !config.showOre) continue;
             var px = G.number(G.field(element, "posx")), py = G.number(G.field(element, "posy"));
-            if (category == "gatherable" && !near(px, py, x, y, radius)) continue;
+            if (category != "npc" && !near(px, py, x, y, radius)) continue;
             var active = G.field(element, "enabled") == true && G.call("ent.Element", "isHidden", element) != true;
             if (category == "npc") {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
                 liveNpcs[key] = active ? {kind: npcKind(G.field(element, "inf")), x: px, y: py} : null;
+            } else if (category == "chest") {
+                if (!active || player == null) continue;
+                // Player-specific completion and respawn rules are resolved by
+                // the game, including activity chests. Locked chests still show.
+                var state = G.call("ent.Element", "getElementStateInf", element, [player]);
+                var flags = G.integer(G.field(state, "flags"));
+                if ((flags & 0x29) == 0) points.push({kind: "chest", x: px, y: py});
             } else if (active) {
                 // Gatherable.consume disables the entity until its next respawn.
                 // Hit points alone are unsuitable: plants don't need mining hits.
@@ -167,6 +197,11 @@ class MinimapMarkers {
             if (show && near(point.x, point.y, x, y, radius)) points.push(point);
         }
         for (point in liveNpcs) if (point != null && near(point.x, point.y, x, y, radius)) points.push(point);
+        if (config.showSecretOrbs && progress != null) for (id => point in secretOrbs) {
+            if (!near(point.x, point.y, x, y, radius)) continue;
+            // Read only: never create a progress entry while displaying it.
+            if (G.call("st.player.Progress", "hasElementDiscovered", progress, [id]) != true) points.push(point);
+        }
         return points;
     }
 
@@ -188,33 +223,14 @@ class MinimapMarkers {
         if (npcKinds.exists(id)) return npcKinds[id];
         var kind = stationKind(G.integer(G.field(inf, "type")));
         if (kind != "") { npcKinds[id] = kind; return kind; }
-        kind = "npc";
-        var current = inf;
-        var seen:Map<String, Bool> = [];
-        while (current != null) {
-            var currentId = G.text(G.field(current, "id"));
-            if (seen.exists(currentId)) break;
-            seen[currentId] = true;
-            var props = G.field(current, "props");
-            var unit = G.text(G.field(G.field(props, "npc"), "unit"));
-            // Native unit IDs are stable across display-name translations.
-            if (unit == "TODO_WanderingMerchant") { kind = "bank"; break; }
-            if (unit == "DemonHunterMira" || unit == "DemonHunterZoey" || unit == "DemonHunterRumi") {
-                kind = "demon";
-                break;
-            }
-            for (dialog in G.array(G.field(current, "dialog"))) {
-                for (choice in G.array(G.field(dialog, "choices"))) {
-                    if (G.text(G.field(choice, "verb")) == "DialogBank") { kind = "bank"; break; }
-                }
-                if (kind == "bank") break;
-            }
-            if (kind == "bank") break;
-            var parent = G.text(G.field(current, "inherit"));
-            if (parent == "") break;
-            var definition = G.call("haxe.ds.StringMap", "get", G.current("HElement", "allElements"), [parent]);
-            current = G.field(definition, "inf");
-        }
+        // Match Npc.get_uinf: the resolved instance's unit is authoritative.
+        // Ancestor templates and inherited dialogue do not identify its role.
+        var unit = G.text(G.field(G.field(G.field(inf, "props"), "npc"), "unit"));
+        kind = switch unit {
+            case "TODO_WanderingMerchant": "bank";
+            case "DemonHunterMira", "DemonHunterZoey", "DemonHunterRumi": "demon";
+            default: "npc";
+        };
         npcKinds[id] = kind;
         return kind;
     }
@@ -265,6 +281,7 @@ class MinimapMarkers {
                 case "ent.Hero": "player";
                 case "ent.Foe": "enemy";
                 case "ent.interactible.Gatherable": "gatherable";
+                case "ent.interactible.Chest": "chest";
                 case "ent.interactible.Npc", "ent.interactible.CraftStation",
                     "ent.interactible.GearUpgradeStation", "ent.interactible.ScrapStation": "npc";
                 default: "";
@@ -280,29 +297,33 @@ class MinimapMarkers {
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
 
     function draw(points:Array<MapPoint>, scale:Float):Void {
-        G.call("h2d.Graphics", "clear", graphics);
+        G.call("h2d.Graphics", "clear", mapGraphics);
+        G.call("h2d.Graphics", "clear", npcGraphics);
         // Group fills to keep native calls and draw batches small. Markers use
         // world positions, so the map can scroll/rotate smoothly between samples.
         // Services and obelisks remain readable when players gather around them.
-        for (kind in ["plant", "ore", "enemy", "boss", "player", "respawn", "npc", "bank", "demon", "recycler", "upgrade", "craft", "obelisk"]) {
+        for (kind in ["plant", "ore", "secretOrb", "chest", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             var group = [for (point in points) if (point.kind == kind) point];
             if (group.length == 0) continue;
+            graphics = isNpc(kind) ? npcGraphics : mapGraphics;
             var color = switch kind {
                 case "plant": 0x77df81;
                 case "ore": 0xf0a658;
+                case "chest": 0xffa044;
+                case "secretOrb": 0x142d78;
                 case "enemy", "boss": 0xff6860;
                 case "respawn": 0xffffff;
                 case "obelisk": 0xc599ff;
                 case "npc": 0xffdf78;
-                case "bank": 0xffdf78;
+                case "bank": 0xffdc42;
                 case "demon": 0xe8a1ff;
                 case "recycler": 0x86eed4;
                 case "upgrade": 0xb4dcff;
                 case "craft": 0xffc68a;
                 default: 0x70d8ff;
             };
-            var service = isNpc(kind) && kind != "npc";
-            var radius = (service ? 7.0 : kind == "player" ? 5.5 : kind == "boss" ? 5.0 : kind == "obelisk" ? 4.5 : 3.5) / scale;
+            var service = isNpc(kind) && kind != "npc" || kind == "chest";
+            var radius = (service ? 7.0 : kind == "player" ? 7.0 : kind == "boss" ? 5.0 : kind == "obelisk" ? 4.5 : 3.5) / scale;
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
             for (point in group) shape(point, radius + 1 / scale);
             G.call("h2d.Graphics", "endFill", graphics);
@@ -324,6 +345,13 @@ class MinimapMarkers {
                 // Arrow geometry points along +X, like Entity.rotationZ.
                 polygon(point, r, [1, 0, -0.8, 0.7, -0.45, 0, -0.8, -0.7], point.heading);
             case "bank":
+                // A bold dollar sign, built as filled geometry at any zoom.
+                polygon(point, r, [0.7, -0.8, -0.35, -0.8, -0.7, -0.5, -0.7, -0.1,
+                    -0.35, 0.2, 0.35, 0.2, 0.4, 0.3, 0.4, 0.45, 0.3, 0.55,
+                    -0.7, 0.55, -0.7, 0.85, 0.4, 0.85, 0.75, 0.55, 0.75, 0.1,
+                    0.4, -0.15, -0.3, -0.15, -0.4, -0.25, -0.4, -0.4, -0.3, -0.5, 0.7, -0.5]);
+                G.call("h2d.Graphics", "drawRect", graphics, [x - 0.13 * r, y - 1.05 * r, 0.26 * r, 2.15 * r]);
+            case "chest":
                 // A chest with an arched lid; seam and lock are drawn below.
                 polygon(point, r, [-1, 0.8, -1, -0.35, -0.65, -0.8, 0.65, -0.8, 1, -0.35, 1, 0.8]);
             case "demon":
@@ -377,7 +405,7 @@ class MinimapMarkers {
 
     function detail(point:MapPoint, r:Float):Void {
         switch point.kind {
-            case "bank":
+            case "chest":
                 G.call("h2d.Graphics", "drawRect", graphics, [point.x - r, point.y - 0.2 * r, 2 * r, 0.2 * r]);
                 G.call("h2d.Graphics", "drawRect", graphics, [point.x - 0.16 * r, point.y - 0.05 * r, 0.32 * r, 0.4 * r]);
             case "demon":

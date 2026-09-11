@@ -27,11 +27,12 @@ A compact overworld minimap with a centered player arrow.
 - Adjustable zoom and size, with smooth marker edges.
 - Upper-left or upper-right placement.
 - Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
-- Distinct icons for banks, Demon Huntresses, and crafting, upgrade, and recycling stations.
+- Distinct icons for Guild Merchants, Demon Huntresses, and crafting, upgrade, and recycling stations.
+- Treasure chest and undiscovered secret orb markers.
 - Enemy filters for completed and incomplete Codex entries.
 - Sits behind menus and tooltips without intercepting clicks.
 
-The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, and gatherable markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn.
+The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, gatherable, and chest markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn. Opened or inactive chests are hidden; secret orbs disappear once recorded as discovered by the game.
 
 ## Settings
 
@@ -43,20 +44,22 @@ All marker types default on. The enemy section independently controls enemies wi
 
 | Marker | Appearance |
 | --- | --- |
-| Other players | Light-blue arrow showing facing direction |
+| Other players | Larger light-blue arrow showing facing direction |
 | Plants | Green circle |
 | Ore | Orange diamond |
 | Enemies | Red circle; larger for bosses |
 | Respawn points | White cross |
 | Obelisks | Purple diamond |
 | NPCs | Yellow square |
-| Guild merchants / banks | Gold chest |
+| Guild Merchants | Yellow $ |
 | Demon Huntresses | Purple horned face |
 | Spark Recycler | Mint recycling arrows |
 | Weapon Upgrade | Light-blue sword and upward arrow |
 | Crafting Station | Orange hammer and workbench |
+| Chests | Orange treasure chest |
+| Undiscovered secret orbs | Navy-blue circle |
 
-**Show NPCs** also controls the bank, Demon Huntress, and station icons. Obelisks draw above other players so crowds cannot obscure them.
+**Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it. ImGui is not required.
 

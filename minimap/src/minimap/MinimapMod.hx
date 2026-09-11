@@ -22,6 +22,8 @@ typedef MinimapSettings = {
     var showRespawnPoints:Bool;
     var showObelisks:Bool;
     var showNpcs:Bool;
+    var showChests:Bool;
+    var showSecretOrbs:Bool;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -32,7 +34,8 @@ class MinimapMod {
         circular: false, leftCorner: false,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         showIncompleteCodexEnemies: true, showCompletedCodexEnemies: true,
-        showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true
+        showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true,
+        showChests: true, showSecretOrbs: true
     };
     static var view:MinimapView;
     static var retryAt:Float = 0;

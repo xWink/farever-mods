@@ -32,6 +32,8 @@ class MinimapView {
     var pivot:Dynamic;
     var terrain:Dynamic;
     var tileLayer:Dynamic;
+    var npcPivot:Dynamic;
+    var npcTerrain:Dynamic;
     var markers:MinimapMarkers;
     var arrow:Dynamic;
     var loader:Dynamic;
@@ -79,6 +81,7 @@ class MinimapView {
         if (newScale != scale) {
             scale = newScale;
             G.call("h2d.Object", "setScale", terrain, [scale]);
+            G.call("h2d.Object", "setScale", npcTerrain, [scale]);
             bounds = "";
         }
         var x = G.number(G.field(hero, "posx"));
@@ -88,7 +91,9 @@ class MinimapView {
         var rotation = config.rotateMap ? -Math.PI / 2 - orientation : 0.0;
         // Native facing is (cos(heading), sin(heading)); screen-up is -PI/2.
         G.call("h2d.Object", "set_rotation", pivot, [rotation]);
+        G.call("h2d.Object", "set_rotation", npcPivot, [rotation]);
         position(terrain, -x * scale, -y * scale);
+        position(npcTerrain, -x * scale, -y * scale);
         G.call("h2d.Object", "set_rotation", arrow, [heading + rotation]);
         position(panel, config.leftCorner ? 24 : Math.max(0, G.number(G.call("h2d.Flow", "get_innerWidth", root)) - size - BORDER * 2 - 24), 24);
         // A rotating square needs enough tiles/markers to cover its diagonal.
@@ -158,7 +163,6 @@ class MinimapView {
         pivot = G.create("h2d.Object", [mask]);
         terrain = G.create("h2d.Object", [pivot]);
         tileLayer = G.create("h2d.Object", [terrain]);
-        markers = new MinimapMarkers(terrain, LEVEL);
         // Use the same cursor artwork and heading as the native world map.
         var tile = G.call("h2d.Tile", "clone", G.staticCall("Const", "icon", ["PlayerCursor"]));
         var w = G.number(G.field(tile, "width"));
@@ -167,6 +171,11 @@ class MinimapView {
         G.set(tile, "dy", -h / 2);
         arrow = G.create("h2d.Bitmap", [tile, mask]);
         G.call("h2d.Object", "setScale", arrow, [20 / Math.max(1, Math.max(w, h))]);
+        // NPCs are a final overlay above terrain, other markers, and the player
+        // cursor. Only the minimap's outer boundary clips this layer.
+        npcPivot = G.create("h2d.Object", [mask]);
+        npcTerrain = G.create("h2d.Object", [npcPivot]);
+        markers = new MinimapMarkers(terrain, npcTerrain, LEVEL);
     }
 
     function configureFilter(filter:Dynamic, type:String):Void {
@@ -185,6 +194,7 @@ class MinimapView {
         G.set(mask, "height", size);
         position(arrow, size / 2, size / 2);
         position(pivot, size / 2, size / 2);
+        position(npcPivot, size / 2, size / 2);
         G.call("h2d.Graphics", "clear", frame);
         G.call("h2d.Graphics", "clear", circleMask);
         G.call("h2d.Object", "set_filter", mask, [round ? circleFilter : squareFilter]);
@@ -290,6 +300,7 @@ class MinimapView {
         owner = null; world = null; root = null; loader = null;
         frame = null; mask = null; circleMask = null; squareFilter = null; circleFilter = null;
         pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
+        npcPivot = null; npcTerrain = null;
         index = []; sprites = []; wanted = []; cached = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
     }
