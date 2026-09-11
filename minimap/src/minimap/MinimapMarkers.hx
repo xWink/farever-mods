@@ -192,7 +192,9 @@ class MinimapMarkers {
         var name = type.getTypeName();
         if (classes.exists(name)) return classes[name];
         var kind = "";
-        while (type != null) {
+        // HashLink returns HVoid (not null) after the root class. Only walk
+        // object types, or unrelated entities loop forever on the void sentinel.
+        while (type != null && type.kind == HObj) {
             kind = switch type.getTypeName() {
                 case "ent.Hero": "player";
                 case "ent.Foe": "enemy";
