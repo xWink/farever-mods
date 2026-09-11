@@ -594,6 +594,7 @@ class BetterModSettingsMod {
                 // switchable mod panel transparent and add only row spacing.
                 styleFlow(panelProperties, 0, 24, 0);
                 setPersistentPanelLayout(panelProperties, 0, 0, 24);
+                applyInlineStyle(panelProperties, "fill-width", true);
                 buildModSettings(panelProperties, mod);
             }
         }
@@ -1012,6 +1013,8 @@ class BetterModSettingsMod {
             if (rowProperties == null)
                 return;
             styleFlow(rowProperties, 0, 0, 0);
+            // Let Flow pass the full body width to the scaled title. Using the
+            // row's measured width as maxWidth can lock in an early, narrow size.
             applyInlineStyle(rowProperties, "fill-width", true);
             var row:Dynamic = HlxRuntime.resolveField(rowProperties, "obj");
             if (textType == null)
@@ -1038,15 +1041,6 @@ class BetterModSettingsMod {
             HlxRuntime.callResolved(setVisibleMember, [fontReference, false]);
             pendingTitleStyles.push({ title: title, reference: fontReference });
             labelStyleFramesRemaining = 4;
-
-            var innerWidthMember = HlxRuntime.resolveMember(flowType, "get_innerWidth");
-            var maxWidthMember = HlxRuntime.resolveMember(textType, "set_maxWidth");
-            // Reflow supplies the panel's actual width, including its scrollbar.
-            HlxRuntime.setField(row, "onAfterReflow", function():Void {
-                var width:Int = cast HlxRuntime.callResolved(innerWidthMember, [row]);
-                if (width > 0)
-                    HlxRuntime.callResolved(maxWidthMember, [title, width / scale]);
-            });
         } catch (error:Dynamic) {
             trace("[BetterModSettings] Could not create title row: " + Std.string(error));
         }
