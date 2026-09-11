@@ -143,12 +143,14 @@ class MinimapMarkers {
         var player = G.field(hero, "player");
         var progress = G.field(player, "progress");
         var unitsProgress = G.field(G.field(progress, "unitsProgress"), "map");
+        var collection = G.field(G.field(player, "accountProgress"), "collection");
         var completed:Map<String, Bool> = [];
-        if (config.showPlayers || config.showEnemies) for (unit in G.array(G.field(layer, "units"))) {
+        var collected:Map<String, Bool> = [];
+        if (config.showPlayers || config.showEnemies || config.showCompanions) for (unit in G.array(G.field(layer, "units"))) {
             if (unit == hero || G.field(unit, "removed") == true) continue;
             var kind = family(unit);
             if (kind != "player" && kind != "enemy") continue;
-            if (kind == "player" ? !config.showPlayers : !config.showEnemies) continue;
+            if (kind == "player" ? !config.showPlayers : !config.showEnemies && !config.showCompanions) continue;
             var px = G.number(G.field(unit, "posx")), py = G.number(G.field(unit, "posy"));
             if (!near(px, py, x, y, radius)) continue;
             if (G.field(unit, "dying") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
@@ -158,22 +160,38 @@ class MinimapMarkers {
                 var source = unit;
                 var summoner = G.field(source, "summonOwner");
                 while (summoner != null) { source = summoner; summoner = G.field(source, "summonOwner"); }
-                if (family(source) == "player" || G.call("ent.Foe", "isEnemyWith", unit, [hero]) != true) continue;
+                if (family(source) == "player") continue;
                 var inf = G.field(unit, "inf");
                 if (inf == null) continue;
                 var id = G.text(G.field(inf, "id"));
-                var goal = codexGoal(id, inf);
-                if (goal <= 0) {
-                    if (config.hideNonCodexEnemies) continue;
-                } else if (config.hideCompletedCodexEnemies) {
-                    if (!completed.exists(id)) {
-                        var progress = unitsProgress == null ? null : G.call("haxe.ds.StringMap", "get", unitsProgress, [id]);
-                        completed[id] = G.integer(G.field(progress, "killCount")) >= goal;
-                    }
-                    if (completed[id]) continue;
-                }
                 var flags = G.integer(G.field(inf, "flags"));
-                if ((flags & 0x38) != 0) kind = "boss";
+                if (G.text(G.field(inf, "type")) == "Critter") {
+                    // Same collectible entries as CollectionUI: exclude
+                    // NoCollection (bit 20) and definitions without artwork.
+                    if (!config.showCompanions || (flags & (1 << 20)) != 0 || G.field(inf, "gfx") == null) continue;
+                    kind = "companion";
+                    if (config.hideCollectedCompanions && collection != null) {
+                        // Capture saves the exact unit kind, including its color
+                        // or sparkling variant, in the account-wide collection.
+                        var pet = G.text(G.field(unit, "kind"), id);
+                        if (!collected.exists(pet))
+                            collected[pet] = G.call("st.player.Collection", "hasPet", collection, [pet]) == true;
+                        if (collected[pet]) continue;
+                    }
+                } else {
+                    if (!config.showEnemies || G.call("ent.Foe", "isEnemyWith", unit, [hero]) != true) continue;
+                    var goal = codexGoal(id, inf);
+                    if (goal <= 0) {
+                        if (config.hideNonCodexEnemies) continue;
+                    } else if (config.hideCompletedCodexEnemies) {
+                        if (!completed.exists(id)) {
+                            var progress = unitsProgress == null ? null : G.call("haxe.ds.StringMap", "get", unitsProgress, [id]);
+                            completed[id] = G.integer(G.field(progress, "killCount")) >= goal;
+                        }
+                        if (completed[id]) continue;
+                    }
+                    if ((flags & 0x38) != 0) kind = "boss";
+                }
                 // Data.Unit_flags.Spark identifies the sparkling variant.
                 sparkling = (flags & (1 << 22)) != 0;
             }
@@ -430,7 +448,7 @@ class MinimapMarkers {
             if (point.entity != null) {
                 var type = switch point.kind {
                     case "player": "ent.Hero";
-                    case "enemy", "boss": "ent.Unit";
+                    case "enemy", "boss", "companion": "ent.Unit";
                     case "plant", "ore": "ent.interactible.Gatherable";
                     default: "ent.Element";
                 };
@@ -460,6 +478,7 @@ class MinimapMarkers {
             case "plant": "Plant";
             case "ore": "Ore";
             case "player": "Player";
+            case "companion": "Companion";
             case "enemy", "boss": "Enemy";
             default: "NPC";
         };
@@ -475,7 +494,7 @@ class MinimapMarkers {
         // Group fills to keep native calls and draw batches small. Markers use
         // world positions, so the map can scroll/rotate smoothly between samples.
         // Services and obelisks remain readable when players gather around them.
-        for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
+        for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             var group = [for (point in points) if (point.kind == kind) point];
             if (group.length == 0) continue;
             for (point in group) hitPoints.push(point);
@@ -487,6 +506,7 @@ class MinimapMarkers {
                 case "chest": 0xffa044;
                 case "secretOrb": 0x8fd8ff;
                 case "enemy", "boss": 0xff6860;
+                case "companion": 0xf4b6d7;
                 case "respawn": 0xffffff;
                 case "obelisk": 0xc599ff;
                 case "npc": 0xffdf78;
@@ -503,9 +523,9 @@ class MinimapMarkers {
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
             for (point in group) shape(point, radius + (point.sparkling == true ? 3.5 : 1) / scale);
             G.call("h2d.Graphics", "endFill", graphics);
-            if (kind == "enemy" || kind == "boss") {
+            if (kind == "enemy" || kind == "boss" || kind == "companion") {
                 G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
-                // Keep the red center's size and add a 2.5-pixel yellow ring.
+                // Keep the center's size and add a 2.5-pixel yellow ring.
                 for (point in group) if (point.sparkling == true) shape(point, radius + 2.5 / scale);
                 G.call("h2d.Graphics", "endFill", graphics);
             }

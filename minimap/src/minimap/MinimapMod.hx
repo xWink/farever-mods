@@ -6,6 +6,7 @@ import hlx.runtime.HlxPrefixResult;
 
 typedef MinimapSettings = {
     var enabled:Bool;
+    var transparency:Int;
     var zoom:Float;
     var size:Int;
     var rotateMap:Bool;
@@ -18,6 +19,8 @@ typedef MinimapSettings = {
     var showEnemies:Bool;
     var hideCompletedCodexEnemies:Bool;
     var hideNonCodexEnemies:Bool;
+    var showCompanions:Bool;
+    var hideCollectedCompanions:Bool;
     var showRespawnPoints:Bool;
     var showObelisks:Bool;
     var showNpcs:Bool;
@@ -38,10 +41,11 @@ typedef MinimapSettings = {
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, zoom: 100, size: 240, rotateMap: false, followCamera: false,
+        enabled: true, transparency: 0, zoom: 100, size: 240, rotateMap: false, followCamera: false,
         circular: false, leftCorner: false,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         hideCompletedCodexEnemies: false, hideNonCodexEnemies: false,
+        showCompanions: true, hideCollectedCompanions: false,
         showRespawnPoints: true, showObelisks: true, showNpcs: true,
         showChests: true, showSecretOrbs: true, showActivities: true,
         hideCopper: false, hideIron: false, hideTin: false, hideTungstene: false,
@@ -65,6 +69,7 @@ class MinimapMod {
     }
 
     static function normalize():Void {
+        config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
         config.zoom = Math.isFinite(config.zoom) ? Math.max(10, Math.min(300, config.zoom)) : 100;
         config.size = Std.int(Math.max(160, Math.min(400, config.size)));
     }

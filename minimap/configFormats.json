@@ -4,6 +4,7 @@
   "configs": [
     { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
+    { "key": "transparency", "type": "slider", "label": "Transparency", "min": 0, "max": 100, "step": 1 },
     { "key": "zoom", "type": "slider", "label": "Zoom %", "min": 10, "max": 300, "step": 10 },
     { "key": "size", "type": "slider", "label": "Size", "min": 160, "max": 400, "step": 10 },
     { "key": "rotateMap", "type": "checkbox", "label": "Rotate minimap" },
@@ -33,6 +34,9 @@
     { "type": "title", "label": "Enemies" },
     { "key": "showEnemies", "type": "checkbox", "label": "Show enemies" },
     { "key": "hideCompletedCodexEnemies", "type": "checkbox", "label": "Hide completed Codex enemies" },
-    { "key": "hideNonCodexEnemies", "type": "checkbox", "label": "Hide enemies without Codex entries" }
+    { "key": "hideNonCodexEnemies", "type": "checkbox", "label": "Hide enemies without Codex entries" },
+    { "type": "title", "label": "Companions" },
+    { "key": "showCompanions", "type": "checkbox", "label": "Show companions" },
+    { "key": "hideCollectedCompanions", "type": "checkbox", "label": "Hide collected companions" }
   ]
 }

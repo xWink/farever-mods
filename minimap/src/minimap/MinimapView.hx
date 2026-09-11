@@ -44,6 +44,7 @@ class MinimapView {
     var hoverShadow:Dynamic;
     var hoverCaption:String = "";
     var hoverFontScale:Float = 1;
+    var transparency:Int = -1;
     var loader:Dynamic;
     var tileWorldWidth:Float = 0;
     var size:Int = 0;
@@ -85,6 +86,13 @@ class MinimapView {
         }
 
         if (size != config.size || circular != config.circular) layout(config.size, config.circular);
+        if (transparency != config.transparency) {
+            transparency = config.transparency;
+            G.set(panel, "alpha", 1 - transparency / 100);
+            // A fully invisible map must not consume wheel input.
+            G.call("h2d.Object", "set_visible", input, [transparency < 100]);
+            if (transparency == 100) { hovered = false; setHoverCaption(""); }
+        }
         var newScale = config.zoom / 100 * 2; // Two UI pixels per world unit at 100%.
         if (newScale != scale) {
             scale = newScale;
@@ -392,6 +400,7 @@ class MinimapView {
         pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
         npcPivot = null; npcTerrain = null;
         input = null; hovered = false; hoverText = null; hoverShadow = null; hoverCaption = "";
+        transparency = -1;
         index = []; sprites = []; wanted = []; cached = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
     }
