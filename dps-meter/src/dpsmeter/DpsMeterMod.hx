@@ -108,7 +108,7 @@ class DpsMeterMod {
         } catch (_:Dynamic) {}
         // A UI failure must never stop the collector or discard a finished report.
         try view.update(collector.model, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
-        try recapView.update(collector.model, config.enabled, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
+        try recapView.update(collector.model, config.enabled && config.showRiftRecaps, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
         try kills.update(instance, now) catch (_:Dynamic) {}
     }
 }

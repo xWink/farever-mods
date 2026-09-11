@@ -989,7 +989,7 @@ class BetterModSettingsMod {
             var font:Dynamic = HlxRuntime.resolveField(reference, "font");
             var sourceScale:Dynamic = HlxRuntime.resolveField(reference, "scaleX");
             var scale:Float = sourceScale == null ? 1.0 : cast sourceScale;
-            scale *= 1.25;
+            scale *= 1.75;
 
             var rowProperties:Dynamic = HlxRuntime.callResolved(createNewMember, [
                 "flow", parentProperties, [], { id: "titleRow" + index, layout: "vertical" }

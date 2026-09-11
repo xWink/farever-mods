@@ -9,6 +9,7 @@ typedef MeterSettings = {
     var transparency:Int;
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
+    var showRiftRecaps:Bool;
     var showBossKills:Bool;
     var showIncompleteCodexKills:Bool;
     var showCompletedCodexKills:Bool;
@@ -35,6 +36,7 @@ class MeterConfig {
         transparency: 0,
         hideOutOfCombat: false,
         hideDelay: 3,
+        showRiftRecaps: true,
         showBossKills: true,
         showIncompleteCodexKills: true,
         showCompletedCodexKills: false,
