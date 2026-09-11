@@ -12,6 +12,7 @@ build; the matching workflow publishes only that project's ZIP.
 | `more-audio-settings` | `farever-more-audio-settings.zip` | `hlx/mods/more-audio-settings/` |
 | `fix-target-lock` | `farever-fix-target-lock.zip` | `hlx/mods/fix-target-lock/` |
 | `dps-meter` | `farever-dps-meter.zip` | `hlx/mods/dps-meter/` (including `uploader.exe`) |
+| `minimap` | `farever-minimap.zip` | `hlx/mods/minimap/` |
 
 ## Procedure
 

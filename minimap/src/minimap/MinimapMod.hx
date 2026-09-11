@@ -1,0 +1,57 @@
+package minimap;
+
+import hlx.runtime.Bus;
+import hlx.runtime.ModConfig;
+import hlx.runtime.HlxPrefixResult;
+
+typedef MinimapSettings = {
+    var enabled:Bool;
+    var zoom:Float;
+    var size:Int;
+}
+
+@:build(hlx.runtime.Mod.build())
+class MinimapMod {
+    @:hlx.config
+    static var config:MinimapSettings = {enabled: true, zoom: 100, size: 240};
+    static var view:MinimapView;
+    static var retryAt:Float = 0;
+    static var reportedError:Bool = false;
+
+    static function main():Void {
+        normalize();
+        config.save();
+        view = new MinimapView();
+        Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
+            config = ModConfig.load(HlxRuntime.moduleName(), config);
+            normalize();
+            retryAt = 0;
+        });
+    }
+
+    static function normalize():Void {
+        config.zoom = Math.isFinite(config.zoom) ? Math.max(50, Math.min(300, config.zoom)) : 100;
+        config.size = Std.int(Math.max(160, Math.min(400, config.size)));
+    }
+
+    @:hlx.postfix(GameApp.update)
+    static function update(instance:Dynamic, dt:Float, result:Void):Void {
+        if (view == null || haxe.Timer.stamp() < retryAt) return;
+        try view.update(instance, config) catch (error:Dynamic) {
+            // Avoid repeated resource work or log spam if a game update changes the UI.
+            retryAt = haxe.Timer.stamp() + 10;
+            try view.dispose() catch (_:Dynamic) {}
+            if (!reportedError) {
+                reportedError = true;
+                trace("[Minimap] " + Std.string(error));
+            }
+        }
+    }
+
+    @:hlx.prefix(GameApp.dispose)
+    static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
+        if (view != null) try view.dispose() catch (_:Dynamic) {}
+        retryAt = 0;
+        return Continue;
+    }
+}

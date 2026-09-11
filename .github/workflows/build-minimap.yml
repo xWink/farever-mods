@@ -1,0 +1,32 @@
+name: Minimap
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['minimap/v*']
+    paths:
+      - 'minimap/**'
+      - '.github/workflows/build-minimap.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'minimap/**'
+      - '.github/workflows/build-minimap.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: minimap
+      module: minimap
+      title: Minimap

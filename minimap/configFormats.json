@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Minimap",
+  "configs": [
+    { "type": "title", "label": "General" },
+    { "key": "enabled", "type": "checkbox", "label": "Enabled" },
+    { "key": "zoom", "type": "slider", "label": "Zoom %", "min": 50, "max": 300, "step": 10 },
+    { "key": "size", "type": "slider", "label": "Size", "min": 160, "max": 400, "step": 20 }
+  ]
+}
