@@ -91,7 +91,7 @@ Use a title to introduce a section:
 { "type": "title", "label": "Combat" }
 ```
 
-A title displays larger text on its own row, without a separator or control. Long titles wrap within the settings body. It requires only a non-empty `label`; no `key` or settings JSON property is needed, and it does not save a value or publish setting-change notifications.
+A title displays larger, bold text on its own row, without a separator or control. Long titles wrap within the settings body. It requires only a non-empty `label`; no `key` or settings JSON property is needed, and it does not save a value or publish setting-change notifications.
 
 #### Options shared by every control
 

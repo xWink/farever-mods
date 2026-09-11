@@ -8,6 +8,10 @@
       "label": "Enabled"
     },
     {
+      "type": "title",
+      "label": "Target Lock"
+    },
+    {
       "key": "autoUnlockOnDeath",
       "type": "checkbox",
       "label": "Auto-unlock when target dies"
@@ -21,6 +25,10 @@
       "key": "disableCameraMovement",
       "type": "checkbox",
       "label": "Disable automatic camera movement"
+    },
+    {
+      "type": "title",
+      "label": "Quick Cast"
     },
     {
       "key": "quickCast",

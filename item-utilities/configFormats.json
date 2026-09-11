@@ -8,14 +8,22 @@
       "label": "Enabled"
     },
     {
+      "type": "title",
+      "label": "Deposit Buttons"
+    },
+    {
       "key": "showDepositMaterials",
       "type": "checkbox",
       "label": "Show deposit buttons"
     },
     {
+      "type": "title",
+      "label": "Locking"
+    },
+    {
       "key": "showLockVisuals",
       "type": "checkbox",
-      "label": "Show item locking visuals"
+      "label": "Show buttons and icons"
     },
     {
       "key": "sortingIgnoresLockedItems",
@@ -23,9 +31,17 @@
       "label": "Sorting ignores locked items (but is slower)"
     },
     {
+      "type": "title",
+      "label": "Consumables"
+    },
+    {
       "key": "instantMoteConversion",
       "type": "checkbox",
       "label": "Instant Mote Conversion"
+    },
+    {
+      "type": "title",
+      "label": "Presets"
     },
     {
       "key": "preset1Hotkey",

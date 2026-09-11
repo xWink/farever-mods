@@ -8,12 +8,13 @@
     { "key": "hideOutOfCombat", "type": "checkbox", "label": "Hide when out of combat" },
     { "key": "hideDelay", "type": "slider", "label": "Hiding delay (seconds)", "min": 0, "max": 10, "step": 1 },
     { "key": "sendLogs", "type": "checkbox", "label": "Upload combat logs to fareverlogs.fr" },
-    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" },
     { "key": "toggleHotkey", "type": "keybinding", "label": "Show or hide meter" },
     { "key": "unlockHotkey", "type": "keybinding", "label": "Lock or unlock window" },
     { "type": "title", "label": "Kill Counter" },
     { "key": "showBossKills", "type": "checkbox", "label": "Show boss kills" },
     { "key": "showIncompleteCodexKills", "type": "checkbox", "label": "Show incomplete Codex kills" },
-    { "key": "showCompletedCodexKills", "type": "checkbox", "label": "Show completed Codex kills" }
+    { "key": "showCompletedCodexKills", "type": "checkbox", "label": "Show completed Codex kills" },
+    { "type": "title", "label": "Recaps" },
+    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" }
   ]
 }

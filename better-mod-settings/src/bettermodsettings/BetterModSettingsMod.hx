@@ -21,6 +21,7 @@ class BetterModSettingsMod {
     static var capturingKeybind:Dynamic;
     static var nativeOptionLabelStyle:Dynamic;
     static var pendingOptionLabels:Array<Dynamic> = [];
+    static var pendingTitleStyles:Array<{ title:Dynamic, reference:Dynamic }> = [];
     static var pendingOptionRows:Array<Dynamic> = [];
     static var pendingTabLabels:Array<Dynamic> = [];
     static var labelStyleFramesRemaining:Int = 0;
@@ -285,6 +286,7 @@ class BetterModSettingsMod {
             sizeNativeSettingsWindow(windowProperties);
             setNativeWindowTitle(windowProperties);
             pendingOptionLabels = [];
+            pendingTitleStyles = [];
             pendingOptionRows = [];
             pendingTabLabels = [];
             labelStyleFramesRemaining = 0;
@@ -915,6 +917,7 @@ class BetterModSettingsMod {
     static function refreshPendingOptionLabelStyles():Void {
         if (labelStyleFramesRemaining <= 0
             || (pendingOptionLabels.length == 0
+                && pendingTitleStyles.length == 0
                 && pendingOptionRows.length == 0
                 && pendingTabLabels.length == 0))
             return;
@@ -922,6 +925,17 @@ class BetterModSettingsMod {
         try {
             for (line in pendingOptionRows)
                 centerOptionRowLabelAndSeparator(line);
+
+            if (pendingTitleStyles.length > 0) {
+                if (setFontMember == null)
+                    setFontMember = HlxRuntime.resolveMember(textType, "set_font");
+                // Native font classes settle during the same style pass as labels.
+                for (entry in pendingTitleStyles) {
+                    var font:Dynamic = HlxRuntime.resolveField(entry.reference, "font");
+                    if (font != null)
+                        HlxRuntime.callResolved(setFontMember, [entry.title, font]);
+                }
+            }
 
             if (pendingTabLabels.length > 0) {
                 if (textType == null)
@@ -974,6 +988,7 @@ class BetterModSettingsMod {
         }
         if (labelStyleFramesRemaining <= 0) {
             pendingOptionLabels = [];
+            pendingTitleStyles = [];
             pendingOptionRows = [];
             pendingTabLabels = [];
         }
@@ -1010,6 +1025,19 @@ class BetterModSettingsMod {
             HlxRuntime.callResolved(HlxRuntime.resolveMember(textType, "set_textColor"), [title, 0x8A5F46]);
             HlxRuntime.callResolved(HlxRuntime.resolveMember(h2dObjectType, "setScale"), [title, scale]);
             HlxRuntime.callResolved(HlxRuntime.resolveMember(textType, "set_lineBreak"), [title, true]);
+
+            // Use the game's bold face (also used in its crafting UI). The empty
+            // style source lets native CSS select its font while the visible Text
+            // stays literal and keeps its larger scale and wrapping behavior.
+            var fontProperties:Dynamic = HlxRuntime.callResolved(createNewMember, [
+                "text", rowProperties, [], { "class": "bold-14" }
+            ]);
+            var fontReference:Dynamic = HlxRuntime.resolveField(fontProperties, "obj");
+            if (setVisibleMember == null)
+                setVisibleMember = HlxRuntime.resolveMember(h2dObjectType, "set_visible");
+            HlxRuntime.callResolved(setVisibleMember, [fontReference, false]);
+            pendingTitleStyles.push({ title: title, reference: fontReference });
+            labelStyleFramesRemaining = 4;
 
             var innerWidthMember = HlxRuntime.resolveMember(flowType, "get_innerWidth");
             var maxWidthMember = HlxRuntime.resolveMember(textType, "set_maxWidth");
