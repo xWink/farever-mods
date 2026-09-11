@@ -367,6 +367,11 @@ class MinimapMarkers {
             var events = G.field(layer, "worldEvents");
             for (point in activities) {
                 if (!near(point.x, point.y, x, y, radius)) continue;
+                if (point.kind == "teleporter") {
+                    if (config.hideTeleporters) continue;
+                } else if (config.hideCompletedActivities && progress != null
+                    && G.call("st.player.Progress", "hasActivityCompleted", progress, [G.field(point.inf, "id")]) == true)
+                    continue;
                 if (point.eventElement != null && events != null) {
                     var event = G.call("st.event.WorldEvents", "getEventStatus", events, [point.eventElement]);
                     if (G.text(G.field(event, "status")) == "Disabled") continue;
@@ -388,9 +393,20 @@ class MinimapMarkers {
         // Use the native world map's released activity definitions and marker
         // positions. Resolve prefab positions once, not on each marker refresh.
         for (definition in G.array(G.staticCall("HActivity", "allFiltered", [level]))) {
-            if (G.field(definition, "prefab") == null) continue;
+            var prefab = G.field(definition, "prefab");
+            if (prefab == null) continue;
+            var inf = G.field(definition, "inf");
+            var teleporter = G.staticCall("HActivity", "isOfType", [inf, "Ascension"]) == true;
+            var start = teleporter ? checkpointStart(prefab) : null;
+            if (start != null) {
+                var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", start, [true]);
+                activities.push({kind: "teleporter", inf: inf,
+                    x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
+                    z: G.number(G.field(matrix, "_43"), Math.NaN)});
+                continue;
+            }
             var position = G.staticCall("HActivity", "getPos", [definition]);
-            activities.push({kind: "activity", inf: G.field(definition, "inf"),
+            activities.push({kind: teleporter ? "teleporter" : "activity", inf: inf,
                 x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y")),
                 z: G.number(G.field(position, "z"), Math.NaN)});
         }
@@ -411,6 +427,19 @@ class MinimapMarkers {
                 z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
         }
+    }
+
+    static function checkpointStart(prefab:Dynamic):Dynamic {
+        // Ascension.onElementActivate uses its Start collectible to return to
+        // the latest checkpoint. Resolve its prefab once with the activity cache.
+        var pending:Array<Dynamic> = [prefab];
+        while (pending.length > 0) {
+            var node = pending.pop();
+            if (G.text(G.field(node, "name")) == "Start"
+                && G.call("hrt.prefab.Prefab", "getCdbType", node) == "element") return node;
+            for (child in G.array(G.field(node, "children"))) pending.push(child);
+        }
+        return null;
     }
 
     static function stationKind(type:Int):String return switch type {
@@ -530,7 +559,7 @@ class MinimapMarkers {
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
 
     static function markerRadius(kind:String):Float return switch kind {
-        case "bank", "demon", "craft", "upgrade", "recycler", "chest", "player", "activity", "companion": 7;
+        case "bank", "demon", "craft", "upgrade", "recycler", "chest", "player", "activity", "teleporter", "companion": 7;
         case "plant", "ore", "boss": 5;
         case "obelisk": 4.5;
         default: 3.5;
@@ -610,7 +639,7 @@ class MinimapMarkers {
                 };
                 name = G.text(G.call(type, "getName", point.entity));
             } else if (point.inf != null) {
-                name = G.text(G.staticCall("HText", point.kind == "activity" ? "activity" : "element",
+                name = G.text(G.staticCall("HText", point.kind == "activity" || point.kind == "teleporter" ? "activity" : "element",
                     [point.inf, G.current("ETextKind", "Name")]));
             }
             if (name == "" && isNpc(point.kind)) {
@@ -631,6 +660,7 @@ class MinimapMarkers {
             case "upgrade": "Weapon Upgrade";
             case "craft": "Crafting Station";
             case "activity": "Activity";
+            case "teleporter": "Checkpoint teleporter";
             case "plant": "Plant";
             case "ore": "Ore";
             case "player": "Player";
@@ -646,7 +676,7 @@ class MinimapMarkers {
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
         // Preserve marker priority, with services above other map content.
-        for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
+        for (kind in ["activity", "teleporter", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             for (point in points) if (point.kind == kind) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
@@ -694,6 +724,7 @@ class MinimapMarkers {
             case "plant", "companion": 0x77df81;
             case "ore": 0xb7bcc7;
             case "activity": 0x7f3e91;
+            case "teleporter": 0xffc45a;
             case "chest": 0xffa044;
             case "secretOrb": 0x8fd8ff;
             case "enemy", "boss": 0xff6860;
@@ -738,6 +769,17 @@ class MinimapMarkers {
             polygon(point, radius, [0, -0.19, 0.19, 0, 0, 0.19, -0.19, 0]);
             G.call("h2d.Graphics", "endFill", graphics);
         }
+        if (kind == "teleporter") {
+            G.call("h2d.Graphics", "beginFill", graphics, [0x965321, 1.0]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0.0, 0.0, radius * 0.45, 32]);
+            G.call("h2d.Graphics", "endFill", graphics);
+            G.call("h2d.Graphics", "beginFill", graphics, [0x31eeff, 1.0]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0.0, 0.0, radius * 0.32, 32]);
+            G.call("h2d.Graphics", "endFill", graphics);
+            G.call("h2d.Graphics", "beginFill", graphics, [0xd6fcff, 1.0]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [-radius * 0.08, -radius * 0.08, radius * 0.13, 24]);
+            G.call("h2d.Graphics", "endFill", graphics);
+        }
         if ((isNpc(kind) && kind != "npc") || kind == "chest" || kind == "plant" || kind == "ore") {
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
             detail(point, radius);
@@ -760,6 +802,12 @@ class MinimapMarkers {
                     0.35, -0.75, 0.9, -0.2, 1, 0.55, 0.3, 0.85, -0.55, 0.85]);
             case "activity":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, 2 * r, 2 * r]);
+            case "teleporter":
+                // Gold housing and four floating shards around a cyan core.
+                polygon(point, r, [-0.55, -0.4, -0.4, -0.55, 0.4, -0.55, 0.55, -0.4,
+                    0.55, 0.4, 0.4, 0.55, -0.4, 0.55, -0.55, 0.4]);
+                for (quarter in 0...4)
+                    polygon(point, r, [-0.28, -0.75, 0, -1, 0.28, -0.75, 0, -0.62], quarter * Math.PI / 2);
             case "companion":
                 // Four toes and a rounded triangular pad form a flat pawprint.
                 for (side in [-1, 1]) {
