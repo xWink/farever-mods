@@ -129,7 +129,7 @@ class MinimapMarkers {
             drawPlayerArrow(arrow, 8, 0xffdc42);
             alertArrows.push(arrow);
             var elevation = G.create("h2d.Graphics", [alertLayer]);
-            drawPlayerArrow(elevation, 3.5, 0xfff3d6);
+            drawPlayerArrow(elevation, 4, 0xfff3d6);
             alertElevations.push(elevation);
         }
         alertPositions = [];
@@ -546,7 +546,7 @@ class MinimapMarkers {
         while (pool.length < points.length) {
             var root = G.create("h2d.Object", [parent]);
             var arrow = G.create("h2d.Graphics", [root]);
-            drawPlayerArrow(arrow, 3.5, 0xfff3d6);
+            drawPlayerArrow(arrow, 4, 0xfff3d6);
             pool.push({root: root, arrow: arrow});
         }
         for (i in 0...points.length) {
