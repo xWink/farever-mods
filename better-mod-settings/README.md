@@ -42,13 +42,17 @@ The settings file must exist before the Mod Settings window opens and must conta
 
 ### 2. Add `configFormats.json`
 
-Create `configFormats.json` beside the mod's `.hl` file and describe the controls in the order they should appear:
+Create `configFormats.json` beside the mod's `.hl` file and describe the titles and controls in the order they should appear:
 
 ```json
 {
   "schemaVersion": 1,
   "displayName": "Example Mod",
   "configs": [
+    {
+      "type": "title",
+      "label": "General"
+    },
     {
       "key": "enabled",
       "type": "checkbox",
@@ -77,14 +81,24 @@ Create `configFormats.json` beside the mod's `.hl` file and describe the control
 | --- | --- | --- | --- |
 | `schemaVersion` | Recommended | Number | Use `1`. The current reader reserves this field for format evolution but does not reject or branch on it yet. |
 | `displayName` | No | String | Name shown on the mod's tab. Defaults to the mod folder name. Tabs are sorted alphabetically by this value. |
-| `configs` | Yes | Array | Control definitions. Items are displayed in array order. |
+| `configs` | Yes | Array | Title and control definitions. Items are displayed in array order. |
+
+#### Titles
+
+Use a title to introduce a section:
+
+```json
+{ "type": "title", "label": "Combat" }
+```
+
+A title displays larger text on its own row, without a separator or control. Long titles wrap within the settings body. It requires only a non-empty `label`; no `key` or settings JSON property is needed, and it does not save a value or publish setting-change notifications.
 
 #### Options shared by every control
 
 | Option | Required | Type | Behavior and limitations |
 | --- | --- | --- | --- |
 | `key` | Yes | String | Exact top-level property name in the settings JSON. An empty key is ignored; nested paths are not supported. |
-| `type` | Yes | String | Must be exactly `checkbox`, `slider`, or `keybinding`. Other values do not create a usable control. |
+| `type` | Yes | String | Must be exactly `checkbox`, `slider`, or `keybinding` for a control. Use `title` for a display-only title row as described above. |
 | `label` | No | String | Text displayed beside the control. Defaults to `key`. |
 
 #### Control types
@@ -95,7 +109,7 @@ Create `configFormats.json` beside the mod's `.hl` file and describe the control
 | `slider` | Number | `min` (default `0`), `max` (default `100`), and `step` (default `1`), all numbers | Supply sensible bounds with `min <= max` and a positive `step`. A missing value starts at `min`. |
 | `keybinding` | Integer key code | None | Captures one `hxd.Key`-compatible key only. Modifier combinations and multi-key chords are not supported. `0` means **Not set**. Escape cancels capture and cannot be assigned through the UI. |
 
-The current format does not provide text inputs, dropdowns, buttons, color pickers, nested objects, groups, conditional controls, or settings that span multiple JSON properties.
+The current format does not provide text inputs, dropdowns, buttons, color pickers, nested objects, collapsible groups, conditional controls, or settings that span multiple JSON properties.
 
 ### 3. Subscribe to live setting changes
 

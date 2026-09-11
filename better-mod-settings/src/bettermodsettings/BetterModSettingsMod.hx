@@ -734,8 +734,14 @@ class BetterModSettingsMod {
         var definitions:Array<Dynamic> = cast Reflect.field(mod, "definitions");
         for (index in 0...definitions.length) {
             var definition = definitions[index];
-            var key = stringField(definition, "key", "");
             var type = stringField(definition, "type", "");
+            if (type == "title") {
+                var title = stringField(definition, "label", "");
+                if (title.length > 0)
+                    createTitleRow(parentProperties, title, index);
+                continue;
+            }
+            var key = stringField(definition, "key", "");
             var label = stringField(definition, "label", key);
             if (key.length == 0)
                 continue;
@@ -970,6 +976,51 @@ class BetterModSettingsMod {
             pendingOptionLabels = [];
             pendingOptionRows = [];
             pendingTabLabels = [];
+        }
+    }
+
+    static function createTitleRow(parentProperties:Dynamic, label:String, index:Int):Void {
+        try {
+            var reference = nativeOptionLabelStyle == null
+                ? findFirstTextObject(nativeSettingsWindow, 6)
+                : nativeOptionLabelStyle;
+            if (reference == null)
+                return;
+            var font:Dynamic = HlxRuntime.resolveField(reference, "font");
+            var sourceScale:Dynamic = HlxRuntime.resolveField(reference, "scaleX");
+            var scale:Float = sourceScale == null ? 1.0 : cast sourceScale;
+            scale *= 1.25;
+
+            var rowProperties:Dynamic = HlxRuntime.callResolved(createNewMember, [
+                "flow", parentProperties, [], { id: "titleRow" + index, layout: "vertical" }
+            ]);
+            if (rowProperties == null)
+                return;
+            styleFlow(rowProperties, 0, 0, 0);
+            applyInlineStyle(rowProperties, "fill-width", true);
+            var row:Dynamic = HlxRuntime.resolveField(rowProperties, "obj");
+            if (textType == null)
+                textType = HlxRuntime.resolveType("h2d.Text");
+            if (h2dObjectType == null)
+                h2dObjectType = HlxRuntime.resolveType("h2d.Object");
+            // Plain native Text keeps this a literal, non-interactive string.
+            // Its larger scale is not reset by FmtText's automatic sizing.
+            var title:Dynamic = HlxRuntime.constructInstanceByName(textType, 2, [font, row]);
+            HlxRuntime.callResolved(HlxRuntime.resolveMember(textType, "set_text"), [title, label]);
+            HlxRuntime.callResolved(HlxRuntime.resolveMember(textType, "set_textColor"), [title, 0x8A5F46]);
+            HlxRuntime.callResolved(HlxRuntime.resolveMember(h2dObjectType, "setScale"), [title, scale]);
+            HlxRuntime.callResolved(HlxRuntime.resolveMember(textType, "set_lineBreak"), [title, true]);
+
+            var innerWidthMember = HlxRuntime.resolveMember(flowType, "get_innerWidth");
+            var maxWidthMember = HlxRuntime.resolveMember(textType, "set_maxWidth");
+            // Reflow supplies the panel's actual width, including its scrollbar.
+            HlxRuntime.setField(row, "onAfterReflow", function():Void {
+                var width:Int = cast HlxRuntime.callResolved(innerWidthMember, [row]);
+                if (width > 0)
+                    HlxRuntime.callResolved(maxWidthMember, [title, width / scale]);
+            });
+        } catch (error:Dynamic) {
+            trace("[BetterModSettings] Could not create title row: " + Std.string(error));
         }
     }
 
