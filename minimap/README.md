@@ -21,11 +21,13 @@ A compact overworld minimap with a centered player arrow.
 
 ## Highlights
 
-- A square minimap in the upper-right corner, using Farever's own map artwork.
+- A square or circular minimap using Farever's own map artwork.
 - Follows your position and shows your character's facing direction.
-- Fixed or rotating map, with adjustable zoom and size.
+- Fixed orientation, character-following rotation, or camera-following rotation.
+- Adjustable zoom and size, with smooth marker edges.
 - Upper-left or upper-right placement.
-- Player, enemy, plant, ore, NPC, obelisk, and respawn markers.
+- Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
+- Distinct icons for banks, Demon Huntresses, and crafting, upgrade, and recycling stations.
 - Enemy filters for completed and incomplete Codex entries.
 - Sits behind menus and tooltips without intercepting clicks.
 
@@ -33,21 +35,28 @@ The minimap covers the Siagarta overworld and hides in other instances. Live pla
 
 ## Settings
 
-Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160–400), rotation, placement, and marker visibility. Higher zoom shows a smaller area in more detail.
+Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160–400 in steps of 10), shape, rotation, placement, and marker visibility. Higher zoom shows a smaller area in more detail.
 
-**Rotate map (character points up)** keeps your arrow facing up as the terrain rotates around you. **Show in left corner** switches to the upper-left; leave it off for the upper-right. Both options default off.
+**Rotate minimap** keeps your arrow facing up as the terrain rotates around you. Enable **Follow camera** as well to put your camera's viewing direction at the top instead; your arrow then shows your character's facing direction relative to the camera. **Circular minimap** changes the shape, and **Show in left corner** switches to the upper-left. These options default off.
 
 All marker types default on. The enemy section independently controls enemies with **incomplete Codex entries**, **completed Codex entries**, and **no Codex entry**. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
 
 | Marker | Appearance |
 | --- | --- |
-| Other players | Light-blue circle |
+| Other players | Light-blue arrow showing facing direction |
 | Plants | Green circle |
 | Ore | Orange diamond |
 | Enemies | Red circle; larger for bosses |
 | Respawn points | White cross |
 | Obelisks | Purple diamond |
 | NPCs | Yellow square |
+| Guild merchants / banks | Gold chest |
+| Demon Huntresses | Purple horned face |
+| Spark Recycler | Mint recycling arrows |
+| Weapon Upgrade | Light-blue sword and upward arrow |
+| Crafting Station | Orange hammer and workbench |
+
+**Show NPCs** also controls the bank, Demon Huntress, and station icons. Obelisks draw above other players so crowds cannot obscure them.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it. ImGui is not required.
 

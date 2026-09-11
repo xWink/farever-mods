@@ -9,6 +9,8 @@ typedef MinimapSettings = {
     var zoom:Float;
     var size:Int;
     var rotateMap:Bool;
+    var followCamera:Bool;
+    var circular:Bool;
     var leftCorner:Bool;
     var showPlayers:Bool;
     var showPlants:Bool;
@@ -26,7 +28,8 @@ typedef MinimapSettings = {
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, zoom: 100, size: 240, rotateMap: false, leftCorner: false,
+        enabled: true, zoom: 100, size: 240, rotateMap: false, followCamera: false,
+        circular: false, leftCorner: false,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         showIncompleteCodexEnemies: true, showCompletedCodexEnemies: true,
         showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true

@@ -3,7 +3,7 @@ package minimap;
 import minimap.GameAccess as G;
 import minimap.MinimapMod.MinimapSettings;
 
-private typedef MapPoint = {var x:Float; var y:Float; var kind:String;}
+private typedef MapPoint = {var x:Float; var y:Float; var kind:String; var ?heading:Float;}
 
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
@@ -18,7 +18,10 @@ class MinimapMarkers {
     var classes:Map<String, String> = [];
     var gatherKinds:Map<String, String> = [];
     var codexGoals:Map<String, Int> = [];
+    var npcKinds:Map<String, String> = [];
     var landmarks:Map<String, MapPoint> = [];
+    var stationSource:Dynamic;
+    var stationDefinitions:Array<Dynamic> = [];
     var landmarkSources:Map<String, Dynamic> = [];
     var landmarkCounts:Map<String, Int> = [];
     static var reportedError:Bool = false;
@@ -39,7 +42,7 @@ class MinimapMarkers {
         nextRefresh = now + 0.2;
         try {
             refreshLandmarks();
-            var points = collect(hero, config, x, y, radius + 8 / scale);
+            var points = collect(hero, config, x, y, radius + 10 / scale);
             draw(points, scale);
         } catch (error:Dynamic) {
             // An optional marker source must not take down the working map.
@@ -56,6 +59,19 @@ class MinimapMarkers {
         // HElement is also the native MapWindow's landmark source. Rebuild only
         // if those lists change; never traverse level prefabs on every refresh.
         var changed = false;
+        var allElements = G.current("HElement", "allElements");
+        if (stationSource != allElements) {
+            stationSource = allElements;
+            stationDefinitions = [];
+            // Stations have no dedicated HElement list. Index the loaded
+            // definitions once, not on each marker refresh or from disk.
+            if (allElements != null) for (definition in G.array(G.staticCall("HElement", "all", []))) {
+                if (G.text(G.field(definition, "mapId")) != level) continue;
+                if (stationKind(G.integer(G.field(G.field(definition, "inf"), "type"))) != "")
+                    stationDefinitions.push(definition);
+            }
+            changed = true;
+        }
         for (name in ["obelisks", "respawnPoints", "npcs"]) {
             var source = G.current("HElement", name);
             var count = G.integer(G.field(source, "length"));
@@ -64,9 +80,10 @@ class MinimapMarkers {
         }
         if (!changed) return;
         landmarks = [];
-        for (name in ["obelisks", "respawnPoints", "npcs"]) {
+        for (name in ["obelisks", "respawnPoints", "npcs", "stations"]) {
             var kind = name == "obelisks" ? "obelisk" : name == "respawnPoints" ? "respawn" : "npc";
-            for (definition in G.array(landmarkSources[name])) {
+            var definitions = name == "stations" ? stationDefinitions : G.array(landmarkSources[name]);
+            for (definition in definitions) {
                 if (G.text(G.field(definition, "mapId")) != level) continue;
                 var inf = G.field(definition, "inf");
                 // Obelisks are also in respawnPoints; draw each location once.
@@ -76,7 +93,7 @@ class MinimapMarkers {
                 var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", prefab, [true]);
                 if (matrix == null) continue;
                 var id = G.text(G.field(inf, "id"));
-                landmarks[kind + ":" + id] = {kind: kind,
+                landmarks[kind + ":" + id] = {kind: kind == "npc" ? npcKind(inf) : kind,
                     x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42"))};
             }
         }
@@ -116,7 +133,7 @@ class MinimapMarkers {
                 }
                 if ((G.integer(G.field(inf, "flags")) & 0x38) != 0) kind = "boss";
             }
-            points.push({kind: kind, x: px, y: py});
+            points.push({kind: kind, x: px, y: py, heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});
         }
 
         if (config.showPlants || config.showOre || config.showNpcs) for (element in G.array(G.field(layer, "interactibles"))) {
@@ -130,7 +147,7 @@ class MinimapMarkers {
             if (category == "npc") {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
-                liveNpcs[key] = active ? {kind: "npc", x: px, y: py} : null;
+                liveNpcs[key] = active ? {kind: npcKind(G.field(element, "inf")), x: px, y: py} : null;
             } else if (active) {
                 // Gatherable.consume disables the entity until its next respawn.
                 // Hit points alone are unsuitable: plants don't need mining hits.
@@ -141,16 +158,65 @@ class MinimapMarkers {
         }
 
         for (key => point in landmarks) {
-            if (point.kind == "npc" && liveNpcs.exists(key)) continue;
+            if (isNpc(point.kind) && liveNpcs.exists(key)) continue;
             var show = switch point.kind {
-                case "npc": config.showNpcs;
                 case "obelisk": config.showObelisks;
-                default: config.showRespawnPoints;
+                case "respawn": config.showRespawnPoints;
+                default: config.showNpcs;
             };
             if (show && near(point.x, point.y, x, y, radius)) points.push(point);
         }
         for (point in liveNpcs) if (point != null && near(point.x, point.y, x, y, radius)) points.push(point);
         return points;
+    }
+
+    static function stationKind(type:Int):String return switch type {
+        // Data.Element_type: CraftStation, GearUpgradeStation, ScrapStation.
+        case 23: "craft";
+        case 24: "upgrade";
+        case 31: "recycler";
+        default: "";
+    };
+
+    static function isNpc(kind:String):Bool return switch kind {
+        case "npc", "bank", "demon", "craft", "upgrade", "recycler": true;
+        default: false;
+    };
+
+    function npcKind(inf:Dynamic):String {
+        var id = G.text(G.field(inf, "id"));
+        if (npcKinds.exists(id)) return npcKinds[id];
+        var kind = stationKind(G.integer(G.field(inf, "type")));
+        if (kind != "") { npcKinds[id] = kind; return kind; }
+        kind = "npc";
+        var current = inf;
+        var seen:Map<String, Bool> = [];
+        while (current != null) {
+            var currentId = G.text(G.field(current, "id"));
+            if (seen.exists(currentId)) break;
+            seen[currentId] = true;
+            var props = G.field(current, "props");
+            var unit = G.text(G.field(G.field(props, "npc"), "unit"));
+            // Native unit IDs are stable across display-name translations.
+            if (unit == "TODO_WanderingMerchant") { kind = "bank"; break; }
+            if (unit == "DemonHunterMira" || unit == "DemonHunterZoey" || unit == "DemonHunterRumi") {
+                kind = "demon";
+                break;
+            }
+            for (dialog in G.array(G.field(current, "dialog"))) {
+                for (choice in G.array(G.field(dialog, "choices"))) {
+                    if (G.text(G.field(choice, "verb")) == "DialogBank") { kind = "bank"; break; }
+                }
+                if (kind == "bank") break;
+            }
+            if (kind == "bank") break;
+            var parent = G.text(G.field(current, "inherit"));
+            if (parent == "") break;
+            var definition = G.call("haxe.ds.StringMap", "get", G.current("HElement", "allElements"), [parent]);
+            current = G.field(definition, "inf");
+        }
+        npcKinds[id] = kind;
+        return kind;
     }
 
     function codexGoal(id:String, inf:Dynamic):Int {
@@ -199,7 +265,8 @@ class MinimapMarkers {
                 case "ent.Hero": "player";
                 case "ent.Foe": "enemy";
                 case "ent.interactible.Gatherable": "gatherable";
-                case "ent.interactible.Npc": "npc";
+                case "ent.interactible.Npc", "ent.interactible.CraftStation",
+                    "ent.interactible.GearUpgradeStation", "ent.interactible.ScrapStation": "npc";
                 default: "";
             };
             if (kind != "") break;
@@ -216,7 +283,8 @@ class MinimapMarkers {
         G.call("h2d.Graphics", "clear", graphics);
         // Group fills to keep native calls and draw batches small. Markers use
         // world positions, so the map can scroll/rotate smoothly between samples.
-        for (kind in ["plant", "ore", "enemy", "boss", "respawn", "obelisk", "npc", "player"]) {
+        // Services and obelisks remain readable when players gather around them.
+        for (kind in ["plant", "ore", "enemy", "boss", "player", "respawn", "npc", "bank", "demon", "recycler", "upgrade", "craft", "obelisk"]) {
             var group = [for (point in points) if (point.kind == kind) point];
             if (group.length == 0) continue;
             var color = switch kind {
@@ -226,21 +294,61 @@ class MinimapMarkers {
                 case "respawn": 0xffffff;
                 case "obelisk": 0xc599ff;
                 case "npc": 0xffdf78;
+                case "bank": 0xffdf78;
+                case "demon": 0xe8a1ff;
+                case "recycler": 0x86eed4;
+                case "upgrade": 0xb4dcff;
+                case "craft": 0xffc68a;
                 default: 0x70d8ff;
             };
-            var radius = (kind == "boss" ? 5.0 : kind == "player" ? 4.0 : 3.5) / scale;
+            var service = isNpc(kind) && kind != "npc";
+            var radius = (service ? 7.0 : kind == "player" ? 5.5 : kind == "boss" ? 5.0 : kind == "obelisk" ? 4.5 : 3.5) / scale;
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
             for (point in group) shape(point, radius + 1 / scale);
             G.call("h2d.Graphics", "endFill", graphics);
             G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
             for (point in group) shape(point, radius);
             G.call("h2d.Graphics", "endFill", graphics);
+            if (service) {
+                G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
+                for (point in group) detail(point, radius);
+                G.call("h2d.Graphics", "endFill", graphics);
+            }
         }
     }
 
     function shape(point:MapPoint, r:Float):Void {
         var x = point.x, y = point.y;
         switch point.kind {
+            case "player":
+                // Arrow geometry points along +X, like Entity.rotationZ.
+                polygon(point, r, [1, 0, -0.8, 0.7, -0.45, 0, -0.8, -0.7], point.heading);
+            case "bank":
+                // A chest with an arched lid; seam and lock are drawn below.
+                polygon(point, r, [-1, 0.8, -1, -0.35, -0.65, -0.8, 0.65, -0.8, 1, -0.35, 1, 0.8]);
+            case "demon":
+                // Horned face, distinct from the enemy dots.
+                polygon(point, r, [-0.9, -1, -0.35, -0.4, 0.35, -0.4, 0.9, -1,
+                    0.8, 0.25, 0.45, 0.75, 0, 1, -0.45, 0.75, -0.8, 0.25]);
+            case "recycler":
+                // Two chasing arrows.
+                polygon(point, r, [-0.95, 0.05, -0.95, -0.55, -0.5, -0.95, 0.45, -0.95,
+                    0.45, -1.2, 1, -0.65, 0.45, -0.1, 0.45, -0.4, -0.45, -0.4, -0.45, 0.05]);
+                polygon(point, r, [0.95, -0.05, 0.95, 0.55, 0.5, 0.95, -0.45, 0.95,
+                    -0.45, 1.2, -1, 0.65, -0.45, 0.1, -0.45, 0.4, 0.45, 0.4, 0.45, -0.05]);
+            case "upgrade":
+                // Upright sword and an upward upgrade arrow.
+                polygon(point, r, [-0.45, -1, -0.15, -0.65, -0.15, 0.2, 0.15, 0.2,
+                    0.15, 0.45, -0.3, 0.45, -0.3, 1, -0.6, 1, -0.6, 0.45,
+                    -1, 0.45, -1, 0.2, -0.75, 0.2, -0.75, -0.65]);
+                polygon(point, r, [0.6, -0.85, 1.15, -0.25, 0.8, -0.25, 0.8, 0.6,
+                    0.4, 0.6, 0.4, -0.25, 0.05, -0.25]);
+            case "craft":
+                // Hammer above a workbench.
+                polygon(point, r, [-0.15, -0.85, 0.15, -0.85, 0.15, 0.35, -0.15, 0.35]);
+                polygon(point, r, [-0.65, -1, 0.65, -1, 0.65, -0.45, -0.65, -0.45]);
+                polygon(point, r, [-1, 0.25, 1, 0.25, 1, 0.55, 0.7, 0.55, 0.7, 1,
+                    0.4, 1, 0.4, 0.55, -0.4, 0.55, -0.4, 1, -0.7, 1, -0.7, 0.55, -1, 0.55]);
             case "respawn":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r / 3, y - r, r * 2 / 3, r * 2]);
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r / 3, r * 2, r * 2 / 3]);
@@ -253,7 +361,29 @@ class MinimapMarkers {
             case "npc":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, r * 2, r * 2]);
             default:
-                G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 12]);
+                G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 32]);
+        }
+    }
+
+    function polygon(point:MapPoint, radius:Float, vertices:Array<Float>, angle:Float = 0):Void {
+        var c = Math.cos(angle) * radius, s = Math.sin(angle) * radius;
+        for (i in 0...Std.int(vertices.length / 2) + 1) {
+            var j = i * 2 % vertices.length;
+            var x = point.x + vertices[j] * c - vertices[j + 1] * s;
+            var y = point.y + vertices[j] * s + vertices[j + 1] * c;
+            G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", graphics, [x, y]);
+        }
+    }
+
+    function detail(point:MapPoint, r:Float):Void {
+        switch point.kind {
+            case "bank":
+                G.call("h2d.Graphics", "drawRect", graphics, [point.x - r, point.y - 0.2 * r, 2 * r, 0.2 * r]);
+                G.call("h2d.Graphics", "drawRect", graphics, [point.x - 0.16 * r, point.y - 0.05 * r, 0.32 * r, 0.4 * r]);
+            case "demon":
+                polygon(point, r, [-0.6, -0.05, -0.15, 0.1, -0.2, 0.3, -0.5, 0.25]);
+                polygon(point, r, [0.6, -0.05, 0.15, 0.1, 0.2, 0.3, 0.5, 0.25]);
+            default:
         }
     }
 }

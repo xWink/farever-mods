@@ -25,6 +25,10 @@ class MinimapView {
     var panel:Dynamic;
     var frame:Dynamic;
     var mask:Dynamic;
+    var circleMask:Dynamic;
+    var squareFilter:Dynamic;
+    var circleFilter:Dynamic;
+    var circular:Bool = false;
     var pivot:Dynamic;
     var terrain:Dynamic;
     var tileLayer:Dynamic;
@@ -70,7 +74,7 @@ class MinimapView {
             create();
         }
 
-        if (size != config.size) layout(config.size);
+        if (size != config.size || circular != config.circular) layout(config.size, config.circular);
         var newScale = config.zoom / 100 * 2; // Two UI pixels per world unit at 100%.
         if (newScale != scale) {
             scale = newScale;
@@ -80,17 +84,30 @@ class MinimapView {
         var x = G.number(G.field(hero, "posx"));
         var y = G.number(G.field(hero, "posy"));
         var heading = G.number(G.field(hero, "rotationZ"));
+        var orientation = config.rotateMap && config.followCamera ? cameraHeading(app, heading) : heading;
+        var rotation = config.rotateMap ? -Math.PI / 2 - orientation : 0.0;
         // Native facing is (cos(heading), sin(heading)); screen-up is -PI/2.
-        G.call("h2d.Object", "set_rotation", pivot, [config.rotateMap ? -Math.PI / 2 - heading : 0.0]);
+        G.call("h2d.Object", "set_rotation", pivot, [rotation]);
         position(terrain, -x * scale, -y * scale);
-        G.call("h2d.Object", "set_rotation", arrow, [config.rotateMap ? -Math.PI / 2 : heading]);
+        G.call("h2d.Object", "set_rotation", arrow, [heading + rotation]);
         position(panel, config.leftCorner ? 24 : Math.max(0, G.number(G.call("h2d.Flow", "get_innerWidth", root)) - size - BORDER * 2 - 24), 24);
         // A rotating square needs enough tiles/markers to cover its diagonal.
-        var radius = size / (2 * scale) * (config.rotateMap ? Math.sqrt(2) : 1);
+        var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
         loadNextTile();
         markers.update(hero, config, x, y, radius, scale);
         show(true);
+    }
+
+    function cameraHeading(app:Dynamic, fallback:Float):Float {
+        // The rendered camera includes smoothing and target-lock movement.
+        // Read its horizontal viewing vector without allocating a native ray.
+        var camera = G.field(G.field(app, "s3d"), "camera");
+        var eye = G.field(camera, "pos"), target = G.field(camera, "target");
+        if (eye == null || target == null) return fallback;
+        var dx = G.number(G.field(target, "x")) - G.number(G.field(eye, "x"));
+        var dy = G.number(G.field(target, "y")) - G.number(G.field(eye, "y"));
+        return dx * dx + dy * dy > 0.000001 ? Math.atan2(dy, dx) : fallback;
     }
 
     function indexTiles(settings:Dynamic):Void {
@@ -129,8 +146,15 @@ class MinimapView {
         G.set(properties, "offsetX", 0);
         G.set(properties, "offsetY", 0);
         frame = G.create("h2d.Graphics", [panel]);
+        // Mask filters require a preceding sibling, never an ancestor.
+        circleMask = G.create("h2d.Graphics", [panel]);
+        position(circleMask, BORDER, BORDER);
         mask = G.create("h2d.Mask", [1, 1, panel]);
         position(mask, BORDER, BORDER);
+        squareFilter = G.create("h2d.filter.Nothing", []);
+        circleFilter = G.create("h2d.filter.Mask", [circleMask, false, true]);
+        configureFilter(squareFilter, "h2d.filter.Filter");
+        configureFilter(circleFilter, "h2d.filter.AbstractMask");
         pivot = G.create("h2d.Object", [mask]);
         terrain = G.create("h2d.Object", [pivot]);
         tileLayer = G.create("h2d.Object", [terrain]);
@@ -145,16 +169,40 @@ class MinimapView {
         G.call("h2d.Object", "setScale", arrow, [20 / Math.max(1, Math.max(w, h))]);
     }
 
-    function layout(value:Int):Void {
+    function configureFilter(filter:Dynamic, type:String):Void {
+        // Supersample only the bounded minimap, not the world-sized tile layer.
+        // Bilinear downsampling smooths small marker edges at every zoom level.
+        G.set(filter, "smooth", true);
+        G.call(type, "set_useScreenResolution", filter, [true]);
+        G.call(type, "set_resolutionScale", filter, [2.0]);
+    }
+
+    function layout(value:Int, round:Bool):Void {
         size = value;
+        circular = round;
         bounds = "";
         G.set(mask, "width", size);
         G.set(mask, "height", size);
         position(arrow, size / 2, size / 2);
         position(pivot, size / 2, size / 2);
         G.call("h2d.Graphics", "clear", frame);
-        rectangle(0, 0, size + BORDER * 2, size + BORDER * 2, 0xb39888);
-        rectangle(BORDER, BORDER, size, size, 0x17202b);
+        G.call("h2d.Graphics", "clear", circleMask);
+        G.call("h2d.Object", "set_filter", mask, [round ? circleFilter : squareFilter]);
+        G.call("h2d.Object", "set_visible", circleMask, [round]);
+        if (round) {
+            circle(frame, size / 2 + BORDER, size / 2 + BORDER, size / 2 + BORDER, 0xb39888);
+            circle(frame, size / 2 + BORDER, size / 2 + BORDER, size / 2, 0x17202b);
+            circle(circleMask, size / 2, size / 2, size / 2, 0xffffff);
+        } else {
+            rectangle(0, 0, size + BORDER * 2, size + BORDER * 2, 0xb39888);
+            rectangle(BORDER, BORDER, size, size, 0x17202b);
+        }
+    }
+
+    function circle(graphics:Dynamic, x:Float, y:Float, radius:Float, color:Int):Void {
+        G.call("h2d.Graphics", "beginFill", graphics, [color, 1.0]);
+        G.call("h2d.Graphics", "drawCircle", graphics, [x, y, radius, 128]);
+        G.call("h2d.Graphics", "endFill", graphics);
     }
 
     function rectangle(x:Float, y:Float, w:Float, h:Float, color:Int):Void {
@@ -240,8 +288,9 @@ class MinimapView {
             G.call("h2d.Object", "remove", old);
         }
         owner = null; world = null; root = null; loader = null;
-        frame = null; mask = null; pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
+        frame = null; mask = null; circleMask = null; squareFilter = null; circleFilter = null;
+        pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
         index = []; sprites = []; wanted = []; cached = [];
-        size = 0; scale = 0; bounds = ""; generation = 0;
+        size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
     }
 }
