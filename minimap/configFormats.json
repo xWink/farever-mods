@@ -37,6 +37,7 @@
     { "key": "hideNonCodexEnemies", "type": "checkbox", "label": "Hide enemies without Codex entries" },
     { "type": "title", "label": "Companions" },
     { "key": "showCompanions", "type": "checkbox", "label": "Show companions" },
-    { "key": "hideCollectedCompanions", "type": "checkbox", "label": "Hide collected companions" }
+    { "key": "hideCollectedCompanions", "type": "checkbox", "label": "Hide collected companions" },
+    { "key": "sparklingCompanionAlerts", "type": "checkbox", "label": "Sparkling companion alerts" }
   ]
 }

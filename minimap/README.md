@@ -31,6 +31,7 @@ A compact overworld minimap with a centered player arrow.
 - Treasure chest, undiscovered secret orb, and activity markers.
 - Enemy filters for completed and incomplete Codex entries.
 - Companion markers with an option to hide variants already in your collection.
+- Yellow edge arrows guide you toward detected, uncollected sparkling companions.
 - Yellow rings highlight sparkling enemies and bosses.
 - Individual plant and ore filters.
 - Hover over markers to see their names below the map; scroll over the map to zoom.
@@ -51,6 +52,8 @@ Scroll up over the minimap to zoom in and down to zoom out, in 10% steps. The zo
 All marker types default on. The **Enemies** section has **Show enemies**, **Hide completed Codex enemies**, and **Hide enemies without Codex entries**. Both Hide options default off. Incomplete Codex enemies remain visible whenever **Show enemies** is enabled. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
 
 The **Companions** section has **Show companions** (default on) and **Hide collected companions** (default off). These markers are independent of enemy filters. The collection filter checks each exact variant in your account-wide collection, so collecting one color does not hide other colors or sparkling variants you have yet to collect.
+
+**Sparkling companion alerts** (default on) adds a yellow arrow at the minimap edge for each detected sparkling companion you have not collected. It works independently of **Show companions**, follows map rotation in either shape, and lets you hover over an arrow to see the companion's name. Arrows remain at the edge while the companion is detected, including when its pawprint is inside the map, and disappear when it is collected or no longer present. Detection covers all live companions sent to your client in the current layer, regardless of minimap zoom or distance; it cannot reveal spawns the server has not sent to your client.
 
 The **Ore** and **Plants** sections contain **Show ore** and **Show plants**, followed by individual **Hide…** options. Ore filters cover Copper, Iron, Tin, and Tungstene; plant filters cover Madrigold, Lavendula, Ancient Thyme, and Zealotus. Each filter covers both small and large nodes. All Hide options default off.
 

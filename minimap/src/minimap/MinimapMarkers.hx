@@ -20,6 +20,10 @@ class MinimapMarkers {
     var graphics:Dynamic;
     var mapGraphics:Dynamic;
     var npcGraphics:Dynamic;
+    var alertLayer:Dynamic;
+    var alertTargets:Array<MapPoint> = [];
+    var alertArrows:Array<Dynamic> = [];
+    var alertPositions:Array<{x:Float, y:Float, point:MapPoint}> = [];
     var level:String;
     var layer:Dynamic;
     var lastHero:Dynamic;
@@ -45,10 +49,11 @@ class MinimapMarkers {
     var landmarkCounts:Map<String, Int> = [];
     static var reportedError:Bool = false;
 
-    public function new(parent:Dynamic, foreground:Dynamic, level:String) {
+    public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String) {
         this.level = level;
         mapGraphics = G.create("h2d.Graphics", [parent]);
         npcGraphics = G.create("h2d.Graphics", [foreground]);
+        alertLayer = G.create("h2d.Object", [overlay]);
     }
 
     public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float):Void {
@@ -66,6 +71,7 @@ class MinimapMarkers {
             draw(points, scale);
         } catch (error:Dynamic) {
             hitPoints = [];
+            alertTargets = [];
             // An optional marker source must not take down the working map.
             G.call("h2d.Graphics", "clear", mapGraphics);
             G.call("h2d.Graphics", "clear", npcGraphics);
@@ -75,6 +81,47 @@ class MinimapMarkers {
                 trace("[Minimap] Markers: " + Std.string(error));
             }
         }
+    }
+
+    public function updateAlerts(config:MinimapSettings, x:Float, y:Float, size:Int, rotation:Float):Void {
+        var count = config.sparklingCompanionAlerts ? alertTargets.length : 0;
+        while (alertArrows.length > count) G.call("h2d.Object", "remove", alertArrows.pop());
+        while (alertArrows.length < count) {
+            var arrow = G.create("h2d.Graphics", [alertLayer]);
+            drawPlayerArrow(arrow, 8, 0xffdc42);
+            alertArrows.push(arrow);
+        }
+        alertPositions = [];
+        if (count == 0) return;
+        // Keep geometry cached; only position and rotate the few active arrows
+        // each frame so they follow movement and camera rotation smoothly.
+        var c = Math.cos(rotation), s = Math.sin(rotation);
+        var edge = size / 2 - 12;
+        for (i in 0...count) {
+            var point = alertTargets[i];
+            var dx = point.x - x, dy = point.y - y;
+            var sx = dx * c - dy * s, sy = dx * s + dy * c;
+            var extent = config.circular ? Math.sqrt(sx * sx + sy * sy) : Math.max(Math.abs(sx), Math.abs(sy));
+            var visible = extent > 0.001 && G.field(point.entity, "removed") != true;
+            var arrow = alertArrows[i];
+            G.call("h2d.Object", "set_visible", arrow, [visible]);
+            if (!visible) continue;
+            var px = size / 2 + sx * edge / extent;
+            var py = size / 2 + sy * edge / extent;
+            G.call("h2d.Object", "setPosition", arrow, [px, py]);
+            G.call("h2d.Object", "set_rotation", arrow, [Math.atan2(sy, sx)]);
+            alertPositions.push({x: px, y: py, point: point});
+        }
+    }
+
+    public function alertNameAt(x:Float, y:Float):String {
+        var i = alertPositions.length;
+        while (i > 0) {
+            var alert = alertPositions[--i];
+            if (nearCursor(x, y, alert.x, alert.y, 11) && G.field(alert.point.entity, "removed") != true)
+                return markerName(alert.point);
+        }
+        return "";
     }
 
     function refreshLandmarks():Void {
@@ -139,6 +186,7 @@ class MinimapMarkers {
 
     function collect(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float):Array<MapPoint> {
         var points:Array<MapPoint> = [];
+        alertTargets = [];
         var liveNpcs:Map<String, MapPoint> = [];
         var player = G.field(hero, "player");
         var progress = G.field(player, "progress");
@@ -146,38 +194,48 @@ class MinimapMarkers {
         var collection = G.field(G.field(player, "accountProgress"), "collection");
         var completed:Map<String, Bool> = [];
         var collected:Map<String, Bool> = [];
-        if (config.showPlayers || config.showEnemies || config.showCompanions) for (unit in G.array(G.field(layer, "units"))) {
+        if (config.showPlayers || config.showEnemies || config.showCompanions || config.sparklingCompanionAlerts)
+        for (unit in G.array(G.field(layer, "units"))) {
             if (unit == hero || G.field(unit, "removed") == true) continue;
             var kind = family(unit);
             if (kind != "player" && kind != "enemy") continue;
-            if (kind == "player" ? !config.showPlayers : !config.showEnemies && !config.showCompanions) continue;
+            if (kind == "player" ? !config.showPlayers : !config.showEnemies && !config.showCompanions && !config.sparklingCompanionAlerts) continue;
             var px = G.number(G.field(unit, "posx")), py = G.number(G.field(unit, "posy"));
-            if (!near(px, py, x, y, radius)) continue;
+            var nearby = near(px, py, x, y, radius);
+            if (!nearby && (kind == "player" || !config.sparklingCompanionAlerts)) continue;
+            var inf = kind == "enemy" ? G.field(unit, "inf") : null;
+            var flags = G.integer(G.field(inf, "flags"));
+            var sparkling = (flags & (1 << 22)) != 0;
+            var companion = G.text(G.field(inf, "type")) == "Critter";
+            var alert = config.sparklingCompanionAlerts && companion && sparkling;
+            // Alerts scan every replicated unit, with no minimap-distance cutoff.
+            if (!nearby && !alert) continue;
             if (G.field(unit, "dying") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
-            var sparkling = false;
             if (kind == "enemy") {
                 // Player-owned summons are allies, including nested summons.
                 var source = unit;
                 var summoner = G.field(source, "summonOwner");
                 while (summoner != null) { source = summoner; summoner = G.field(source, "summonOwner"); }
                 if (family(source) == "player") continue;
-                var inf = G.field(unit, "inf");
                 if (inf == null) continue;
                 var id = G.text(G.field(inf, "id"));
-                var flags = G.integer(G.field(inf, "flags"));
-                if (G.text(G.field(inf, "type")) == "Critter") {
+                if (companion) {
                     // Same collectible entries as CollectionUI: exclude
                     // NoCollection (bit 20) and definitions without artwork.
-                    if (!config.showCompanions || (flags & (1 << 20)) != 0 || G.field(inf, "gfx") == null) continue;
+                    if ((!config.showCompanions && !alert) || (flags & (1 << 20)) != 0 || G.field(inf, "gfx") == null) continue;
                     kind = "companion";
-                    if (config.hideCollectedCompanions && collection != null) {
+                    var owned = false;
+                    if ((config.hideCollectedCompanions || alert) && collection != null) {
                         // Capture saves the exact unit kind, including its color
                         // or sparkling variant, in the account-wide collection.
                         var pet = G.text(G.field(unit, "kind"), id);
                         if (!collected.exists(pet))
                             collected[pet] = G.call("st.player.Collection", "hasPet", collection, [pet]) == true;
-                        if (collected[pet]) continue;
+                        owned = collected[pet];
                     }
+                    if (alert && collection != null && !owned)
+                        alertTargets.push({kind: kind, x: px, y: py, sparkling: true, entity: unit});
+                    if (!config.showCompanions || !nearby || (config.hideCollectedCompanions && owned)) continue;
                 } else {
                     if (!config.showEnemies || G.call("ent.Foe", "isEnemyWith", unit, [hero]) != true) continue;
                     var goal = codexGoal(id, inf);
@@ -192,8 +250,6 @@ class MinimapMarkers {
                     }
                     if ((flags & 0x38) != 0) kind = "boss";
                 }
-                // Data.Unit_flags.Spark identifies the sparkling variant.
-                sparkling = (flags & (1 << 22)) != 0;
             }
             points.push({kind: kind, x: px, y: py, sparkling: sparkling, entity: unit,
                 heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});

@@ -117,6 +117,7 @@ class MinimapView {
         selectTiles(x, y, radius);
         loadNextTile();
         markers.update(hero, config, x, y, radius, scale);
+        markers.updateAlerts(config, x, y, size, rotation);
         show(true);
         updateHover(hero, x, y, rotation);
     }
@@ -186,7 +187,7 @@ class MinimapView {
         // cursor. Only the minimap's outer boundary clips this layer.
         npcPivot = G.create("h2d.Object", [mask]);
         npcTerrain = G.create("h2d.Object", [npcPivot]);
-        markers = new MinimapMarkers(terrain, npcTerrain, LEVEL);
+        markers = new MinimapMarkers(terrain, npcTerrain, mask, LEVEL);
         input = G.create("h2d.Interactive", [1.0, 1.0, panel, null]);
         position(input, BORDER, BORDER);
         G.call("h2d.Interactive", "set_cursor", input, [G.current("hxd.Cursor", "Default")]);
@@ -222,7 +223,8 @@ class MinimapView {
         // Undo the displayed map rotation and zoom before picking a marker.
         var px = x + (dx * c + dy * s) / scale;
         var py = y + (dy * c - dx * s) / scale;
-        setHoverCaption(markers.nameAt(px, py, scale, x, y, hero));
+        var alertName = markers.alertNameAt(mouseX, mouseY);
+        setHoverCaption(alertName != "" ? alertName : markers.nameAt(px, py, scale, x, y, hero));
     }
 
     function setHoverCaption(value:String):Void {

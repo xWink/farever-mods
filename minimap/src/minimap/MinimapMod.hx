@@ -21,6 +21,7 @@ typedef MinimapSettings = {
     var hideNonCodexEnemies:Bool;
     var showCompanions:Bool;
     var hideCollectedCompanions:Bool;
+    var sparklingCompanionAlerts:Bool;
     var showRespawnPoints:Bool;
     var showObelisks:Bool;
     var showNpcs:Bool;
@@ -45,7 +46,7 @@ class MinimapMod {
         circular: false, leftCorner: false,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         hideCompletedCodexEnemies: false, hideNonCodexEnemies: false,
-        showCompanions: true, hideCollectedCompanions: false,
+        showCompanions: true, hideCollectedCompanions: false, sparklingCompanionAlerts: true,
         showRespawnPoints: true, showObelisks: true, showNpcs: true,
         showChests: true, showSecretOrbs: true, showActivities: true,
         hideCopper: false, hideIron: false, hideTin: false, hideTungstene: false,
