@@ -48,7 +48,8 @@ class NativeMeterWindow {
     public function update(model:CombatModel, active:Bool, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");
         if (owner != null && owner != ui) dispose();
-        if (window != null && G.field(window, "removed") == true) dispose();
+        if (window != null && (G.field(window, "removed") == true
+            || !chartBodyIntact(body, container))) dispose();
         // A fresh character or instance has no encounter to show or fade out.
         if (!config.visible || !config.enabled || !active || ui == null
             || (config.hideOutOfCombat && model.displayedFight() == null)) {
@@ -136,13 +137,8 @@ class NativeMeterWindow {
 
         body = node("options-content", dom, [0], "dpsMeterBody");
         var bodyObject = G.field(body, "obj");
-        show(G.field(bodyObject, "inputList"), false);
+        container = prepareChartBody(body);
         var options = G.field(bodyObject, "optionsList");
-        show(G.field(options, "applyBtn"), false);
-        container = G.field(options, "container");
-        if (container == null) throw "Native Options content container was not found";
-        // Preserve OptionsList > Block ancestry, but remove its stock settings rows.
-        for (child in children(container)) show(child, false);
         var parent = G.field(container, "dom");
         content = node("flow", parent, [], "dpsMeterContent", "vertical");
         flow(content, "set_verticalSpacing", 12);
@@ -293,6 +289,7 @@ class NativeMeterWindow {
         finishDrag();
         if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
         owner = null; chart = null; displayed = null;
+        body = null; container = null; bossCaption = "";
         outOfCombatSince = -1;
     }
 }

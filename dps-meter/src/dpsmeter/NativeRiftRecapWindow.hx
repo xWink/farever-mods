@@ -16,6 +16,9 @@ class NativeRiftRecapWindow {
     var header:Dynamic;
     var title:Dynamic;
     var close:Dynamic;
+    var body:Dynamic;
+    var container:Dynamic;
+    var displayedRecap:Null<RiftRecap>;
     var wrappers:Array<Dynamic> = [];
     var sections:Array<Dynamic> = [];
     var width:Int = 0;
@@ -30,10 +33,18 @@ class NativeRiftRecapWindow {
         if (window != null && G.field(window, "removed") == true) dispose();
         if (!enabled) { model.recaps = []; dispose(); return; }
         if (!active || ui == null) { dispose(); return; }
+        if (window != null && !chartBodyIntact(body, container)) {
+            // Retry the same finalized UI snapshot; completed combat reports
+            // and uploads are separate and must not be queued again.
+            if (model.recaps.length == 0 && displayedRecap != null)
+                model.recaps.push(displayedRecap);
+            dispose();
+        }
         if (model.recaps.length > 0 && now >= retryAt) {
             dispose();
             try {
                 build(ui, model.recaps[model.recaps.length - 1]);
+                displayedRecap = model.recaps[model.recaps.length - 1];
                 model.recaps = [];
             } catch (_:Dynamic) {
                 constructing = false; dispose(); retryAt = now + 10;
@@ -83,13 +94,10 @@ class NativeRiftRecapWindow {
         // This HUD is outside BaseUI.windows; remove it directly with the native X.
         G.call("ui.UIElement", "set_onClick", close, [() -> dispose()]);
 
-        var body = node("options-content", dom, [0], "dpsRiftRecapBody");
+        body = node("options-content", dom, [0], "dpsRiftRecapBody");
         var bodyObject = G.field(body, "obj");
-        show(G.field(bodyObject, "inputList"), false);
+        container = prepareChartBody(body);
         var options = G.field(bodyObject, "optionsList");
-        show(G.field(options, "applyBtn"), false);
-        var container = G.field(options, "container");
-        for (child in children(container)) show(child, false);
         wrappers = [bodyObject, options, container];
         for (object in [window, frameBackground, windowContent, header, bodyObject, options, container]) {
             if (object == null) continue;
@@ -193,6 +201,7 @@ class NativeRiftRecapWindow {
     public function dispose():Void {
         if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
         owner = null; sections = []; wrappers = []; frameBackground = null;
+        body = null; container = null; displayedRecap = null;
         width = 0; height = 0;
     }
 }

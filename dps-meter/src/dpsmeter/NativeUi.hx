@@ -5,6 +5,28 @@ import dpsmeter.GameAccess as G;
 
 /** Shared native DOM layout and formatting for the meter and rift recap. */
 class NativeUi {
+    public static function prepareChartBody(body:Dynamic):Dynamic {
+        var object = G.field(body, "obj");
+        var options = G.field(object, "optionsList");
+        var input = G.field(object, "inputList");
+        var container = G.field(options, "container");
+        if (container == null) throw "Native Options content container was not found";
+        // Keep the native styling ancestry, but stop the settings callbacks:
+        // OptionsList watches display mode and otherwise rebuilds over our chart.
+        // Do this before adding any of the chart's own controls.
+        for (component in [object, options, input])
+            if (component != null) G.call("ui.UIElement", "clearBinds", component);
+        show(input, false);
+        show(G.field(options, "applyBtn"), false);
+        for (child in children(container)) show(child, false);
+        return container;
+    }
+    public static function chartBodyIntact(body:Dynamic, container:Dynamic):Bool {
+        // A native rebuild can replace children while the outer window survives.
+        return container != null && G.field(container, "removed") != true
+            && G.field(container, "parent") != null
+            && G.field(G.field(G.field(body, "obj"), "optionsList"), "container") == container;
+    }
     public static function attachBelowGameUi(ui:Dynamic, window:Dynamic):Dynamic {
         var root = G.field(ui, "root");
         // Stay above rootBG, but below gameRoot's HUD, menus and dialogue.
