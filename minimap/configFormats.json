@@ -12,6 +12,7 @@
     { "key": "circular", "type": "checkbox", "label": "Circular minimap" },
     { "key": "leftCorner", "type": "checkbox", "label": "Show in left corner" },
     { "type": "title", "label": "Markers" },
+    { "key": "markerScale", "type": "slider", "label": "Marker scale %", "min": 50, "max": 200, "step": 10 },
     { "key": "showPlayers", "type": "checkbox", "label": "Show other players" },
     { "key": "showRespawnPoints", "type": "checkbox", "label": "Show respawn points" },
     { "key": "showObelisks", "type": "checkbox", "label": "Show obelisks" },

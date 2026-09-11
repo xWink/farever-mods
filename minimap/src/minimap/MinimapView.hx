@@ -45,6 +45,7 @@ class MinimapView {
     var hoverCaption:String = "";
     var hoverFontScale:Float = 1;
     var transparency:Int = -1;
+    var markerScale:Float = 0;
     var loader:Dynamic;
     var tileWorldWidth:Float = 0;
     var size:Int = 0;
@@ -86,6 +87,10 @@ class MinimapView {
         }
 
         if (size != config.size || circular != config.circular) layout(config.size, config.circular);
+        if (markerScale != config.markerScale) {
+            markerScale = config.markerScale;
+            G.call("h2d.Object", "setScale", arrow, [markerScale / 100]);
+        }
         if (transparency != config.transparency) {
             transparency = config.transparency;
             G.set(panel, "alpha", 1 - transparency / 100);
@@ -403,6 +408,7 @@ class MinimapView {
         npcPivot = null; npcTerrain = null;
         input = null; hovered = false; hoverText = null; hoverShadow = null; hoverCaption = "";
         transparency = -1;
+        markerScale = 0;
         index = []; sprites = []; wanted = []; cached = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
     }

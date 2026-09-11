@@ -25,6 +25,7 @@ A compact overworld minimap with a centered player arrow.
 - Follows your position an arrow showing your character's facing direction.
 - Fixed orientation, character-following rotation, or camera-following rotation.
 - Adjustable zoom, size, and transparency.
+- Marker scale slider resizes icons and all arrows together.
 - Upper-left or upper-right corner placement.
 - Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
 - Distinct icons for Guild Merchants, Demon Huntresses, and crafting, upgrade, and recycling stations.

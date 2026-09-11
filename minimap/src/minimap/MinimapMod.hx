@@ -9,6 +9,7 @@ typedef MinimapSettings = {
     var transparency:Int;
     var zoom:Float;
     var size:Int;
+    var markerScale:Float;
     var rotateMap:Bool;
     var followCamera:Bool;
     var circular:Bool;
@@ -42,11 +43,11 @@ typedef MinimapSettings = {
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, transparency: 0, zoom: 100, size: 240, rotateMap: false, followCamera: false,
-        circular: false, leftCorner: false,
+        enabled: true, transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
+        circular: true, leftCorner: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
-        hideCompletedCodexEnemies: false, hideNonCodexEnemies: false,
-        showCompanions: true, hideCollectedCompanions: false, sparklingCompanionAlerts: true,
+        hideCompletedCodexEnemies: true, hideNonCodexEnemies: true,
+        showCompanions: true, hideCollectedCompanions: true, sparklingCompanionAlerts: true,
         showRespawnPoints: true, showObelisks: true, showNpcs: true,
         showChests: true, showSecretOrbs: true, showActivities: true,
         hideCopper: false, hideIron: false, hideTin: false, hideTungstene: false,
@@ -71,8 +72,9 @@ class MinimapMod {
 
     static function normalize():Void {
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
-        config.zoom = Math.isFinite(config.zoom) ? Math.max(10, Math.min(300, config.zoom)) : 100;
+        config.zoom = Math.isFinite(config.zoom) ? Math.max(10, Math.min(300, config.zoom)) : 30;
         config.size = Std.int(Math.max(160, Math.min(400, config.size)));
+        config.markerScale = Math.isFinite(config.markerScale) ? Math.max(50, Math.min(200, config.markerScale)) : 100;
     }
 
     public static function adjustZoom(wheelDelta:Float):Void {

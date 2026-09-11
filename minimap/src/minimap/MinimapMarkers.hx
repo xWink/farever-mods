@@ -40,6 +40,7 @@ class MinimapMarkers {
     var mapElevationMarkers:Array<ElevationMarker> = [];
     var npcElevationMarkers:Array<ElevationMarker> = [];
     var mapRotation:Float = 0;
+    var markerScale:Float = 1;
     var heroHeight:Float = Math.NaN;
     var alertLayer:Dynamic;
     var alertTargets:Array<MapPoint> = [];
@@ -91,16 +92,18 @@ class MinimapMarkers {
         }
         var now = haxe.Timer.stamp();
         var nextLayer = G.field(hero, "layer");
+        var nextMarkerScale = config.markerScale / 100;
         var changed = previousConfig != config || previousScale != scale || previousRadius != radius
-            || lastHero != hero || layer != nextLayer;
+            || lastHero != hero || layer != nextLayer || markerScale != nextMarkerScale;
         if (!changed && now < nextRefresh) return;
         previousConfig = config; previousScale = scale; previousRadius = radius;
+        markerScale = nextMarkerScale;
         lastHero = hero; layer = nextLayer;
         nextRefresh = now + 0.2;
         heroHeight = G.number(G.field(hero, "posz"), Math.NaN);
         try {
             refreshLandmarks();
-            var points = collect(hero, config, x, y, radius + 10 / scale);
+            var points = collect(hero, config, x, y, radius + 10 * markerScale / scale);
             draw(points, scale);
         } catch (error:Dynamic) {
             hitPoints = [];
@@ -137,7 +140,7 @@ class MinimapMarkers {
         // Keep geometry cached; only position and rotate the few active arrows
         // each frame so they follow movement and camera rotation smoothly.
         var c = Math.cos(rotation), s = Math.sin(rotation);
-        var edge = size / 2 - 12;
+        var edge = size / 2 - 12 * markerScale;
         for (i in 0...count) {
             var point = alertTargets[i];
             var dx = point.x - x, dy = point.y - y;
@@ -145,9 +148,11 @@ class MinimapMarkers {
             var extent = config.circular ? Math.sqrt(sx * sx + sy * sy) : Math.max(Math.abs(sx), Math.abs(sy));
             var visible = extent > 0.001 && G.field(point.entity, "removed") != true;
             var arrow = alertArrows[i];
+            G.call("h2d.Object", "setScale", arrow, [markerScale]);
             G.call("h2d.Object", "set_visible", arrow, [visible]);
             var direction = elevationDirection(point.z, heroHeight);
             var elevation = alertElevations[i];
+            G.call("h2d.Object", "setScale", elevation, [markerScale]);
             G.call("h2d.Object", "set_visible", elevation, [visible && direction != 0]);
             if (!visible) continue;
             var px = size / 2 + sx * edge / extent;
@@ -158,7 +163,7 @@ class MinimapMarkers {
             if (direction != 0) {
                 // Place height cues inward from the edge, keeping both map shapes clipped cleanly.
                 var distance = Math.sqrt(sx * sx + sy * sy);
-                var ex = px - sx * 10 / distance, ey = py - sy * 10 / distance;
+                var ex = px - sx * 10 * markerScale / distance, ey = py - sy * 10 * markerScale / distance;
                 G.call("h2d.Object", "setPosition", elevation, [ex, ey]);
                 G.call("h2d.Object", "set_rotation", elevation, [-direction * Math.PI / 2]);
                 alertPositions.push({x: ex, y: ey, point: point});
@@ -170,7 +175,7 @@ class MinimapMarkers {
         var i = alertPositions.length;
         while (i > 0) {
             var alert = alertPositions[--i];
-            if (nearCursor(x, y, alert.x, alert.y, 11) && G.field(alert.point.entity, "removed") != true)
+            if (nearCursor(x, y, alert.x, alert.y, 11 * markerScale) && G.field(alert.point.entity, "removed") != true)
                 return markerName(alert.point);
         }
         return "";
@@ -552,7 +557,7 @@ class MinimapMarkers {
         for (i in 0...points.length) {
             var point = points[i], marker = pool[i];
             G.call("h2d.Object", "setPosition", marker.root, [point.x, point.y]);
-            G.call("h2d.Object", "setScale", marker.root, [1 / scale]);
+            G.call("h2d.Object", "setScale", marker.root, [markerScale / scale]);
             G.call("h2d.Object", "set_rotation", marker.root, [-mapRotation]);
             G.call("h2d.Object", "setPosition", marker.arrow, [elevationOffset(point), 0.0]);
             G.call("h2d.Object", "set_rotation", marker.arrow, [-point.elevation * Math.PI / 2]);
@@ -571,20 +576,20 @@ class MinimapMarkers {
             var point = hitPoints[--i];
             if (checkHero && !isNpc(point.kind)) {
                 checkHero = false;
-                if (nearCursor(x, y, heroX, heroY, 11 / scale)) return G.text(G.field(hero, "name"));
+                if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return G.text(G.field(hero, "name"));
             }
-            var r = (markerRadius(point.kind) + (point.sparkling == true ? 2.5 : 0) + 2) / scale;
+            var r = (markerRadius(point.kind) + (point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
             var hit = nearCursor(x, y, point.x, point.y, r);
             if (!hit && point.elevation != null && point.elevation != 0) {
-                var offset = elevationOffset(point) / scale;
+                var offset = elevationOffset(point) * markerScale / scale;
                 hit = nearCursor(x, y, point.x + Math.cos(mapRotation) * offset,
-                    point.y - Math.sin(mapRotation) * offset, 6 / scale);
+                    point.y - Math.sin(mapRotation) * offset, 6 * markerScale / scale);
             }
             if (!hit) continue;
             if (point.entity != null && G.field(point.entity, "removed") == true) continue;
             return markerName(point);
         }
-        return checkHero && nearCursor(x, y, heroX, heroY, 11 / scale) ? G.text(G.field(hero, "name")) : "";
+        return checkHero && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale) ? G.text(G.field(hero, "name")) : "";
     }
 
     static function nearCursor(x:Float, y:Float, px:Float, py:Float, radius:Float):Bool {
@@ -674,7 +679,7 @@ class MinimapMarkers {
             }
             marker.directional = point.kind == "player";
             G.call("h2d.Object", "setPosition", marker.icon, [point.x, point.y]);
-            G.call("h2d.Object", "setScale", marker.icon, [1 / scale]);
+            G.call("h2d.Object", "setScale", marker.icon, [markerScale / scale]);
             G.call("h2d.Object", "set_rotation", marker.icon, [marker.directional ? point.heading : -mapRotation]);
         }
     }
