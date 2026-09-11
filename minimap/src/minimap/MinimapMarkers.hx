@@ -31,6 +31,10 @@ private typedef IconMarker = {
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
     var graphics:Dynamic;
+    var playerIcons:Dynamic;
+    var playerElevations:Dynamic;
+    var playerIconMarkers:Array<IconMarker> = [];
+    var playerElevationMarkers:Array<ElevationMarker> = [];
     var mapIcons:Dynamic;
     var npcIcons:Dynamic;
     var mapIconMarkers:Array<IconMarker> = [];
@@ -74,9 +78,13 @@ class MinimapMarkers {
 
     public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String) {
         this.level = level;
-        mapIcons = G.create("h2d.Object", [parent]);
+        // Players and their height arrows sit below the local cursor. All other
+        // markers sit above it, with NPCs retaining the highest normal priority.
+        playerIcons = G.create("h2d.Object", [parent]);
+        playerElevations = G.create("h2d.Object", [parent]);
+        mapIcons = G.create("h2d.Object", [foreground]);
+        mapElevations = G.create("h2d.Object", [foreground]);
         npcIcons = G.create("h2d.Object", [foreground]);
-        mapElevations = G.create("h2d.Object", [parent]);
         npcElevations = G.create("h2d.Object", [foreground]);
         alertLayer = G.create("h2d.Object", [overlay]);
     }
@@ -87,6 +95,7 @@ class MinimapMarkers {
             for (marker in mapIconMarkers) if (!marker.directional)
                 G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
             for (marker in npcIconMarkers) G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
+            for (marker in playerElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in mapElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in npcElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
         }
@@ -109,6 +118,8 @@ class MinimapMarkers {
             hitPoints = [];
             alertTargets = [];
             // An optional marker source must not take down the working map.
+            trimIcons(playerIconMarkers, 0);
+            trimElevations(playerElevationMarkers, 0);
             trimIcons(mapIconMarkers, 0);
             trimIcons(npcIconMarkers, 0);
             trimElevations(mapElevationMarkers, 0);
@@ -600,10 +611,10 @@ class MinimapMarkers {
     public function nameAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic):String {
         var checkHero = true;
         var i = hitPoints.length;
-        // Reverse draw order: NPCs, then our cursor, then the remaining markers.
+        // Reverse draw order: other markers, then our cursor, then other players.
         while (i > 0) {
             var point = hitPoints[--i];
-            if (checkHero && !isNpc(point.kind)) {
+            if (checkHero && point.kind == "player") {
                 checkHero = false;
                 if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return G.text(G.field(hero, "name"));
             }
@@ -676,16 +687,20 @@ class MinimapMarkers {
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
         // Preserve marker priority, with services above other map content.
-        for (kind in ["activity", "ascension", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
+        for (kind in ["player", "activity", "ascension", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             for (point in points) if (point.kind == kind) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
             }
         }
-        var mapPoints = [for (point in hitPoints) if (!isNpc(point.kind)) point];
+        var playerPoints = [for (point in hitPoints) if (point.kind == "player") point];
+        var mapPoints = [for (point in hitPoints) if (point.kind != "player" && !isNpc(point.kind)) point];
         var npcPoints = [for (point in hitPoints) if (isNpc(point.kind)) point];
+        updateIcons(playerPoints, playerIconMarkers, playerIcons, scale);
         updateIcons(mapPoints, mapIconMarkers, mapIcons, scale);
         updateIcons(npcPoints, npcIconMarkers, npcIcons, scale);
+        updateElevations([for (point in playerPoints) if (point.elevation != 0) point],
+            playerElevationMarkers, playerElevations, scale);
         updateElevations([for (point in mapPoints) if (point.elevation != 0) point],
             mapElevationMarkers, mapElevations, scale);
         updateElevations([for (point in npcPoints) if (point.elevation != 0) point],

@@ -188,8 +188,8 @@ class MinimapView {
         tileLayer = G.create("h2d.Object", [terrain]);
         arrow = G.create("h2d.Graphics", [mask]);
         MinimapMarkers.drawPlayerArrow(arrow, 10, 0xfff3d6);
-        // NPCs are a final overlay above terrain, other markers, and the player
-        // cursor. Only the minimap's outer boundary clips this layer.
+        // Non-player markers overlay both player layers. Only the minimap's
+        // outer boundary clips them; NPCs retain priority within this overlay.
         npcPivot = G.create("h2d.Object", [mask]);
         npcTerrain = G.create("h2d.Object", [npcPivot]);
         markers = new MinimapMarkers(terrain, npcTerrain, mask, LEVEL);

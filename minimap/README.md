@@ -63,7 +63,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Chests | Orange rectangular treasure chest |
 | Undiscovered secret orbs | Light-blue circle |
 
-**Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
+**Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. All player markers, including your character arrow, draw behind other marker types so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
 
 The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), and **Hide ascensions** (off by default). Ascensions remain visible after completing their jump activity unless hidden separately. Other activities use the game's world-map locations, including overworld entrances for instanced activities.
 
