@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "displayName": "Fix Target Lock",
   "configs": [
+    { "type": "title", "label": "General" },
     {
       "key": "enabled",
       "type": "checkbox",

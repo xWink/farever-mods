@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "displayName": "Item Utilities",
   "configs": [
+    { "type": "title", "label": "General" },
     {
       "key": "enabled",
       "type": "checkbox",

@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "displayName": "More Audio Settings",
   "configs": [
+    { "type": "title", "label": "Unfocused Volume" },
     {
       "key": "adjustUnfocusedVolume",
       "type": "checkbox",
@@ -10,7 +11,7 @@
     {
       "key": "backgroundVolume",
       "type": "slider",
-      "label": "Background volume %",
+      "label": "Unfocused volume %",
       "min": 0,
       "max": 100,
       "step": 1

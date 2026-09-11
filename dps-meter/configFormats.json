@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "displayName": "DPS Meter",
   "configs": [
+    { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
     { "type": "title", "label": "DPS Meter" },
     { "key": "transparency", "type": "slider", "label": "Transparency", "min": 0, "max": 100, "step": 1 },
