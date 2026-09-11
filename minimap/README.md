@@ -30,7 +30,7 @@ A compact overworld minimap with a centered player arrow.
 - Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
 - Distinct icons for Guild Merchants, Demon Huntresses, and crafting, upgrade, and recycling stations.
 - Unopened treasure chest, undiscovered secret orb, and activity markers.
-- Hide completed activities while keeping checkpoint teleporters visible.
+- Hide completed activities while keeping ascension markers visible.
 - Enemy filters for completed and incomplete Codex entries.
 - Companion markers with an option to hide variants already in your collection.
 - Yellow edge arrows guide you toward uncollected sparkling companions.
@@ -51,7 +51,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Enemies | Red circle; larger for bosses; thick yellow ring for sparkling variants |
 | Companions | Green pawprint; thick yellow ring for sparkling variants |
 | Activities | Purple square with a white four-point star |
-| Checkpoint teleporters | Gold device with a bright cyan core |
+| Ascensions | Gold device with a bright cyan core |
 | Respawn points | White cross |
 | Obelisks | Purple diamond |
 | NPCs | Yellow square |
@@ -65,7 +65,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 
 **Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
 
-The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), and **Hide teleporters** (off by default). Checkpoint teleporters remain visible after completing their jump activity unless hidden separately. Other activities use the game's world-map locations, including overworld entrances for instanced activities.
+The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), and **Hide ascensions** (off by default). Ascensions remain visible after completing their jump activity unless hidden separately. Other activities use the game's world-map locations, including overworld entrances for instanced activities.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it.
 

@@ -22,7 +22,7 @@
     { "type": "title", "label": "Activities" },
     { "key": "showActivities", "type": "checkbox", "label": "Show activities" },
     { "key": "hideCompletedActivities", "type": "checkbox", "label": "Hide completed activities" },
-    { "key": "hideTeleporters", "type": "checkbox", "label": "Hide teleporters" },
+    { "key": "hideAscensions", "type": "checkbox", "label": "Hide ascensions" },
     { "type": "title", "label": "Ore" },
     { "key": "showOre", "type": "checkbox", "label": "Show ore" },
     { "key": "hideCopper", "type": "checkbox", "label": "Hide Copper" },
