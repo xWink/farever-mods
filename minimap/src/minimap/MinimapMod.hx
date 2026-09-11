@@ -16,9 +16,8 @@ typedef MinimapSettings = {
     var showPlants:Bool;
     var showOre:Bool;
     var showEnemies:Bool;
-    var showIncompleteCodexEnemies:Bool;
-    var showCompletedCodexEnemies:Bool;
-    var showNonCodexEnemies:Bool;
+    var hideCompletedCodexEnemies:Bool;
+    var hideNonCodexEnemies:Bool;
     var showRespawnPoints:Bool;
     var showObelisks:Bool;
     var showNpcs:Bool;
@@ -42,8 +41,8 @@ class MinimapMod {
         enabled: true, zoom: 100, size: 240, rotateMap: false, followCamera: false,
         circular: false, leftCorner: false,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
-        showIncompleteCodexEnemies: true, showCompletedCodexEnemies: true,
-        showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true,
+        hideCompletedCodexEnemies: false, hideNonCodexEnemies: false,
+        showRespawnPoints: true, showObelisks: true, showNpcs: true,
         showChests: true, showSecretOrbs: true, showActivities: true,
         hideCopper: false, hideIron: false, hideTin: false, hideTungstene: false,
         hideMadrigold: false, hideLavendula: false, hideAncientThyme: false, hideZealotus: false
@@ -51,6 +50,7 @@ class MinimapMod {
     static var view:MinimapView;
     static var retryAt:Float = 0;
     static var reportedError:Bool = false;
+    static var saveZoomAt:Float = 0;
 
     static function main():Void {
         normalize();
@@ -59,6 +59,7 @@ class MinimapMod {
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             normalize();
+            saveZoomAt = 0;
             retryAt = 0;
         });
     }
@@ -68,8 +69,24 @@ class MinimapMod {
         config.size = Std.int(Math.max(160, Math.min(400, config.size)));
     }
 
+    public static function adjustZoom(wheelDelta:Float):Void {
+        if (wheelDelta == 0) return;
+        var zoom = Math.max(10, Math.min(300, config.zoom + (wheelDelta < 0 ? 10 : -10)));
+        if (zoom == config.zoom) return;
+        config.zoom = zoom;
+        // Coalesce a burst of wheel events into one native config save.
+        saveZoomAt = haxe.Timer.stamp() + 0.35;
+    }
+
+    static function saveZoom():Void {
+        if (saveZoomAt == 0) return;
+        config.save();
+        saveZoomAt = 0;
+    }
+
     @:hlx.postfix(GameApp.update)
     static function update(instance:Dynamic, dt:Float, result:Void):Void {
+        if (saveZoomAt != 0 && haxe.Timer.stamp() >= saveZoomAt) saveZoom();
         if (view == null || haxe.Timer.stamp() < retryAt) return;
         try view.update(instance, config) catch (error:Dynamic) {
             // Avoid repeated resource work or log spam if a game update changes the UI.
@@ -84,6 +101,7 @@ class MinimapMod {
 
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
+        saveZoom();
         if (view != null) try view.dispose() catch (_:Dynamic) {}
         retryAt = 0;
         return Continue;

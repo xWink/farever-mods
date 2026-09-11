@@ -32,6 +32,7 @@ A compact overworld minimap with a centered player arrow.
 - Enemy filters for completed and incomplete Codex entries.
 - Yellow rings highlight sparkling enemies and bosses.
 - Individual plant and ore filters.
+- Hover over markers to see their names below the map; scroll over the map to zoom.
 - Sits behind menus and tooltips without intercepting clicks.
 
 The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, gatherable, and chest markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn. Opened or inactive chests are hidden; secret orbs disappear once recorded as discovered by the game.
@@ -40,9 +41,11 @@ The minimap covers the Siagarta overworld and hides in other instances. Live pla
 
 Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160–400 in steps of 10), shape, rotation, placement, and marker visibility. Higher zoom shows a smaller area in more detail.
 
+Scroll up over the minimap to zoom in and down to zoom out, in 10% steps. The zoom is saved to the same setting. Hovering over a marker displays its name centered below the minimap, including when the map rotates or uses a circular shape.
+
 **Rotate minimap** keeps your arrow facing up as the terrain rotates around you. Enable **Follow camera** as well to put your camera's viewing direction at the top instead; your arrow then shows your character's facing direction relative to the camera. **Circular minimap** changes the shape, and **Show in left corner** switches to the upper-left. These options default off.
 
-All marker types default on. The enemy section independently controls enemies with **incomplete Codex entries**, **completed Codex entries**, and **no Codex entry**. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
+All marker types default on. The **Enemies** section has **Show enemies**, **Hide completed Codex enemies**, and **Hide enemies without Codex entries**. Both Hide options default off. Incomplete Codex enemies remain visible whenever **Show enemies** is enabled. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
 
 The **Ore** and **Plants** sections contain **Show ore** and **Show plants**, followed by individual **Hide…** options. Ore filters cover Copper, Iron, Tin, and Tungstene; plant filters cover Madrigold, Lavendula, Ancient Thyme, and Zealotus. Each filter covers both small and large nodes. All Hide options default off.
 
@@ -62,8 +65,8 @@ The **Ore** and **Plants** sections contain **Show ore** and **Show plants**, fo
 | Spark Recycler | Mint recycling arrows |
 | Weapon Upgrade | Light-blue sword and upward arrow |
 | Crafting Station | Orange hammer and workbench |
-| Chests | Orange treasure chest |
-| Undiscovered secret orbs | Navy-blue circle |
+| Chests | Orange rectangular treasure chest |
+| Undiscovered secret orbs | Light-blue circle |
 
 **Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. Obelisks draw above other players so crowds cannot obscure them. **Show chests**, **Show secret orbs**, and **Show activities** are separate options in the **Markers** section. Activity markers use the game's world-map locations, including overworld entrances for instanced activities.
 

@@ -12,7 +12,7 @@ private typedef MapTile = {
     var lastUsed:Int;
 }
 
-/** A passive HUD: native map resources, with no MapWindow or input handlers. */
+/** Native map resources in a small HUD, without constructing a MapWindow. */
 class MinimapView {
     static inline var LEVEL = "World/W1_Siagarta";
     static inline var DIRECTORY = "Level/" + LEVEL + ".dat/minimap";
@@ -36,6 +36,14 @@ class MinimapView {
     var npcTerrain:Dynamic;
     var markers:MinimapMarkers;
     var arrow:Dynamic;
+    var input:Dynamic;
+    var hovered:Bool = false;
+    var mouseX:Float = 0;
+    var mouseY:Float = 0;
+    var hoverText:Dynamic;
+    var hoverShadow:Dynamic;
+    var hoverCaption:String = "";
+    var hoverFontScale:Float = 1;
     var loader:Dynamic;
     var tileWorldWidth:Float = 0;
     var size:Int = 0;
@@ -102,6 +110,7 @@ class MinimapView {
         loadNextTile();
         markers.update(hero, config, x, y, radius, scale);
         show(true);
+        updateHover(hero, x, y, rotation);
     }
 
     function cameraHeading(app:Dynamic, fallback:Float):Float {
@@ -170,6 +179,87 @@ class MinimapView {
         npcPivot = G.create("h2d.Object", [mask]);
         npcTerrain = G.create("h2d.Object", [npcPivot]);
         markers = new MinimapMarkers(terrain, npcTerrain, LEVEL);
+        input = G.create("h2d.Interactive", [1.0, 1.0, panel, null]);
+        position(input, BORDER, BORDER);
+        G.call("h2d.Interactive", "set_cursor", input, [G.current("hxd.Cursor", "Default")]);
+        G.set(input, "propagateEvents", true);
+        G.set(input, "onMove", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onOut", (_:Dynamic) -> { hovered = false; setHoverCaption(""); });
+        G.set(input, "onWheel", (event:Dynamic) -> {
+            trackMouse(event);
+            if (!hovered || G.field(panel, "visible") != true) return;
+            G.set(event, "propagate", false);
+            MinimapMod.adjustZoom(G.number(G.field(event, "wheelDelta")));
+        });
+    }
+
+    function trackMouse(event:Dynamic):Void {
+        // Interactive supplies local coordinates, including the game's UI scale.
+        mouseX = G.number(G.field(event, "relX"));
+        mouseY = G.number(G.field(event, "relY"));
+        var dx = mouseX - size / 2, dy = mouseY - size / 2;
+        hovered = mouseX >= 0 && mouseY >= 0 && mouseX <= size && mouseY <= size
+            && (!circular || dx * dx + dy * dy <= size * size / 4);
+    }
+
+    function updateHover(hero:Dynamic, x:Float, y:Float, rotation:Float):Void {
+        if (!hovered || G.call("h2d.Interactive", "isOver", input) != true) {
+            setHoverCaption("");
+            return;
+        }
+        var dx = mouseX - size / 2, dy = mouseY - size / 2;
+        var c = Math.cos(rotation), s = Math.sin(rotation);
+        // Undo the displayed map rotation and zoom before picking a marker.
+        var px = x + (dx * c + dy * s) / scale;
+        var py = y + (dy * c - dx * s) / scale;
+        setHoverCaption(markers.nameAt(px, py, scale, x, y, hero));
+    }
+
+    function setHoverCaption(value:String):Void {
+        if (value == hoverCaption) return;
+        hoverCaption = value;
+        if (value != "" && hoverText == null) {
+            // Reuse a native HUD font after its UI has finished loading.
+            var font = findFont(G.field(owner, "gameRoot"), 6);
+            if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
+            hoverFontScale = 14 / Math.max(1, G.number(G.field(font, "size"), 14));
+            hoverShadow = G.create("h2d.Text", [font, panel]);
+            hoverText = G.create("h2d.Text", [font, panel]);
+            G.call("h2d.Text", "set_textColor", hoverShadow, [0x171b24]);
+            G.call("h2d.Text", "set_textColor", hoverText, [0xfff3d6]);
+        }
+        if (hoverText == null) return;
+        for (text in [hoverShadow, hoverText]) {
+            G.call("h2d.Text", "set_text", text, [value]);
+            G.call("h2d.Object", "set_visible", text, [value != ""]);
+        }
+        placeHoverText();
+    }
+
+    function placeHoverText():Void {
+        if (hoverText == null || hoverCaption == "") return;
+        var width = G.number(G.call("h2d.Text", "get_textWidth", hoverText));
+        var textScale = Math.min(hoverFontScale, (size - 12) / Math.max(1, width));
+        for (text in [hoverShadow, hoverText]) G.call("h2d.Object", "setScale", text, [textScale]);
+        var x = BORDER + (size - width * textScale) / 2;
+        var y = BORDER + size + 4;
+        // A footer outside the clipping mask stays whole in circular mode too.
+        position(hoverShadow, x + 1, y + 1);
+        position(hoverText, x, y);
+    }
+
+    function findFont(object:Dynamic, depth:Int):Dynamic {
+        if (object == null || depth < 0) return null;
+        var font = G.field(object, "font");
+        if (font != null) return font;
+        var count = G.integer(G.call("h2d.Object", "get_numChildren", object));
+        for (i in 0...count) {
+            font = findFont(G.call("h2d.Object", "getChildAt", object, [i]), depth - 1);
+            if (font != null) return font;
+        }
+        return null;
     }
 
     function configureFilter(filter:Dynamic, type:String):Void {
@@ -186,6 +276,11 @@ class MinimapView {
         bounds = "";
         G.set(mask, "width", size);
         G.set(mask, "height", size);
+        G.set(input, "width", size * 1.0);
+        G.set(input, "height", size * 1.0);
+        G.set(input, "isEllipse", round);
+        hovered = false;
+        setHoverCaption("");
         position(arrow, size / 2, size / 2);
         position(pivot, size / 2, size / 2);
         position(npcPivot, size / 2, size / 2);
@@ -283,6 +378,7 @@ class MinimapView {
         G.call("h2d.Object", "setPosition", object, [x, y]);
     function show(visible:Bool):Void {
         if (panel != null) G.call("h2d.Object", "set_visible", panel, [visible]);
+        if (!visible) { hovered = false; setHoverCaption(""); }
     }
 
     public function dispose():Void {
@@ -295,6 +391,7 @@ class MinimapView {
         frame = null; mask = null; circleMask = null; squareFilter = null; circleFilter = null;
         pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
         npcPivot = null; npcTerrain = null;
+        input = null; hovered = false; hoverText = null; hoverShadow = null; hoverCaption = "";
         index = []; sprites = []; wanted = []; cached = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
     }

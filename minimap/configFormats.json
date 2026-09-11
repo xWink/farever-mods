@@ -32,8 +32,7 @@
     { "key": "hideZealotus", "type": "checkbox", "label": "Hide Zealotus" },
     { "type": "title", "label": "Enemies" },
     { "key": "showEnemies", "type": "checkbox", "label": "Show enemies" },
-    { "key": "showIncompleteCodexEnemies", "type": "checkbox", "label": "Show incomplete Codex enemies" },
-    { "key": "showCompletedCodexEnemies", "type": "checkbox", "label": "Show completed Codex enemies" },
-    { "key": "showNonCodexEnemies", "type": "checkbox", "label": "Show enemies without Codex entries" }
+    { "key": "hideCompletedCodexEnemies", "type": "checkbox", "label": "Hide completed Codex enemies" },
+    { "key": "hideNonCodexEnemies", "type": "checkbox", "label": "Hide enemies without Codex entries" }
   ]
 }
