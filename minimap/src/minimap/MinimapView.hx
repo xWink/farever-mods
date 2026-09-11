@@ -25,7 +25,10 @@ class MinimapView {
     var panel:Dynamic;
     var frame:Dynamic;
     var mask:Dynamic;
+    var pivot:Dynamic;
     var terrain:Dynamic;
+    var tileLayer:Dynamic;
+    var markers:MinimapMarkers;
     var arrow:Dynamic;
     var loader:Dynamic;
     var tileWorldWidth:Float = 0;
@@ -76,11 +79,17 @@ class MinimapView {
         }
         var x = G.number(G.field(hero, "posx"));
         var y = G.number(G.field(hero, "posy"));
-        position(terrain, size / 2 - x * scale, size / 2 - y * scale);
-        G.call("h2d.Object", "set_rotation", arrow, [G.number(G.field(hero, "rotationZ"))]);
-        position(panel, Math.max(0, G.number(G.call("h2d.Flow", "get_innerWidth", root)) - size - BORDER * 2 - 24), 24);
-        selectTiles(x, y);
+        var heading = G.number(G.field(hero, "rotationZ"));
+        // Native facing is (cos(heading), sin(heading)); screen-up is -PI/2.
+        G.call("h2d.Object", "set_rotation", pivot, [config.rotateMap ? -Math.PI / 2 - heading : 0.0]);
+        position(terrain, -x * scale, -y * scale);
+        G.call("h2d.Object", "set_rotation", arrow, [config.rotateMap ? -Math.PI / 2 : heading]);
+        position(panel, config.leftCorner ? 24 : Math.max(0, G.number(G.call("h2d.Flow", "get_innerWidth", root)) - size - BORDER * 2 - 24), 24);
+        // A rotating square needs enough tiles/markers to cover its diagonal.
+        var radius = size / (2 * scale) * (config.rotateMap ? Math.sqrt(2) : 1);
+        selectTiles(x, y, radius);
         loadNextTile();
+        markers.update(hero, config, x, y, radius, scale);
         show(true);
     }
 
@@ -122,7 +131,10 @@ class MinimapView {
         frame = G.create("h2d.Graphics", [panel]);
         mask = G.create("h2d.Mask", [1, 1, panel]);
         position(mask, BORDER, BORDER);
-        terrain = G.create("h2d.Object", [mask]);
+        pivot = G.create("h2d.Object", [mask]);
+        terrain = G.create("h2d.Object", [pivot]);
+        tileLayer = G.create("h2d.Object", [terrain]);
+        markers = new MinimapMarkers(terrain, LEVEL);
         // Use the same cursor artwork and heading as the native world map.
         var tile = G.call("h2d.Tile", "clone", G.staticCall("Const", "icon", ["PlayerCursor"]));
         var w = G.number(G.field(tile, "width"));
@@ -139,6 +151,7 @@ class MinimapView {
         G.set(mask, "width", size);
         G.set(mask, "height", size);
         position(arrow, size / 2, size / 2);
+        position(pivot, size / 2, size / 2);
         G.call("h2d.Graphics", "clear", frame);
         rectangle(0, 0, size + BORDER * 2, size + BORDER * 2, 0xb39888);
         rectangle(BORDER, BORDER, size, size, 0x17202b);
@@ -150,8 +163,7 @@ class MinimapView {
         G.call("h2d.Graphics", "endFill", frame);
     }
 
-    function selectTiles(x:Float, y:Float):Void {
-        var radius = size / (2 * scale);
+    function selectTiles(x:Float, y:Float, radius:Float):Void {
         var minX = Math.floor((x - radius) / tileWorldWidth);
         var maxX = Math.floor((x + radius) / tileWorldWidth);
         var minY = Math.floor((y - radius) / tileWorldWidth);
@@ -195,7 +207,7 @@ class MinimapView {
                 G.set(entry.tile, "dy", 0.0);
                 cached.push(entry);
             }
-            var bitmap = G.create("h2d.Bitmap", [entry.tile, terrain]);
+            var bitmap = G.create("h2d.Bitmap", [entry.tile, tileLayer]);
             G.call("h2d.Bitmap", "set_width", bitmap, [tileWorldWidth]);
             G.call("h2d.Bitmap", "set_height", bitmap, [tileWorldWidth]);
             position(bitmap, entry.x * tileWorldWidth, entry.y * tileWorldWidth);
@@ -228,7 +240,7 @@ class MinimapView {
             G.call("h2d.Object", "remove", old);
         }
         owner = null; world = null; root = null; loader = null;
-        frame = null; mask = null; terrain = null; arrow = null;
+        frame = null; mask = null; pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null;
         index = []; sprites = []; wanted = []; cached = [];
         size = 0; scale = 0; bounds = ""; generation = 0;
     }

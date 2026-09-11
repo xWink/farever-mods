@@ -4,7 +4,21 @@
   "configs": [
     { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
-    { "key": "zoom", "type": "slider", "label": "Zoom %", "min": 50, "max": 300, "step": 10 },
-    { "key": "size", "type": "slider", "label": "Size", "min": 160, "max": 400, "step": 20 }
+    { "key": "zoom", "type": "slider", "label": "Zoom %", "min": 10, "max": 300, "step": 10 },
+    { "key": "size", "type": "slider", "label": "Size", "min": 160, "max": 400, "step": 20 },
+    { "key": "rotateMap", "type": "checkbox", "label": "Rotate map (character points up)" },
+    { "key": "leftCorner", "type": "checkbox", "label": "Show in left corner" },
+    { "type": "title", "label": "Markers" },
+    { "key": "showPlayers", "type": "checkbox", "label": "Show other players" },
+    { "key": "showPlants", "type": "checkbox", "label": "Show plants" },
+    { "key": "showOre", "type": "checkbox", "label": "Show ore" },
+    { "key": "showRespawnPoints", "type": "checkbox", "label": "Show respawn points" },
+    { "key": "showObelisks", "type": "checkbox", "label": "Show obelisks" },
+    { "key": "showNpcs", "type": "checkbox", "label": "Show NPCs" },
+    { "type": "title", "label": "Enemies" },
+    { "key": "showEnemies", "type": "checkbox", "label": "Show enemies" },
+    { "key": "showIncompleteCodexEnemies", "type": "checkbox", "label": "Show incomplete Codex enemies" },
+    { "key": "showCompletedCodexEnemies", "type": "checkbox", "label": "Show completed Codex enemies" },
+    { "key": "showNonCodexEnemies", "type": "checkbox", "label": "Show enemies without Codex entries" }
   ]
 }

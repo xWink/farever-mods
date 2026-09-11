@@ -23,14 +23,31 @@ A compact overworld minimap with a centered player arrow.
 
 - A square minimap in the upper-right corner, using Farever's own map artwork.
 - Follows your position and shows your character's facing direction.
-- Fixed map orientation, with adjustable zoom and size.
+- Fixed or rotating map, with adjustable zoom and size.
+- Upper-left or upper-right placement.
+- Player, enemy, plant, ore, NPC, obelisk, and respawn markers.
+- Enemy filters for completed and incomplete Codex entries.
 - Sits behind menus and tooltips without intercepting clicks.
 
-This first version covers the Siagarta overworld. It hides in other instances; dungeon maps and mob/resource markers are not included yet.
+The minimap covers the Siagarta overworld and hides in other instances. Live player, enemy, and gatherable markers are limited to entities currently sent to your client. Harvested plants and ore disappear until they respawn.
 
 ## Settings
 
-Open **Mod Settings → Minimap** to enable or disable the map, change **Zoom %** (50–300), or adjust **Size** (160–400). Higher zoom shows a smaller area in more detail.
+Open **Mod Settings → Minimap** to change **Zoom %** (10–300), **Size** (160–400), rotation, placement, and marker visibility. Higher zoom shows a smaller area in more detail.
+
+**Rotate map (character points up)** keeps your arrow facing up as the terrain rotates around you. **Show in left corner** switches to the upper-left; leave it off for the upper-right. Both options default off.
+
+All marker types default on. The enemy section independently controls enemies with **incomplete Codex entries**, **completed Codex entries**, and **no Codex entry**. Completed means you have reached the kill count that awards the Codex XP reward; later ranks do not change this filter. Dead enemies and player-owned summons are excluded.
+
+| Marker | Appearance |
+| --- | --- |
+| Other players | Light-blue circle |
+| Plants | Green circle |
+| Ore | Orange diamond |
+| Enemies | Red circle; larger for bosses |
+| Respawn points | White cross |
+| Obelisks | Purple diamond |
+| NPCs | Yellow square |
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it. ImGui is not required.
 

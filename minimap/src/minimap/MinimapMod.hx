@@ -8,12 +8,29 @@ typedef MinimapSettings = {
     var enabled:Bool;
     var zoom:Float;
     var size:Int;
+    var rotateMap:Bool;
+    var leftCorner:Bool;
+    var showPlayers:Bool;
+    var showPlants:Bool;
+    var showOre:Bool;
+    var showEnemies:Bool;
+    var showIncompleteCodexEnemies:Bool;
+    var showCompletedCodexEnemies:Bool;
+    var showNonCodexEnemies:Bool;
+    var showRespawnPoints:Bool;
+    var showObelisks:Bool;
+    var showNpcs:Bool;
 }
 
 @:build(hlx.runtime.Mod.build())
 class MinimapMod {
     @:hlx.config
-    static var config:MinimapSettings = {enabled: true, zoom: 100, size: 240};
+    static var config:MinimapSettings = {
+        enabled: true, zoom: 100, size: 240, rotateMap: false, leftCorner: false,
+        showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
+        showIncompleteCodexEnemies: true, showCompletedCodexEnemies: true,
+        showNonCodexEnemies: true, showRespawnPoints: true, showObelisks: true, showNpcs: true
+    };
     static var view:MinimapView;
     static var retryAt:Float = 0;
     static var reportedError:Bool = false;
@@ -30,7 +47,7 @@ class MinimapMod {
     }
 
     static function normalize():Void {
-        config.zoom = Math.isFinite(config.zoom) ? Math.max(50, Math.min(300, config.zoom)) : 100;
+        config.zoom = Math.isFinite(config.zoom) ? Math.max(10, Math.min(300, config.zoom)) : 100;
         config.size = Std.int(Math.max(160, Math.min(400, config.size)));
     }
 
