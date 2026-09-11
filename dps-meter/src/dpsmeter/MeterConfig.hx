@@ -6,6 +6,7 @@ import sys.io.File;
 typedef MeterSettings = {
     var enabled:Bool;
     var visible:Bool;
+    var transparency:Int;
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
     var showBossKills:Bool;
@@ -31,6 +32,7 @@ class MeterConfig {
     public static function defaults():MeterSettings return {
         enabled: true,
         visible: true,
+        transparency: 0,
         hideOutOfCombat: false,
         hideDelay: 3,
         showBossKills: true,
@@ -50,6 +52,7 @@ class MeterConfig {
     };
 
     public static function normalize(config:MeterSettings):Void {
+        config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
         config.width = Std.int(Math.max(360, Math.min(1200, config.width)));
         config.height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, config.height)));
         config.hideDelay = Std.int(Math.max(0, Math.min(10, config.hideDelay)));

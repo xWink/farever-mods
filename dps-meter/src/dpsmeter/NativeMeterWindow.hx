@@ -67,6 +67,8 @@ class NativeMeterWindow {
             var progress = Math.max(0, Math.min(1, (now - outOfCombatSince - config.hideDelay) / HIDE_FADE_SECONDS));
             opacity = 1 - progress * progress * (3 - 2 * progress);
         }
+        // Apply the chosen transparency to the whole meter, including its fade.
+        opacity *= 1 - config.transparency / 100;
         if (opacity <= 0) {
             // Invisible windows must also stop receiving mouse input.
             if (window != null) show(window, false);

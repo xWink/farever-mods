@@ -4,6 +4,7 @@
   "configs": [
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
     { "key": "visible", "type": "checkbox", "label": "Show DPS meter" },
+    { "key": "transparency", "type": "slider", "label": "Transparency", "min": 0, "max": 100, "step": 1 },
     { "key": "hideOutOfCombat", "type": "checkbox", "label": "Hide when out of combat" },
     { "key": "hideDelay", "type": "slider", "label": "Hiding delay (seconds)", "min": 0, "max": 10, "step": 1 },
     { "key": "showBossKills", "type": "checkbox", "label": "Show boss kills" },
