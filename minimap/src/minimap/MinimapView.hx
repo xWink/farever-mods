@@ -116,7 +116,7 @@ class MinimapView {
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
         loadNextTile();
-        markers.update(hero, config, x, y, radius, scale);
+        markers.update(hero, config, x, y, radius, scale, rotation);
         markers.updateAlerts(config, x, y, size, rotation);
         show(true);
         updateHover(hero, x, y, rotation);

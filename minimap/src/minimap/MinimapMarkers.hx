@@ -6,7 +6,9 @@ import minimap.MinimapMod.MinimapSettings;
 private typedef MapPoint = {
     var x:Float;
     var y:Float;
+    var z:Float;
     var kind:String;
+    var ?elevation:Int;
     var ?heading:Float;
     var ?sparkling:Bool;
     var ?eventElement:String;
@@ -15,14 +17,26 @@ private typedef MapPoint = {
     var ?name:String;
 }
 
+private typedef ElevationMarker = {
+    var root:Dynamic;
+    var arrow:Dynamic;
+}
+
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
     var graphics:Dynamic;
     var mapGraphics:Dynamic;
     var npcGraphics:Dynamic;
+    var mapElevations:Dynamic;
+    var npcElevations:Dynamic;
+    var mapElevationMarkers:Array<ElevationMarker> = [];
+    var npcElevationMarkers:Array<ElevationMarker> = [];
+    var mapRotation:Float = 0;
+    var heroHeight:Float = Math.NaN;
     var alertLayer:Dynamic;
     var alertTargets:Array<MapPoint> = [];
     var alertArrows:Array<Dynamic> = [];
+    var alertElevations:Array<Dynamic> = [];
     var alertPositions:Array<{x:Float, y:Float, point:MapPoint}> = [];
     var level:String;
     var layer:Dynamic;
@@ -53,10 +67,17 @@ class MinimapMarkers {
         this.level = level;
         mapGraphics = G.create("h2d.Graphics", [parent]);
         npcGraphics = G.create("h2d.Graphics", [foreground]);
+        mapElevations = G.create("h2d.Object", [parent]);
+        npcElevations = G.create("h2d.Object", [foreground]);
         alertLayer = G.create("h2d.Object", [overlay]);
     }
 
-    public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float):Void {
+    public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float, rotation:Float):Void {
+        if (mapRotation != rotation) {
+            mapRotation = rotation;
+            for (marker in mapElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
+            for (marker in npcElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
+        }
         var now = haxe.Timer.stamp();
         var nextLayer = G.field(hero, "layer");
         var changed = previousConfig != config || previousScale != scale || previousRadius != radius
@@ -65,6 +86,7 @@ class MinimapMarkers {
         previousConfig = config; previousScale = scale; previousRadius = radius;
         lastHero = hero; layer = nextLayer;
         nextRefresh = now + 0.2;
+        heroHeight = G.number(G.field(hero, "posz"), Math.NaN);
         try {
             refreshLandmarks();
             var points = collect(hero, config, x, y, radius + 10 / scale);
@@ -75,6 +97,8 @@ class MinimapMarkers {
             // An optional marker source must not take down the working map.
             G.call("h2d.Graphics", "clear", mapGraphics);
             G.call("h2d.Graphics", "clear", npcGraphics);
+            trimElevations(mapElevationMarkers, 0);
+            trimElevations(npcElevationMarkers, 0);
             nextRefresh = now + 5;
             if (!reportedError) {
                 reportedError = true;
@@ -85,11 +109,17 @@ class MinimapMarkers {
 
     public function updateAlerts(config:MinimapSettings, x:Float, y:Float, size:Int, rotation:Float):Void {
         var count = config.sparklingCompanionAlerts ? alertTargets.length : 0;
-        while (alertArrows.length > count) G.call("h2d.Object", "remove", alertArrows.pop());
+        while (alertArrows.length > count) {
+            G.call("h2d.Object", "remove", alertArrows.pop());
+            G.call("h2d.Object", "remove", alertElevations.pop());
+        }
         while (alertArrows.length < count) {
             var arrow = G.create("h2d.Graphics", [alertLayer]);
             drawPlayerArrow(arrow, 8, 0xffdc42);
             alertArrows.push(arrow);
+            var elevation = G.create("h2d.Graphics", [alertLayer]);
+            drawPlayerArrow(elevation, 4, 0xfff3d6);
+            alertElevations.push(elevation);
         }
         alertPositions = [];
         if (count == 0) return;
@@ -105,12 +135,23 @@ class MinimapMarkers {
             var visible = extent > 0.001 && G.field(point.entity, "removed") != true;
             var arrow = alertArrows[i];
             G.call("h2d.Object", "set_visible", arrow, [visible]);
+            var direction = elevationDirection(point.z, heroHeight);
+            var elevation = alertElevations[i];
+            G.call("h2d.Object", "set_visible", elevation, [visible && direction != 0]);
             if (!visible) continue;
             var px = size / 2 + sx * edge / extent;
             var py = size / 2 + sy * edge / extent;
             G.call("h2d.Object", "setPosition", arrow, [px, py]);
             G.call("h2d.Object", "set_rotation", arrow, [Math.atan2(sy, sx)]);
             alertPositions.push({x: px, y: py, point: point});
+            if (direction != 0) {
+                // Place height cues inward from the edge, keeping both map shapes clipped cleanly.
+                var distance = Math.sqrt(sx * sx + sy * sy);
+                var ex = px - sx * 14 / distance, ey = py - sy * 14 / distance;
+                G.call("h2d.Object", "setPosition", elevation, [ex, ey]);
+                G.call("h2d.Object", "set_rotation", elevation, [-direction * Math.PI / 2]);
+                alertPositions.push({x: ex, y: ey, point: point});
+            }
         }
     }
 
@@ -152,7 +193,8 @@ class MinimapMarkers {
                     if (prefab == null) continue;
                     var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", prefab, [true]);
                     secretOrbs[id] = {kind: "secretOrb", inf: G.field(definition, "inf"),
-                        x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42"))};
+                        x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
+                        z: G.number(G.field(matrix, "_43"), Math.NaN)};
                 }
             }
             changed = true;
@@ -179,7 +221,8 @@ class MinimapMarkers {
                 if (matrix == null) continue;
                 var id = G.text(G.field(inf, "id"));
                 landmarks[kind + ":" + id] = {kind: kind == "npc" ? npcKind(inf) : kind, inf: inf,
-                    x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42"))};
+                    x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
+                    z: G.number(G.field(matrix, "_43"), Math.NaN)};
             }
         }
     }
@@ -234,7 +277,7 @@ class MinimapMarkers {
                         owned = collected[pet];
                     }
                     if (alert && collection != null && !owned)
-                        alertTargets.push({kind: kind, x: px, y: py, sparkling: true, entity: unit});
+                        alertTargets.push({kind: kind, x: px, y: py, z: G.number(G.field(unit, "posz"), Math.NaN), sparkling: true, entity: unit});
                     if (!config.showCompanions || !nearby || (config.hideCollectedCompanions && owned)) continue;
                 } else {
                     if (!config.showEnemies || G.call("ent.Foe", "isEnemyWith", unit, [hero]) != true) continue;
@@ -251,7 +294,7 @@ class MinimapMarkers {
                     if ((flags & 0x38) != 0) kind = "boss";
                 }
             }
-            points.push({kind: kind, x: px, y: py, sparkling: sparkling, entity: unit,
+            points.push({kind: kind, x: px, y: py, z: G.number(G.field(unit, "posz"), Math.NaN), sparkling: sparkling, entity: unit,
                 heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0});
         }
 
@@ -267,14 +310,16 @@ class MinimapMarkers {
             if (category == "npc") {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
-                liveNpcs[key] = active ? {kind: npcKind(G.field(element, "inf")), x: px, y: py, entity: element} : null;
+                liveNpcs[key] = active ? {kind: npcKind(G.field(element, "inf")), x: px, y: py,
+                    z: G.number(G.field(element, "posz"), Math.NaN), entity: element} : null;
             } else if (category == "chest") {
                 if (!active || player == null) continue;
                 // Player-specific completion and respawn rules are resolved by
                 // the game, including activity chests. Locked chests still show.
                 var state = G.call("ent.Element", "getElementStateInf", element, [player]);
                 var flags = G.integer(G.field(state, "flags"));
-                if ((flags & 0x29) == 0) points.push({kind: "chest", x: px, y: py, entity: element});
+                if ((flags & 0x29) == 0) points.push({kind: "chest", x: px, y: py,
+                    z: G.number(G.field(element, "posz"), Math.NaN), entity: element});
             } else if (active) {
                 // Gatherable.consume disables the entity until its next respawn.
                 // Hit points alone are unsuitable: plants don't need mining hits.
@@ -282,7 +327,7 @@ class MinimapMarkers {
                 var kind = gatherKind(inf);
                 if ((kind == "plant" ? config.showPlants : kind == "ore" && config.showOre)
                     && !hiddenResource(gatherFilters[G.text(G.field(inf, "id"))], config))
-                    points.push({kind: kind, x: px, y: py, entity: element});
+                    points.push({kind: kind, x: px, y: py, z: G.number(G.field(element, "posz"), Math.NaN), entity: element});
             }
         }
 
@@ -330,7 +375,8 @@ class MinimapMarkers {
             if (G.field(definition, "prefab") == null) continue;
             var position = G.staticCall("HActivity", "getPos", [definition]);
             activities.push({kind: "activity", inf: G.field(definition, "inf"),
-                x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y"))});
+                x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y")),
+                z: G.number(G.field(position, "z"), Math.NaN)});
         }
         // Instanced activities are marked at their overworld entrance, just as
         // MapWindow.addActivities does, rather than at their interior position.
@@ -346,6 +392,7 @@ class MinimapMarkers {
             var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", G.field(orb, "prefab"), [true]);
             activities.push({kind: "activity", inf: G.field(definition, "inf"),
                 x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
+                z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
         }
     }
@@ -473,6 +520,38 @@ class MinimapMarkers {
         default: 3.5;
     };
 
+    static function elevationDirection(z:Float, heroZ:Float):Int {
+        var difference = z - heroZ;
+        // Missing height data stays unknown rather than becoming sea level.
+        if (!Math.isFinite(difference)) return 0;
+        return difference > 5 ? 1 : difference < -5 ? -1 : 0;
+    }
+
+    static function elevationOffset(point:MapPoint):Float
+        return markerRadius(point.kind) + (point.sparkling == true ? 3.5 : 1) + 6;
+
+    function updateElevations(points:Array<MapPoint>, pool:Array<ElevationMarker>, parent:Dynamic, scale:Float):Void {
+        trimElevations(pool, points.length);
+        while (pool.length < points.length) {
+            var root = G.create("h2d.Object", [parent]);
+            var arrow = G.create("h2d.Graphics", [root]);
+            drawPlayerArrow(arrow, 4, 0xfff3d6);
+            pool.push({root: root, arrow: arrow});
+        }
+        for (i in 0...points.length) {
+            var point = points[i], marker = pool[i];
+            G.call("h2d.Object", "setPosition", marker.root, [point.x, point.y]);
+            G.call("h2d.Object", "setScale", marker.root, [1 / scale]);
+            G.call("h2d.Object", "set_rotation", marker.root, [-mapRotation]);
+            G.call("h2d.Object", "setPosition", marker.arrow, [elevationOffset(point), 0.0]);
+            G.call("h2d.Object", "set_rotation", marker.arrow, [-point.elevation * Math.PI / 2]);
+        }
+    }
+
+    function trimElevations(pool:Array<ElevationMarker>, count:Int):Void {
+        while (pool.length > count) G.call("h2d.Object", "remove", pool.pop().root);
+    }
+
     public function nameAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic):String {
         var checkHero = true;
         var i = hitPoints.length;
@@ -484,7 +563,13 @@ class MinimapMarkers {
                 if (nearCursor(x, y, heroX, heroY, 11 / scale)) return G.text(G.field(hero, "name"));
             }
             var r = (markerRadius(point.kind) + (point.sparkling == true ? 2.5 : 0) + 2) / scale;
-            if (!nearCursor(x, y, point.x, point.y, r)) continue;
+            var hit = nearCursor(x, y, point.x, point.y, r);
+            if (!hit && point.elevation != null && point.elevation != 0) {
+                var offset = elevationOffset(point) / scale;
+                hit = nearCursor(x, y, point.x + Math.cos(mapRotation) * offset,
+                    point.y - Math.sin(mapRotation) * offset, 6 / scale);
+            }
+            if (!hit) continue;
             if (point.entity != null && G.field(point.entity, "removed") == true) continue;
             return markerName(point);
         }
@@ -552,7 +637,10 @@ class MinimapMarkers {
         for (kind in ["activity", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "player", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             var group = [for (point in points) if (point.kind == kind) point];
             if (group.length == 0) continue;
-            for (point in group) hitPoints.push(point);
+            for (point in group) {
+                point.elevation = elevationDirection(point.z, heroHeight);
+                hitPoints.push(point);
+            }
             graphics = isNpc(kind) ? npcGraphics : mapGraphics;
             var color = switch kind {
                 case "plant": 0x77df81;
@@ -617,6 +705,12 @@ class MinimapMarkers {
                 G.call("h2d.Graphics", "endFill", graphics);
             }
         }
+        // The roots follow world positions; counter-rotation keeps the height
+        // arrows screen-up/down without rebuilding marker geometry each frame.
+        updateElevations([for (point in hitPoints) if (point.elevation != 0 && !isNpc(point.kind)) point],
+            mapElevationMarkers, mapElevations, scale);
+        updateElevations([for (point in hitPoints) if (point.elevation != 0 && isNpc(point.kind)) point],
+            npcElevationMarkers, npcElevations, scale);
     }
 
     function shape(point:MapPoint, r:Float):Void {
