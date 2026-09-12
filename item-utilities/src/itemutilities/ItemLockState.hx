@@ -35,6 +35,61 @@ class ItemLockState {
         return true;
     }
 
+    /** Apply an explicit UI choice without appending a second identity for it. */
+    public static function setLocked(records:Array<Dynamic>, current:Map<String, Dynamic>,
+        tracked:Dynamic, locked:Bool):Bool {
+        if (tracked == null || tracked.uid == null || tracked.item == null
+            || tracked.characterId == null || tracked.fingerprint == null
+            || current.get(tracked.uid) != tracked)
+            return false;
+
+        var knownByFingerprint:Map<String, Array<Dynamic>> = new Map();
+        knownByFingerprint.set(tracked.fingerprint,
+            matchingUids(current, tracked.fingerprint, tracked.characterId));
+        var claimed:Map<String, Bool> = new Map();
+        for (record in records) {
+            if (!isConfirmed(record, current) || record.characterId != tracked.characterId)
+                continue;
+            if (record.item == tracked.item) {
+                if (!locked) return records.remove(record);
+                // Reconciliation may have restored it after the user clicked
+                // an unlocked icon. Keep their original choice, not a toggle.
+                return confirm(record, tracked, knownByFingerprint);
+            }
+            claimed.set(record.uid, true);
+        }
+        if (!locked) return false;
+
+        var savedSlot:Dynamic = null;
+        var unique:Dynamic = null;
+        for (record in records) {
+            if (record.characterId != tracked.characterId || record.location == "bank"
+                || record.fingerprint != tracked.fingerprint || isConfirmed(record, current))
+                continue;
+            var matches = candidates(record, current, claimed);
+            if (matches.indexOf(tracked) < 0) continue;
+            if (isSavedSlot(record, tracked)) savedSlot = record;
+            if (matches.length == 1) unique = record;
+        }
+        // The selected item is explicit. Prefer its saved slot, otherwise a
+        // record with only this eligible live item. If old duplicate records
+        // exist, reuse the last applicable one without deleting other records.
+        var record:Dynamic = savedSlot != null ? savedSlot : unique;
+        var added = record == null;
+        if (added) {
+            record = {characterId: tracked.characterId};
+            records.push(record);
+        }
+        var changed = confirm(record, tracked, knownByFingerprint);
+        return added || changed;
+    }
+
+    static function isConfirmed(record:Dynamic, current:Map<String, Dynamic>):Bool {
+        var live = current.get(record.uid);
+        return record.restored == true && record.item != null && live != null
+            && live.characterId == record.characterId && live.item == record.item;
+    }
+
     public static function reconcile(records:Array<Dynamic>, current:Map<String, Dynamic>,
         characterId:String, ready:Bool):Bool {
         if (!ready || characterId == null)

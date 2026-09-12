@@ -74,6 +74,10 @@ a unique matching identity can regain its lock even if its inventory or equipmen
 slot changed. Ambiguous or temporarily missing locks remain saved for later
 restoration.
 
+Manually re-locking an item reuses a matching unresolved record when its saved
+slot or unique item match identifies it. Separate identical items retain their
+own locks. Existing duplicate saved records are not automatically deleted.
+
 Locking visuals can be hidden without disabling or deleting saved locks. The settings menu also includes a separately confirmed **Delete all saved locks** action.
 
 An optional **Sorting ignores locked items (but is slower)** setting keeps

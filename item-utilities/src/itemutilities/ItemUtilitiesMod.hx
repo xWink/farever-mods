@@ -2278,39 +2278,23 @@ class ItemUtilitiesMod {
     }
 
     static function toggleItemLock(item:Dynamic):Void {
+        var locked = !isItemLocked(item);
         reconcileItemLocks();
         var uid = itemUid(item);
         var fingerprint = itemFingerprint(item);
         var characterId = heroPersistentId(resolveHero());
         if (uid == null || fingerprint == null || characterId == null)
             return;
-        for (index in 0...lockRecords.length) {
-            if (lockRecords[index].restored == true && lockRecords[index].item == item
-                && recordString(lockRecords[index], "characterId") == characterId) {
-                lockRecords.splice(index, 1);
-                saveConfig();
-                return;
-            }
-        }
         var current:Map<String, Dynamic> = new Map();
         if (!isLockLoadoutReady() || !collectTrackedItems(current))
             return;
         var tracked = current.get(uid);
-        if (tracked == null || tracked.characterId == null)
+        if (tracked == null || tracked.item != item || tracked.characterId != characterId)
             return;
         tracked.fingerprint = fingerprint;
         fingerprintCache.set(uid, {item: item, fingerprint: fingerprint});
-        lockRecords.push({
-            uid: uid,
-            fingerprint: fingerprint,
-            known: ItemLockState.matchingUids(current, fingerprint, characterId),
-            location: tracked == null ? null : tracked.location,
-            index: tracked == null ? -1 : tracked.index,
-            characterId: tracked == null ? null : tracked.characterId,
-            restored: true,
-            item: item
-        });
-        saveConfig();
+        if (ItemLockState.setLocked(lockRecords, current, tracked, locked))
+            saveConfig();
     }
 
     static function isItemLocked(item:Dynamic):Bool {

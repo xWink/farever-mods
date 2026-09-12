@@ -181,6 +181,121 @@ class ItemLockStateTest {
         scan([persisted], [item("next-login", 30)]);
         check(persisted.restored && persisted.uid == "next-login" && persisted.index == 30,
             "A saved/restored lock survives another login without runtime fields");
+        testManualLocking();
         Sys.println('Item locks: $assertions assertions passed.');
+    }
+
+    static function testManualLocking():Void {
+        // Same shape as the reported net records; no user/character IDs needed.
+        var netFingerprint = 'v4|["Net_Basic","0","[]","0","0","<null>","Rare"]';
+        var old = saved("old-net", 71, "inventory", "db:A", netFingerprint);
+        var net = item("new-net", 71, "inventory", "db:A", netFingerprint);
+        var records:Array<Dynamic> = [old];
+        var current:Map<String, Dynamic> = [net.uid => net];
+        check(ItemLockState.setLocked(records, current, net, true), "Persist a reused net record's new UID");
+        check(records.length == 1 && records[0] == old && old.item == net.item && old.restored,
+            "Re-locking updates the saved record instead of appending");
+        check(!ItemLockState.setLocked(records, current, net, true) && records.length == 1,
+            "Repeated lock requests are idempotent and need no config write");
+
+        var restored = saved(old.uid, old.index, old.location, old.characterId, old.fingerprint);
+        var movedNet = item("next-login-net", 75, "inventory", "db:A", netFingerprint);
+        scan([restored], [movedNet]);
+        check(restored.restored && restored.item == movedNet.item,
+            "The reused net record survives the next login at a different slot");
+        check(ItemLockState.setLocked(records, current, net, false) && records.length == 0,
+            "Unlock removes the reused record rather than leaving a second copy");
+
+        old = saved("old-net", 70, "inventory", "db:A", netFingerprint);
+        records = [old];
+        current = [movedNet.uid => movedNet];
+        ItemLockState.setLocked(records, current, movedNet, true);
+        check(records.length == 1 && old.index == 75 && old.uid == movedNet.uid,
+            "Reuse an unresolved record when its only eligible item moved slots");
+
+        // A lock click can race the next reconciliation scan. Capture the
+        // choice before the scan and apply it afterwards, without toggling.
+        old = saved("old-net", 71, "inventory", "db:A", netFingerprint);
+        records = [old];
+        current = [net.uid => net];
+        var requestedLock = old.restored != true;
+        ItemLockState.reconcile(records, current, "db:A", true);
+        ItemLockState.setLocked(records, current, net, requestedLock);
+        check(records.length == 1 && old.restored && old.item == net.item,
+            "A lock restored during the click must remain locked");
+
+        // Old duplicates are left for the user to clean up, but re-locking
+        // must not keep adding more entries to the reported three-record case.
+        records = [for (uid in ["old-1", "old-2", "old-3"])
+            saved(uid, 71, "inventory", "db:A", netFingerprint)];
+        ItemLockState.setLocked(records, current, net, true);
+        check(records.length == 3 && records[2].item == net.item,
+            "Reuse the last matching saved-slot entry without growing existing duplicates");
+        records = [saved("old-1", 70, "inventory", "db:A", netFingerprint),
+            saved("old-2", 74, "inventory", "db:A", netFingerprint)];
+        current = [movedNet.uid => movedNet];
+        ItemLockState.setLocked(records, current, movedNet, true);
+        check(records.length == 2 && records[1].item == movedNet.item,
+            "Several stale records for one eligible net must not cause another appended record");
+
+        var ring = item("left-ring", 12, "equipment");
+        var otherRing = item("right-ring", 14, "equipment");
+        old = saved("old-left-ring", 12, "equipment");
+        records = [old];
+        current = [ring.uid => ring, otherRing.uid => otherRing];
+        ItemLockState.setLocked(records, current, ring, true);
+        check(records.length == 1 && old.item == ring.item,
+            "The saved slot identifies the selected ring despite an identical second ring");
+        ItemLockState.setLocked(records, current, otherRing, true);
+        check(records.length == 2 && records[0].item == ring.item && records[1].item == otherRing.item,
+            "A confirmed separate identical ring needs its own lock record");
+        ItemLockState.setLocked(records, current, ring, false);
+        check(records.length == 1 && records[0].item == otherRing.item,
+            "Unlocking one ring preserves the other ring's lock");
+
+        // A known split-off/existing twin is a separate item even when the
+        // original is temporarily absent and its saved slot is reused.
+        old = saved();
+        var source = item("source");
+        var split = item("split", 1);
+        records = [old];
+        scan(records, [source, split]);
+        split.index = 0;
+        current = [split.uid => split];
+        ItemLockState.setLocked(records, current, split, true);
+        check(records.length == 2 && old.item == source.item && records[1].item == split.item,
+            "A known separate twin must not overwrite the missing source's lock");
+
+        // Conversely, a disappearing locked object's unique replacement can
+        // reuse its live-session record as well as a record loaded from disk.
+        records = [old];
+        var replacement = item("replacement", 8);
+        current = [replacement.uid => replacement];
+        ItemLockState.setLocked(records, current, replacement, true);
+        check(records.length == 1 && old.item == replacement.item && old.index == 8,
+            "Reuse a live-session record whose old object disappeared");
+
+        old = saved("missing-ring", 20, "equipment");
+        records = [old];
+        current = [ring.uid => ring, otherRing.uid => otherRing];
+        ItemLockState.setLocked(records, current, ring, true);
+        check(records.length == 2 && !old.restored && records[1].item == ring.item,
+            "Do not guess which unresolved ring record belongs to an ambiguous moved pair");
+
+        old = saved("other-character-net", 71, "inventory", "db:B", netFingerprint);
+        records = [old];
+        current = [net.uid => net];
+        ItemLockState.setLocked(records, current, net, true);
+        check(records.length == 2 && !old.restored && old.characterId == "db:B",
+            "Re-locking must not reuse another character's saved record");
+        old = saved("different-item", 71, "inventory", "db:A", fingerprint("axe"));
+        records = [old];
+        ItemLockState.setLocked(records, current, net, true);
+        check(records.length == 2 && old.fingerprint == fingerprint("axe"),
+            "Same slot does not justify reusing a different item's record");
+
+        records = [];
+        check(!ItemLockState.setLocked(records, current, movedNet, true) && records.length == 0,
+            "A selected item absent from the current snapshot must not create a lock");
     }
 }
