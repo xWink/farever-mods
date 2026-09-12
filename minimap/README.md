@@ -8,9 +8,7 @@ A compact overworld minimap with a centered player arrow.
 
 ### Easy Installation
 
-1. Install [HLX Core](https://www.nexusmods.com/site/mods/2118?tab=files).
-2. Download the ZIP from the latest successful [Minimap build](https://github.com/xWink/farever-mods/actions/workflows/build-minimap.yml) and install it using Vortex's **Install From File**.
-3. Install [Better Mod Settings](../better-mod-settings/) for in-game controls, then fully restart Farever.
+1. Download the mod with Vortex on [NexusMods](https://www.nexusmods.com/farever/mods/15).
 
 ### Manual Installation
 
