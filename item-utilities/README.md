@@ -69,6 +69,11 @@ Locked items are marked with a small lock icon and are protected from:
 
 Locks follow items as they move between inventory and equipment. They are persisted separately for each character using Farever's unique character ID, with item identity and location tracking to avoid transferring a lock to the wrong identical item.
 
+At login, locks are restored after the character finishes loading. An item with
+a unique matching identity can regain its lock even if its inventory or equipment
+slot changed. Ambiguous or temporarily missing locks remain saved for later
+restoration.
+
 Locking visuals can be hidden without disabling or deleting saved locks. The settings menu also includes a separately confirmed **Delete all saved locks** action.
 
 An optional **Sorting ignores locked items (but is slower)** setting keeps
@@ -133,7 +138,7 @@ The compiled mod is written to:
 build/item-utilities/item-utilities.hl
 ```
 
-Run the input-scope regression tests (Haxe only; no running game required):
+Run the quick-loot and lock-restoration regression tests (Haxe only; no running game required):
 
 ```sh
 haxe test.hxml

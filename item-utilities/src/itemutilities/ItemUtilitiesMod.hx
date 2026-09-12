@@ -140,10 +140,6 @@ class ItemUtilitiesMod {
     static var setVisibleMember:hlx.runtime.ResolvedMember;
     static var getChildIndexMember:hlx.runtime.ResolvedMember;
     static var addChildAtMember:hlx.runtime.ResolvedMember;
-    static var inventoryWindowType:hl.Bytes;
-    static var baseElementType:hl.Bytes;
-    static var getInventoryWindowHeroMember:hlx.runtime.ResolvedMember;
-    static var getBaseElementHeroMember:hlx.runtime.ResolvedMember;
     static var gameAppType:hl.Bytes;
     static var hxdKeyType:hl.Bytes;
     static var isKeyPressedMember:hlx.runtime.ResolvedMember;
@@ -161,7 +157,9 @@ class ItemUtilitiesMod {
     static var nextSlotOverlayId:Int = 0;
     static var lockEditMode:Bool = false;
     static var lockRecords:Array<Dynamic> = [];
-    static var fingerprintCache:Map<String, String> = new Map();
+    static var fingerprintCache:Map<String, {item:Dynamic, fingerprint:String}> = new Map();
+    static var lockState = new ItemLockState();
+    static var getIsLoadingMember:hlx.runtime.ResolvedMember;
     static var nextLockReconcileAt:Float = 0;
     static var weaponPresets:Array<Dynamic> = [];
     static var selectedWeaponPresets:Array<Dynamic> = [];
@@ -173,18 +171,15 @@ class ItemUtilitiesMod {
     static var presetEquipment:Dynamic;
     static var presetEquippedIndexes:Array<Int> = [];
     static var presetTransferActive:Bool = false;
-    static var lockScanInitialized:Bool = false;
-    static var activeHero:Dynamic;
     static var lockErrors:Map<String, Bool> = new Map();
     static var activeTooltip:Dynamic;
     static var activeTooltipShownAt:Float = 0;
     static var activeBaseUI:Dynamic;
-    static inline var LOCK_MISSING_FRAME_LIMIT = 120;
     static inline var INVENTORY_SLOT_SIZE = 48.0;
     static inline var TOOLTIP_BUTTON_DELAY = 0.2;
     static inline var TOOLTIP_OVERLAP_INSET = 4.0;
     static inline var PRESET_CONTROLS_WIDTH = 254.0;
-    static inline var ITEM_FINGERPRINT_VERSION = "v4|";
+    static inline var ITEM_FINGERPRINT_VERSION = ItemLockState.FINGERPRINT_VERSION;
     static inline var LOCK_RECONCILE_INTERVAL = 0.2;
     static inline var DEPOSIT_CRAFTING = 0;
     static inline var DEPOSIT_ALL = 1;
@@ -203,6 +198,11 @@ class ItemUtilitiesMod {
             onBetterModSettingsChanged
         );
         ImGui.register(HlxRuntime.moduleName(), draw);
+    }
+
+    @:hlx.postfix(GameApp.finishedLoading)
+    static function restoreLocksAfterLoading(instance:Dynamic, result:Void):Void {
+        if (enabled.get()) reconcileItemLocks();
     }
 
     @:hlx.postfix(client.PlayerController.updateInputs)
@@ -339,11 +339,7 @@ class ItemUtilitiesMod {
 
     @:hlx.postfix(ui.win.InventoryUI.init)
     static function afterPlayerInventoryInit(instance:Dynamic, result:Void):Void {
-        // InventoryUI is recreated when changing characters. Do not retain the
-        // previous hero while the new character's windows are being built.
-        activeHero = null;
-        fingerprintCache = new Map();
-        nextLockReconcileAt = 0;
+        refreshActiveHero();
         activeInventoryUI = instance;
         var comp = fieldOrNull(instance, "inventoryComp");
         var inventory = fieldOrNull(comp, "inventory");
@@ -626,7 +622,6 @@ class ItemUtilitiesMod {
             activeInventoryWindow = null;
             sourceInventory = null;
             playerInventoryComp = null;
-            activeHero = null;
         }
         if (instance == activeInventoryUI) {
             lockEditMode = false;
@@ -651,7 +646,6 @@ class ItemUtilitiesMod {
             scrapInventoryComp = null;
         }
         selectSourceInventory();
-        lockScanInitialized = false;
     }
 
     static function draw():Void {
@@ -2284,13 +2278,14 @@ class ItemUtilitiesMod {
     }
 
     static function toggleItemLock(item:Dynamic):Void {
+        reconcileItemLocks();
         var uid = itemUid(item);
         var fingerprint = itemFingerprint(item);
         var characterId = heroPersistentId(resolveHero());
         if (uid == null || fingerprint == null || characterId == null)
             return;
         for (index in 0...lockRecords.length) {
-            if (recordString(lockRecords[index], "uid") == uid
+            if (lockRecords[index].restored == true && lockRecords[index].item == item
                 && recordString(lockRecords[index], "characterId") == characterId) {
                 lockRecords.splice(index, 1);
                 saveConfig();
@@ -2298,21 +2293,22 @@ class ItemUtilitiesMod {
             }
         }
         var current:Map<String, Dynamic> = new Map();
-        collectTrackedItems(current);
+        if (!isLockLoadoutReady() || !collectTrackedItems(current))
+            return;
         var tracked = current.get(uid);
         if (tracked == null || tracked.characterId == null)
             return;
         tracked.fingerprint = fingerprint;
-        fingerprintCache.set(uid, fingerprint);
+        fingerprintCache.set(uid, {item: item, fingerprint: fingerprint});
         lockRecords.push({
             uid: uid,
             fingerprint: fingerprint,
-            missing: 0,
-            known: matchingUids(current, fingerprint),
+            known: ItemLockState.matchingUids(current, fingerprint, characterId),
             location: tracked == null ? null : tracked.location,
             index: tracked == null ? -1 : tracked.index,
             characterId: tracked == null ? null : tracked.characterId,
-            restored: true
+            restored: true,
+            item: item
         });
         saveConfig();
     }
@@ -2320,320 +2316,98 @@ class ItemUtilitiesMod {
     static function isItemLocked(item:Dynamic):Bool {
         if (!enabled.get() || item == null)
             return false;
-        return hasLockUid(itemUid(item));
-    }
-
-    static function hasLockUid(uid:String):Bool {
-        if (uid == null)
-            return false;
-        var characterId = heroPersistentId(resolveHero());
-        if (characterId == null)
+        var app = currentGameApp();
+        var hero = fieldOrNull(app, "hero");
+        var characterId = hero == null ? null : characterIdFromApp(app);
+        if (characterId == null || lockState.hero != hero || lockState.characterId != characterId)
             return false;
         for (record in lockRecords)
-            if (recordString(record, "uid") == uid
-                && recordString(record, "characterId") == characterId)
+            if (record.characterId == characterId && record.restored == true
+                && record.item == item)
                 return true;
         return false;
     }
 
     static function reconcileItemLocks():Void {
-        var current:Map<String, Dynamic> = new Map();
-        collectTrackedItems(current);
-        if (!lockScanInitialized) {
-            lockScanInitialized = true;
+        try {
+            refreshActiveHero();
+            if (lockRecords.length == 0 || !isLockLoadoutReady())
+                return;
+            var current:Map<String, Dynamic> = new Map();
+            if (!collectTrackedItems(current))
+                return;
+            if (ItemLockState.reconcile(lockRecords, current, lockState.characterId, true))
+                saveConfig();
+        } catch (error:Dynamic) {
+            logLockError("lock restoration", error);
         }
-
-        var changed = false;
-        for (record in lockRecords) {
-            var savedFingerprint = recordString(record, "fingerprint");
-            if (savedFingerprint == null
-                || StringTools.startsWith(savedFingerprint, ITEM_FINGERPRINT_VERSION)
-                || Reflect.field(record, "legacyAmbiguous") == true)
-                continue;
-
-            var candidates:Array<Dynamic> = [];
-            for (candidateUid in current.keys()) {
-                var candidate = current.get(candidateUid);
-                if (recordAppliesToTrackedItem(record, candidate)
-                    && legacyFingerprintMatches(savedFingerprint, candidate))
-                    candidates.push(candidate);
-            }
-
-            var replacement:Dynamic = null;
-            if (StringTools.startsWith(savedFingerprint, "v2|")
-                || StringTools.startsWith(savedFingerprint, "v3|")) {
-                var savedUid = recordString(record, "uid");
-                for (candidate in candidates) {
-                    if (candidate.uid == savedUid) {
-                        replacement = candidate;
-                        break;
-                    }
-                }
-                if (replacement == null && candidates.length == 1)
-                    replacement = candidates[0];
-                if (replacement == null) {
-                    for (candidate in candidates) {
-                        if (isSavedSlot(record, candidate)) {
-                            replacement = candidate;
-                            break;
-                        }
-                    }
-                }
-            } else if (candidates.length == 1) {
-                // The original fingerprint omitted rarity and upgrade state.
-                // Never guess between duplicates merely because one occupies
-                // the saved slot; that is how unrelated items gained locks.
-                replacement = candidates[0];
-            }
-
-            if (replacement != null) {
-                record.uid = replacement.uid;
-                record.fingerprint = replacement.fingerprint;
-                record.known = matchingUids(current, replacement.fingerprint);
-                record.missing = 0;
-                record.restored = true;
-                updateRecordLocation(record, replacement);
-                changed = true;
-            } else {
-                // Retry only when a new hero/loadout is materialized. Repeating
-                // a known-ambiguous legacy scan every frame wastes time and
-                // cannot produce a safer answer.
-                record.legacyAmbiguous = true;
-            }
-        }
-
-        var claimed:Map<String, Bool> = new Map();
-        for (record in lockRecords) {
-            var uid = recordString(record, "uid");
-            var exact = uid == null ? null : current.get(uid);
-            if (exact != null && recordAppliesToTrackedItem(record, exact)
-                && (Reflect.field(record, "restored") == true
-                    || isSavedSlot(record, exact))) {
-                var liveFingerprint = itemFingerprint(exact.item);
-                if (liveFingerprint != null) {
-                    exact.fingerprint = liveFingerprint;
-                    fingerprintCache.set(uid, liveFingerprint);
-                    if (recordString(record, "fingerprint") != liveFingerprint) {
-                        record.fingerprint = liveFingerprint;
-                        changed = true;
-                    }
-                }
-                record.missing = 0;
-                record.restored = true;
-                // A split creates another item with the same fingerprint but
-                // leaves this source UID intact. Remember every identical UID
-                // seen while the lock identity is confirmed so the unlocked
-                // split-off stack cannot steal the lock when the source stack
-                // is moved and receives a replacement UID later.
-                record.known = matchingUids(current, exact.fingerprint);
-                if (updateRecordLocation(record, exact)) changed = true;
-                claimed.set(uid, true);
-            }
-        }
-
-        var kept:Array<Dynamic> = [];
-        for (record in lockRecords) {
-            // Bank locks belonged to the previous behavior. Locked items now
-            // stay with the character and cannot be deposited.
-            if (recordString(record, "location") == "bank") {
-                changed = true;
-                continue;
-            }
-            var uid = recordString(record, "uid");
-            var exact = uid == null ? null : current.get(uid);
-            if (exact != null && claimed.exists(uid)) {
-                kept.push(record);
-                continue;
-            }
-
-            var fingerprint = recordString(record, "fingerprint");
-            var known:Array<Dynamic> = cast Reflect.field(record, "known");
-            var candidates:Array<Dynamic> = [];
-            for (candidateUid in current.keys()) {
-                var candidate = current.get(candidateUid);
-                if (candidate.fingerprint != fingerprint || claimed.exists(candidateUid))
-                    continue;
-                if (!recordAppliesToTrackedItem(record, candidate))
-                    continue;
-                // Existing identical items were captured when this lock last
-                // had a confirmed identity and can never steal the lock.
-                if (arrayContainsString(known, candidateUid))
-                    continue;
-                candidates.push(candidate);
-            }
-
-            var replacement:Dynamic = null;
-            var savedLocation = recordString(record, "location");
-            var savedIndex = recordInt(record, "index", -1);
-            if (savedLocation != null && savedIndex >= 0) {
-                for (candidate in candidates) {
-                    if (candidate.location == savedLocation && candidate.index == savedIndex) {
-                        replacement = candidate;
-                        break;
-                    }
-                }
-            }
-            // During the live session a transfer can legitimately change both
-            // container and slot. A record loaded from disk has not established
-            // its new runtime identity yet, so never let a lone identical item
-            // in another container steal it before the saved container loads.
-            if (replacement == null && Reflect.field(record, "restored") == true
-                && candidates.length == 1)
-                replacement = candidates[0];
-
-            if (replacement != null) {
-                record.uid = replacement.uid;
-                record.missing = 0;
-                record.known = matchingUids(current, fingerprint);
-                record.restored = true;
-                updateRecordLocation(record, replacement);
-                claimed.set(replacement.uid, true);
-                kept.push(record);
-                changed = true;
-            } else {
-                var missing = recordInt(record, "missing", 0) + 1;
-                record.missing = missing;
-                // Equipment may not be materialized yet. Keep
-                // unresolved persisted records rather than guessing or losing
-                // them; a later scan can still restore the exact item.
-                kept.push(record);
-            }
-        }
-        lockRecords = kept;
-        if (changed) saveConfig();
     }
 
-    static function updateRecordLocation(record:Dynamic, tracked:Dynamic):Bool {
-        if (record == null || tracked == null)
+    static function isLockLoadoutReady():Bool {
+        var app = currentGameApp();
+        if (app == null || lockState.hero == null || lockState.characterId == null)
             return false;
-        var oldLocation = recordString(record, "location");
-        var oldIndex = recordInt(record, "index", -1);
-        var oldCharacterId = recordString(record, "characterId");
-        record.location = tracked.location;
-        record.index = tracked.index;
-        record.characterId = tracked.characterId;
-        return oldLocation != tracked.location || oldIndex != tracked.index
-            || oldCharacterId != tracked.characterId;
-    }
-
-    static function isSavedSlot(record:Dynamic, tracked:Dynamic):Bool {
-        return recordString(record, "location") == tracked.location
-            && recordInt(record, "index", -1) == tracked.index;
-    }
-
-    static function recordAppliesToTrackedItem(record:Dynamic, tracked:Dynamic):Bool {
-        if (record == null || tracked == null || tracked.characterId == null)
-            return false;
-        return recordString(record, "characterId") == tracked.characterId;
-    }
-
-    static function matchingUids(items:Map<String, Dynamic>, fingerprint:String):Array<String> {
-        var result:Array<String> = [];
-        for (uid in items.keys()) {
-            var item = items.get(uid);
-            if (item != null && item.fingerprint == fingerprint)
-                result.push(uid);
-        }
-        return result;
-    }
-
-    static function arrayContainsString(values:Array<Dynamic>, expected:String):Bool {
-        if (values == null)
-            return false;
-        for (value in values)
-            if (Std.string(value) == expected)
-                return true;
-        return false;
-    }
-
-    static function legacyFingerprintMatches(saved:String, tracked:Dynamic):Bool {
-        if (saved == null || tracked == null || tracked.fingerprint == null)
-            return false;
-        return legacyFingerprintMatchesEncoded(saved, Std.string(tracked.fingerprint));
+        if (getIsLoadingMember == null && gameAppType != null)
+            getIsLoadingMember = HlxRuntime.resolveMember(gameAppType, "get_isLoading");
+        // The native loading state covers initial replication. Merely seeing
+        // an inventory object is insufficient: equipment may still be loading.
+        return getIsLoadingMember != null
+            && HlxRuntime.callResolved(getIsLoadingMember, [app]) == false;
     }
 
     static function itemMatchesFingerprint(item:Dynamic, saved:String):Bool {
-        if (item == null || saved == null)
-            return false;
-        var current = itemFingerprint(item);
-        return current != null
-            && (current == saved || legacyFingerprintMatchesEncoded(saved, current));
+        return item != null && ItemLockState.fingerprintMatches(saved, itemFingerprint(item));
     }
 
-    static function legacyFingerprintMatchesEncoded(saved:String, encoded:String):Bool {
-        if (saved == null || encoded == null)
-            return false;
-        try {
-            if (!StringTools.startsWith(encoded, ITEM_FINGERPRINT_VERSION))
-                return false;
-            var currentParts:Array<Dynamic> = cast Json.parse(
-                encoded.substr(ITEM_FINGERPRINT_VERSION.length)
-            );
-            if (currentParts == null || currentParts.length < 7)
-                return false;
-
-            if (StringTools.startsWith(saved, "v2|")
-                || StringTools.startsWith(saved, "v3|")) {
-                var savedParts:Array<Dynamic> = cast Json.parse(saved.substr(3));
-                if (savedParts == null || savedParts.length < 7)
-                    return false;
-
-                // v3 used affix-application UIDs in field 3; v4 replaces that
-                // field with the persistent gear slots. Compare the six fields
-                // whose meanings did not change.
-                for (index in [0, 1, 3, 4, 5, 6])
-                    if (Std.string(savedParts[index]) != Std.string(currentParts[index]))
-                        return false;
-
-                // The older v2 layout also recorded gear slots in field 8.
-                // Preserve that extra identity information when it is present.
-                if (StringTools.startsWith(saved, "v2|") && savedParts.length >= 8
-                    && Std.string(savedParts[7]) != Std.string(currentParts[2]))
-                    return false;
-                return true;
-            }
-
-            var separators = saved.split("|");
-            if (separators.length == 0
-                || separators[0] != Std.string(currentParts[0]))
-                return false;
-            return true;
-        } catch (_:Dynamic) {
-            return false;
-        }
-    }
-
-    static function collectTrackedItems(result:Map<String, Dynamic>):Void {
-        var inventories:Array<Dynamic> = [];
+    static function collectTrackedItems(result:Map<String, Dynamic>):Bool {
         var hero = resolveHero();
         var characterId = heroPersistentId(hero);
-        addTrackedInventory(inventories, sourceInventory, "inventory", characterId);
-
         var loadout = fieldOrNull(hero, "loadout");
-        if (loadout != null) {
-            addTrackedInventory(inventories, fieldOrNull(loadout, "inventory"), "inventory", characterId);
-            addTrackedInventory(inventories, fieldOrNull(loadout, "equipment"), "equipment", characterId);
-        }
-
+        var inventory = fieldOrNull(loadout, "inventory");
+        var equipment = fieldOrNull(loadout, "equipment");
+        if (characterId == null || getContent(inventory) == null || getContent(equipment) == null)
+            return false;
+        // Only the current hero's containers belong to this character. UI
+        // sourceInventory can still point at the previous hero during login.
+        var inventories:Array<Dynamic> = [];
+        addTrackedInventory(inventories, inventory, "inventory", characterId);
+        addTrackedInventory(inventories, equipment, "equipment", characterId);
+        var confirmed:Map<String, Dynamic> = new Map();
+        for (record in lockRecords)
+            if (record.characterId == characterId && record.restored == true)
+                confirmed.set(record.uid, record.item);
+        var complete = true;
+        var nextCache:Map<String, {item:Dynamic, fingerprint:String}> = new Map();
         for (entry in inventories) {
-            var inventory = entry.inventory;
-            var content = getContent(inventory);
+            var content = getContent(entry.inventory);
             for (index in 0...arrayLength(content)) {
-                var item = itemAt(inventory, index);
+                var item = itemAt(entry.inventory, index);
+                if (item == null) continue;
                 var uid = itemUid(item);
-                var fingerprint = uid == null ? null : fingerprintCache.get(uid);
-                if (uid != null && fingerprint == null) {
-                    fingerprint = itemFingerprint(item);
-                    if (fingerprint != null)
-                        fingerprintCache.set(uid, fingerprint);
+                if (uid == null || fieldOrNull(item, "inf") == null) {
+                    complete = false;
+                    continue;
                 }
-                if (uid != null && fingerprint != null)
-                    result.set(uid, { uid: uid, fingerprint: fingerprint,
-                        item: item, inventory: inventory,
-                        location: entry.location, index: index,
-                        characterId: entry.characterId });
+                var cached = fingerprintCache.get(uid);
+                var fingerprint = cached != null && cached.item == item
+                    ? cached.fingerprint : null;
+                // Refresh confirmed objects so upgrades/enchantments are saved.
+                if (fingerprint == null || confirmed.get(uid) == item) {
+                    fingerprint = itemFingerprint(item);
+                }
+                if (fingerprint == null) {
+                    complete = false;
+                    continue;
+                }
+                result.set(uid, {uid: uid, fingerprint: fingerprint,
+                    item: item, inventory: entry.inventory,
+                    location: entry.location, index: index, characterId: characterId});
+                nextCache.set(uid, {item: item, fingerprint: fingerprint});
             }
         }
+        // Do not retain discarded/transferred item objects for the session.
+        fingerprintCache = nextCache;
+        return complete;
     }
 
     static function addTrackedInventory(inventories:Array<Dynamic>, inventory:Dynamic,
@@ -2651,7 +2425,14 @@ class ItemUtilitiesMod {
     }
 
     static function heroPersistentId(hero:Dynamic):String {
-        var connectionInfo = gameConnectionInfo();
+        var app = currentGameApp();
+        if (hero == null || hero != fieldOrNull(app, "hero"))
+            return null;
+        return characterIdFromApp(app);
+    }
+
+    static function characterIdFromApp(app:Dynamic):String {
+        var connectionInfo = fieldOrNull(app, "connectionInfo");
         var heroId = fieldOrNull(connectionInfo, "heroID");
         if (heroId == null)
             return null;
@@ -2681,67 +2462,25 @@ class ItemUtilitiesMod {
 
     static function refreshActiveHero():Void {
         try {
-            // Inventory tracking uses the player's hero. getCameraHero() also
-            // reads the camera, which is not available during startup.
-            var hero = fieldOrNull(currentGameApp(), "hero");
-            if (hero == null || hero == activeHero)
-                return;
-
-            activeHero = hero;
+            var app = currentGameApp();
+            var hero = fieldOrNull(app, "hero");
             var loadout = fieldOrNull(hero, "loadout");
             var inventory = fieldOrNull(loadout, "inventory");
-            if (inventory != null)
-                sourceInventory = inventory;
+            if (!lockState.updateSession(lockRecords, hero, hero == null ? null : characterIdFromApp(app),
+                fieldOrNull(app, "host"), inventory, fieldOrNull(loadout, "equipment")))
+                return;
+            sourceInventory = inventory;
             fingerprintCache = new Map();
             nextLockReconcileAt = 0;
-            lockScanInitialized = false;
-
-            var characterId = heroPersistentId(hero);
-            for (record in lockRecords)
-                if (recordString(record, "characterId") == characterId)
-                    {
-                        record.restored = false;
-                        record.legacyAmbiguous = false;
-                    }
         } catch (error:Dynamic) {
             logLockError("active hero refresh", error);
         }
     }
 
     static function resolveHero():Dynamic {
-        if (activeHero != null && fieldOrNull(activeHero, "loadout") != null)
-            return activeHero;
-        try {
-            // Preset hotkeys run even while the inventory and character windows
-            // have never been opened. Resolve the active hero directly from the
-            // game in that case; UI-owned hero references remain useful fallbacks.
-            activeHero = fieldOrNull(currentGameApp(), "hero");
-            if (activeInventoryUI != null) {
-                if (baseElementType == null)
-                    baseElementType = HlxRuntime.resolveType("ui.BaseElement");
-                if (baseElementType != null && getBaseElementHeroMember == null)
-                    getBaseElementHeroMember = HlxRuntime.resolveMember(baseElementType, "get_myHero");
-                if (getBaseElementHeroMember != null)
-                    activeHero = HlxRuntime.callResolved(getBaseElementHeroMember, [activeInventoryUI]);
-            }
-            if (activeHero == null && activeInventoryWindow != null) {
-                if (inventoryWindowType == null)
-                    inventoryWindowType = HlxRuntime.resolveType("ui.win.InventoryWindow");
-                if (inventoryWindowType != null && getInventoryWindowHeroMember == null)
-                    getInventoryWindowHeroMember = HlxRuntime.resolveMember(inventoryWindowType, "get_myHero");
-                if (getInventoryWindowHeroMember != null)
-                    activeHero = HlxRuntime.callResolved(getInventoryWindowHeroMember, [activeInventoryWindow]);
-            }
-            if (activeHero == null && activeBankWindow != null) {
-                if (bankWindowType == null)
-                    bankWindowType = HlxRuntime.resolveType("ui.win.BankWindow");
-                if (bankWindowType != null && getMyHeroMember == null)
-                    getMyHeroMember = HlxRuntime.resolveMember(bankWindowType, "get_myHero");
-                if (getMyHeroMember != null)
-                    activeHero = HlxRuntime.callResolved(getMyHeroMember, [activeBankWindow]);
-            }
-        } catch (error:Dynamic) logLockError("hero resolution", error);
-        return activeHero;
+        // Resolution is read-only. Session tracking has its own identity and
+        // cannot be pre-populated by UI initialization or preset lookups.
+        return fieldOrNull(currentGameApp(), "hero");
     }
 
     static function itemAt(inventory:Dynamic, index:Int):Dynamic {
@@ -3165,7 +2904,6 @@ class ItemUtilitiesMod {
                             lockRecords.push({
                                 uid: uid,
                                 fingerprint: fingerprint,
-                                missing: 0,
                                 known: [],
                                 location: location,
                                 index: recordInt(record, "index", -1),

@@ -2,3 +2,8 @@
 -cp tests
 -main QuickLootStateTest
 --interp
+--next
+-cp src
+-cp tests
+-main ItemLockStateTest
+--interp
