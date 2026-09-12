@@ -9,6 +9,11 @@
       "label": "Enabled"
     },
     {
+      "key": "holdInteractToQuickLoot",
+      "type": "checkbox",
+      "label": "Hold interact to quick-loot"
+    },
+    {
       "type": "title",
       "label": "Deposit Buttons"
     },

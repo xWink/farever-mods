@@ -20,6 +20,21 @@ A collection of inventory, bank, equipment, and item-safety quality-of-life tool
 
 ## Features
 
+### Hold interact to quick-loot
+
+Enable **Hold interact to quick-loot** under **General** in Better Mod Settings,
+then hold your interact button while looking at dropped items to pick them up
+without repeatedly pressing the button. It uses your configured keyboard or
+controller binding and the game's normal item targeting, pickup range, checks,
+and repeat delay. Releasing the button stops quick-looting.
+
+The mod filters the game's selected target only during a held-button pickup;
+it does not add a nearby-entity scan or change the server's pickup logic.
+
+This setting is off by default. Holding interact only repeats pickups for
+dropped items; NPCs, chests, gathering nodes, and other interactions keep their
+normal behavior.
+
 ### Bank deposit shortcuts
 
 Adds six deposit buttons beside the bank's Sort button:
@@ -89,6 +104,7 @@ Existing weapon presets remain usable. Press **Set** again on each preset to inc
 Available settings include:
 
 - Enable or disable Item Utilities
+- Hold interact to pick up the dropped items you look at
 - Show or hide bank and Recycler deposit buttons
 - Show or hide item-locking visuals
 - Keep locked items in their exact slots while sorting
@@ -115,4 +131,10 @@ The compiled mod is written to:
 
 ```text
 build/item-utilities/item-utilities.hl
+```
+
+Run the input-scope regression tests (Haxe only; no running game required):
+
+```sh
+haxe test.hxml
 ```

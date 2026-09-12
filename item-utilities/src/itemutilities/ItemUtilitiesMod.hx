@@ -17,6 +17,7 @@ import hlx.runtime.HlxPrefixResult;
 
 typedef ItemUtilitiesConfig = {
     var enabled:Bool;
+    var holdInteractToQuickLoot:Bool;
     var showDepositMaterials:Bool;
     var showLockVisuals:Bool;
     var sortingIgnoresLockedItems:Bool;
@@ -44,6 +45,7 @@ class ItemUtilitiesMod {
     @:hlx.config
     static var config:ItemUtilitiesConfig = {
         enabled: true,
+        holdInteractToQuickLoot: false,
         showDepositMaterials: true,
         showLockVisuals: true,
         sortingIgnoresLockedItems: false,
@@ -64,6 +66,10 @@ class ItemUtilitiesMod {
     static var showLockVisuals = new BoolRef(true);
     static var sortingIgnoresLockedItems = new BoolRef(false);
     static var presetHotkeyKeys:Array<Int> = [0, 0, 0];
+
+    static var quickLootState = new QuickLootState();
+    static var quickLootInputDownMember:hlx.runtime.ResolvedMember;
+    static var quickLootErrorLogged:Bool = false;
 
     static var activeBankWindow:Dynamic;
     static var activeScrapWindow:Dynamic;
@@ -197,6 +203,90 @@ class ItemUtilitiesMod {
             onBetterModSettingsChanged
         );
         ImGui.register(HlxRuntime.moduleName(), draw);
+    }
+
+    @:hlx.postfix(client.PlayerController.updateInputs)
+    static function prepareQuickLoot(instance:Dynamic, dt:Float, result:Void):Void {
+        // PlayerController.update only reaches updateInputs when gameplay
+        // input is unblocked. Its next input query is the normal Interact press.
+        quickLootState.prepare(instance, enabled.get() && config.holdInteractToQuickLoot);
+    }
+
+    @:hlx.postfix(client.PlayerController.update)
+    static function finishQuickLoot(instance:Dynamic, dt:Float, result:Void):Void {
+        quickLootState.finish(instance);
+    }
+
+    @:hlx.postfix(lib.Input.isPressed)
+    static function holdInteractForLoot(key:String, result:Bool):Bool {
+        var controller = quickLootState.takeInput(key);
+        if (controller == null)
+            return result;
+
+        // The context was consumed before any nested input/interaction calls.
+        // A real press remains untouched, including presses on NPCs and chests.
+        if (result || !enabled.get() || !config.holdInteractToQuickLoot)
+            return result;
+
+        try {
+            if (quickLootInputDownMember == null) {
+                var inputType = HlxRuntime.resolveType("lib.Input");
+                if (inputType != null)
+                    quickLootInputDownMember = HlxRuntime.resolveStaticMember(inputType, "isDown");
+            }
+            // The action name retains keyboard/gamepad bindings, input modes,
+            // and focus checks. Never synthesize a raw F-key press.
+            if (quickLootInputDownMember == null
+                || HlxRuntime.callResolved(quickLootInputDownMember, [key]) != true)
+                return result;
+
+            // Do not search nearby entities here. Native tryInteract first
+            // checks its hold delay, then selects exactly one current target.
+            quickLootState.repeat(controller);
+            return true;
+        } catch (e:Dynamic) {
+            logQuickLootError(e);
+        }
+        return result;
+    }
+
+    @:hlx.prefix(client.PlayerController.tryInteract)
+    static function beginQuickLootInteraction(instance:Dynamic):HlxPrefixResult<Void> {
+        quickLootState.beginInteraction(instance);
+        return Continue;
+    }
+
+    @:hlx.postfix(client.PlayerController.tryInteract)
+    static function endQuickLootInteraction(instance:Dynamic, result:Void):Void {
+        quickLootState.endInteraction(instance);
+    }
+
+    @:hlx.postfix(client.PlayerController.getClosestInteractible)
+    static function filterQuickLootTarget(instance:Dynamic, result:Dynamic):Dynamic {
+        if (!quickLootState.filtersTarget(instance))
+            return result;
+        if (result == null || !enabled.get() || !config.holdInteractToQuickLoot)
+            return null;
+
+        try {
+            var type = hl.Type.getDynamic(result);
+            while (type != null && type.kind == HObj) {
+                if (type.getTypeName() == "ent.interactible.LootDrop")
+                    return result;
+                type = type.getSuper();
+            }
+        } catch (e:Dynamic) {
+            logQuickLootError(e);
+        }
+        // Never substitute another nearby item or repeat a non-loot interaction.
+        // Returning null leaves native range/check/RPC handling untouched.
+        return null;
+    }
+
+    static function logQuickLootError(e:Dynamic):Void {
+        if (quickLootErrorLogged) return;
+        quickLootErrorLogged = true;
+        trace("[ItemUtilities] Quick-loot failed: " + Std.string(e));
     }
 
     @:hlx.postfix(ui.win.BankWindow.init)
