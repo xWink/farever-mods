@@ -41,4 +41,8 @@ repositories. New development and releases belong in `xWink/farever-mods`.
 More Audio Settings was originally imported as `mute-on-unfocus` and installed
 as `mute-unfocused`. The historical release tag and original repository link
 above retain their old names. Current builds, module folders, archives and
-release tags use `more-audio-settings`.
+release tags now use `more-settings`. The intervening `more-audio-settings`
+name is accepted as a configuration migration source; its historical releases
+retain their original names. More Settings also contains the standalone
+profanity-filter option. See [upgrade instructions](more-settings/README.md#installation-and-upgrade)
+to avoid loading duplicate modules.

@@ -1,0 +1,7 @@
+-lib hlx-runtime
+-D hl-ver=1.16.0
+-cp src
+-cp ../shared/src
+-main moresettings.MoreSettingsMod
+-dce full
+-hl build/more-settings/more-settings.hl

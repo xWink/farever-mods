@@ -1,0 +1,46 @@
+name: More Settings
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['more-settings/v*']
+    paths:
+      - 'more-settings/**'
+      - 'shared/**'
+      - '.github/workflows/build-more-settings.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'more-settings/**'
+      - 'shared/**'
+      - '.github/workflows/build-more-settings.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Test volume, ownership and regional presentation filters
+        working-directory: more-settings
+        run: haxe test.hxml
+
+  build:
+    needs: test
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: more-settings
+      module: more-settings
+      title: More Settings

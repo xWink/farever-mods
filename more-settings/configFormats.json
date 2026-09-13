@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "displayName": "More Settings",
+  "configs": [
+    {
+      "type": "title",
+      "label": "General"
+    },
+    {
+      "key": "disableProfanityFilter",
+      "type": "checkbox",
+      "label": "Disable profanity filter"
+    },
+    {
+      "type": "title",
+      "label": "Unfocused Volume"
+    },
+    {
+      "key": "adjustUnfocusedVolume",
+      "type": "checkbox",
+      "label": "Adjust unfocused volume"
+    },
+    {
+      "key": "backgroundVolume",
+      "type": "slider",
+      "label": "Unfocused volume %",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "type": "title",
+      "label": "Fast Travel Volume"
+    },
+    {
+      "key": "adjustFastTravelVolume",
+      "type": "checkbox",
+      "label": "Adjust fast travel volume"
+    },
+    {
+      "key": "fastTravelVolume",
+      "type": "slider",
+      "label": "Fast travel volume %",
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    {
+      "type": "title",
+      "label": "Rift Effects"
+    },
+    {
+      "key": "riftHideAllyAttacks",
+      "type": "checkbox",
+      "label": "Hide ally attacks"
+    },
+    {
+      "key": "riftHideAllyBuffs",
+      "type": "checkbox",
+      "label": "Hide ally buffs"
+    },
+    {
+      "key": "riftHideAllies",
+      "type": "checkbox",
+      "label": "Hide allies"
+    },
+    {
+      "type": "title",
+      "label": "Dungeon Effects"
+    },
+    {
+      "key": "dungeonHideAllyAttacks",
+      "type": "checkbox",
+      "label": "Hide ally attacks"
+    },
+    {
+      "key": "dungeonHideAllyBuffs",
+      "type": "checkbox",
+      "label": "Hide ally buffs"
+    },
+    {
+      "key": "dungeonHideAllies",
+      "type": "checkbox",
+      "label": "Hide allies"
+    },
+    {
+      "type": "title",
+      "label": "Overworld Effects"
+    },
+    {
+      "key": "overworldHideAllyAttacks",
+      "type": "checkbox",
+      "label": "Hide ally attacks"
+    },
+    {
+      "key": "overworldHideAllyBuffs",
+      "type": "checkbox",
+      "label": "Hide ally buffs"
+    },
+    {
+      "key": "overworldHideAllies",
+      "type": "checkbox",
+      "label": "Hide allies"
+    }
+  ]
+}
