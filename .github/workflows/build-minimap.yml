@@ -24,7 +24,19 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Test activity visibility and dungeon classification
+        working-directory: minimap
+        run: haxe test.hxml
+
   build:
+    needs: test
     uses: ./.github/workflows/_build-mod.yml
     with:
       project: minimap

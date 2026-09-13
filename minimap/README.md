@@ -28,7 +28,7 @@ A compact overworld minimap with a centered player arrow.
 - Directional player arrows and markers for enemies, resources, NPCs, obelisks, and respawn points.
 - Distinct icons for Guild Merchants, Demon Huntresses, and crafting, upgrade, and recycling stations.
 - Unopened treasure chest, undiscovered secret orb, and activity markers.
-- Hide completed activities while keeping ascension markers visible.
+- Hide completed activities while keeping ascensions and dungeons visible, with separate options to hide either.
 - Enemy filters for completed and incomplete Codex entries.
 - Companion markers with an option to hide variants already in your collection.
 - Yellow edge arrows guide you toward uncollected sparkling companions.
@@ -50,8 +50,9 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Companions | Green pawprint; thick yellow ring for sparkling variants |
 | Activities | Purple square with a white four-point star |
 | Ascensions | Gold device with a bright cyan core |
+| Dungeons | Stone doorway with a purple and cyan portal |
 | Respawn points | White cross |
-| Obelisks | Purple diamond |
+| Obelisks | Split stone idol with gold inlays and blue energy |
 | NPCs | Yellow square |
 | Guild Merchants | Yellow $ |
 | Demon Huntresses | Purple horned face |
@@ -63,7 +64,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 
 **Show NPCs** also controls the Guild Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. All player markers, including your character arrow, draw behind other marker types so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
 
-The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), and **Hide ascensions** (off by default). Ascensions remain visible after completing their jump activity unless hidden separately. Other activities use the game's world-map locations, including overworld entrances for instanced activities.
+The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), **Hide ascensions**, and **Hide dungeons** (both off by default). Completed ascensions and dungeons remain visible unless hidden with their own option. **Show activities** controls all three categories. Other activities, including rifts, still follow **Hide completed activities**. Markers use the game's world-map locations, including overworld entrances for instanced activities.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it.
 
@@ -76,5 +77,7 @@ haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-r
 cd minimap
 haxe compile.hxml
 ```
+
+Run the activity classification and visibility regression tests with `haxe test.hxml` (no game or HLX runtime required).
 
 Output: `build/minimap/minimap.hl`. The independent workflow packages this project and publishes releases for `minimap/v*` tags.

@@ -378,11 +378,7 @@ class MinimapMarkers {
             var events = G.field(layer, "worldEvents");
             for (point in activities) {
                 if (!near(point.x, point.y, x, y, radius)) continue;
-                if (point.kind == "ascension") {
-                    if (config.hideAscensions) continue;
-                } else if (config.hideCompletedActivities && progress != null
-                    && G.call("st.player.Progress", "hasActivityCompleted", progress, [G.field(point.inf, "id")]) == true)
-                    continue;
+                if (ActivityMarkers.hidden(point.kind, point.inf, progress, config)) continue;
                 if (point.eventElement != null && events != null) {
                     var event = G.call("st.event.WorldEvents", "getEventStatus", events, [point.eventElement]);
                     if (G.text(G.field(event, "status")) == "Disabled") continue;
@@ -407,8 +403,8 @@ class MinimapMarkers {
             var prefab = G.field(definition, "prefab");
             if (prefab == null) continue;
             var inf = G.field(definition, "inf");
-            var ascension = G.staticCall("HActivity", "isOfType", [inf, "Ascension"]) == true;
-            var start = ascension ? checkpointStart(prefab) : null;
+            var kind = ActivityMarkers.kind(inf);
+            var start = kind == "ascension" ? checkpointStart(prefab) : null;
             if (start != null) {
                 var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", start, [true]);
                 activities.push({kind: "ascension", inf: inf,
@@ -417,7 +413,7 @@ class MinimapMarkers {
                 continue;
             }
             var position = G.staticCall("HActivity", "getPos", [definition]);
-            activities.push({kind: ascension ? "ascension" : "activity", inf: inf,
+            activities.push({kind: kind, inf: inf,
                 x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y")),
                 z: G.number(G.field(position, "z"), Math.NaN)});
         }
@@ -430,10 +426,11 @@ class MinimapMarkers {
             if (id == "") continue;
             var definition = G.call("haxe.ds.StringMap", "get", source, [id]);
             if (definition == null) continue;
-            var props = G.field(G.field(definition, "inf"), "props");
+            var activityInf = G.field(definition, "inf");
+            var props = G.field(activityInf, "props");
             if (G.staticCall("Config", "checkStatus", [G.field(props, "releaseStatus")]) != true) continue;
             var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", G.field(orb, "prefab"), [true]);
-            activities.push({kind: "activity", inf: G.field(definition, "inf"),
+            activities.push({kind: ActivityMarkers.kind(activityInf), inf: activityInf,
                 x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
                 z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
@@ -572,7 +569,7 @@ class MinimapMarkers {
     static function markerRadius(kind:String):Float return switch kind {
         case "bank", "demon", "craft", "upgrade", "recycler", "chest", "player", "activity", "ascension", "companion": 7;
         case "plant", "ore", "boss": 5;
-        case "obelisk": 4.5;
+        case "obelisk", "dungeon": 8;
         default: 3.5;
     };
 
@@ -650,7 +647,7 @@ class MinimapMarkers {
                 };
                 name = G.text(G.call(type, "getName", point.entity));
             } else if (point.inf != null) {
-                name = G.text(G.staticCall("HText", point.kind == "activity" || point.kind == "ascension" ? "activity" : "element",
+                name = G.text(G.staticCall("HText", point.kind == "activity" || point.kind == "ascension" || point.kind == "dungeon" ? "activity" : "element",
                     [point.inf, G.current("ETextKind", "Name")]));
             }
             if (name == "" && isNpc(point.kind)) {
@@ -672,6 +669,7 @@ class MinimapMarkers {
             case "craft": "Crafting Station";
             case "activity": "Activity";
             case "ascension": "Ascension";
+            case "dungeon": "Dungeon";
             case "plant": "Plant";
             case "ore": "Ore";
             case "player": "Player";
@@ -687,7 +685,7 @@ class MinimapMarkers {
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
         // Preserve marker priority, with services above other map content.
-        for (kind in ["player", "activity", "ascension", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
+        for (kind in ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "respawn", "obelisk", "npc", "bank", "demon", "recycler", "upgrade", "craft"]) {
             for (point in points) if (point.kind == kind) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
@@ -735,6 +733,10 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "obelisk" || kind == "dungeon") {
+            LandmarkIcons.draw(graphics, kind, markerRadius(kind));
+            return;
+        }
         var color = switch kind {
             case "plant", "companion": 0x77df81;
             case "ore": 0xb7bcc7;
@@ -744,7 +746,6 @@ class MinimapMarkers {
             case "secretOrb": 0x8fd8ff;
             case "enemy", "boss": 0xff6860;
             case "respawn": 0xffffff;
-            case "obelisk": 0xc599ff;
             case "npc": 0xffdf78;
             case "bank": 0xffdc42;
             case "demon": 0xe8a1ff;
@@ -870,12 +871,6 @@ class MinimapMarkers {
             case "respawn":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r / 3, y - r, r * 2 / 3, r * 2]);
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r / 3, r * 2, r * 2 / 3]);
-            case "obelisk":
-                G.call("h2d.Graphics", "moveTo", graphics, [x, y - r]);
-                G.call("h2d.Graphics", "lineTo", graphics, [x + r, y]);
-                G.call("h2d.Graphics", "lineTo", graphics, [x, y + r]);
-                G.call("h2d.Graphics", "lineTo", graphics, [x - r, y]);
-                G.call("h2d.Graphics", "lineTo", graphics, [x, y - r]);
             case "npc":
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, r * 2, r * 2]);
             default:
