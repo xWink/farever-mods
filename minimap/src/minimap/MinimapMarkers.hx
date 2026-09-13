@@ -872,7 +872,7 @@ class MinimapMarkers {
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r / 3, y - r, r * 2 / 3, r * 2]);
                 G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r / 3, r * 2, r * 2 / 3]);
             case "npc":
-                G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r, r * 2, r * 2]);
+                G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 32]);
             default:
                 G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 32]);
         }

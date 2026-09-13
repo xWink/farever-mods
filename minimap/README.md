@@ -52,8 +52,8 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Ascensions | Gold device with a bright cyan core |
 | Dungeons | Stone doorway with a purple and cyan portal |
 | Respawn points | White cross |
-| Obelisks | Split stone idol with gold inlays and blue energy |
-| NPCs | Yellow square |
+| Obelisks | Broad grey stone idol with a split crown and gold inlays |
+| NPCs | Yellow circle |
 | Guild Merchants | Yellow $ |
 | Demon Huntresses | Purple horned face |
 | Spark Recycler | Mint recycling arrows |

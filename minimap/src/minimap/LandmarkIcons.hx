@@ -10,45 +10,45 @@ class LandmarkIcons {
     }
 
     static function obelisk(g:Dynamic, r:Float):Void {
-        fill(g, 0x18262c);
+        fill(g, 0x282828);
         obeliskShape(g, r + 1);
         end(g);
-        fill(g, 0x84978d);
+        fill(g, 0x999999);
         obeliskShape(g, r);
         end(g);
 
         // The idol's gold spine and four round inlays below its split crown.
         fill(g, 0xd8aa50);
-        polygon(g, r, [-0.13, -0.35, 0.13, -0.35, 0.13, 0.9, -0.13, 0.9]);
+        polygon(g, r, [-0.16, -0.35, 0.16, -0.35, 0.16, 0.9, -0.16, 0.9]);
         for (side in [-1, 1]) {
-            circle(g, side * 0.74 * r, -0.65 * r, 0.13 * r);
-            circle(g, side * 0.42 * r, -0.57 * r, 0.13 * r);
+            circle(g, side * 0.74 * r, -0.65 * r, 0.145 * r);
+            circle(g, side * 0.42 * r, -0.54 * r, 0.145 * r);
         }
         end(g);
-        // Blue energy remains visible between the two stone head pieces.
-        fill(g, 0x28baff);
-        polygon(g, r, [-0.08, -1, 0.09, -1, 0.15, -0.55, 0.08, -0.33, -0.13, -0.33]);
-        polygon(g, r, [-0.32, 0.74, 0.32, 0.74, 0.38, 1, -0.38, 1]);
+        // Keep the split crown's center entirely gold, like the spine below.
+        fill(g, 0xe2b85f);
+        polygon(g, r, [-0.065, -0.94, 0.065, -0.94, 0.1, -0.24, -0.1, -0.24]);
         end(g);
-        fill(g, 0xc2f6ff);
-        polygon(g, r, [-0.035, -0.96, 0.035, -0.96, 0.065, -0.36, -0.045, -0.36]);
+        // A broad stone foot gives the thicker column a substantial base.
+        fill(g, 0x636363);
+        polygon(g, r, [-0.62, 0.78, 0.62, 0.78, 0.62, 1, -0.62, 1]);
         end(g);
 
-        // A short stone crossbar suggests the hands without obscuring the core.
-        fill(g, 0x405d5f);
-        polygon(g, r, [-0.55, -0.15, 0.55, -0.15, 0.46, 0.12, -0.46, 0.12]);
+        // Broader hands and shoulders remain legible at the default icon size.
+        fill(g, 0x555555);
+        polygon(g, r, [-0.72, -0.14, 0.72, -0.14, 0.61, 0.21, -0.61, 0.21]);
         end(g);
-        fill(g, 0xa9bbb0);
-        polygon(g, r, [-0.5, -0.15, 0.5, -0.15, 0.43, -0.04, -0.43, -0.04]);
+        fill(g, 0xbfbfbf);
+        polygon(g, r, [-0.68, -0.14, 0.68, -0.14, 0.61, 0.02, -0.61, 0.02]);
         end(g);
     }
 
     static function obeliskShape(g:Dynamic, r:Float):Void {
-        polygon(g, r, [-0.4, -0.4, 0.4, -0.4, 0.38, 1, -0.38, 1]);
+        polygon(g, r, [-0.58, -0.35, 0.58, -0.35, 0.62, 1, -0.62, 1]);
         // Separate convex pieces preserve the open split when triangulated.
         for (side in [-1, 1])
             polygon(g, r, [-1, -0.83, -0.24, -1, -0.19, -0.8,
-                -0.31, -0.34, -0.84, -0.34, -1, -0.5], side);
+                -0.25, -0.22, -0.84, -0.22, -1, -0.43], side);
     }
 
     static function dungeon(g:Dynamic, r:Float):Void {
