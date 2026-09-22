@@ -32,3 +32,8 @@
 -cp tests
 -main CharacterResetTest
 --interp
+--next
+-cp src
+-cp tests
+-main PresetSlotsTest
+--interp

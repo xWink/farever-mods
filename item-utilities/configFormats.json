@@ -75,6 +75,8 @@
       "type": "keybinding",
       "label": "Equipment preset 3 hotkey"
     },
+    { "key": "preset4Hotkey", "type": "keybinding", "label": "Equipment preset 4 hotkey" },
+    { "key": "preset5Hotkey", "type": "keybinding", "label": "Equipment preset 5 hotkey" },
     {
       "key": "resetEquipmentPresets",
       "type": "button",
@@ -90,6 +92,8 @@
     { "key": "talentPreset1Hotkey", "type": "keybinding", "label": "Talent preset 1 hotkey" },
     { "key": "talentPreset2Hotkey", "type": "keybinding", "label": "Talent preset 2 hotkey" },
     { "key": "talentPreset3Hotkey", "type": "keybinding", "label": "Talent preset 3 hotkey" },
+    { "key": "talentPreset4Hotkey", "type": "keybinding", "label": "Talent preset 4 hotkey" },
+    { "key": "talentPreset5Hotkey", "type": "keybinding", "label": "Talent preset 5 hotkey" },
     {
       "key": "resetTalentPresets",
       "type": "button",
@@ -105,6 +109,8 @@
     { "key": "skillPreset1Hotkey", "type": "keybinding", "label": "Skill preset 1 hotkey" },
     { "key": "skillPreset2Hotkey", "type": "keybinding", "label": "Skill preset 2 hotkey" },
     { "key": "skillPreset3Hotkey", "type": "keybinding", "label": "Skill preset 3 hotkey" },
+    { "key": "skillPreset4Hotkey", "type": "keybinding", "label": "Skill preset 4 hotkey" },
+    { "key": "skillPreset5Hotkey", "type": "keybinding", "label": "Skill preset 5 hotkey" },
     {
       "key": "resetSkillPresets",
       "type": "button",
@@ -120,6 +126,8 @@
     { "key": "appearancePreset1Hotkey", "type": "keybinding", "label": "Appearance preset 1 hotkey" },
     { "key": "appearancePreset2Hotkey", "type": "keybinding", "label": "Appearance preset 2 hotkey" },
     { "key": "appearancePreset3Hotkey", "type": "keybinding", "label": "Appearance preset 3 hotkey" },
+    { "key": "appearancePreset4Hotkey", "type": "keybinding", "label": "Appearance preset 4 hotkey" },
+    { "key": "appearancePreset5Hotkey", "type": "keybinding", "label": "Appearance preset 5 hotkey" },
     {
       "key": "resetAppearancePresets",
       "type": "button",

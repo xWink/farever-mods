@@ -4,7 +4,7 @@ class AppearancePresetLayout {
     public static function place(button:OverlayRect, panel:OverlayRect, controls:OverlayRect):OverlayRect {
         if (button == null || panel == null || controls == null
             || !button.valid() || !panel.valid() || !controls.valid()) return null;
-        var gap = 32 * controls.width / 254;
+        var gap = 32 * controls.width / PresetSlots.CONTROLS_WIDTH;
         var room = button.left - panel.left - 2 * gap;
         if (room <= 0) return null;
         var scale = Math.min(1, room / controls.width);

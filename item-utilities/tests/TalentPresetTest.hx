@@ -1,3 +1,4 @@
+import itemutilities.PresetSlots;
 import itemutilities.OverlayRect;
 import itemutilities.TalentPresetLayout;
 import itemutilities.TalentPresetPlan;
@@ -157,18 +158,18 @@ class TalentPresetTest {
             var points = projection.rect(56, 85, 241, 39);
             var root = projection.rect(338, 56, 106, 107);
             var treeRect = projection.rect(5, 35, 771, 700);
-            var controls = projection.rect(0, 0, 254, 36);
+            var controls = projection.rect(0, 0, PresetSlots.CONTROLS_WIDTH, 36);
             var placed = TalentPresetLayout.place(points, root, treeRect, controls);
-            near(placed.left, 100 + 483 * scale, "horizontal placement");
+            near(placed.left, 100 + 509 * scale, "horizontal placement");
             near(placed.top, 50 + 86.5 * scale, "points-row alignment");
-            near(placed.width, 254 * scale, "equipment-matching width");
+            near(placed.width, PresetSlots.CONTROLS_WIDTH * scale, "equipment-matching width");
             near(placed.height, 36 * scale, "equipment-matching height");
             near((placed.left + placed.right) / 2, (root.right + treeRect.right) / 2,
                 "centered between top talent and description");
         }
         var narrow = TalentPresetLayout.place(new OverlayRect(0, 20, 100, 60),
             new OverlayRect(100, 0, 200, 100), new OverlayRect(0, 0, 350, 600),
-            new OverlayRect(0, 0, 254, 36));
+            new OverlayRect(0, 0, PresetSlots.CONTROLS_WIDTH, 36));
         check(narrow.left > 200 && narrow.right < 350, "narrow panels fit without overlapping talent/description");
         check(TalentPresetLayout.place(null, null, null, null) == null, "missing anchors do not draw detached UI");
         trace('Talent presets: $checks checks passed');

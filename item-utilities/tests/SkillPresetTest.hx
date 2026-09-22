@@ -1,3 +1,4 @@
+import itemutilities.PresetSlots;
 import itemutilities.OverlayRect;
 import itemutilities.SkillPresetLayout;
 import itemutilities.SkillPresetPlan;
@@ -163,16 +164,16 @@ class SkillPresetTest {
             var transform = new UiOverlayGeometry(scale, 0, 0, scale, 100, 50);
             var footer = transform.rect(8, 648, 1185, 94);
             var texts = transform.rect(342, 674, 190, 43);
-            var controls = transform.rect(0, 0, 254, 36);
+            var controls = transform.rect(0, 0, PresetSlots.CONTROLS_WIDTH, 36);
             var rect = SkillPresetLayout.place(footer, texts, controls);
-            near(rect.left, 100 + 923 * scale, "right-aligned preset bar");
+            near(rect.left, 100 + 975 * scale, "right-aligned preset bar");
             near(rect.top, 50 + 677 * scale, "vertically centered in white footer");
             near(footer.right - rect.right, 16 * scale, "scaled right padding");
-            near(rect.width, 254 * scale, "matching equipment and talent width");
+            near(rect.width, PresetSlots.CONTROLS_WIDTH * scale, "matching equipment and talent width");
             near(rect.height, 36 * scale, "matching equipment and talent height");
         }
-        var narrow = SkillPresetLayout.place(new OverlayRect(0, 0, 600, 90), new OverlayRect(100, 10, 400, 70), new OverlayRect(0, 0, 254, 36));
-        check(narrow.left > 400 && narrow.right < 600 && narrow.width < 254, "narrow footer fits controls without overlapping counts");
+        var narrow = SkillPresetLayout.place(new OverlayRect(0, 0, 600, 90), new OverlayRect(100, 10, 400, 70), new OverlayRect(0, 0, PresetSlots.CONTROLS_WIDTH, 36));
+        check(narrow.left > 400 && narrow.right < 600 && narrow.width < PresetSlots.CONTROLS_WIDTH, "narrow footer fits controls without overlapping counts");
         check(SkillPresetLayout.place(null, null, null) == null, "missing anchors hide the bar");
         trace('Skill presets: $checks checks passed');
     }

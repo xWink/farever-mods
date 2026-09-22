@@ -1,3 +1,4 @@
+import itemutilities.PresetSlots;
 import itemutilities.OverlayRect;
 import itemutilities.UiOverlayGeometry;
 
@@ -42,8 +43,8 @@ class UiOverlayGeometryTest {
                     rect(screen.rect(offset, 0, 32, 30), originX + offset * scale,
                         originY, 32 * scale, 30 * scale, "header buttons");
                 }
-                rect(screen.rect(182, 0, 254, 36), originX + 182 * scale,
-                    originY, 254 * scale, 36 * scale, "preset group");
+                rect(screen.rect(182, 0, PresetSlots.CONTROLS_WIDTH, 36), originX + 182 * scale,
+                    originY, PresetSlots.CONTROLS_WIDTH * scale, 36 * scale, "preset group");
                 rect(screen.rect(40, 7, 16, 17), originX + 40 * scale,
                     originY + 7 * scale, 16 * scale, 17 * scale, "lock badge");
                 var slot = screen.rect(0, 0, 48, 48);

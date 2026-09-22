@@ -38,7 +38,9 @@ class CharacterResetTest {
                 {characterId: "db:10", preset: 0, classId: "Warrior", payload: key + " other"},
                 {characterId: "db:1", preset: 1, classId: "Warrior", payload: key + " second"},
                 {characterId: "db:100", preset: 2, classId: "Warrior", payload: key + " another"},
-                {characterId: "db:1", preset: 2, classId: "Warrior", payload: key + " third"}
+                {characterId: "db:1", preset: 2, classId: "Warrior", payload: key + " third"},
+                {characterId: "db:1", preset: 3, classId: "Warrior", payload: key + " fourth"},
+                {characterId: "db:1", preset: 4, classId: "Warrior", payload: key + " fifth"}
             ]);
         }
         // Use real lock shapes, including duplicate identities and an unresolved lock.
