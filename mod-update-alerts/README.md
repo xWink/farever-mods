@@ -46,7 +46,10 @@ database or requesting its credentials:
 2. Farever's current installed-mod records in `%APPDATA%/Vortex/state.v2/`
    supply Nexus IDs, names, and installed versions. The reader follows LevelDB's
    active manifest, compressed tables, and recent write log, including updates and
-   deletions. It retries if those files change during the read. It never opens the
+   deletions. It retries if those files change during the read. If discovery still
+   fails or records change during verification, the background worker retries the
+   entire scan after 5 seconds and then 15 seconds in the same launch. Each scan
+   has a 30-second budget, and quitting cancels the wait. It never opens the
    database for writing, takes its lock, or performs recovery/compaction.
 3. Deployed binaries must also match the corresponding files in the manifest's
    Vortex staging folder by SHA-256. Current mod records are rechecked after file
@@ -63,12 +66,17 @@ missing/stale deployment records, changed binaries, unknown version schemes, and
 unavailable Nexus metadata are logged as `[Mod Update Alerts]` and skipped; they
 are never reported as up to date. Vortex need not be running, but mods must have
 been deployed. These diagnostics do not prevent alerts for other identified mods.
+Recovered database errors stay quiet. If all discovery attempts fail, the log
+includes the underlying error once instead of repeating it for every deployed mod.
 
 The public [Nexus GraphQL API](https://api.nexusmods.com/v2/graphql) supplies current
-page versions and file metadata. An alert requires a newer numeric/SemVer version
-with a matching public main/update file. Optional, archived, or removed files alone
-do not trigger alerts. Only requested Nexus game domains and mod IDs leave the
-computer; no file paths, binaries, Vortex database, or credentials are uploaded.
+page versions and file metadata. The newest numeric/SemVer version among active
+public main/update files is compared with the installed version. The page's
+separate version field can lag behind a published download; it neither blocks a
+new file nor advertises a version without an active download. Optional, archived,
+or removed files alone do not trigger alerts. Only requested Nexus game domains
+and mod IDs leave the computer; no file paths, binaries, Vortex database, or
+credentials are uploaded.
 Each identity is checked once per launch, using a worker thread, verified TLS,
 bounded responses, request timeouts, and an overall time budget. Network failures
 do not block startup; the next launch retries. Public API changes may require a
@@ -115,8 +123,9 @@ haxe compile.hxml
 
 Tests cover numeric/prerelease ordering, reminders and rename migration, current
 Vortex records overriding stale backups/folder names, staged-versus-deployed
-contents, manual metadata hashes, and popup dismissal releasing its owner's modal
-registration without closing other windows. The synthetic database fixture was generated
+contents, delayed discovery recovery and cancellation, release files newer than
+their page version, manual metadata hashes, and popup dismissal releasing its
+owner's modal registration without closing other windows. The synthetic database fixture was generated
 by real LevelDB (via `plyvel-ci`) and exercises Snappy tables, multi-block write
 logs, deletions, obsolete tables, and checksum failures. Regenerate it with
 `python tests/generate_vortex_fixture.py` after installing `plyvel-ci`.

@@ -62,8 +62,8 @@ class LevelDbSnapshot {
         // A concurrent flush/compaction changes the manifest or WAL. Retry a
         // complete view instead of mixing generations or using a stale backup.
         for (attempt in 0...3) {
-            try return snapshot() catch (_:Dynamic) {
-                if (attempt == 2) throw "Current Vortex database is unavailable, changing, or unsupported";
+            try return snapshot() catch (error:Dynamic) {
+                if (attempt == 2) throw "Current Vortex database read failed: " + Std.string(error);
                 progress();
             }
         }

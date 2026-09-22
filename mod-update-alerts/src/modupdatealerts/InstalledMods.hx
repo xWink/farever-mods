@@ -16,6 +16,7 @@ class InstalledMods {
     public var diagnostics:Array<String> = [];
     public var manual:Array<InstalledMod> = [];
     public var deployed:Array<DeployedMod> = [];
+    public var retryable:Bool = false;
     public function new() {}
 
     public static function text(value:Dynamic, key:String):String {
@@ -39,7 +40,8 @@ class InstalledMods {
 
     public function scan(root:String, ?vortexPath:String, ?progress:Void->Void):Void {
         if (progress == null) progress = function() {};
-        diagnostics = []; manual = []; deployed = [];
+        diagnostics = []; manual = []; deployed = []; retryable = false;
+        var readFailed = false;
         var records:Map<String,Dynamic> = [];
         if (vortexPath == null || vortexPath == "") {
             var appData = Sys.getEnv("APPDATA");
@@ -47,7 +49,11 @@ class InstalledMods {
         }
         if (vortexPath != null && vortexPath != "") {
             try records = VortexState.read(vortexPath, progress)
-            catch (_:Dynamic) diagnostics.push("Could not read current Vortex mod records; backup snapshots and archive folder versions are not used.");
+            catch (error:Dynamic) {
+                readFailed = true; retryable = true;
+                diagnostics.push("Could not read current Vortex mod records (" + Std.string(error)
+                    + "); backup snapshots and archive folder versions are not used.");
+            }
         }
 
         var groups:Map<String,DeployedMod> = [];
@@ -95,14 +101,18 @@ class InstalledMods {
         deployed.sort((a,b) -> Reflect.compare(a.source,b.source));
         // Detect installs/uninstalls that raced with binary verification. A
         // valid old read must not label newer files with the previous version.
-        if (deployed.length > 0 && vortexPath != null && vortexPath != "") {
+        if (!readFailed && deployed.length > 0 && vortexPath != null && vortexPath != "") {
             var fresh:Map<String,Dynamic> = [];
-            try fresh = VortexState.read(vortexPath, progress) catch (_:Dynamic) {}
+            try fresh = VortexState.read(vortexPath, progress) catch (error:Dynamic) {
+                readFailed = true; retryable = true;
+                diagnostics.push("Could not recheck current Vortex mod records: " + Std.string(error));
+            }
             for (entry in deployed) {
                 var current = fromVortex(fresh[entry.source]);
-                if (haxe.Json.stringify(entry.metadata) != haxe.Json.stringify(current)) {
+                if (readFailed || haxe.Json.stringify(entry.metadata) != haxe.Json.stringify(current)) {
                     entry.metadata = null;
-                    diagnostics.push("Vortex mod record changed during verification; skipping: "+entry.source);
+                    retryable = true;
+                    if (!readFailed) diagnostics.push("Vortex mod record changed during verification; skipping: "+entry.source);
                 }
             }
         }

@@ -77,9 +77,18 @@ class NexusClient {
         return result;
     }
 
-    public static function hasDownload(info:NexusMod):Bool {
-        for (file in info.files) if ((Reflect.field(file,"categoryId")==1 || Reflect.field(file,"categoryId")==2)
-            && UpdateModel.compare(InstalledMods.text(file,"version"),info.version)==0) return true;
-        return false;
+    /** The page version can lag behind a published file. Only active main/update
+        downloads are release candidates; never advertise an archived file or a
+        page version without a downloadable release. */
+    public static function latestDownload(info:NexusMod):Null<String> {
+        var latest:Null<String> = null;
+        for (file in info.files) {
+            var category = Reflect.field(file,"categoryId");
+            if (category != 1 && category != 2) continue;
+            var version = InstalledMods.text(file,"version");
+            if (UpdateModel.compare(version,version) != 0) continue;
+            if (latest == null || UpdateModel.compare(version,latest) == 1) latest = version;
+        }
+        return latest;
     }
 }

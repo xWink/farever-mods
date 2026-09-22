@@ -6,12 +6,13 @@ import modupdatealerts.ReminderStore;
 import modupdatealerts.PopupRetry;
 import modupdatealerts.LevelDbSnapshot;
 import modupdatealerts.VortexState;
+import modupdatealerts.UpdateWorker;
 import sys.io.File;
 import sys.FileSystem;
 
 class UpdaterTest {
     static var checks=0;
-    static function eq(a:Dynamic,b:Dynamic):Void {checks++;if(a!=b)throw 'Expected $b, got $a';}
+    static function eq(a:Dynamic,b:Dynamic):Void {checks++;if(a!=b)throw 'Expected $b, got $a'+haxe.CallStack.toString(haxe.CallStack.callStack());}
     static function u(id:Int,a:String,b:String):AvailableUpdate
         return {name:"Mod "+id,domain:"farever",modId:id,current:a,latest:b};
     static function main():Void {
@@ -64,8 +65,9 @@ class UpdaterTest {
             retry.failed(i*100,"temporarily unavailable");
             eq(retry.ready(game,i*100+60),true); // Delays are bounded, attempts are not.
         }
-        eq(NexusClient.hasDownload({name:"Minimap",version:"1.6.0",files:files}),true);
-        eq(NexusClient.hasDownload({name:"Minimap",version:"1.5.1",files:files}),false);
+        eq(NexusClient.latestDownload({name:"Minimap",version:"1.6.0",files:files}),"1.6.0");
+        eq(NexusClient.latestDownload({name:"Minimap",version:"1.5.1",files:files}),"1.6.0");
+        downloadTests();
         var root="tests/tmp-"+Std.random(10000000);
         try {
             var base=root+"/game/hlx/mods/example";
@@ -99,6 +101,7 @@ class UpdaterTest {
             eq(UpdateModel.compare("1.6.0",scan.deployed[0].metadata.version),0);
             eq(UpdateModel.compare("1.7.0",scan.deployed[0].metadata.version),1);
             eq(scan.deployed[0].metadata.modId,15);
+            discoveryRetryTests(root);
             // Same size and timestamps do not prove that staging was deployed.
             File.saveContent(staging+"/"+source+"/hlx/mods/example/example.hl","changed");
             scan=new InstalledMods();scan.scan(root+"/game",root+"/vortex");eq(scan.deployed.length,0);
@@ -130,6 +133,69 @@ class UpdaterTest {
             scan=new InstalledMods();scan.scan(root+"/game",root+"/empty");eq(scan.manual.length,0);
         }catch(e:Dynamic){remove(root);throw e;}
         remove(root);Sys.println('Mod Update Alerts: $checks checks passed.');
+    }
+    static function downloadTests():Void {
+        // Item Utilities' live metadata when this regression was reported:
+        // the page remained 1.8.2 after the 1.8.3 main file was published.
+        var release={name:"Item Utilities",version:"1.8.2",files:(cast [
+            {version:"1.8.2",categoryId:7}, {version:"1.8.3",categoryId:1}
+        ]:Array<Dynamic>)};
+        var latest=NexusClient.latestDownload(release);
+        eq(latest,"1.8.3");
+        eq(UpdateModel.compare(latest,"1.8.2"),1);
+        eq(UpdateModel.compare(latest,"1.8.3"),0);
+        var dismissed:Map<String,String>=["farever/9"=>"1.8.2"];
+        var updates=[u(9,"1.8.2",latest)];
+        eq(UpdateModel.needsReminder(updates,dismissed),true);
+        UpdateModel.dismiss(updates,dismissed);
+        eq(UpdateModel.needsReminder([u(9,"1.7.0",latest)],dismissed),false);
+        release.version="9.0.0"; // A page-only version is not a download.
+        release.files.push({version:"1.8.4",categoryId:2});
+        release.files.push({version:"8.0.0",categoryId:7}); // Archived.
+        release.files.push({version:"7.0.0",categoryId:3}); // Optional.
+        release.files.push({version:"6.0.0",categoryId:6}); // Miscellaneous.
+        release.files.push({version:"5.0.0",categoryId:4}); // Old version.
+        release.files.push({version:"latest",categoryId:1});
+        eq(NexusClient.latestDownload(release),"1.8.4");
+        release.files.reverse();
+        eq(NexusClient.latestDownload(release),"1.8.4");
+        release.files=[{version:"9.0.0",categoryId:7},{version:"unknown",categoryId:1}];
+        eq(NexusClient.latestDownload(release),null);
+        release.files=[];
+        eq(NexusClient.latestDownload(release),null);
+    }
+    static function discoveryRetryTests(root:String):Void {
+        var path=root+"/vortex/state.v2", current=File.getContent(path+"/CURRENT");
+        var baseline=new InstalledMods();baseline.scan(root+"/game",root+"/vortex");
+        File.saveContent(path+"/CURRENT","temporarily unavailable");
+        var worker=new UpdateWorker(root+"/game"), delays:Array<Float>=[];
+        // Replace real sleeps: two failed scans followed by recovery in the
+        // same launch. Both records and deployed binaries are scanned afresh.
+        worker.wait=function(seconds) {
+            delays.push(seconds);
+            if(delays.length==2) File.saveContent(path+"/CURRENT",current);
+            return true;
+        };
+        var inventory=worker.discover(root+"/vortex");
+        eq(delays.join(","),"5,15");
+        eq(inventory.retryable,false);
+        eq(inventory.deployed[0].metadata.version,"1.6.0");
+        eq(inventory.diagnostics.join("\n"),baseline.diagnostics.join("\n")); // Recovered errors stay quiet.
+        delays=[];
+        inventory=worker.discover(root+"/vortex");
+        eq(delays.length,0); // Healthy startup never waits.
+        File.saveContent(path+"/CURRENT","unsupported manifest");
+        worker.wait=function(seconds) {delays.push(seconds);return true;};
+        inventory=worker.discover(root+"/vortex");
+        eq(delays.join(","),"5,15");
+        eq(inventory.retryable,true);
+        eq(inventory.deployed[0].metadata,null);
+        eq(inventory.diagnostics.length,baseline.diagnostics.length+1);
+        eq(inventory.diagnostics[0].indexOf("Unsupported database manifest")>=0,true);
+        worker.wait=function(seconds) {worker.stop();return false;};
+        fails(function() worker.discover(root+"/vortex"));
+        File.saveContent(path+"/CURRENT",current);
+        fails(function() worker.discover(root+"/vortex")); // Already cancelled.
     }
     static function installFixture(path:String):Void {
         FileSystem.createDirectory(path);
