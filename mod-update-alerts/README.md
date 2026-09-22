@@ -3,26 +3,30 @@
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mod-update-alerts.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mod-update-alerts&expanded=true)
 
 Checks Nexus Mods for updates in the background once per game launch, starting
-when the main menu initializes. When updates are found, a native window in the
-main menu/character-selection screen lists mod names, installed versions, and
-available versions. No character login is required. Close it with its X or Escape
-to continue. To update, close Farever,
-open Vortex, check for updates, install them, and deploy.
-The popup waits for an initialized menu and the startup splash to finish, registers
-with the game's window manager, and keeps the mouse cursor available. If you log
-into a character before the check finishes, it waits for your next visit to the
-menu instead of interrupting gameplay. Loading/menu transitions cannot permanently
-exhaust its retries. Routine startup, version verification, and popup success are
-silent. Initial UI-readiness retries are also quiet; persistent initialization
-failures and other errors include the operation and actual error, with repeated
-identical errors suppressed while retries continue.
+when the application initializes. As soon as an update is confirmed, a native
+window lists mod names, installed versions, and available versions. It can appear
+on the title screen, in character selection, or during gameplay, and adds further
+confirmed updates as the remaining checks finish. No particular screen or character
+login is required. Close it with its X or Escape to continue. To update, close
+Farever, open Vortex, check for updates, install them, and deploy.
+The popup needs only the active UI's rendering resources. It registers with the
+game's window manager, keeps the mouse cursor available, and unregisters when
+closed so controls are restored. Pending alerts survive UI transitions. Temporary
+UI construction failures retry after 0.25 seconds, backing off to at most 2 seconds;
+they cannot exhaust a permanent attempt limit. The first actual failure is logged,
+with identical errors suppressed while retries continue. Routine startup, version
+verification, and popup success are silent.
 
 The checkbox **Don't remind me again about these versions** remembers the listed
 available versions immediately. Unchecking it restores the prior preference.
 If any mod later has a newer update, or another mod gains an update, the next
 launch shows the **entire outstanding update list**, including previously dismissed
 updates. Installing some updates or a temporary failure to check one mod does not
-erase remembered versions. Large lists have Previous/Next pages.
+erase remembered versions. If additional updates arrive while the checkbox is
+checked, it resets for the expanded list; previously selected versions remain
+remembered, but unseen updates are never silently suppressed. Closing the popup
+dismisses it for the current launch, including any checks still finishing.
+Large lists have Previous/Next pages.
 
 Each row has a **Changes** button showing a scrollable changelog for the advertised
 release, taken from its matching public main/update files on Nexus. **Back** returns
@@ -136,7 +140,7 @@ haxe compile.hxml
 Tests cover numeric/prerelease ordering, reminders and rename migration, current
 Vortex records overriding stale backups/folder names, staged-versus-deployed
 contents, delayed discovery recovery and cancellation, ignoring files newer than
-the page version, changelog filtering/escaping/navigation, menu readiness, manual
+the page version, changelog filtering/escaping/navigation, screen-independent readiness, progressive alerts, manual
 metadata hashes, and popup dismissal releasing its owner's modal registration
 without closing other windows. The synthetic database fixture was generated
 by real LevelDB (via `plyvel-ci`) and exercises Snappy tables, multi-block write

@@ -19,6 +19,7 @@ class UpdaterTest {
         return {name:"Mod "+id,domain:"farever",modId:id,current:a,latest:b};
     static function main():Void {
         checks+=PopupLifecycleTest.run();
+        checks+=ProgressiveAlertTest.run();
         for(p in [["1.10.0","1.9.0"],["2","1.99.99"],["1.0.0","1.0.0-rc.1"],["1.0.0-rc.10","1.0.0-rc.2"]]) {
             eq(UpdateModel.compare(p[0],p[1]),1);eq(UpdateModel.compare(p[1],p[0]),-1);
         }
@@ -52,20 +53,21 @@ class UpdaterTest {
         var retry=new PopupRetry(), menu:Dynamic={}, game:Dynamic={};
         eq(retry.ready(menu,0),true);
         eq(retry.failed(0,"building header: not ready"),true);
-        eq(retry.ready(menu,4),false); eq(retry.ready(menu,5),true);
-        eq(retry.failed(5,"building header: not ready"),false); // No duplicate log spam.
-        eq(retry.ready(menu,14),false); eq(retry.ready(menu,15),true);
-        eq(retry.failed(15,"building header: not ready"),false);
-        eq(retry.ready(menu,34),false); eq(retry.ready(menu,35),true); // The old three-attempt cutoff.
-        retry.failed(35,"building header: not ready");
-        eq(retry.ready(game,36),true); // Menu -> game resets the backoff immediately.
-        eq(retry.failed(36,"building header: not ready"),true);
-        eq(retry.ready(game,40),false); eq(retry.ready(game,41),true);
-        eq(retry.failed(41,"building checkbox: failure"),true); // A different error is reported.
-        retry.succeeded(); eq(retry.ready(game,41),true);
+        eq(retry.ready(menu,0.24),false); eq(retry.ready(menu,0.25),true);
+        eq(retry.failed(0.25,"building header: not ready"),false); // No duplicate log spam.
+        eq(retry.ready(menu,0.74),false); eq(retry.ready(menu,0.75),true);
+        eq(retry.failed(0.75,"building header: not ready"),false);
+        eq(retry.ready(menu,1.74),false); eq(retry.ready(menu,1.75),true);
+        retry.failed(1.75,"building header: not ready");
+        eq(retry.ready(menu,3.74),false); eq(retry.ready(menu,3.75),true);
+        eq(retry.ready(game,2),true); // Menu -> game resets the backoff immediately.
+        eq(retry.failed(2,"building header: not ready"),true);
+        eq(retry.ready(game,2.24),false); eq(retry.ready(game,2.25),true);
+        eq(retry.failed(2.25,"building checkbox: failure"),true); // A different error is reported.
+        retry.succeeded(); eq(retry.ready(game,2.25),true);
         for(i in 0...10) {
             retry.failed(i*100,"temporarily unavailable");
-            eq(retry.ready(game,i*100+60),true); // Delays are bounded, attempts are not.
+            eq(retry.ready(game,i*100+2),true); // Delays are bounded, attempts are not.
         }
         eq(NexusClient.hasDownload({name:"Minimap",version:"1.6.0",files:files}),true);
         eq(NexusClient.hasDownload({name:"Minimap",version:"1.5.1",files:files}),false);

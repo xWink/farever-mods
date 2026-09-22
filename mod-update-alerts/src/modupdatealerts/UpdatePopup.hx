@@ -30,16 +30,14 @@ class UpdatePopup {
     var pageText:Dynamic;
     var previous:Dynamic;
     var next:Dynamic;
+    var checkbox:Dynamic;
     static inline var PAGE_SIZE=6;
     public function new() {}
 
     public static function ready(ui:Dynamic):Bool {
         var root=G.field(ui,"root"), scene=G.field(ui,"s2d");
-        var screen=G.field(ui,"currentScreen");
-        if(G.field(ui,"menuRoot")==null || screen==null || G.field(screen,"removed")==true) return false;
-        // Let the startup splash finish before presenting an interactive alert.
-        if(G.field(screen,"splashscreen")==true
-            && G.number(G.field(G.field(screen,"splashscreenContainer"),"alpha"))>0.1) return false;
+        // These are the resources needed to render, not a particular screen,
+        // gameplay layer, character, or splash animation state.
         return root!=null && G.field(root,"parent")!=null && G.field(ui,"style")!=null
             && G.number(G.field(scene,"width"))>0 && G.number(G.field(scene,"height"))>0
             && G.field(G.current("Data","icon"),"byId")!=null;
@@ -52,10 +50,8 @@ class UpdatePopup {
         catch (e:Dynamic) { constructing=false; throw e; }
         constructing=false;
         if(window==null) throw "Native title window was not created";
+        initializeWindow();
         stage="registering window";
-        var freeCursor=G.enumeration("ui.win.WindowFlags","FreeCursor");
-        if(freeCursor==null) throw "FreeCursor flag is unavailable";
-        G.call("ui.win.BaseWindow","set_windowFlags",window,[8192 | (1 << Type.enumIndex(freeCursor))]);
         root=G.field(ui,"root");
         G.call("h2d.Flow","addChildAt",root,[window,G.call("h2d.Object","get_numChildren",root)]);
         // Attaching alone bypasses the native window manager and cursor handling.
@@ -119,7 +115,7 @@ class UpdatePopup {
             changes.push(action);
         }
         previous=button(parent,"Previous","modUpdaterPrevious",()->{ if(page>0){page--;refresh();} });
-        next=button(parent,"Next","modUpdaterNext",()->{ if((page+1)*PAGE_SIZE<updates.length){page++;refresh();} });
+        next=button(parent,"Next","modUpdaterNext",()->{ if((page+1)*PAGE_SIZE<this.updates.length){page++;refresh();} });
         for (item in [previous,next]) { absolute(container,item); size(item,110,32); }
         position(previous,16,307); position(next,618,307);
         pageText=text(parent,"",300,313,200);
@@ -135,12 +131,46 @@ class UpdatePopup {
         notesText=label(notes,"");
         G.call("ui.comp.FmtText","set_maxWidthText",notesText,[668]);
         stage="building reminder checkbox";
-        var checkbox=G.field(node("check-box",parent,["Don't remind me again about these versions"],"modUpdaterIgnore"),"obj");
+        checkbox=G.field(node("check-box",parent,["Don't remind me again about these versions"],"modUpdaterIgnore"),"obj");
         absolute(container,checkbox); size(checkbox,712,38); position(checkbox,16,355);
         G.call("ui.comp.CheckBox","set_selected",checkbox,[selected]);
         G.set(checkbox,"onValueChange",function(value:Bool):Void {ignore=value;onPreference(value);});
         refresh();
         if(!update(ui)) throw "Native popup was removed before it could be displayed";
+    }
+    function initializeWindow():Void {
+        stage="initializing native window";
+        var flags=0;
+        for(name in ["PreventCloseOther","FreeCursor","AutoRegisterLayer","BlockInputs","BlockSkills"]) {
+            var flag=G.enumeration("ui.win.WindowFlags",name);
+            if(flag==null) throw "Window flag unavailable: "+name;
+            flags|=1 << Type.enumIndex(flag);
+        }
+        G.call("ui.win.BaseWindow","set_windowFlags",window,[flags]);
+        // TitleWindow defaults to NeedLayer. At the title/menu screens its
+        // constructor therefore skips rebuilding the entire DOM. Changing flags
+        // alone doesn't initialize it: rebuild now, without requiring gameplay.
+        G.call("ui.win.BaseWindow","rebuild",window);
+    }
+    public function replaceUpdates(nextUpdates:Array<AvailableUpdate>,selected:Bool):Void {
+        var shown=detailIndex>=0 ? updates[detailIndex] : null;
+        updates=nextUpdates;
+        if(shown!=null) {
+            detailIndex=-1;
+            for(i in 0...updates.length) {
+                var entry=updates[i];
+                if(entry.domain==shown.domain && entry.modId==shown.modId && entry.latest==shown.latest) {
+                    detailIndex=i;
+                    break;
+                }
+            }
+        }
+        page=Std.int(Math.min(page,Math.max(0,Math.ceil(updates.length/PAGE_SIZE)-1)));
+        ignore=selected;
+        G.call("ui.comp.CheckBox","set_selected",checkbox,[selected]);
+        // Leave an open changelog and its scroll position in place while the
+        // background check adds/reorders rows in the table.
+        refresh();
     }
     function text(parent:Dynamic,value:String,x:Int,y:Int,width:Int):Dynamic {
         var item=label(parent,value);
@@ -219,7 +249,7 @@ class UpdatePopup {
             else G.call("h2d.Object","remove",old);
         }
         owner=null;body=null;container=null;title=null;headingStyle=null;rows=[];columns=[];changes=[];
-        back=null;detailTitle=null;notesPanel=null;notesText=null;detailIndex=-1;
+        back=null;detailTitle=null;notesPanel=null;notesText=null;detailIndex=-1;checkbox=null;
         onDismiss=null;ignore=false;page=0;
     }
 }
