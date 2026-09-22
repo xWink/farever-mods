@@ -15,15 +15,30 @@ class ModUpdateAlertsMod {
 
     static function main():Void {}
 
-    @:hlx.postfix(ui.BaseUI.update)
-    static function update(ui:Dynamic,dt:Float,ignored:Void):Void {
+    @:hlx.postfix(MenuApp.init)
+    static function menuInitialized(app:Dynamic,ignored:Void):Void {
+        try startWorker() catch(error:Dynamic)
+            trace("[Mod Update Alerts] Could not start update check: "+Std.string(error));
+    }
+
+    static function startWorker():Void {
+        // Starting threads during HLX module loading can deadlock the loader.
+        // MenuApp.init has finished by this point; no character is required.
+        if(worker==null) {
+            var created=new UpdateWorker(Sys.getCwd());
+            sys.thread.Thread.create(created.run);
+            worker=created;
+        }
+    }
+
+    @:hlx.postfix(MenuApp.update)
+    static function update(app:Dynamic,dt:Float,ignored:Void):Void {
         try {
+            var ui=GameAccess.field(app,"ui");
+            if(ui==null) return;
+            // Also covers a loader attached after the menu was initialized.
+            startWorker();
             if(GameAccess.current("ui.BaseUI","current")!=ui) return;
-            // Starting threads during HLX module loading can deadlock the loader.
-            if(worker==null) {
-                worker=new UpdateWorker(Sys.getCwd());
-                sys.thread.Thread.create(worker.run);
-            }
             if(result==null) {
                 result=worker.results.pop(false);
                 if(result!=null) {
@@ -56,6 +71,18 @@ class ModUpdateAlertsMod {
             if(retry.failed(haxe.Timer.stamp(),message,initializing))
                 trace("[Mod Update Alerts] Could not show updates ("+message+"). Will retry when the UI is ready.");
         }
+    }
+
+    @:hlx.prefix(MenuApp.dispose)
+    static function leavingMenu(app:Dynamic):HlxPrefixResult<Void> {
+        // A pending result survives character login, but the popup must not
+        // follow the player into gameplay. Retry when the menu returns.
+        if(popup!=null && popup.owner==GameAccess.field(app,"ui")) {
+            var old=popup;popup=null;
+            try old.dispose() catch(error:Dynamic)
+                trace("[Mod Update Alerts] Could not remove popup while leaving menu: "+Std.string(error));
+        }
+        return Continue;
     }
 
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)

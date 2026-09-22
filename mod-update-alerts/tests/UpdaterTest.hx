@@ -7,6 +7,8 @@ import modupdatealerts.PopupRetry;
 import modupdatealerts.LevelDbSnapshot;
 import modupdatealerts.VortexState;
 import modupdatealerts.UpdateWorker;
+import modupdatealerts.ChangelogText;
+import modupdatealerts.LiteralText;
 import sys.io.File;
 import sys.FileSystem;
 
@@ -65,8 +67,8 @@ class UpdaterTest {
             retry.failed(i*100,"temporarily unavailable");
             eq(retry.ready(game,i*100+60),true); // Delays are bounded, attempts are not.
         }
-        eq(NexusClient.latestDownload({name:"Minimap",version:"1.6.0",files:files}),"1.6.0");
-        eq(NexusClient.latestDownload({name:"Minimap",version:"1.5.1",files:files}),"1.6.0");
+        eq(NexusClient.hasDownload({name:"Minimap",version:"1.6.0",files:files}),true);
+        eq(NexusClient.hasDownload({name:"Minimap",version:"1.5.1",files:files}),false);
         downloadTests();
         var root="tests/tmp-"+Std.random(10000000);
         try {
@@ -135,34 +137,51 @@ class UpdaterTest {
         remove(root);Sys.println('Mod Update Alerts: $checks checks passed.');
     }
     static function downloadTests():Void {
-        // Item Utilities' live metadata when this regression was reported:
-        // the page remained 1.8.2 after the 1.8.3 main file was published.
+        // A newer file is not advertised until the author updates the page.
         var release={name:"Item Utilities",version:"1.8.2",files:(cast [
-            {version:"1.8.2",categoryId:7}, {version:"1.8.3",categoryId:1}
+            {version:"1.8.2",categoryId:7},
+            {version:"1.8.3",categoryId:1,changelogText:["Not advertised yet"]}
         ]:Array<Dynamic>)};
-        var latest=NexusClient.latestDownload(release);
-        eq(latest,"1.8.3");
-        eq(UpdateModel.compare(latest,"1.8.2"),1);
-        eq(UpdateModel.compare(latest,"1.8.3"),0);
+        eq(NexusClient.hasDownload(release),false);
+        eq(NexusClient.changelog(release),"");
+        release.files.push({version:"1.8.2",categoryId:1,changelogText:["Stable changes"]});
+        eq(NexusClient.hasDownload(release),true);
+        eq(UpdateModel.compare(release.version,"1.8.2"),0);
+        eq(NexusClient.changelog(release),"Stable changes");
+        release.files.push({version:"2.0.0-beta.1",categoryId:1,changelogText:["Beta only"]});
+        release.files.push({version:"2.0.0",categoryId:2,changelogText:["Future release"]});
+        release.files.push({version:"1.8.2",categoryId:3,changelogText:["Optional file"]});
+        eq(NexusClient.changelog(release),"Stable changes");
+        release.version="1.8.3";
+        eq(NexusClient.hasDownload(release),true);
+        eq(NexusClient.changelog(release),"Not advertised yet");
         var dismissed:Map<String,String>=["farever/9"=>"1.8.2"];
-        var updates=[u(9,"1.8.2",latest)];
+        var updates=[u(9,"1.8.2",release.version)];
         eq(UpdateModel.needsReminder(updates,dismissed),true);
         UpdateModel.dismiss(updates,dismissed);
-        eq(UpdateModel.needsReminder([u(9,"1.7.0",latest)],dismissed),false);
+        eq(UpdateModel.needsReminder([u(9,"1.7.0",release.version)],dismissed),false);
         release.version="9.0.0"; // A page-only version is not a download.
-        release.files.push({version:"1.8.4",categoryId:2});
-        release.files.push({version:"8.0.0",categoryId:7}); // Archived.
-        release.files.push({version:"7.0.0",categoryId:3}); // Optional.
-        release.files.push({version:"6.0.0",categoryId:6}); // Miscellaneous.
-        release.files.push({version:"5.0.0",categoryId:4}); // Old version.
-        release.files.push({version:"latest",categoryId:1});
-        eq(NexusClient.latestDownload(release),"1.8.4");
-        release.files.reverse();
-        eq(NexusClient.latestDownload(release),"1.8.4");
+        eq(NexusClient.hasDownload(release),false);
         release.files=[{version:"9.0.0",categoryId:7},{version:"unknown",categoryId:1}];
-        eq(NexusClient.latestDownload(release),null);
+        eq(NexusClient.hasDownload(release),false);
         release.files=[];
-        eq(NexusClient.latestDownload(release),null);
+        eq(NexusClient.hasDownload(release),false);
+        release.files=[{version:"9",categoryId:2,changelogText:(["A","A","",null,42,"B"]:Array<Dynamic>)},
+            {version:"9.0.0",categoryId:1,changelogText:["A"]}];
+        eq(NexusClient.hasDownload(release),true);
+        eq(NexusClient.changelog(release),"A\n\nB");
+        release.files=[{version:"9.0.0",categoryId:1}];
+        eq(NexusClient.hasDownload(release),true); // Missing notes never block an alert.
+        eq(NexusClient.changelog(release),"");
+        release.files=[{version:"9.0.0",categoryId:1,changelogText:[for(i in 0...120) 'Change $i']}];
+        eq(NexusClient.changelog(release).indexOf("More notes are available")>=0,true);
+        eq(NexusClient.changelog(release).indexOf("Change 100")<0,true);
+        eq(ChangelogText.plain("<p><b>Fixed</b><br>More &amp; better</p>"),"Fixed\nMore & better");
+        eq(ChangelogText.plain("[list][*][b]Fix[/b][/list]"),"- Fix");
+        eq(ChangelogText.plain("&#92; &#x41; &quot;test&quot;"),'\\ A "test"');
+        eq(ChangelogText.plain("a\x00b\r\nc"),"ab\nc");
+        eq(LiteralText.escape(ChangelogText.plain("&#91;skill&#93; $test() &lt;img&gt;")),
+            "&#91;skill] &#36;test() &lt;img&gt;");
     }
     static function discoveryRetryTests(root:String):Void {
         var path=root+"/vortex/state.v2", current=File.getContent(path+"/CURRENT");

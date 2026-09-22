@@ -20,6 +20,13 @@ class UpdatePopup {
     var ignore=false;
     var page=0;
     var rows:Array<Array<Dynamic>>=[];
+    var columns:Array<Dynamic>=[];
+    var changes:Array<Dynamic>=[];
+    var detailIndex=-1;
+    var back:Dynamic;
+    var detailTitle:Dynamic;
+    var notesPanel:Dynamic;
+    var notesText:Dynamic;
     var pageText:Dynamic;
     var previous:Dynamic;
     var next:Dynamic;
@@ -28,6 +35,11 @@ class UpdatePopup {
 
     public static function ready(ui:Dynamic):Bool {
         var root=G.field(ui,"root"), scene=G.field(ui,"s2d");
+        var screen=G.field(ui,"currentScreen");
+        if(G.field(ui,"menuRoot")==null || screen==null || G.field(screen,"removed")==true) return false;
+        // Let the startup splash finish before presenting an interactive alert.
+        if(G.field(screen,"splashscreen")==true
+            && G.number(G.field(G.field(screen,"splashscreenContainer"),"alpha"))>0.1) return false;
         return root!=null && G.field(root,"parent")!=null && G.field(ui,"style")!=null
             && G.number(G.field(scene,"width"))>0 && G.number(G.field(scene,"height"))>0
             && G.field(G.current("Data","icon"),"byId")!=null;
@@ -95,16 +107,33 @@ class UpdatePopup {
         G.call("h2d.Text","set_textAlign",title,[G.enumeration("h2d.Align","Left")]);
         G.call("h2d.Text","set_lineBreak",title,[false]);
         text(parent,"Close the game and open Vortex to update these mods.",16,8,712);
-        for (item in [text(parent,"Mod",16,56,370),text(parent,"Installed",398,56,142),
-            text(parent,"Available",556,56,172)])
+        columns=[text(parent,"Mod",16,56,310),text(parent,"Installed",340,56,106),
+            text(parent,"Available",468,56,116)];
+        for (item in columns)
             G.call("domkit.Properties","addClass",G.field(item,"dom"),["bold-14"]);
-        for (i in 0...PAGE_SIZE)
-            rows.push([text(parent,"",16,88+i*31,370),text(parent,"",398,88+i*31,142),text(parent,"",556,88+i*31,172)]);
+        for (i in 0...PAGE_SIZE) {
+            rows.push([text(parent,"",16,88+i*31,310),text(parent,"",340,88+i*31,106),text(parent,"",468,88+i*31,116)]);
+            var slot=i;
+            var action=button(parent,"Changes","modUpdaterChanges"+i,()->openChangelog(page*PAGE_SIZE+slot));
+            absolute(container,action);size(action,116,28);position(action,612,84+i*31);
+            changes.push(action);
+        }
         previous=button(parent,"Previous","modUpdaterPrevious",()->{ if(page>0){page--;refresh();} });
         next=button(parent,"Next","modUpdaterNext",()->{ if((page+1)*PAGE_SIZE<updates.length){page++;refresh();} });
         for (item in [previous,next]) { absolute(container,item); size(item,110,32); }
         position(previous,16,307); position(next,618,307);
         pageText=text(parent,"",300,313,200);
+        back=button(parent,"Back","modUpdaterBack",()->{detailIndex=-1;refresh();});
+        absolute(container,back);size(back,92,32);position(back,16,48);
+        detailTitle=text(parent,"",124,56,604);
+        G.call("domkit.Properties","addClass",G.field(detailTitle,"dom"),["bold-14"]);
+        var notes=node("flow",parent,[],"modUpdaterChangelog","vertical");
+        notesPanel=G.field(notes,"obj");
+        absolute(container,notesPanel);padding(notesPanel,8);size(notesPanel,712,246);position(notesPanel,16,92);
+        var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
+        flow(notes,"set_overflow",scroll);style(notesPanel,"overflow",scroll);
+        notesText=label(notes,"");
+        G.call("ui.comp.FmtText","set_maxWidthText",notesText,[668]);
         stage="building reminder checkbox";
         var checkbox=G.field(node("check-box",parent,["Don't remind me again about these versions"],"modUpdaterIgnore"),"obj");
         absolute(container,checkbox); size(checkbox,712,38); position(checkbox,16,355);
@@ -120,15 +149,30 @@ class UpdatePopup {
         return item;
     }
     function refresh():Void {
+        var details=detailIndex>=0;
+        for (item in columns) show(item,!details);
+        for (item in [back,detailTitle,notesPanel]) show(item,details);
         for (i in 0...rows.length) {
-            var index=page*PAGE_SIZE+i, visible=index<updates.length;
+            var index=page*PAGE_SIZE+i, visible=!details && index<updates.length;
             for (item in rows[i]) show(item,visible);
+            show(changes[i],visible);
             if (!visible) continue;
             var update=updates[index];
             setText(rows[i][0],update.name); setText(rows[i][1],update.current); setText(rows[i][2],update.latest);
         }
-        show(previous,page>0); show(next,(page+1)*PAGE_SIZE<updates.length);
+        show(previous,!details && page>0); show(next,!details && (page+1)*PAGE_SIZE<updates.length);
+        show(pageText,!details);
         setText(pageText,"Page "+(page+1)+" / "+Std.int(Math.ceil(updates.length/PAGE_SIZE)));
+    }
+    function openChangelog(index:Int):Void {
+        if(index<0 || index>=updates.length) return;
+        detailIndex=index;
+        var entry=updates[index];
+        setText(detailTitle,entry.name+" — "+entry.latest);
+        setText(notesText,entry.changelog==null || entry.changelog==""
+            ? "No changelog was provided for this release on Nexus Mods." : entry.changelog);
+        G.set(notesPanel,"scrollPosY",0.0);
+        refresh();
     }
     public function update(ui:Dynamic):Bool {
         stage="positioning window";
@@ -174,6 +218,8 @@ class UpdatePopup {
             if(owner!=null) G.call("ui.BaseUI","removeWindow",owner,[old]);
             else G.call("h2d.Object","remove",old);
         }
-        owner=null;body=null;container=null;title=null;headingStyle=null;rows=[];onDismiss=null;ignore=false;page=0;
+        owner=null;body=null;container=null;title=null;headingStyle=null;rows=[];columns=[];changes=[];
+        back=null;detailTitle=null;notesPanel=null;notesText=null;detailIndex=-1;
+        onDismiss=null;ignore=false;page=0;
     }
 }

@@ -2,12 +2,16 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mod-update-alerts.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mod-update-alerts&expanded=true)
 
-Checks Nexus Mods for updates in the background once per game launch. When updates
-are found, a native window lists mod names, installed versions, and available
-versions. Close it with its X or Escape to keep playing. To update, close Farever,
+Checks Nexus Mods for updates in the background once per game launch, starting
+when the main menu initializes. When updates are found, a native window in the
+main menu/character-selection screen lists mod names, installed versions, and
+available versions. No character login is required. Close it with its X or Escape
+to continue. To update, close Farever,
 open Vortex, check for updates, install them, and deploy.
-The popup waits for an initialized UI, registers with the game's window manager,
-and keeps the mouse cursor available. Loading/menu transitions cannot permanently
+The popup waits for an initialized menu and the startup splash to finish, registers
+with the game's window manager, and keeps the mouse cursor available. If you log
+into a character before the check finishes, it waits for your next visit to the
+menu instead of interrupting gameplay. Loading/menu transitions cannot permanently
 exhaust its retries. Routine startup, version verification, and popup success are
 silent. Initial UI-readiness retries are also quiet; persistent initialization
 failures and other errors include the operation and actual error, with repeated
@@ -19,6 +23,14 @@ If any mod later has a newer update, or another mod gains an update, the next
 launch shows the **entire outstanding update list**, including previously dismissed
 updates. Installing some updates or a temporary failure to check one mod does not
 erase remembered versions. Large lists have Previous/Next pages.
+
+Each row has a **Changes** button showing a scrollable changelog for the advertised
+release, taken from its matching public main/update files on Nexus. **Back** returns
+to the same table page. Missing notes are shown explicitly; they do not prevent an
+update alert. Notes from newer beta files or optional/archived files are excluded.
+Duplicate notes are combined, markup is displayed as literal text, and unusually
+long notes are capped at 16,000 characters/100 entries with a notice to read more
+on Nexus. The reminder checkbox always applies to the full update list.
 
 ## Installation
 
@@ -70,11 +82,11 @@ Recovered database errors stay quiet. If all discovery attempts fail, the log
 includes the underlying error once instead of repeating it for every deployed mod.
 
 The public [Nexus GraphQL API](https://api.nexusmods.com/v2/graphql) supplies current
-page versions and file metadata. The newest numeric/SemVer version among active
-public main/update files is compared with the installed version. The page's
-separate version field can lag behind a published download; it neither blocks a
-new file nor advertises a version without an active download. Optional, archived,
-or removed files alone do not trigger alerts. Only requested Nexus game domains
+page versions and file metadata. The **page version** is the author's advertised
+release and is compared with the installed version. An alert also requires a
+matching public main/update download. A newer file alone never triggers an alert:
+it could be a beta the author has not promoted to the page version. Optional,
+archived, or removed files alone do not trigger alerts. Only requested Nexus game domains
 and mod IDs leave the computer; no file paths, binaries, Vortex database, or
 credentials are uploaded.
 Each identity is checked once per launch, using a worker thread, verified TLS,
@@ -123,9 +135,10 @@ haxe compile.hxml
 
 Tests cover numeric/prerelease ordering, reminders and rename migration, current
 Vortex records overriding stale backups/folder names, staged-versus-deployed
-contents, delayed discovery recovery and cancellation, release files newer than
-their page version, manual metadata hashes, and popup dismissal releasing its
-owner's modal registration without closing other windows. The synthetic database fixture was generated
+contents, delayed discovery recovery and cancellation, ignoring files newer than
+the page version, changelog filtering/escaping/navigation, menu readiness, manual
+metadata hashes, and popup dismissal releasing its owner's modal registration
+without closing other windows. The synthetic database fixture was generated
 by real LevelDB (via `plyvel-ci`) and exercises Snappy tables, multi-block write
 logs, deletions, obsolete tables, and checksum failures. Regenerate it with
 `python tests/generate_vortex_fixture.py` after installing `plyvel-ci`.

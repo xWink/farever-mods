@@ -76,12 +76,11 @@ class UpdateWorker {
                 if (stopped()) return;
                 var latest=client.fetch(mod.domain,mod.modId);
                 if (latest==null) { result.notes.push("Nexus metadata unavailable: "+mod.name); continue; }
-                var available=NexusClient.latestDownload(latest);
-                if (available==null) { result.notes.push("No supported main/update download version: "+mod.name); continue; }
-                var comparison=UpdateModel.compare(available,mod.version);
+                var comparison=UpdateModel.compare(latest.version,mod.version);
                 if (comparison==null) result.notes.push("Unrecognized version format: "+mod.name);
-                if (comparison==1)
-                    result.updates.push({name:latest.name,domain:mod.domain,modId:mod.modId,current:mod.version,latest:available});
+                if (comparison==1 && NexusClient.hasDownload(latest))
+                    result.updates.push({name:latest.name,domain:mod.domain,modId:mod.modId,current:mod.version,
+                        latest:latest.version,changelog:NexusClient.changelog(latest)});
             }
             result.updates.sort((a,b)->Reflect.compare(a.name.toLowerCase(),b.name.toLowerCase()));
         } catch (error:Dynamic) result.notes.push("Update check incomplete: "+Std.string(error)+". Will retry next launch.");

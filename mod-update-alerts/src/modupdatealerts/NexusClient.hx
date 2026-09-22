@@ -66,7 +66,7 @@ class NexusClient {
             if (game==null) { cache.set(key,null); return null; }
             games.set(domain,Std.string(Reflect.field(game,"id")));
         }
-        var data=query("query($game:ID!,$mod:ID!){mod(gameId:$game,modId:$mod){name version} modFiles(gameId:$game,modId:$mod){fileId sqid name version date categoryId}}",
+        var data=query("query($game:ID!,$mod:ID!){mod(gameId:$game,modId:$mod){name version} modFiles(gameId:$game,modId:$mod){fileId sqid name version date categoryId changelogText}}",
             {game:games.get(domain),mod:Std.string(modId)});
         if (data==null) { cache.set(key,null); return null; }
         var info:Dynamic=Reflect.field(data,"mod");
@@ -77,18 +77,32 @@ class NexusClient {
         return result;
     }
 
-    /** The page version can lag behind a published file. Only active main/update
-        downloads are release candidates; never advertise an archived file or a
-        page version without a downloadable release. */
-    public static function latestDownload(info:NexusMod):Null<String> {
-        var latest:Null<String> = null;
+    /** The author's page version is the advertised release. Newer files may be
+        betas, even when categorized as main/update downloads. */
+    public static function hasDownload(info:NexusMod):Bool {
+        for (file in info.files) if (matchesRelease(file,info.version)) return true;
+        return false;
+    }
+    static function matchesRelease(file:Dynamic,version:String):Bool {
+        var category=Reflect.field(file,"categoryId");
+        return (category==1 || category==2)
+            && UpdateModel.compare(InstalledMods.text(file,"version"),version)==0;
+    }
+    public static function changelog(info:NexusMod):String {
+        var notes:Array<String>=[],seen:Map<String,Bool>=[],length=0;
         for (file in info.files) {
-            var category = Reflect.field(file,"categoryId");
-            if (category != 1 && category != 2) continue;
-            var version = InstalledMods.text(file,"version");
-            if (UpdateModel.compare(version,version) != 0) continue;
-            if (latest == null || UpdateModel.compare(version,latest) == 1) latest = version;
+            if (!matchesRelease(file,info.version)) continue;
+            var lines:Dynamic=Reflect.field(file,"changelogText");
+            if (!Std.isOfType(lines,Array)) continue;
+            for (line in (cast lines:Array<Dynamic>)) {
+                if (!Std.isOfType(line,String)) continue;
+                var text=ChangelogText.plain(line);
+                if (text=="" || seen.exists(text)) continue;
+                seen[text]=true;notes.push(text);length+=text.length;
+                if (length>=16000 || notes.length>=100)
+                    return notes.join("\n\n").substr(0,16000)+"\n\n[More notes are available on Nexus Mods.]";
+            }
         }
-        return latest;
+        return notes.join("\n\n");
     }
 }

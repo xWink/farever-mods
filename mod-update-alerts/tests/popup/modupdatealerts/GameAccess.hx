@@ -3,6 +3,7 @@ package modupdatealerts;
 /** Lifecycle test double; rendering is exercised by the real HL build/in-game. */
 class GameAccess {
     public static var currentUi:Dynamic;
+    public static var icons:Dynamic;
     public static function field(object:Dynamic,name:String):Dynamic
         return object==null ? null : Reflect.field(object,name);
     public static function set(object:Dynamic,name:String,value:Dynamic):Void
@@ -11,7 +12,8 @@ class GameAccess {
         return value==null ? fallback : value;
     public static function integer(value:Dynamic,fallback:Int=0):Int
         return Std.int(number(value,fallback));
-    public static function current(type:String,name:String):Dynamic return currentUi;
+    public static function current(type:String,name:String):Dynamic
+        return type=="Data" ? icons : currentUi;
     public static function call(type:String,name:String,object:Dynamic,?args:Array<Dynamic>):Dynamic {
         switch(type+"."+name) {
             case "ui.BaseUI.removeWindow":
@@ -20,6 +22,8 @@ class GameAccess {
                 window.parent=null;window.removed=true;
             case "h2d.Object.remove":
                 object.parent=null;object.removed=true;
+            case "h2d.Object.set_visible": object.visible=args[0];
+            case "ui.comp.FmtText.set_text": object.text=args[0];
             default: throw "Unexpected lifecycle call: "+type+"."+name;
         }
         return null;

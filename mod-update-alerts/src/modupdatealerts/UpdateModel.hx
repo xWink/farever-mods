@@ -13,6 +13,7 @@ typedef AvailableUpdate = {
     var modId:Int;
     var current:String;
     var latest:String;
+    @:optional var changelog:String;
 }
 
 class UpdateModel {
