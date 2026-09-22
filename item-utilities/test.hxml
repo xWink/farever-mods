@@ -37,3 +37,8 @@
 -cp tests
 -main PresetSlotsTest
 --interp
+--next
+-cp src
+-cp tests
+-main PresetDropdownStateTest
+--interp

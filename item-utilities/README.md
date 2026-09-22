@@ -122,11 +122,13 @@ applies only to motes.
 
 All four categories have five slots, labeled **Preset 1**, **Preset 2**, **Preset 3**,
 **Preset 4**, and **Preset 5**. The collapsed dropdown shows the selected slot;
-choosing a saved option immediately applies it. Empty options remain selectable
-and explain how to save on hover. Selecting the current slot again reapplies it.
+choosing a saved option immediately applies it. Empty options remain selectable.
+Selecting the current slot again reapplies it. Preset controls have no tooltips;
+menu labels and **Set** use slightly bolder, vertically centered text.
 **Set** saves your current setup to the selected slot. Controls are disabled while
 that category is applying a preset. The dropdown closes when you choose an option
 or click outside; individual hotkeys can apply presets without opening it.
+Game tooltips underneath an open menu do not hide or dismiss it.
 
 ### Equipment presets
 
@@ -163,7 +165,7 @@ and the description panel. The controls follow the game's UI scale and position.
   each server reply and replicated rank change before sending the next request.
 - An already-active preset makes no requests. A saved empty allocation refunds
   all points. Rejected changes, timeouts, manual changes during application, and
-  character/session changes stop the sequence. Hover the preset bar for its status.
+  character/session changes stop the sequence.
 
 ### Skill presets
 
@@ -183,7 +185,7 @@ page's bottom strip, vertically centered and aligned with the current UI scale.
   combat. All checks happen before applying the first change.
 - Uses normal skill-slot and rune requests, waiting for each server update.
   Rejections, timeouts, unexpected changes, entering combat, and character or
-  session changes stop the sequence. Hover the preset bar to see its status.
+  session changes stop the sequence.
 
 ### Appearance presets
 
@@ -210,7 +212,7 @@ mods to use this button.
   before any changes begin. Each change uses the normal appearance RPC, waiting
   for both its successful reply and replicated state before continuing.
 - Rejections, timeouts, unexpected manual appearance changes, and character or
-  session changes stop the sequence. Hover the preset bar for its status.
+  session changes stop the sequence.
 
 ### Settings
 

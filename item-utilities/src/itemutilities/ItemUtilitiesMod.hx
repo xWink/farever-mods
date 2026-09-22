@@ -132,6 +132,7 @@ class ItemUtilitiesMod {
     static var nextSkillPresetCheck:Float = 0;
     static var skillPresetStatus:String = "";
     static var appearancePresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
+    static var presetDropdown = new PresetDropdownState();
     static var selectedAppearancePreset:Int = 0;
     static var selectedAppearancePresetCharacterId:String;
     static var appearancePresetTransfer = new AppearancePresetTransfer();
@@ -521,6 +522,10 @@ class ItemUtilitiesMod {
     @:hlx.prefix(ui.BaseUI.setTip)
     static function suppressLockEditItemTooltip(instance:Dynamic, element:Dynamic,
         anchor:Dynamic, position:Dynamic, nesting:Dynamic):HlxPrefixResult<Dynamic> {
+        if (enabled.get() && presetDropdown.isOpen()) {
+            var mouse = ImGui.getMousePos();
+            if (presetDropdown.blocksTooltip(mouse.x, mouse.y)) return SkipWith(null);
+        }
         if (!lockEditMode)
             return Continue;
         for (entry in visibleSlots) {
@@ -779,6 +784,7 @@ class ItemUtilitiesMod {
 
     static function draw():Void {
         NativeUiLayout.beginFrame();
+        presetDropdown.beginFrame();
         windowOccluders = null;
         refreshActiveHero();
         updateTalentPreset();
@@ -822,7 +828,7 @@ class ItemUtilitiesMod {
                 drawLockedItemBadges();
             }
         }
-
+        presetDropdown.endFrame();
     }
 
     /** Keep window bounds, content, and custom artwork in the same pixel space. */
@@ -1000,7 +1006,7 @@ class ItemUtilitiesMod {
 
         var controlsWidth = PresetSlots.CONTROLS_WIDTH;
         var rect = NativeUiLayout.rect(appearanceButton, width + 32, 0, controlsWidth, height);
-        if (rect == null || buttonCovered(rect.left, rect.top, rect.width, rect.height))
+        if (presetControlsCovered(rect, Equipment))
             return;
         drawPresetButtons(rect, height, appearanceButton, Equipment);
     }
@@ -1031,7 +1037,7 @@ class ItemUtilitiesMod {
         var points = fieldOrNull(fieldOrNull(view, "availablePoints"), "parent");
         var rect = TalentPresetLayout.place(uiElementRect(points), uiElementRect(activeTalentRoot),
             uiElementRect(tree), NativeUiLayout.rect(view, 0, 0, PresetSlots.CONTROLS_WIDTH, 36));
-        if (rect == null || buttonCovered(rect.left, rect.top, rect.width, rect.height)) return;
+        if (presetControlsCovered(rect, Talent)) return;
         drawPresetButtons(rect, 36, view, Talent);
     }
 
@@ -1053,7 +1059,7 @@ class ItemUtilitiesMod {
             Math.max(runeBounds.bottom, skillBounds.bottom));
         var rect = SkillPresetLayout.place(uiElementRect(footer), textBounds,
             NativeUiLayout.rect(view, 0, 0, PresetSlots.CONTROLS_WIDTH, 36));
-        if (rect == null || buttonCovered(rect.left, rect.top, rect.width, rect.height)) return;
+        if (presetControlsCovered(rect, Skill)) return;
         drawPresetButtons(rect, 36, view, Skill);
     }
 
@@ -1066,8 +1072,17 @@ class ItemUtilitiesMod {
         if (button == null || !isUiVisible(button)) return;
         var rect = AppearancePresetLayout.place(uiElementRect(button),
             uiElementRect(fieldOrNull(button, "parent")), NativeUiLayout.rect(button, 0, 0, PresetSlots.CONTROLS_WIDTH, 36));
-        if (rect == null || buttonCovered(rect.left, rect.top, rect.width, rect.height)) return;
+        if (presetControlsCovered(rect, Appearance)) return;
         drawPresetButtons(rect, 36, button, Appearance);
+    }
+
+    static function presetControlsCovered(rect:OverlayRect, kind:PresetKind):Bool {
+        if (rect == null) return true;
+        // A tooltip from a skill behind the popup must not stop submitting its
+        // parent bar to ImGui. Real covering windows still hide the controls.
+        return presetDropdown.covered(cast kind,
+            tooltipOverlaps(rect.left, rect.top, rect.width, rect.height),
+            windowOverlaps(rect.left, rect.top, rect.width, rect.height));
     }
 
     static function uiElementRect(element:Dynamic):OverlayRect {
@@ -1123,11 +1138,20 @@ class ItemUtilitiesMod {
                 Math.max(0, (height * overlayScaleY - ImGui.getFontSize()) * 0.5)));
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, overlaySize(6, 6));
             ImGui.setNextItemWidth(PresetSlots.SELECTOR_WIDTH * overlayScaleX);
-            if (ImGui.beginCombo("##preset-selector", PresetSlots.label(selectedPreset), ImGuiComboFlags.HeightLarge)) {
+            var previewMin = ImGui.getCursorScreenPos();
+            var popupOpen = ImGui.beginCombo("##preset-selector", "", ImGuiComboFlags.HeightLarge);
+            if (popupOpen) {
+                var popupPos = ImGui.getWindowPos(), popupSize = ImGui.getWindowSize();
+                presetDropdown.update(cast kind, true, new OverlayRect(popupPos.x, popupPos.y,
+                    popupPos.x + popupSize.x, popupPos.y + popupSize.y));
                 ImGui.pushStyleColor(ImGuiCol.Text, new ImVec4(0.36, 0.26, 0.20, 1));
                 for (preset in 0...PresetSlots.COUNT) {
                     var selected = selectedPreset == preset;
-                    if (ImGui.selectable(PresetSlots.label(preset), selected, 0, overlaySize(0, 28))) {
+                    var rowMin = ImGui.getCursorScreenPos();
+                    var rowMax = new ImVec2(rowMin.x + ImGui.getContentRegionAvail().x,
+                        rowMin.y + 28 * overlayScaleY);
+                    if (ImGui.selectable("##preset-option-" + preset, selected, 0, overlaySize(0, 28))) {
+                        presetDropdown.update(cast kind, false);
                         playButtonClickSound(referenceButton);
                         switch kind {
                             case Equipment:
@@ -1144,20 +1168,21 @@ class ItemUtilitiesMod {
                                 activateAppearancePreset(preset);
                         }
                     }
+                    drawPresetText(PresetSlots.label(preset), rowMin, rowMax);
                     if (selected) ImGui.setItemDefaultFocus();
-                    if (ImGui.isItemHovered()) {
-                        setGameButtonCursor();
-                        if (!presetSaved(kind, preset))
-                            ImGui.setTooltip("Empty preset. Select it, then press Set to save your current setup.");
-                    }
+                    if (ImGui.isItemHovered()) setGameButtonCursor();
                 }
                 ImGui.popStyleColor();
                 ImGui.endCombo();
-            }
+            } else presetDropdown.update(cast kind, false);
+            drawPresetText(PresetSlots.label(selectedPreset),
+                new ImVec2(previewMin.x + 8 * overlayScaleX, previewMin.y),
+                new ImVec2(previewMin.x + PresetSlots.SELECTOR_WIDTH * overlayScaleX - height * overlayScaleY,
+                    previewMin.y + height * overlayScaleY));
             ImGui.popStyleVar(2);
             if (ImGui.isItemHovered()) setGameButtonCursor();
             ImGui.sameLine();
-            if (ImGui.button("Set##weapon-preset", overlaySize(PresetSlots.SET_WIDTH, height))) {
+            if (ImGui.button("##weapon-preset-set", overlaySize(PresetSlots.SET_WIDTH, height))) {
                 playButtonClickSound(referenceButton);
                 switch kind {
                     case Equipment: saveCurrentEquipmentToPreset(selectedWeaponPreset);
@@ -1166,32 +1191,28 @@ class ItemUtilitiesMod {
                     case Appearance: saveCurrentAppearancesToPreset(selectedAppearancePreset);
                 }
             }
-            if (ImGui.isItemHovered()) {
-                setGameButtonCursor();
-                ImGui.setTooltip("Save your current setup to " + PresetSlots.label(selectedPreset) + ".");
-            }
+            drawPresetText("Set", ImGui.getItemRectMin(), ImGui.getItemRectMax(), true);
+            if (ImGui.isItemHovered()) setGameButtonCursor();
             ImGui.endDisabled();
-            var presetStatus = switch kind {
-                case Equipment: "";
-                case Talent: talentPresetStatus;
-                case Skill: skillPresetStatus;
-                case Appearance: appearancePresetStatus;
-            };
-            if (ImGui.isWindowHovered() && presetStatus != "") ImGui.setTooltip(presetStatus);
         }
         ImGui.end();
         ImGui.popStyleColor(11);
         finishOverlay();
     }
 
-    static function presetSaved(kind:PresetKind, preset:Int):Bool {
-        var characterId = heroPersistentId(resolveHero());
-        return switch kind {
-            case Equipment: findEquipmentPreset(characterId, preset) != null;
-            case Talent: findTalentPreset(characterId, preset) != null;
-            case Skill: findSkillPreset(characterId, preset) != null;
-            case Appearance: findAppearancePreset(characterId, preset) != null;
-        };
+    static function drawPresetText(value:String, min:ImVec2, max:ImVec2, center:Bool = false):Void {
+        var textSize = ImGui.calcTextSize(value);
+        var weight = overlayStroke(0.65);
+        var x = center ? min.x + (max.x - min.x - textSize.x - weight) * 0.5 : min.x;
+        var y = min.y + (max.y - min.y - textSize.y) * 0.5;
+        var drawList = ImGui.getWindowDrawList();
+        var color = ImGui.getColorU32_Col(ImGuiCol.Text);
+        // The same light overdraw used by the old Presets heading, retaining
+        // the plugin font and disabled-state alpha without another font asset.
+        ImGui.ImDrawList_PushClipRect(drawList, min, max, true);
+        ImGui.ImDrawList_AddText_Vec2(drawList, new ImVec2(x, y), color, value);
+        ImGui.ImDrawList_AddText_Vec2(drawList, new ImVec2(x + weight, y), color, value);
+        ImGui.ImDrawList_PopClipRect(drawList);
     }
 
     static function syncSelectedTalentPreset():Void {
