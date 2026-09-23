@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "0.0.0",
-  "commit": "31c90146f739d056a3c0202d8c8ea9b8a828fb03",
-  "notes": "Release automation validation only. No release will be published.",
-  "dry_run": true
+  "project": "item-utilities",
+  "version": "1.9.0",
+  "commit": "7c8207bb9a87455965cbbf9e8b317a705edae295",
+  "notes": "- In PTR ONLY (until the major update): Added \"Inspect\" option to the menu when interacting with another player\n- Selecting \"Inspect\" opens a window displaying the player's interactable model and all equipped armor and weapons\n- The inspect window also has an Appearance tab, which lets you see the player's equipped appearances/transmogs\n",
+  "dry_run": false
 }
