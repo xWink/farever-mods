@@ -89,6 +89,18 @@ class NativeUiLayout {
         }
     }
 
+    public static function localRect(object:Dynamic, pixels:OverlayRect):OverlayRect {
+        if (pixels == null || !pixels.valid()) return null;
+        try {
+            var screen = transform(object);
+            var local = screen == null ? null : screen.inverse();
+            return local == null ? null : local.rect(pixels.left, pixels.top, pixels.width, pixels.height);
+        } catch (error:Dynamic) {
+            logError(error);
+            return null;
+        }
+    }
+
     public static function objectBounds(object:Dynamic, inset:Float):OverlayRect {
         try {
             if (object == null || !resolve()) return null;

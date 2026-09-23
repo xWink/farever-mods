@@ -133,6 +133,8 @@ class ItemUtilitiesMod {
     static var skillPresetStatus:String = "";
     static var appearancePresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var presetDropdown = new PresetDropdownState();
+    static var presetDropdownInput = new PresetDropdownInput();
+    static var presetDropdownHost:Dynamic;
     static var selectedAppearancePreset:Int = 0;
     static var selectedAppearancePresetCharacterId:String;
     static var appearancePresetTransfer = new AppearancePresetTransfer();
@@ -787,6 +789,7 @@ class ItemUtilitiesMod {
         PlayerInspect.update();
         NativeUiLayout.beginFrame();
         presetDropdown.beginFrame();
+        presetDropdownHost = null;
         windowOccluders = null;
         refreshActiveHero();
         updateTalentPreset();
@@ -831,6 +834,7 @@ class ItemUtilitiesMod {
             }
         }
         presetDropdown.endFrame();
+        presetDropdownInput.update(presetDropdownHost, presetDropdown.inputBounds());
     }
 
     /** Keep window bounds, content, and custom artwork in the same pixel space. */
@@ -1144,6 +1148,7 @@ class ItemUtilitiesMod {
             var popupOpen = ImGui.beginCombo("##preset-selector", "", ImGuiComboFlags.HeightLarge);
             if (popupOpen) {
                 var popupPos = ImGui.getWindowPos(), popupSize = ImGui.getWindowSize();
+                presetDropdownHost = referenceButton;
                 presetDropdown.update(cast kind, true, new OverlayRect(popupPos.x, popupPos.y,
                     popupPos.x + popupSize.x, popupPos.y + popupSize.y));
                 ImGui.pushStyleColor(ImGuiCol.Text, new ImVec4(0.36, 0.26, 0.20, 1));

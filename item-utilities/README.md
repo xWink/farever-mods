@@ -151,6 +151,8 @@ menu labels and **Set** use slightly bolder, vertically centered text.
 that category is applying a preset. The dropdown closes when you choose an option
 or click outside; individual hotkeys can apply presets without opening it.
 Game tooltips underneath an open menu do not hide or dismiss it.
+While a preset menu is open, tabs and other game controls behind its options do
+not receive hover, click, or scroll input. Closing the menu restores normal input.
 
 ### Equipment presets
 

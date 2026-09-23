@@ -30,6 +30,16 @@ class UiOverlayGeometry {
             outer.pointX(x, y), outer.pointY(x, y));
     }
 
+    /** Map overlay pixels back into the native input object's coordinate space. */
+    public function inverse():UiOverlayGeometry {
+        var determinant = a * d - b * c;
+        if (!Math.isFinite(determinant) || determinant == 0
+            || !Math.isFinite(x) || !Math.isFinite(y)) return null;
+        return new UiOverlayGeometry(d / determinant, -b / determinant,
+            -c / determinant, a / determinant,
+            (c * y - d * x) / determinant, (b * x - a * y) / determinant);
+    }
+
     public function rect(left:Float, top:Float, width:Float, height:Float):OverlayRect {
         if (width <= 0 || height <= 0) return null;
         var x0 = pointX(left, top);

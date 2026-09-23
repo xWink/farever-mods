@@ -39,6 +39,12 @@ class UiOverlayGeometryTest {
                 var originX = anchorX * scale + 80;
                 var originY = anchorY * scale + 25;
 
+                // Popup input must land on the same native UI rectangle after
+                // resizing, including root scale and letterboxed viewports.
+                var popup = screen.rect(10, 36, 136, 170);
+                rect(screen.inverse().rect(popup.left, popup.top, popup.width, popup.height),
+                    10, 36, 136, 170, "dropdown native hit target");
+
                 for (offset in [-228, -190, -152, -114, -76, -38]) {
                     rect(screen.rect(offset, 0, 32, 30), originX + offset * scale,
                         originY, 32 * scale, 30 * scale, "header buttons");
@@ -81,6 +87,20 @@ class UiOverlayGeometryTest {
         var viewport = new UiOverlayGeometry(1.5, 0, 0, 2, 80, 40);
         rect(object.then(camera).then(viewport).rect(10, 20, 32, 30),
             155, 130, 48, 45, "camera and viewport composition");
+        rect(object.then(camera).then(viewport).inverse().rect(155, 130, 48, 45),
+            10, 20, 32, 30, "nonuniform native hit target");
+
+        var rotated = new UiOverlayGeometry(0, 2, -3, 0, 80, 40);
+        near(rotated.inverse().pointX(rotated.pointX(12, 34), rotated.pointY(12, 34)),
+            12, "inverse rotation x");
+        near(rotated.inverse().pointY(rotated.pointX(12, 34), rotated.pointY(12, 34)),
+            34, "inverse rotation y");
+        check(new UiOverlayGeometry(0, 0, 0, 0).inverse() == null,
+            "collapsed viewport cannot create a native input blocker");
+        check(new UiOverlayGeometry(Math.NaN).inverse() == null,
+            "unavailable transform cannot create a native input blocker");
+        check(new UiOverlayGeometry(1, 0, 0, 1, Math.POSITIVE_INFINITY).inverse() == null,
+            "invalid origin cannot create a native input blocker");
 
         var normal = new UiOverlayGeometry();
         check(normal.rect(0, 0, 0, 30) == null, "zero width is not drawable");
