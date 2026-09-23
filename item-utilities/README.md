@@ -34,7 +34,11 @@ Hold Interact on another player and choose **Inspect**, immediately below
 accessories, with item icons, rarity colours, and the game's item-detail tooltips.
 The taller **Inspecting: <name>** window follows the character page's equipment
 column order, with Main Hand, Off Hand, and Arsenal in a separate weapons section.
-Hover an item icon to see its details.
+The inspected hero's model appears between the equipment columns. **Appearance**
+switches to their equipped styles, and **Character** returns to equipment.
+Slots using their original gear look are labelled **Equipped appearance**.
+Hover an item icon to see its details. Comparison tooltips fit both panels within
+the screen, including at smaller resolutions; style tooltips omit combat stats.
 These are their actual equipped items, independently of cosmetic appearances.
 The window updates when their equipped gear changes and closes with X or Escape.
 

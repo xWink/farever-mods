@@ -9,6 +9,7 @@ import itemutilities.InspectMenuContext.InspectTarget;
 class PlayerInspect {
     static final menuKey = new PatchTargetKey("ui.GameUI", "openPlayerInteractionMenu");
     static final contextKey = new PatchTargetKey("ui.BaseUI", "displayContextMenu");
+    static final tooltipKey = new PatchTargetKey("ui.Tooltip", "sync");
     static var context = new InspectMenuContext();
     static var isEnabled:Void->Bool;
     static var requested:InspectTarget;
@@ -27,6 +28,7 @@ class PlayerInspect {
                 HlxRuntime.registerPrefix(menuKey, beginMenu, receiveMenu);
                 HlxRuntime.registerPostfix(menuKey, endMenu, receiveMenu);
                 HlxRuntime.registerPrefix(contextKey, extendMenu, receiveContext);
+                HlxRuntime.registerPostfix(tooltipKey, fitInspectTooltip, receiveTooltip);
             });
         } catch (error:Dynamic) trace("[Item Utilities] Inspect unavailable: " + error);
     }
@@ -34,6 +36,12 @@ class PlayerInspect {
         return HlxRuntime.dispatch(menuKey, [ui, uid, name, position]);
     static function receiveContext(ui:Dynamic, items:Dynamic, position:Dynamic):Dynamic
         return HlxRuntime.dispatch(contextKey, [ui, items, position]);
+    static function receiveTooltip(tip:Dynamic, context:Dynamic):Dynamic
+        return HlxRuntime.dispatch(tooltipKey, [tip, context]);
+    static function fitInspectTooltip(tip:Dynamic, context:Dynamic, result:Dynamic):Dynamic {
+        if (popup != null) popup.fitTooltip(tip);
+        return result;
+    }
     static function beginMenu(ui:Dynamic, uid:String, name:String, position:Dynamic):HlxPrefixResult<Void> {
         context.begin(ui, uid, name, isEnabled());
         return Continue;
