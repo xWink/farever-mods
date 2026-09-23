@@ -13,3 +13,8 @@
 -cp tests
 -main DamageBreakdownTest
 --interp
+--next
+-cp src
+-cp tests/controller
+-main ControllerFocusTest
+--interp

@@ -43,6 +43,9 @@ class NativeUi {
         if (layout != null) Reflect.setField(attributes, "layout", layout);
         var result = G.staticCall("domkit.Properties", "createNew", [component, parent, args, attributes]);
         if (result == null) throw "Could not create " + component;
+        // Also covers rows/buttons added after construction, without walking
+        // the meter each frame. Recap/history and other windows are unaffected.
+        MeterControllerFocus.configureNode(G.field(result, "obj"));
         return result;
     }
     public static function label(parent:Dynamic, value:String):Dynamic {

@@ -109,6 +109,7 @@ class NativeMeterWindow {
         constructing = false;
         if (window == null) throw "TitleWindow construction returned null";
         G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192]);
+        MeterControllerFocus.track(window);
         // Keep this persistent HUD out of BaseUI.windows: it must not pause the
         // game, consume skill input, or close inventory/Options when it appears.
         root = attachBelowGameUi(ui, window);
@@ -301,7 +302,11 @@ class NativeMeterWindow {
     }
     public function dispose():Void {
         finishDrag();
-        if (window != null) { var old = window; window = null; G.call("h2d.Object", "remove", old); }
+        if (window != null) {
+            var old = window; window = null;
+            MeterControllerFocus.forget(old);
+            G.call("h2d.Object", "remove", old);
+        }
         owner = null; chart = null; displayed = null;
         body = null; container = null; bossCaption = "";
         outOfCombatSince = -1;
