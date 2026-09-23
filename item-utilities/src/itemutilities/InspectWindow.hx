@@ -14,6 +14,7 @@ class InspectWindow {
     var container:Dynamic;
     var headingStyle:Dynamic;
     var title:Dynamic;
+    var boldLabels:Array<{object:Dynamic, width:Float, scale:Float}> = [];
     var list:Dynamic;
     var status:Dynamic;
     var appearance = false;
@@ -30,7 +31,7 @@ class InspectWindow {
     var slots:Array<String> = LEFT_SLOTS.concat(RIGHT_SLOTS).concat(WEAPON_SLOTS);
     var signature:String;
     var nextRefresh:Float = 0;
-    static inline var WIDTH = 1280;
+    static inline var WIDTH = 864;
     static inline var HEIGHT = 760;
 
     public function new() {}
@@ -134,14 +135,20 @@ class InspectWindow {
             parts.push(rule.slot + ":" + (item == null ? "default" : G.uid(item) + ":" + G.text(G.field(item, "kind"))));
         }
         var visualSignature = parts.join("|");
-        var shift = appearance ? 156 : 0;
-        position(modeButton, 16 + shift + 380, 16 + 612);
+        var equipmentWidth = 528;
+        var weaponsX = equipmentWidth + 24;
+        var weaponsWidth = WIDTH - 48 - weaponsX;
+        var rightColumn = equipmentWidth - 72;
+        var shift = appearance ? Std.int((WIDTH - 48 - equipmentWidth) / 2) : 0;
+        position(modeButton, 16 + shift + (equipmentWidth - 160) / 2, 16 + 612);
         show(modeButton, available);
-        updatePreview(available ? hero : null, visualSignature, 16 + shift + 296, 16 + 44);
+        updatePreview(available ? hero : null, visualSignature,
+            16 + shift + Std.int((equipmentWidth - InspectPreview.WIDTH) / 2), 16 + 44);
         var next = (appearance ? "appearance|" : "equipment|") + visualSignature;
         if (signature == next) return;
         signature = next;
         clearTooltip();
+        boldLabels = [];
         for (child in children(G.field(list, "obj"))) G.call("h2d.Object", "remove", child);
         show(status, !available || (appearance && !stylesAvailable));
         setText(status, !available ? "This player's equipment is unavailable. Try again when they are nearby."
@@ -149,29 +156,29 @@ class InspectWindow {
         if (!available) return;
         if (appearance) {
             if (!stylesAvailable) return;
-            section("Appearance", shift, 4, 920);
+            section("Appearance", shift, 4, equipmentWidth);
             var left = LEFT_SLOTS.filter(slot -> styles.exists(slot));
             var right = RIGHT_SLOTS.filter(slot -> styles.exists(slot));
             for (i in 0...left.length)
-                makeItem(left[i], styles.get(left[i]), i, shift, 96 + i * 116, 280, null, appearanceInventory);
+                makeItem(left[i], styles.get(left[i]), i, shift, 96 + i * 116, 72, null, appearanceInventory);
             for (i in 0...right.length)
-                makeItem(right[i], styles.get(right[i]), i + left.length, shift + 640, 96 + i * 116, 280, null, appearanceInventory);
+                makeItem(right[i], styles.get(right[i]), i + left.length, shift + rightColumn, 96 + i * 116, 72, null, appearanceInventory);
             return;
         }
-        section("Equipment", 0, 4, 920);
-        section("Weapons", 936, 4, 296);
-        section("Arsenal", 936, 398, 296);
+        section("Equipment", 0, 4, equipmentWidth);
+        section("Weapons", weaponsX, 4, weaponsWidth);
+        section("Arsenal", weaponsX, 398, weaponsWidth);
         // Preserve each column's top-to-bottom order instead of interleaving
         // categories in a row-major list. All six rows fit without scrolling.
         for (i in 0...LEFT_SLOTS.length) {
-            makeItem(slots[i], items[i], i, 0, 48 + i * 90, 280);
+            makeItem(slots[i], items[i], i, 0, 48 + i * 90, 72);
             var right = i + LEFT_SLOTS.length;
-            makeItem(slots[right], items[right], right, 640, 48 + i * 90, 280);
+            makeItem(slots[right], items[right], right, rightColumn, 48 + i * 90, 72);
         }
         var weapons = LEFT_SLOTS.length + RIGHT_SLOTS.length;
         for (i in 0...WEAPON_SLOTS.length) {
             var index = weapons + i;
-            makeItem(slots[index], items[index], index, 936, i == 2 ? 442 : 48 + i * 140, 296,
+            makeItem(slots[index], items[index], index, weaponsX, i == 2 ? 442 : 48 + i * 140, weaponsWidth,
                 i == 0 ? "Main Hand" : i == 1 ? "Off Hand" : "Secondary Weapon");
         }
     }
@@ -195,16 +202,34 @@ class InspectWindow {
         }
     }
 
+    function boldLabel(parent:Dynamic, text:String, width:Float, scale:Float):Dynamic {
+        // Use the native bold font with explicit sizing, as the window title
+        // does. FmtText's automatic scaling would reset a manual enlargement.
+        var object = G.create("h2d.Text", [G.field(headingStyle, "font"), parent]);
+        absolute(parent, object);
+        G.call("h2d.Text", "set_text", object, [text]);
+        G.call("h2d.Text", "set_textColor", object, [0x5B4334]);
+        G.call("h2d.Text", "set_lineBreak", object, [false]);
+        G.call("h2d.Text", "set_textAlign", object, [G.enumeration("h2d.Align", "Left")]);
+        boldLabels.push({object: object, width: width, scale: scale});
+        fitBoldLabel(object, width, G.number(G.field(headingStyle, "scaleX"), 1) * scale);
+        return object;
+    }
+
+    function fitBoldLabel(object:Dynamic, width:Float, scale:Float):Void {
+        var textWidth = Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", object)));
+        G.call("h2d.Object", "setScale", object, [Math.min(scale, width / textWidth)]);
+    }
+
     function section(name:String, x:Int, y:Int, width:Int):Void {
-        var text = label(list, name);
-        G.call("domkit.Properties", "addClass", G.field(text, "dom"), ["bold-14"]);
-        absolute(G.field(list, "obj"), text); position(text, x, y);
+        var text = boldLabel(G.field(list, "obj"), name, width, 22 / 14);
+        position(text, x, y);
         // A native separator gives the weapon/arsenal groups the same visual
         // hierarchy as the character sheet, without editable inventory controls.
         var line = G.create("h2d.Graphics", [G.field(list, "obj")]);
         absolute(G.field(list, "obj"), line);
         G.call("h2d.Graphics", "beginFill", line, [0xA98C7D, 0.65]);
-        G.call("h2d.Graphics", "drawRect", line, [x, y + 28, width, 1]);
+        G.call("h2d.Graphics", "drawRect", line, [x, y + 32, width, 1]);
         G.call("h2d.Graphics", "endFill", line);
     }
 
@@ -213,18 +238,12 @@ class InspectWindow {
         var object = G.field(card, "obj");
         padding(object, 0); size(object, width, 94);
         absolute(G.field(list, "obj"), object); position(object, x, y);
-        var name = captionText == null ? G.text(G.staticCall("HText", "equipmentSlot", [slot]), slot) : captionText;
-        var caption = label(card, name);
-        G.call("domkit.Properties", "addClass", G.field(caption, "dom"), ["bold-14"]);
-        absolute(object, caption); position(caption, 78, 14);
-        G.call("ui.comp.FmtText", "set_maxWidthText", caption, [width - 90]);
-        G.call("ui.comp.FmtText", "set_useEllipsis", caption, [true]);
-        var itemName = label(card, item == null ? (appearanceInventory != null ? "Equipped appearance" : "Empty") : "");
-        absolute(object, itemName); position(itemName, 78, 40);
-        G.call("ui.comp.FmtText", "set_maxWidthText", itemName, [width - 90]);
-        G.call("ui.comp.FmtText", "set_useEllipsis", itemName, [false]);
-        if (item != null)
-            G.call("ui.comp.FmtText", "set_text", itemName, [G.call("st.Item", "getColoredName", item)]);
+        // Armour and appearance use only icons, matching the character sheet.
+        // Weapon captions identify their slot; item details stay in tooltips.
+        if (captionText != null) {
+            var caption = boldLabel(object, captionText, width - 90, 18 / 14);
+            position(caption, 78, 32);
+        }
         var stack:Dynamic = item == null ? null : {count: 1, item: item};
         // ItemSlot supplies the native icon/rarity and actual-item tooltip.
         // Unlike InventorySlot it has no equip, transfer, drag or context actions.
@@ -276,8 +295,13 @@ class InspectWindow {
         position(window, top.x + (bottom.x - top.x - WIDTH * scale) / 2, top.y + (bottom.y - top.y - HEIGHT * scale) / 2);
         G.call("ui.comp.FmtText", "updateScale", headingStyle);
         var font = G.field(headingStyle, "font");
+        var baseScale = G.number(G.field(headingStyle, "scaleX"), 1);
+        for (entry in boldLabels) {
+            if (font != null && font != G.field(entry.object, "font")) G.call("h2d.Text", "set_font", entry.object, [font]);
+            fitBoldLabel(entry.object, entry.width, baseScale * entry.scale);
+        }
         if (font != null && font != G.field(title, "font")) G.call("h2d.Text", "set_font", title, [font]);
-        var titleScale = Math.min(G.number(G.field(headingStyle, "scaleX"), 1) * 1.75,
+        var titleScale = Math.min(baseScale * 1.75,
             (WIDTH - 92) / Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", title))));
         G.call("h2d.Object", "setScale", title, [titleScale]);
         position(title, 24, (60 - G.number(G.call("h2d.Text", "get_textHeight", title)) * titleScale) / 2);
@@ -338,7 +362,7 @@ class InspectWindow {
         var old = window; window = null;
         if (old != null && target != null) G.call("ui.BaseUI", "removeWindow", target.ui, [old]);
         target = null; local = null; root = null; body = null; container = null;
-        headingStyle = null; title = null; list = null; status = null; slots = [];
+        headingStyle = null; title = null; boldLabels = []; list = null; status = null; slots = [];
         modeButton = null; previewError = null;
     }
 }

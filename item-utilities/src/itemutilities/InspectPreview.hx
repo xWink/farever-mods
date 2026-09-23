@@ -17,7 +17,9 @@ class InspectPreview {
         padding(object, 0); size(object, WIDTH, HEIGHT);
         absolute(G.field(parent, "obj"), object);
         G.set(object, "autoFit", true); style(object, "auto-fit", true);
-        G.set(object, "viewPadding", 1.12); style(object, "view-padding", 1.12);
+        // Native auto-fit adds padding in world units, not as a scale factor.
+        // Keep a small margin so its first fit does not zoom the hero far out.
+        G.set(object, "viewPadding", 0.12); style(object, "view-padding", 0.12);
         var scene = G.field(object, "unitScene");
         padding(scene, 0); size(scene, WIDTH, HEIGHT);
         absolute(object, scene); position(scene, 0, 0);
