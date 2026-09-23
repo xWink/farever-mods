@@ -405,6 +405,8 @@ class CombatModel {
         if (fight.category == "") fight.category = "Other";
         if (e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x10) != 0) fight.category = activityCategory;
         fight.add(e, info);
+        if (fight.category == HistoryCatalog.HistoryCategory.OTHER && fight.targetDummy)
+            fight.category = HistoryCatalog.HistoryCategory.DUMMY;
         if (e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0
             && ((fight.bossFlags & 0x10) == 0 || (e.bossFlags & 0x10) != 0)) {
             fight.bossFlags = e.bossFlags;

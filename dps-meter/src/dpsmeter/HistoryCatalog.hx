@@ -13,8 +13,9 @@ class HistoryCategory {
     public static inline var BOSS = "Boss Dungeons";
     public static inline var DUNGEON = "Classic Dungeons";
     public static inline var WORLD = "World Bosses";
+    public static inline var DUMMY = "Target Dummies";
     public static inline var OTHER = "Other";
-    public static function all():Array<String> return [BOSS, DUNGEON, WORLD, OTHER];
+    public static function all():Array<String> return [BOSS, DUNGEON, WORLD, DUMMY, OTHER];
     public static inline var VERSION = 2;
     /** Recognized encounters and dummy practice save; existing files remain browsable. */
     public static function canArchive(record:Dynamic, catalog:Null<HistoryCatalog> = null):Bool {
@@ -42,8 +43,10 @@ class HistoryCategory {
     }
     public static function resolve(record:Dynamic, catalog:Null<HistoryCatalog>):String {
         var stored = FightHistory.text(record.category);
-        // Practice stays under Other even if its area later hosts a boss event.
-        if (stored == OTHER && record.targetDummy == true) return OTHER;
+        // Reclassify earlier dummy logs in memory without rewriting them, and
+        // keep practice separate even if its area later hosts a boss event.
+        if ((stored == DUMMY && record.categoryVersion == VERSION)
+            || (stored == OTHER && record.targetDummy == true)) return DUMMY;
         var phase = FightHistory.text(record.phase);
         var name = FightHistory.text(record.name);
         if (StringTools.startsWith(phase, "Rift:") || StringTools.startsWith(name, "Rift:")) return WORLD;

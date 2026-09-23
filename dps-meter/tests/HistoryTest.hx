@@ -114,7 +114,7 @@ class HistoryTest {
             m.record(event); m.onCombatExit("me", 12); m.update(13, false);
             check(m.history.length == 1 && m.history[0].targetDummy, "Dummy marker survives opening-hit buffering and history copies");
             var fight = m.history[0];
-            check(fight.category == HistoryCategory.OTHER && FightHistory.name(fight) == "Target dummy", "Dummy flags cannot promote practice to boss history");
+            check(fight.category == HistoryCategory.DUMMY && FightHistory.name(fight) == "Target dummy", "Dummy flags keep practice in its own category");
             check(m.boss == null && m.completed.length == 0, "Dummy flags cannot produce boss uploads");
             var writer = new RunWriter(); writer.archive(fight);
             check(writer.uploader != null, "Dummy practice reaches the archive worker");
@@ -123,16 +123,29 @@ class HistoryTest {
             var store = new FightHistoryStore(root, _ -> {}); store.save(record);
             check(FileSystem.exists(root + "/history/" + record.id + ".json"), "Dummy practice is written to disk");
             store = new FightHistoryStore(root, _ -> {});
-            var query = request("groups"); query.category = HistoryCategory.OTHER;
+            var query = request("groups"); query.category = HistoryCategory.DUMMY;
             query.catalog = {activities: ["PracticeArea" => HistoryCategory.WORLD], names: [], bosses: []};
             var groups = store.query(query);
-            check(groups.groups.length == 1 && groups.groups[0].name == "Target dummy", "After restart, practice stays in Other despite area classification");
-            query = request("fights", "Target dummy"); query.category = HistoryCategory.OTHER;
+            check(groups.groups.length == 1 && groups.groups[0].name == "Target dummy", "After restart, practice stays in Target Dummies despite area classification");
+            query = request("fights", "Target dummy"); query.category = HistoryCategory.DUMMY;
             var attempts = store.query(query);
             check(attempts.total == 1 && attempts.entries[0].personalDps == 50, "Saved dummy attempt retains its duration and personal DPS");
             var chart = FightHistory.decode(store.query(request("chart", "", 0, record.id)).record);
             check(chart.targetDummy && chart.players["ally"].damage == 200 && chart.players["me"].skills["Strike"].damage == 100,
                 "Dummy charts retain player and skill breakdowns");
+            var earlier = Reflect.copy(record); earlier.id = "earlier_" + flags; earlier.category = HistoryCategory.OTHER;
+            store.save(earlier);
+            var earlierPath = root + "/history/" + earlier.id + ".json";
+            var original = File.getContent(earlierPath);
+            store = new FightHistoryStore(root, _ -> {});
+            var menu = store.query(request("categories"));
+            check(menu.groups[3].name == HistoryCategory.DUMMY && menu.groups[3].count == 2
+                && menu.groups[4].name == HistoryCategory.OTHER && menu.groups[4].count == 0,
+                "New and previously saved dummy fights share the new category and leave Other");
+            check(store.query(query).entries.length == 2, "Earlier dummy attempts remain accessible in the new category");
+            check(store.query(request("chart", "", 0, earlier.id)).record.id == earlier.id,
+                "Earlier dummy charts keep their existing IDs");
+            check(File.getContent(earlierPath) == original, "Reclassification does not rewrite saved damage logs");
             m.onCombatEnter("me", 20); m.record(hit(20, 50)); m.onCombatExit("me", 22); m.update(23, false);
             writer.archive(m.history[1]);
             check(!m.history[1].targetDummy && writer.uploader.historyIncoming.pop(false) == null, "Following ordinary combat does not inherit the dummy exception");
@@ -651,7 +664,8 @@ class HistoryTest {
         }
         var req = request("categories"); req.catalog = catalog;
         var categories = store.query(req);
-        check(categories.groups.length == 4 && categories.groups[0].name == "Boss Dungeons", "Category menu has the requested order");
+        check([for (group in categories.groups) group.name].join("|")
+            == "Boss Dungeons|Classic Dungeons|World Bosses|Target Dummies|Other", "Category menu has the requested order");
         for (category in HistoryCategory.all()) {
             var req = request("groups"); req.category = category;
             var groups = store.query(req);

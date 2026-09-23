@@ -38,7 +38,8 @@ class FightHistory {
             difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
     }
     public static function name(fight:Fight):String {
-        if (fight.category == HistoryCatalog.HistoryCategory.OTHER && fight.targetDummy) return "Target dummy";
+        if (fight.category == HistoryCatalog.HistoryCategory.DUMMY
+            || (fight.category == HistoryCatalog.HistoryCategory.OTHER && fight.targetDummy)) return "Target dummy";
         return fight.phase != "" ? fight.phase : fight.bossName != "" ? fight.bossName
             : fight.bossKind != "" ? fight.bossKind : "Other combat";
     }
