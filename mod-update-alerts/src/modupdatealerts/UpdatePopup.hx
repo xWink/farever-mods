@@ -133,6 +133,7 @@ class UpdatePopup {
         stage="building reminder checkbox";
         checkbox=G.field(node("check-box",parent,["Don't remind me again about these versions"],"modUpdaterIgnore"),"obj");
         absolute(container,checkbox); size(checkbox,712,38); position(checkbox,16,355);
+        G.call("h2d.Flow","set_paddingLeft",checkbox,[12]); style(checkbox,"padding-left",12);
         G.call("ui.comp.CheckBox","set_selected",checkbox,[selected]);
         G.set(checkbox,"onValueChange",function(value:Bool):Void {ignore=value;onPreference(value);});
         refresh();
