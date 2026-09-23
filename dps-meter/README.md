@@ -58,7 +58,7 @@ can be removed if no other mod uses it.
 - **Native, customizable window:** Move, resize, lock, and scroll the meter, with optional automatic hiding and a smooth fade.
 - **Controller focus:** The live meter stays out of controller navigation so it does not take focus from the game's menu controls. Its buttons, charts, dragging, and resizing remain mouse-operated; full controller navigation is not implemented.
 - **Rift tracking and recaps:** Separate gate and boss phases covering all players present, with both charts in one post-rift recap.
-- **Fight history:** Save Boss Dungeons, Classic Dungeons, and World Bosses; choose an attempt by date, character, party size, duration, and your DPS, then reopen its player and skill charts. New Other combat is not saved; existing Other history remains available.
+- **Fight history:** Save Boss Dungeons, Classic Dungeons, World Bosses, and target-dummy practice under **Other**; choose an attempt by date, character, party size, duration, and your DPS, then reopen its player and skill charts. Other unclassified combat is not saved; existing Other history remains available.
 - **Kill notifications:** Optional boss kill totals with the previous fastest kill time. **Show unmastered Codex kills** displays progress through each enemy's final mastery requirement, including the finishing kill. **Show mastered Codex kills** displays subsequent kill totals. The target comes from the game's enemy-specific Codex thresholds, rather than the earlier XP reward milestone. Existing settings are preserved; unmastered notifications default to on and mastered notifications to off.
 - **Automatic log uploads:** Send completed boss encounters to [Farever Logs](https://fareverlogs.fr/) in the background, with no external application.
 - **Better Mod Settings integration:** Customize display options and hotkeys, with settings and window placement saved between sessions.
@@ -211,9 +211,11 @@ The recorded skill IDs and damage totals remain unchanged, so old logs gain the
 display names without being recorded again. Removed definitions keep a readable
 ID fallback.
 
-History records ordinary combats, boss attempts, and both rift phases. Combats
-without a boss name appear under **Other combat**. A fight still in progress
-when you leave an area or exit normally is also preserved. Completed rift phases
+History records boss attempts, both rift phases, and combats involving target
+dummies. Dummy encounters appear as **Target dummy** under **Other**, identified
+from the game's unit metadata rather than their names. Other unclassified combat
+is not saved. A qualifying fight still in progress when you leave an area or
+exit normally is also preserved. Completed rift phases
 keep their separate **Rift: Gates** and **Rift: [boss name]** charts.
 
 New Chakram recordings keep both health bars and the intervening bridge sequence

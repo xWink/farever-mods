@@ -21,7 +21,7 @@ class RunWriter {
     }
 
     public function archive(fight:Fight):Void {
-        if (stopped || fight.category == HistoryCatalog.HistoryCategory.OTHER) return;
+        if (stopped || (fight.category == HistoryCatalog.HistoryCategory.OTHER && !fight.targetDummy)) return;
         var record = FightHistory.encode(fight, "fight_" + historySession + "_" + (++historySequence));
         if (!HistoryCatalog.HistoryCategory.canArchive(record)) return;
         prepare();

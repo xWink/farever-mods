@@ -9,6 +9,18 @@ class NativeCombatMetadata {
     static var observed:Map<String, String> = [];
     static var observedBosses:Map<String, String> = [];
     static var warned:Bool = false;
+    static var dummyGroup:Null<Int>;
+    public static function isTargetDummy(inf:Dynamic):Bool {
+        if (inf == null) return false;
+        // Match Minimap's native classification, independent of translated
+        // names, unit IDs, and boss flags. Retry if definitions are not ready.
+        if (dummyGroup == null) {
+            var value = G.current("_Data.Unit_group_Impl_", "Dummy");
+            if (value != null) dummyGroup = G.integer(value);
+        }
+        var group = G.field(inf, "group");
+        return dummyGroup != null && group != null && G.integer(group) == dummyGroup;
+    }
     public static function activityCategory(id:String, isRift:Bool, player:Dynamic, activity:Dynamic):String {
         if (isRift) return HistoryCategory.WORLD;
         if (id == "") return HistoryCategory.OTHER;

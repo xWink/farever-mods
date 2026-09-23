@@ -200,6 +200,7 @@ class Collector {
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
             effect: effect, skill: skillId, damageType: damageType, affinity: affinity,
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
+            targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,
             bossLevel: G.integer(G.field(target, "_level")), bossFoeId: G.integer(G.field(target, "foeId"))});
     }

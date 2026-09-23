@@ -10,7 +10,7 @@ typedef PlayerInfo = {
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
-    ?damageType:String, ?affinity:String
+    ?damageType:String, ?affinity:String, ?targetDummy:Bool
 };
 
 class SkillStats {
@@ -120,6 +120,7 @@ class Fight {
     public var partySize:Int = 0;
     public var activityId:String = "";
     public var category:String = "";
+    public var targetDummy:Bool = false;
     public var categoryVersion:Int = HistoryCatalog.HistoryCategory.VERSION;
     public var me:String = "";
     public var meName:String = "";
@@ -127,6 +128,7 @@ class Fight {
     public function add(e:DamageEvent, info:PlayerInfo):Void {
         if (!players.exists(e.source)) players[e.source] = new PlayerStats(info);
         players[e.source].add(e, info);
+        if (e.effect != 1 && e.targetDummy == true) targetDummy = true;
         if (e.effect != 1 && e.target != "") targets[e.target] = true;
         if (e.effect != 1 && e.kill && e.target != "") killedTargets[e.target] = true;
         last = e.time;
@@ -162,6 +164,7 @@ class Fight {
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.partySize = partySize;
         result.category = category;
+        result.targetDummy = targetDummy;
         result.categoryVersion = categoryVersion;
         result.me = me; result.meName = meName; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
@@ -400,9 +403,9 @@ class CombatModel {
         // The export's legacy boss mask also includes elites. Only actual boss
         // damage promotes a normal combat into a dungeon-boss history category.
         if (fight.category == "") fight.category = "Other";
-        if (e.effect != 1 && (e.bossFlags & 0x10) != 0) fight.category = activityCategory;
+        if (e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x10) != 0) fight.category = activityCategory;
         fight.add(e, info);
-        if (e.effect != 1 && (e.bossFlags & 0x38) != 0
+        if (e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0
             && ((fight.bossFlags & 0x10) == 0 || (e.bossFlags & 0x10) != 0)) {
             fight.bossFlags = e.bossFlags;
             fight.bossKind = e.bossKind;
@@ -470,7 +473,7 @@ class CombatModel {
         if (rift != null) return;
         if (e.kill && e.target == phrixesUid) endPhrixes(e.time, true);
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
-        var bossHit = e.effect != 1 && (e.bossFlags & 0x38) != 0;
+        var bossHit = e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0;
         if (bossHit && member && (boss == null || (boss.bossKind != e.bossKind && e.time - boss.last > 15))) {
             var previous = lastBoss;
             var resume = e.bossKind != "Phrixes" && previous != null && previous.me == me && previous.bossKind == e.bossKind

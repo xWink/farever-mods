@@ -19,6 +19,7 @@ import sys.io.File;
 
 @:access(dpsmeter.LogUploader)
 @:access(dpsmeter.RunWriter)
+@:access(dpsmeter.NativeCombatMetadata)
 class HistoryTest {
     static var checks = 0;
     static final UNKNOWN_SPLIT = "  ·  Physical: 0%  ·  Magical: 0%  ·  Raw: 0%";
@@ -52,7 +53,7 @@ class HistoryTest {
     static function request(action:String, group:String = "", page:Int = 0, fightId:String = ""):HistoryRequest
         return {id: 17, action: action, group: group, page: page, fightId: fightId};
     static function main():Void {
-        clientSkillCompatibility(); archivePolicy();
+        clientSkillCompatibility(); archivePolicy(); targetDummies();
         lifecycle(); chakram(); outcomes(); recapSummary(); snapshots(); storage(); uploader(); categories(); metadata(); breakdown(); encounterDetails(); historyActions(); snapshotLayouts(); snapshotTextures(); historyOptions(); literalLabels(); bossRecords();
         Sys.println('Fight history: $checks checks passed');
     }
@@ -63,7 +64,7 @@ class HistoryTest {
         other.bossKind = "Phrixes"; // A recognized name must not override an explicit Other classification.
         var record = FightHistory.encode(other, "other");
         store.save(record);
-        check(!FileSystem.exists(root + "/history/other.json"), "Other fights never produce an archive, even with a known boss name");
+        check(!FileSystem.exists(root + "/history/other.json"), "Unclassified nondummy fights never produce an archive, even with a known boss name");
         other.bossName = ""; other.bossKind = "";
         var ordinary = FightHistory.encode(other, "ordinary");
         check(ordinary.name == "Other combat", "Ordinary combat fixture has the reported fallback title");
@@ -87,6 +88,65 @@ class HistoryTest {
         store.save(legacy);
         check(!FileSystem.exists(root + "/history/legacy_other.json"), "Unclassified legacy exports are not imported as new Other archives");
         remove(root);
+    }
+    static function targetDummies():Void {
+        var key = "_Data.Unit_group_Impl_.Dummy";
+        GameAccess.globals.remove(key); NativeCombatMetadata.dummyGroup = null;
+        check(!NativeCombatMetadata.isTargetDummy({group: 0}), "Missing native dummy metadata does not classify ordinary units");
+        GameAccess.globals[key] = 0;
+        check(NativeCombatMetadata.isTargetDummy({group: 0}), "Retry after definitions load, including a zero-valued dummy group");
+        NativeCombatMetadata.dummyGroup = null; GameAccess.globals[key] = 42;
+        var definition = {id: "FuturePracticeTarget", name: "Mannequin", group: 42};
+        check(NativeCombatMetadata.isTargetDummy(definition), "New IDs and translated names use native dummy classification");
+        check(!NativeCombatMetadata.isTargetDummy({id: "Dummy", name: "Target dummy", group: 7}), "Names alone cannot enable saving");
+        check(!NativeCombatMetadata.isTargetDummy(null) && !NativeCombatMetadata.isTargetDummy({id: "Dummy"}), "Missing unit or group is not a dummy");
+
+        for (flags in [0, 8, 16, 32, 0x38]) {
+            var root = temp("dummy-" + flags);
+            var m = model(); m.activityId = "PracticeArea"; m.activityCategory = HistoryCategory.BOSS;
+            var event = hit(10, 100, false, false, "me", "dummy");
+            event.targetDummy = NativeCombatMetadata.isTargetDummy(definition);
+            event.bossKind = definition.id; event.bossFlags = flags;
+            // The opening hit can precede native combat entry, and practice
+            // ends without killing the target. Include an ally's damage too.
+            m.record(event); m.onCombatEnter("me", 10.1);
+            event = Reflect.copy(event); event.time = 11; event.source = "ally"; event.amount = 200;
+            m.record(event); m.onCombatExit("me", 12); m.update(13, false);
+            check(m.history.length == 1 && m.history[0].targetDummy, "Dummy marker survives opening-hit buffering and history copies");
+            var fight = m.history[0];
+            check(fight.category == HistoryCategory.OTHER && FightHistory.name(fight) == "Target dummy", "Dummy flags cannot promote practice to boss history");
+            check(m.boss == null && m.completed.length == 0, "Dummy flags cannot produce boss uploads");
+            var writer = new RunWriter(); writer.archive(fight);
+            check(writer.uploader != null, "Dummy practice reaches the archive worker");
+            var record = writer.uploader.historyIncoming.pop(false);
+            check(record != null && record.targetDummy == true, "Detached queue preserves dummy evidence");
+            var store = new FightHistoryStore(root, _ -> {}); store.save(record);
+            check(FileSystem.exists(root + "/history/" + record.id + ".json"), "Dummy practice is written to disk");
+            store = new FightHistoryStore(root, _ -> {});
+            var query = request("groups"); query.category = HistoryCategory.OTHER;
+            query.catalog = {activities: ["PracticeArea" => HistoryCategory.WORLD], names: [], bosses: []};
+            var groups = store.query(query);
+            check(groups.groups.length == 1 && groups.groups[0].name == "Target dummy", "After restart, practice stays in Other despite area classification");
+            query = request("fights", "Target dummy"); query.category = HistoryCategory.OTHER;
+            var attempts = store.query(query);
+            check(attempts.total == 1 && attempts.entries[0].personalDps == 50, "Saved dummy attempt retains its duration and personal DPS");
+            var chart = FightHistory.decode(store.query(request("chart", "", 0, record.id)).record);
+            check(chart.targetDummy && chart.players["ally"].damage == 200 && chart.players["me"].skills["Strike"].damage == 100,
+                "Dummy charts retain player and skill breakdowns");
+            m.onCombatEnter("me", 20); m.record(hit(20, 50)); m.onCombatExit("me", 22); m.update(23, false);
+            writer.archive(m.history[1]);
+            check(!m.history[1].targetDummy && writer.uploader.historyIncoming.pop(false) == null, "Following ordinary combat does not inherit the dummy exception");
+            remove(root);
+        }
+        var m = model(); m.onCombatEnter("me", 10); m.record(hit(10, 5));
+        var heal = hit(11, 20); heal.effect = 1; heal.targetDummy = true; m.record(heal);
+        m.onCombatExit("me", 12); m.update(13, false);
+        check(!HistoryCategory.canArchive(FightHistory.encode(m.history[0], "healing")), "Healing alone cannot enable the dummy exception");
+        m = model(); m.profiles["stranger"] = profile("stranger", false); m.onCombatEnter("me", 10); m.record(hit(10, 5));
+        var remote = hit(11, 20, false, false, "stranger"); remote.targetDummy = true; m.record(remote);
+        m.onCombatExit("me", 12); m.update(13, false);
+        check(!m.history[0].targetDummy, "An unrelated player training nearby cannot make ordinary combat save");
+        GameAccess.globals.remove(key); NativeCombatMetadata.dummyGroup = null;
     }
     static function clientSkillCompatibility():Void {
         var oldSkill = {kind: "OldStrike"};

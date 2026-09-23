@@ -6,7 +6,7 @@ typedef HistoryEntry = {
     id:String, name:String, startedAt:Float, duration:Float, personalDps:Null<Float>, playerName:String,
     category:String, categoryVersion:Int, activityId:String, bossKind:String, phase:String,
     difficulty:Int, partySize:Int, recordedPlayers:Int, playerClass:String, outcome:String,
-    ?damageTypeSummary:String
+    ?damageTypeSummary:String, ?targetDummy:Bool
 };
 typedef HistoryGroup = {name:String, count:Int};
 typedef HistoryHeading = {before:String, player:String, after:String};
@@ -35,9 +35,10 @@ class FightHistory {
         return {version: 1, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
             me: fight.me, meName: fight.meName, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
             activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase,
-            difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome)};
+            difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
     }
     public static function name(fight:Fight):String {
+        if (fight.category == HistoryCatalog.HistoryCategory.OTHER && fight.targetDummy) return "Target dummy";
         return fight.phase != "" ? fight.phase : fight.bossName != "" ? fight.bossName
             : fight.bossKind != "" ? fight.bossKind : "Other combat";
     }
@@ -56,7 +57,7 @@ class FightHistory {
             category: text(record.category), categoryVersion: Std.int(number(record.categoryVersion)),
             activityId: text(record.activityId), bossKind: text(record.bossKind), phase: text(record.phase),
             difficulty: difficulty(record.difficulty), partySize: Std.int(number(record.partySize)), recordedPlayers: recordedPlayers(record),
-            outcome: outcome(record.outcome), damageTypeSummary: damageTypeSummary};
+            outcome: outcome(record.outcome), damageTypeSummary: damageTypeSummary, targetDummy: record.targetDummy == true};
     }
     public static function decode(record:Dynamic):Fight {
         validate(record);
@@ -67,6 +68,7 @@ class FightHistory {
         fight.bossName = record.name;
         fight.me = text(record.me); fight.meName = text(record.meName);
         fight.category = text(record.category); fight.activityId = text(record.activityId);
+        fight.targetDummy = record.targetDummy == true;
         fight.categoryVersion = Std.int(number(record.categoryVersion));
         fight.bossKind = text(record.bossKind); fight.phase = text(record.phase);
         fight.difficulty = difficulty(record.difficulty); fight.partySize = Std.int(number(record.partySize));
