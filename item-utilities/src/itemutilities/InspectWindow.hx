@@ -14,7 +14,7 @@ class InspectWindow {
     var container:Dynamic;
     var headingStyle:Dynamic;
     var title:Dynamic;
-    var boldLabels:Array<{object:Dynamic, width:Float, scale:Float}> = [];
+    var boldLabels:Array<{object:Dynamic, width:Float, scale:Float, x:Float, y:Float}> = [];
     var list:Dynamic;
     var status:Dynamic;
     var appearance = false;
@@ -31,7 +31,7 @@ class InspectWindow {
     var slots:Array<String> = LEFT_SLOTS.concat(RIGHT_SLOTS).concat(WEAPON_SLOTS);
     var signature:String;
     var nextRefresh:Float = 0;
-    static inline var WIDTH = 864;
+    static inline var WIDTH = 736;
     static inline var HEIGHT = 760;
 
     public function new() {}
@@ -138,6 +138,9 @@ class InspectWindow {
         var equipmentWidth = 528;
         var weaponsX = equipmentWidth + 24;
         var weaponsWidth = WIDTH - 48 - weaponsX;
+        // Item artwork starts two pixels into its card. Center the 64px icon
+        // in the compact weapon column, without reserving room for old labels.
+        var weaponSlotX = weaponsX + Std.int((weaponsWidth - 64) / 2) - 2;
         var rightColumn = equipmentWidth - 72;
         var shift = appearance ? Std.int((WIDTH - 48 - equipmentWidth) / 2) : 0;
         position(modeButton, 16 + shift + (equipmentWidth - 160) / 2, 16 + 612);
@@ -183,7 +186,7 @@ class InspectWindow {
             && G.call("st.Item", "allowShield", mainHand) == false ? mainHand : null;
         for (i in 0...WEAPON_SLOTS.length) {
             var index = weapons + i;
-            makeItem(slots[index], items[index], index, weaponsX, i == 2 ? 442 : 48 + i * 140, weaponsWidth,
+            makeItem(slots[index], items[index], index, weaponSlotX, i == 2 ? 442 : 48 + i * 140, 72,
                 null, i == 1 ? blockedOffHand : null);
         }
     }
@@ -207,7 +210,7 @@ class InspectWindow {
         }
     }
 
-    function boldLabel(parent:Dynamic, text:String, width:Float, scale:Float):Dynamic {
+    function boldLabel(parent:Dynamic, text:String, width:Float, scale:Float, x:Float, y:Float):Dynamic {
         // Use the native bold font with explicit sizing, as the window title
         // does. FmtText's automatic scaling would reset a manual enlargement.
         var object = G.create("h2d.Text", [G.field(headingStyle, "font"), parent]);
@@ -216,19 +219,20 @@ class InspectWindow {
         G.call("h2d.Text", "set_textColor", object, [0x5B4334]);
         G.call("h2d.Text", "set_lineBreak", object, [false]);
         G.call("h2d.Text", "set_textAlign", object, [G.enumeration("h2d.Align", "Left")]);
-        boldLabels.push({object: object, width: width, scale: scale});
-        fitBoldLabel(object, width, G.number(G.field(headingStyle, "scaleX"), 1) * scale);
+        boldLabels.push({object: object, width: width, scale: scale, x: x, y: y});
+        fitBoldLabel(object, width, G.number(G.field(headingStyle, "scaleX"), 1) * scale, x, y);
         return object;
     }
 
-    function fitBoldLabel(object:Dynamic, width:Float, scale:Float):Void {
+    function fitBoldLabel(object:Dynamic, width:Float, scale:Float, x:Float, y:Float):Void {
         var textWidth = Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", object)));
-        G.call("h2d.Object", "setScale", object, [Math.min(scale, width / textWidth)]);
+        var fittedScale = Math.min(scale, width / textWidth);
+        G.call("h2d.Object", "setScale", object, [fittedScale]);
+        position(object, x + (width - textWidth * fittedScale) / 2, y);
     }
 
     function section(name:String, x:Int, y:Int, width:Int):Void {
-        var text = boldLabel(G.field(list, "obj"), name, width, 22 / 14);
-        position(text, x, y);
+        boldLabel(G.field(list, "obj"), name, width, 22 / 14, x, y);
         // A native separator gives the weapon/arsenal groups the same visual
         // hierarchy as the character sheet, without editable inventory controls.
         var line = G.create("h2d.Graphics", [G.field(list, "obj")]);
@@ -315,7 +319,7 @@ class InspectWindow {
         var baseScale = G.number(G.field(headingStyle, "scaleX"), 1);
         for (entry in boldLabels) {
             if (font != null && font != G.field(entry.object, "font")) G.call("h2d.Text", "set_font", entry.object, [font]);
-            fitBoldLabel(entry.object, entry.width, baseScale * entry.scale);
+            fitBoldLabel(entry.object, entry.width, baseScale * entry.scale, entry.x, entry.y);
         }
         if (font != null && font != G.field(title, "font")) G.call("h2d.Text", "set_font", title, [font]);
         var titleScale = Math.min(baseScale * 1.75,
