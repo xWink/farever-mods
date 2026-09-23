@@ -160,9 +160,9 @@ class InspectWindow {
             var left = LEFT_SLOTS.filter(slot -> styles.exists(slot));
             var right = RIGHT_SLOTS.filter(slot -> styles.exists(slot));
             for (i in 0...left.length)
-                makeItem(left[i], styles.get(left[i]), i, shift, 96 + i * 116, 72, null, appearanceInventory);
+                makeItem(left[i], styles.get(left[i]), i, shift, 96 + i * 116, 72, appearanceInventory);
             for (i in 0...right.length)
-                makeItem(right[i], styles.get(right[i]), i + left.length, shift + rightColumn, 96 + i * 116, 72, null, appearanceInventory);
+                makeItem(right[i], styles.get(right[i]), i + left.length, shift + rightColumn, 96 + i * 116, 72, appearanceInventory);
             return;
         }
         section("Equipment", 0, 4, equipmentWidth);
@@ -176,10 +176,15 @@ class InspectWindow {
             makeItem(slots[right], items[right], right, rightColumn, 48 + i * 90, 72);
         }
         var weapons = LEFT_SLOTS.length + RIGHT_SLOTS.length;
+        var mainHand = items[weapons];
+        // Same AllowShield rule as the native character sheet, using the
+        // inspected player's main hand rather than the local player's weapon.
+        var blockedOffHand = items[weapons + 1] == null && mainHand != null
+            && G.call("st.Item", "allowShield", mainHand) == false ? mainHand : null;
         for (i in 0...WEAPON_SLOTS.length) {
             var index = weapons + i;
             makeItem(slots[index], items[index], index, weaponsX, i == 2 ? 442 : 48 + i * 140, weaponsWidth,
-                i == 0 ? "Main Hand" : i == 1 ? "Off Hand" : "Secondary Weapon");
+                null, i == 1 ? blockedOffHand : null);
         }
     }
 
@@ -233,17 +238,11 @@ class InspectWindow {
         G.call("h2d.Graphics", "endFill", line);
     }
 
-    function makeItem(slot:String, item:Dynamic, index:Int, x:Int, y:Int, width:Int, ?captionText:String, ?appearanceInventory:Dynamic):Void {
+    function makeItem(slot:String, item:Dynamic, index:Int, x:Int, y:Int, width:Int, ?appearanceInventory:Dynamic, ?blockedBy:Dynamic):Void {
         var card = node("flow", list, [], "itemUtilitiesInspectSlot" + index);
         var object = G.field(card, "obj");
         padding(object, 0); size(object, width, 94);
         absolute(G.field(list, "obj"), object); position(object, x, y);
-        // Armour and appearance use only icons, matching the character sheet.
-        // Weapon captions identify their slot; item details stay in tooltips.
-        if (captionText != null) {
-            var caption = boldLabel(object, captionText, width - 90, 18 / 14);
-            position(caption, 78, 32);
-        }
         var stack:Dynamic = item == null ? null : {count: 1, item: item};
         // ItemSlot supplies the native icon/rarity and actual-item tooltip.
         // Unlike InventorySlot it has no equip, transfer, drag or context actions.
@@ -259,6 +258,24 @@ class InspectWindow {
         absolute(object, icon); position(icon, 2, 12); size(icon, 64, 64);
         var inner = G.field(icon, "innerSlot");
         if (inner != null) size(inner, 64, 64);
+        if (item == null && blockedBy != null && inner != null) {
+            // Keep the slot/stack empty. A plain bitmap adds only the faded
+            // main-hand artwork, with no item tooltip, click or gamepad focus.
+            G.call("ui.UIElement", "set_getTip", icon, [null]);
+            G.set(icon, "showTipOnOver", false); style(icon, "show-tip-on-over", false);
+            G.call("ui.UIElement", "set_padFocusable", icon, [false]);
+            G.call("h2d.Flow", "set_enableInteractive", icon, [false]);
+            var mask = G.field(node("mask", G.field(inner, "dom"), [], "itemUtilitiesBlockedOffHand"), "obj");
+            absolute(inner, mask); position(mask, 3, 3);
+            G.set(mask, "width", 58); G.set(mask, "height", 58);
+            style(mask, "width", 58); style(mask, "height", 58);
+            var tile = G.staticCall("HItem", "getGfx", [G.field(blockedBy, "inf")]);
+            var ghost = G.create("h2d.Bitmap", [tile, mask]);
+            G.call("h2d.Bitmap", "set_width", ghost, [58.0]);
+            G.call("h2d.Bitmap", "set_height", ghost, [58.0]);
+            G.set(ghost, "alpha", 0.3);
+            return;
+        }
         var button = G.field(icon, "button");
         if (button != null) {
             // ItemSlot's native frame includes the filled background, so moving
