@@ -63,15 +63,6 @@ class InspectAccess {
         for (i in 0...count) out.push(call(type, "getDyn", value, [i]));
         return out;
     }
-    /** Inspecting an uninitialized object's type does not construct a GameUI. */
-    public static function hasMethod(type:String, name:String):Bool {
-        var t = HlxRuntime.resolveType(type);
-        if (t == null) return false;
-        var probe = HlxRuntime.allocInstance(t);
-        for (field in hl.Type.getDynamic(probe).getInstanceFields())
-            if ((@:privateAccess String.fromUCS2(field)) == name) return true;
-        return false;
-    }
     public static function uid(value:Dynamic):String {
         // Reflecting hl.I64 and formatting it preserves all 64 bits.
         return text(field(value, "__uid"));

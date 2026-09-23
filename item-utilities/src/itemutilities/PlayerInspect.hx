@@ -14,15 +14,20 @@ class PlayerInspect {
     static var requested:InspectTarget;
     static var popup:InspectWindow;
     static var active = false;
+    static var reportedMenuIssue = false;
 
     public static function initialize(enabled:Void->Bool):Void {
         isEnabled = enabled;
         try {
-            if (!G.hasMethod("ui.GameUI", "openPlayerInteractionMenu")) return;
-            HlxRuntime.registerPrefix(menuKey, beginMenu, receiveMenu);
-            HlxRuntime.registerPostfix(menuKey, endMenu, receiveMenu);
-            HlxRuntime.registerPrefix(contextKey, extendMenu, receiveContext);
-            active = true;
+            // main() runs BEFORE HLX's modsLoaded/module recovery. A live type
+            // lookup here returns null, permanently disabling the feature. Read
+            // bytecode metadata now and let the loader resolve/install these
+            // normal, cooperative hooks after recovery, alongside all others.
+            active = InspectSupport.registerForClient(InspectSupport.clientPath(), () -> {
+                HlxRuntime.registerPrefix(menuKey, beginMenu, receiveMenu);
+                HlxRuntime.registerPostfix(menuKey, endMenu, receiveMenu);
+                HlxRuntime.registerPrefix(contextKey, extendMenu, receiveContext);
+            });
         } catch (error:Dynamic) trace("[Item Utilities] Inspect unavailable: " + error);
     }
     static function receiveMenu(ui:Dynamic, uid:String, name:String, position:Dynamic):Dynamic
@@ -34,6 +39,8 @@ class PlayerInspect {
         return Continue;
     }
     static function endMenu(ui:Dynamic, uid:String, name:String, position:Dynamic, result:Dynamic):Dynamic {
+        if (context.take(ui) != null && result != null && isEnabled())
+            reportMenuIssue("The social menu opened without reaching the context-menu hook");
         context.clear();
         return result;
     }
@@ -43,7 +50,10 @@ class PlayerInspect {
         try {
             var icons = G.field(G.current("Data", "icon"), "byId");
             var icon = G.call("haxe.ds.StringMap", "get", icons, ["SendMessage"]);
-            if (icon == null) return Continue;
+            if (icon == null) {
+                reportMenuIssue("SendMessage icon metadata was not available");
+                return Continue;
+            }
             var sendMessage = G.text(G.staticCall("HText", "icon", [icon, null]));
             var index = InspectMenuContext.insertionIndex(
                 [for (item in G.array(items)) G.text(G.field(item, "label"))], sendMessage);
@@ -53,9 +63,14 @@ class PlayerInspect {
                     if (isEnabled()) requested = target;
                 }};
                 G.call("hl.types.ArrayObj", "insertDyn", items, [index, entry]);
-            }
-        } catch (error:Dynamic) trace("[Item Utilities] Could not add Inspect: " + error);
+            } else reportMenuIssue("The social menu did not contain the expected Send message label");
+        } catch (error:Dynamic) reportMenuIssue(Std.string(error));
         return Continue;
+    }
+    static function reportMenuIssue(message:String):Void {
+        if (reportedMenuIssue) return;
+        reportedMenuIssue = true;
+        trace("[Item Utilities] Could not add Inspect: " + message);
     }
     public static function update():Void {
         if (!active) return;

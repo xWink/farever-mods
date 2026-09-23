@@ -47,3 +47,8 @@
 -cp tests
 -main InspectMenuContextTest
 --interp
+--next
+-cp src
+-cp tests
+-main InspectSupportTest
+--interp
