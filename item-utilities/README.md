@@ -32,6 +32,9 @@ panel rectangle and is collected once per frame.
 Hold Interact on another player and choose **Inspect**, immediately below
 **Send message**. The native window shows their equipped weapons, armour, and
 accessories, with item icons, rarity colours, and the game's item-detail tooltips.
+The taller **Inspecting: <name>** window follows the character page's equipment
+column order, with Main Hand, Off Hand, and Arsenal in a separate weapons section.
+Hover an item icon to see its details.
 These are their actual equipped items, independently of cosmetic appearances.
 The window updates when their equipped gear changes and closes with X or Escape.
 

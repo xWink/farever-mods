@@ -16,11 +16,16 @@ class InspectWindow {
     var title:Dynamic;
     var list:Dynamic;
     var status:Dynamic;
-    var slots:Array<String> = [];
+    // Match the character sheet's two equipment columns. Weapons are separate
+    // slots, not display category 3 (the unused Defense category).
+    static final LEFT_SLOTS = ["Slot_Head", "Slot_Neck", "Slot_Shoulders", "Slot_Chest", "Slot_Back", "Slot_FingerLeft"];
+    static final RIGHT_SLOTS = ["Slot_Hands", "Slot_Waist", "Slot_Legs", "Slot_Feet", "Slot_Trinket", "Slot_FingerRight"];
+    static final WEAPON_SLOTS = ["Slot_Weapon1", "Slot_OffhandWeapon", "Slot_Weapon2"];
+    var slots:Array<String> = LEFT_SLOTS.concat(RIGHT_SLOTS).concat(WEAPON_SLOTS);
     var signature:String;
     var nextRefresh:Float = 0;
-    static inline var WIDTH = 760;
-    static inline var HEIGHT = 620;
+    static inline var WIDTH = 1080;
+    static inline var HEIGHT = 760;
 
     public function new() {}
 
@@ -71,24 +76,17 @@ class InspectWindow {
         // Plain Text deliberately avoids interpreting markup in player names.
         title = G.create("h2d.Text", [G.field(headingStyle, "font"), header]);
         absolute(header, title);
-        G.call("h2d.Text", "set_text", title, ["Inspect: " + (target.name == null ? "Player" : target.name)]);
+        G.call("h2d.Text", "set_text", title, ["Inspecting: " + (target.name == null ? "Player" : target.name)]);
         G.call("h2d.Text", "set_textColor", title, [0x8A5F46]);
         G.call("h2d.Text", "set_textAlign", title, [G.enumeration("h2d.Align", "Left")]);
         G.call("h2d.Text", "set_lineBreak", title, [false]);
-        status = label(parent, "Equipped items · Hover an item for details");
-        absolute(container, status); position(status, 16, 12);
+        status = label(parent, "This player's equipment is unavailable. Try again when they are nearby.");
+        absolute(container, status); position(status, 16, 20); show(status, false);
         G.call("ui.comp.FmtText", "set_maxWidthText", status, [WIDTH - 64]);
         list = node("flow", parent, [], "itemUtilitiesInspectItems", "vertical");
         var listObject = G.field(list, "obj");
         absolute(container, listObject); padding(listObject, 0);
-        size(listObject, WIDTH - 48, HEIGHT - 126); position(listObject, 16, 46);
-        var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
-        flow(list, "set_overflow", scroll); style(listObject, "overflow", scroll);
-        // The same categories as the character's equipment page and presets:
-        // both weapons/offhand, then armour and accessories. No bags/consumables.
-        for (category in [3, 0, 1])
-            for (slot in G.array(G.staticCall("st._Equipment.EquipmentSlot_Impl_", "iter", [category, null])))
-                slots.push(G.text(slot));
+        size(listObject, WIDTH - 48, HEIGHT - 100); position(listObject, 16, 16);
         refresh();
     }
 
@@ -111,46 +109,83 @@ class InspectWindow {
         if (signature == next) return;
         signature = next;
         for (child in children(G.field(list, "obj"))) G.call("h2d.Object", "remove", child);
-        setText(status, available ? "Equipped items · Hover an item for details"
-            : "This player's equipment is unavailable. Try again when they are nearby.");
+        show(status, !available);
         if (!available) return;
-        var row:Dynamic = null;
-        for (i in 0...slots.length) {
-            if (i % 2 == 0) {
-                row = node("flow", list, [], "itemUtilitiesInspectRow" + i, "horizontal");
-                padding(G.field(row, "obj"), 0); size(G.field(row, "obj"), WIDTH - 64, 76);
-            }
-            makeItem(row, slots[i], items[i], i);
+        section("Equipment", 0, 4, 694);
+        section("Weapons", 722, 4, 310);
+        section("Arsenal", 722, 398, 310);
+        // Preserve each column's top-to-bottom order instead of interleaving
+        // categories in a row-major list. All six rows fit without scrolling.
+        for (i in 0...LEFT_SLOTS.length) {
+            makeItem(slots[i], items[i], i, 0, 48 + i * 98, 340);
+            var right = i + LEFT_SLOTS.length;
+            makeItem(slots[right], items[right], right, 354, 48 + i * 98, 340);
+        }
+        var weapons = LEFT_SLOTS.length + RIGHT_SLOTS.length;
+        for (i in 0...WEAPON_SLOTS.length) {
+            var index = weapons + i;
+            makeItem(slots[index], items[index], index, 722, i == 2 ? 442 : 48 + i * 140, 310,
+                i == 0 ? "Main Hand" : i == 1 ? "Off Hand" : "Secondary Weapon");
         }
     }
 
-    function makeItem(parent:Dynamic, slot:String, item:Dynamic, index:Int):Void {
-        var card = node("flow", parent, [], "itemUtilitiesInspectSlot" + index);
+    function section(name:String, x:Int, y:Int, width:Int):Void {
+        var text = label(list, name);
+        G.call("domkit.Properties", "addClass", G.field(text, "dom"), ["bold-14"]);
+        absolute(G.field(list, "obj"), text); position(text, x, y);
+        // A native separator gives the weapon/arsenal groups the same visual
+        // hierarchy as the character sheet, without editable inventory controls.
+        var line = G.create("h2d.Graphics", [G.field(list, "obj")]);
+        absolute(G.field(list, "obj"), line);
+        G.call("h2d.Graphics", "beginFill", line, [0xA98C7D, 0.65]);
+        G.call("h2d.Graphics", "drawRect", line, [x, y + 28, width, 1]);
+        G.call("h2d.Graphics", "endFill", line);
+    }
+
+    function makeItem(slot:String, item:Dynamic, index:Int, x:Int, y:Int, width:Int, ?captionText:String):Void {
+        var card = node("flow", list, [], "itemUtilitiesInspectSlot" + index);
         var object = G.field(card, "obj");
-        padding(object, 0); size(object, 348, 76);
-        var name = G.text(G.staticCall("HText", "equipmentSlot", [slot]), slot);
+        padding(object, 0); size(object, width, 94);
+        absolute(G.field(list, "obj"), object); position(object, x, y);
+        var name = captionText == null ? G.text(G.staticCall("HText", "equipmentSlot", [slot]), slot) : captionText;
         var caption = label(card, name);
         G.call("domkit.Properties", "addClass", G.field(caption, "dom"), ["bold-14"]);
-        absolute(object, caption); position(caption, 66, 9);
-        G.call("ui.comp.FmtText", "set_maxWidthText", caption, [266]);
+        absolute(object, caption); position(caption, 78, 14);
+        G.call("ui.comp.FmtText", "set_maxWidthText", caption, [width - 90]);
         G.call("ui.comp.FmtText", "set_useEllipsis", caption, [true]);
         var itemName = label(card, item == null ? "Empty" : "");
-        absolute(object, itemName); position(itemName, 66, 34);
-        G.call("ui.comp.FmtText", "set_maxWidthText", itemName, [266]);
-        G.call("ui.comp.FmtText", "set_useEllipsis", itemName, [true]);
+        absolute(object, itemName); position(itemName, 78, 40);
+        G.call("ui.comp.FmtText", "set_maxWidthText", itemName, [width - 90]);
+        G.call("ui.comp.FmtText", "set_useEllipsis", itemName, [false]);
         if (item != null)
             G.call("ui.comp.FmtText", "set_text", itemName, [G.call("st.Item", "getColoredName", item)]);
         var stack:Dynamic = item == null ? null : {count: 1, item: item};
         // ItemSlot supplies the native icon/rarity and actual-item tooltip.
         // Unlike InventorySlot it has no equip, transfer, drag or context actions.
         var icon = G.field(node("item-slot", card, [stack, G.field(item, "inf")], "itemUtilitiesInspectIcon" + index), "obj");
-        absolute(object, icon); position(icon, 2, 8); size(icon, 54, 54);
+        absolute(object, icon); position(icon, 2, 12); size(icon, 64, 64);
         var inner = G.field(icon, "innerSlot");
-        if (inner != null) size(inner, 54, 54);
+        if (inner != null) size(inner, 64, 64);
         var button = G.field(icon, "button");
         if (button != null) {
+            // ItemSlot's native frame includes the filled background, so moving
+            // it over the item would hide the artwork as well. Confine artwork
+            // to the inside of its bevel; even oversized icons cannot cover it.
+            var mask = G.field(button, "parent");
+            if (mask != null && inner != null) {
+                absolute(inner, mask); position(mask, 3, 3);
+                G.set(mask, "width", 58); G.set(mask, "height", 58);
+                style(mask, "width", 58); style(mask, "height", 58);
+                padding(button, 0); size(button, 58, 58); position(button, 0, 0);
+            }
             G.call("ui.UIElement", "set_onClick", button, [null]);
             G.call("ui.UIElement", "set_onRightClick", button, [null]);
+            // These setters make the child button interactive. It receives the
+            // hover before ItemSlot, so it must share ItemSlot's native getter.
+            // That getter uses the actual replicated item (level, affixes, etc.).
+            G.call("ui.UIElement", "set_getTip", button, [G.field(icon, "getTip")]);
+            G.set(button, "showTipOnOver", true);
+            style(button, "show-tip-on-over", true);
         }
     }
 
