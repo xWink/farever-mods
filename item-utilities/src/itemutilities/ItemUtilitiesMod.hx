@@ -295,6 +295,7 @@ class ItemUtilitiesMod {
                 function(_:Dynamic):Void resetCharacterData(resetKind)
             );
         }
+        PlayerInspect.initialize(() -> enabled.get());
         ImGui.register(HlxRuntime.moduleName(), draw);
     }
 
@@ -783,6 +784,7 @@ class ItemUtilitiesMod {
     }
 
     static function draw():Void {
+        PlayerInspect.update();
         NativeUiLayout.beginFrame();
         presetDropdown.beginFrame();
         windowOccluders = null;

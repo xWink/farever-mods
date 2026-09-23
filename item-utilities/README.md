@@ -27,6 +27,21 @@ panel rectangle and is collected once per frame.
 
 ## Features
 
+### Inspect players (PTR social menu)
+
+Hold Interact on another player and choose **Inspect**, immediately below
+**Send message**. The native window shows their equipped weapons, armour, and
+accessories, with item icons, rarity colours, and the game's item-detail tooltips.
+These are their actual equipped items, independently of cosmetic appearances.
+The window updates when their equipped gear changes and closes with X or Escape.
+
+Inspect is read-only and uses equipment already available to your client. If a
+player leaves or their equipment is unavailable, the window says so. It does not
+request private inventory data or provide equip, drag, or transfer actions.
+The option is included whenever Item Utilities is enabled. On clients without
+the new player social menu, its hooks are not registered and other features
+continue to work normally.
+
 ### Hold interact to quick-loot
 
 Enable **Hold interact to quick-loot** under **General** in Better Mod Settings,

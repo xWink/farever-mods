@@ -42,3 +42,8 @@
 -cp tests
 -main PresetDropdownStateTest
 --interp
+--next
+-cp src
+-cp tests
+-main InspectMenuContextTest
+--interp
