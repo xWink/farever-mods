@@ -69,6 +69,10 @@ mods also compile the migration helper from `shared/src/`.
 
 ## Independent CI and releases
 
+Use **Farever Mod Release** with a mod name, version, and your changelog to
+publish to GitHub and Nexus Mods. See [RELEASING.md](RELEASING.md) for the
+one-time Nexus API-key setup and the build-only validation option.
+
 Each mod has its own workflow in `.github/workflows/build-<project>.yml`:
 
 - Pushes to `main` and pull requests build only projects whose directory or

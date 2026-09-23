@@ -1,0 +1,29 @@
+name: Release automation checks
+on:
+  push:
+    branches: [main]
+    paths: ['tools/release/**', '.github/workflows/**', '.github/release-request.json', 'RELEASING.md']
+  pull_request:
+    paths: ['tools/release/**', '.github/workflows/**', '.github/release-request.json', 'RELEASING.md']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test release boundaries, packaging and retries
+        run: python3 -m unittest discover -s tools/release -p 'test_*.py' -v
+      - name: Check request format
+        run: python3 tools/release/release.py check
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - name: Validate GitHub workflow syntax
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes=

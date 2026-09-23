@@ -1,0 +1,186 @@
+name: Release mod to GitHub and Nexus
+run-name: Mod release request (${{ github.sha }})
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/release-request.json']
+  workflow_dispatch:
+
+# A request is explicit publishing intent. Ordinary source pushes never publish.
+# Serial execution prevents two requests from publishing the same version.
+concurrency:
+  group: farever-mod-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+      project: ${{ steps.plan.outputs.project }}
+      source: ${{ steps.plan.outputs.source }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate request and Nexus destination
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+        run: python3 tools/release/release.py prepare
+
+  better-mod-settings:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'better-mod-settings'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-better-mod-settings.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  item-utilities:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'item-utilities'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-item-utilities.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  more-settings:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'more-settings'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-more-settings.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  fix-target-lock:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'fix-target-lock'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-fix-target-lock.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  dps-meter:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'dps-meter'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-dps-meter.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  minimap:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'minimap'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-minimap.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  mod-update-alerts:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'mod-update-alerts'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-mod-update-alerts.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
+  publish:
+    needs: [prepare, better-mod-settings, item-utilities, more-settings, fix-target-lock, dps-meter, minimap, mod-update-alerts]
+    if: always() && needs.prepare.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_PLAN: ${{ needs.prepare.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: farever-${{ needs.prepare.outputs.project }}
+          path: package
+      - name: Package and publish GitHub release
+        id: github
+        run: python3 tools/release/release.py github
+      - name: Recheck Nexus before upload
+        if: steps.github.outputs.nexus_done != 'true'
+        env:
+          NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+        run: python3 tools/release/release.py nexus-check
+      - name: Publish the same ZIP and changelog to Nexus
+        if: steps.github.outputs.nexus_done != 'true'
+        id: nexus
+        # Pinned official implementation including changelogs (beta.9 lacks them).
+        uses: Nexus-Mods/upload-action@98532f7670c27cbecc78fae03fa3e278147827e2
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ fromJSON(needs.prepare.outputs.plan).nexus_file_id }}
+          mod_id: ${{ fromJSON(needs.prepare.outputs.plan).nexus_mod_id }}
+          filename: ${{ steps.github.outputs.archive }}
+          version: ${{ fromJSON(needs.prepare.outputs.plan).version }}
+          display_name: ${{ fromJSON(needs.prepare.outputs.plan).title }}
+          changelog: ${{ fromJSON(needs.prepare.outputs.plan).notes }}
+          category: main
+          update_mod_version: 'true'
+          primary_mod_manager_download: 'true'
+          allow_mod_manager_download: 'true'
+          archive_existing_version: 'false'
+      - name: Verify Nexus upload and record completion
+        if: steps.github.outputs.nexus_done != 'true'
+        env:
+          NEXUSMODS_API_KEY: ${{ secrets.NEXUSMODS_API_KEY }}
+          NEXUS_VERSION_ID: ${{ steps.nexus.outputs.version_id }}
+        run: python3 tools/release/release.py nexus-finish
+      - name: Save dry-run ZIP
+        if: fromJSON(needs.prepare.outputs.plan).dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run-${{ needs.prepare.outputs.project }}
+          path: |
+            build/release/*.zip
+            build/release/release-manifest.json
+          if-no-files-found: error
+      - name: Summarize results
+        if: always()
+        env:
+          GITHUB_RELEASE_URL: ${{ steps.github.outputs.url }}
+          NEXUS_DONE: ${{ steps.github.outputs.nexus_done }}
+          NEXUS_OUTCOME: ${{ steps.nexus.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY_SUMMARY'
+          import json, os
+          plan = json.loads(os.environ['RELEASE_PLAN'])
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write(f"## {plan['title']}\n\n")
+              if plan['dry_run']:
+                  summary.write(f"Build-only validation: {os.environ['JOB_STATUS']}. Nothing published.\n")
+              else:
+                  url = os.environ['GITHUB_RELEASE_URL']
+                  summary.write(f"GitHub: {url or 'not published by this attempt'}\n\n")
+                  if plan['prerelease']:
+                      summary.write('Prerelease: Nexus stable download and page version were not changed.\n')
+                  else:
+                      summary.write(f"Nexus: {plan['nexus_url']}\n\n")
+                      summary.write(f"Nexus upload step: {os.environ['NEXUS_OUTCOME'] or 'skipped'}; already complete: {os.environ['NEXUS_DONE']}.\n")
+                  summary.write(f"Overall result: {os.environ['JOB_STATUS']}. Inspect failed steps before retrying.\n")
+          PY_SUMMARY

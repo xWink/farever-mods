@@ -3,6 +3,10 @@ name: Build and release one mod
 on:
   workflow_call:
     inputs:
+      source-ref:
+        description: Exact source commit for the release pipeline
+        type: string
+        default: ""
       project:
         description: Subproject directory and release tag prefix
         required: true
@@ -46,6 +50,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
 
       - name: Validate release tag
         if: github.ref_type == 'tag'
@@ -131,6 +136,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
 
       - name: Download this mod's build
         uses: actions/download-artifact@v4

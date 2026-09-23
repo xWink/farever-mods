@@ -1,0 +1,9 @@
+{
+  "better-mod-settings": {"title": "Better Mod Settings", "nexus_page_id": 10, "nexus_file_id": null},
+  "item-utilities": {"title": "Item Utilities", "nexus_page_id": 9, "nexus_file_id": null},
+  "more-settings": {"title": "More Settings", "nexus_page_id": 6, "nexus_file_id": null},
+  "fix-target-lock": {"title": "Fix Target Lock", "nexus_page_id": 8, "nexus_file_id": null},
+  "dps-meter": {"title": "DPS Meter", "nexus_page_id": 11, "nexus_file_id": null},
+  "minimap": {"title": "Minimap", "nexus_page_id": 15, "nexus_file_id": null},
+  "mod-update-alerts": {"title": "Mod Update Alerts", "nexus_page_id": 17, "nexus_file_id": null}
+}

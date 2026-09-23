@@ -1,6 +1,12 @@
 name: Mod Update Alerts
 
 on:
+  workflow_call:
+    inputs:
+      source-ref:
+        description: Exact source commit for the release pipeline
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [main]
@@ -20,14 +26,17 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  group: build-mod-update-alerts-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source-ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' && inputs.source-ref == '' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
@@ -39,6 +48,7 @@ jobs:
     needs: test
     uses: ./.github/workflows/_build-mod.yml
     with:
+      source-ref: ${{ inputs.source-ref }}
       project: mod-update-alerts
       module: mod-update-alerts
       title: Mod Update Alerts

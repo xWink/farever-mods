@@ -1,6 +1,12 @@
 name: DPS Meter
 
 on:
+  workflow_call:
+    inputs:
+      source-ref:
+        description: Exact source commit for the release pipeline
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [main]
@@ -20,8 +26,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  group: build-dps-meter-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source-ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' && inputs.source-ref == '' }}
 
 jobs:
   build:
@@ -35,6 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
       - name: Validate release tag
         if: github.ref_type == 'tag'
         run: |
@@ -79,6 +86,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: farever-dps-meter
@@ -101,6 +109,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: farever-dps-meter
