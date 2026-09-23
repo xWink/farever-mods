@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.9.1",
-  "commit": "d12c8b2135cc6d38ba7d6a32113a4eca2766d664",
-  "notes": "- Fixed preset dropdown options passing hover and clicks through to tabs and other game controls underneath.\n",
+  "project": "dps-meter",
+  "version": "1.4.3",
+  "commit": "396c4070da34c59364a2ffaf6904ec23680a05ee",
+  "notes": "- Target dummy fights are now saved in Fight History.\n- Added a Target Dummies category between World Bosses and Other. Previously saved target-dummy fights also appear in this category.\n",
   "dry_run": false
 }
