@@ -198,7 +198,7 @@ class UpdatePopup {
         if(index<0 || index>=updates.length) return;
         detailIndex=index;
         var entry=updates[index];
-        setText(detailTitle,entry.name+" — "+entry.latest);
+        setText(detailTitle,entry.name+" "+entry.latest);
         setText(notesText,entry.changelog==null || entry.changelog==""
             ? "No changelog was provided for this release on Nexus Mods." : entry.changelog);
         G.set(notesPanel,"scrollPosY",0.0);
