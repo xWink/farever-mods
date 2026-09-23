@@ -94,7 +94,21 @@ def api(service, path, data=None, missing_ok=False):
 
 
 def github_release(plan):
-    return api('github', 'releases/tags/' + urllib.parse.quote(plan['tag'], safe=''), missing_ok=True)
+    release = api('github', 'releases/tags/' + urllib.parse.quote(plan['tag'], safe=''), missing_ok=True)
+    if release:
+        return release
+    # The tag endpoint does not return drafts. Authenticated release listings
+    # do, so recover a draft (and its original assets) before creating anything.
+    page = 1
+    while True:
+        releases = api('github', f'releases?per_page=100&page={page}')
+        matches = [record for record in releases if record['tag_name'] == plan['tag']]
+        require(len(matches) <= 1, 'Multiple releases match this tag; inspect them before retrying')
+        if matches:
+            return matches[0]
+        if len(releases) < 100:
+            return None
+        page += 1
 
 
 def asset(release, name):
@@ -260,8 +274,13 @@ def publish_github(plan):
             args.append('--prerelease')
         subprocess.run(args, check=True, cwd=ROOT)
         release = github_release(plan)
+        require(release is not None, 'Created release could not be found; inspect the draft before retrying')
     if release['draft']:
         subprocess.run(['gh', 'release', 'edit', plan['tag'], '--repo', REPO, '--draft=false', '--latest=false'], check=True, cwd=ROOT)
+        # A draft has an untagged URL. Refresh the same release by ID so the
+        # workflow reports its published URL and confirms publication succeeded.
+        release = api('github', f"releases/{release['id']}")
+        require(not release['draft'], 'GitHub release is still a draft after publishing')
     output('nexus_done', 'true' if receipt_exists(plan, release) or plan['prerelease'] else 'false')
     output('url', release['html_url'])
     output('archive', str(archive))

@@ -194,6 +194,43 @@ class ReleaseTests(unittest.TestCase):
             command.assert_not_called()
         self.assertEqual((self.work / self.plan['archive']).read_bytes(), old_zip.read_bytes())
 
+    def test_find_draft_when_tag_endpoint_returns_404(self):
+        draft = {**self.existing(), 'tag_name': self.plan['tag'], 'draft': True}
+        first_page = [{'tag_name': f'other/v{i}'} for i in range(100)]
+        with patch.object(release, 'api', side_effect=[None, first_page, [draft]]) as api:
+            self.assertEqual(release.github_release(self.plan), draft)
+        self.assertEqual(api.call_args_list[-1].args, ('github', 'releases?per_page=100&page=2'))
+
+    def test_missing_release_checks_drafts_before_returning_none(self):
+        with patch.object(release, 'api', side_effect=[None, []]) as api:
+            self.assertIsNone(release.github_release(self.plan))
+        self.assertEqual(api.call_args_list[-1].args, ('github', 'releases?per_page=100&page=1'))
+
+    def test_published_release_does_not_need_draft_listing(self):
+        with patch.object(release, 'api', return_value=self.existing()) as api:
+            self.assertEqual(release.github_release(self.plan), self.existing())
+        self.assertEqual(api.call_count, 1)
+
+    def test_retry_publishes_existing_draft_without_replacing_assets(self):
+        self.package()
+        old_zip = self.work / 'old.zip'
+        old_zip.write_bytes(b'original draft artifact')
+        draft = {**self.existing(), 'id': 42, 'draft': True, 'html_url': 'draft-url'}
+        published = {**draft, 'draft': False, 'html_url': 'published-url'}
+        with patch.object(release, 'verify_tag'), patch.object(release, 'github_release', return_value=draft), \
+             patch.object(release, 'verify_existing', return_value={'sha256': release.digest(old_zip)}), \
+             patch.object(release, 'download_asset', return_value=old_zip), \
+             patch.object(release, 'receipt_exists', return_value=False), \
+             patch.object(release, 'api', return_value=published) as api, \
+             patch.object(release, 'output') as output, patch.object(release.subprocess, 'run') as command:
+            release.publish_github(self.plan)
+        command.assert_called_once_with(['gh', 'release', 'edit', self.plan['tag'], '--repo', release.REPO,
+                                        '--draft=false', '--latest=false'], check=True, cwd=self.root)
+        api.assert_called_once_with('github', 'releases/42')
+        output.assert_any_call('url', 'published-url')
+        output.assert_any_call('archive', str(old_zip))
+        self.assertEqual(old_zip.read_bytes(), b'original draft artifact')
+
     def test_hash_mismatch_stops_retry(self):
         self.package()
         bad = self.work / 'bad.zip'
@@ -212,7 +249,7 @@ class ReleaseTests(unittest.TestCase):
                     release.github_release(self.plan)
             error = urllib.error.HTTPError('https://example.invalid', 404, 'missing', {}, io.BytesIO())
             with patch.object(release.urllib.request, 'urlopen', side_effect=error):
-                self.assertIsNone(release.github_release(self.plan))
+                self.assertIsNone(release.api('github', 'releases/tags/missing', missing_ok=True))
 
     def test_no_local_or_branch_publishing(self):
         for env in [{}, {'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY': release.REPO, 'GITHUB_REF': 'refs/heads/test'}]:
