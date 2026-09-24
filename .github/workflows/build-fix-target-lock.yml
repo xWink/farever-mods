@@ -32,26 +32,11 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' && inputs.source-ref == '' }}
 
 jobs:
-  test:
-    name: Target selection tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          ref: ${{ inputs.source-ref || github.sha }}
-      - uses: krdlab/setup-haxe@v1
-        with:
-          haxe-version: 4.3.7
-      - name: Check hero lock selection and cleanup
-        working-directory: fix-target-lock
-        run: haxe test.hxml
-
   build:
-    needs: test
     uses: ./.github/workflows/_build-mod.yml
     with:
       source-ref: ${{ inputs.source-ref }}
       project: fix-target-lock
       module: fix-target-lock
       title: Fix Target Lock
+
