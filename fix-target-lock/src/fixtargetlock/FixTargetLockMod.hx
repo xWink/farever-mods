@@ -10,6 +10,7 @@ typedef TargetLockConfig = {
     var enabled:Bool;
     var autoUnlockOnDeath:Bool;
     var quickSwapTarget:Bool;
+    var allowHeroTargets:Bool;
     var disableCameraMovement:Bool;
     var quickCast:Bool;
 }
@@ -27,6 +28,7 @@ class FixTargetLockMod {
         enabled: true,
         autoUnlockOnDeath: true,
         quickSwapTarget: false,
+        allowHeroTargets: false,
         disableCameraMovement: false,
         quickCast: false
     };
@@ -96,7 +98,7 @@ class FixTargetLockMod {
             var inLock:Dynamic = HlxRuntime.resolveField(instance, "inLock");
             if (inLock == true) {
                 var swapped = false;
-                var aimedTarget:Dynamic = HlxRuntime.resolveField(instance, "autoTarget");
+                var aimedTarget:Dynamic = config.quickSwapTarget ? pickLockTarget(instance) : null;
                 if (config.quickSwapTarget && aimedTarget != null) {
                     var lockedTarget = getLockedTarget(instance);
                     if (lockedTarget != aimedTarget) {
@@ -111,7 +113,10 @@ class FixTargetLockMod {
                     lastStatus = "Unlocked";
                 }
             } else {
-                HlxRuntime.callResolved(lockAutoTargetMember, [instance]);
+                if (config.allowHeroTargets)
+                    HlxRuntime.callResolved(lockTargetMember, [instance, pickLockTarget(instance)]);
+                else
+                    HlxRuntime.callResolved(lockAutoTargetMember, [instance]);
                 updateStatus(instance);
             }
 
@@ -120,6 +125,18 @@ class FixTargetLockMod {
             lastStatus = "Error: " + Std.string(e);
             trace("[FixTargetLock] " + lastStatus);
         }
+    }
+
+    static function pickLockTarget(controller:Dynamic):Dynamic {
+        return config.allowHeroTargets ? HeroLockSelection.pick(controller)
+            : HlxRuntime.resolveField(controller, "autoTarget");
+    }
+
+    // Only broaden the native candidate filter during an explicit Lock Target
+    // selection. Ordinary auto-aim, skill hit filters and PvP rules stay native.
+    @:hlx.postfix(ent.GameObject.isEnemy)
+    static function includeHeroesInLockSelection(instance:Dynamic, target:Dynamic, result:Bool):Bool {
+        return result || HeroLockSelection.includes(instance, target);
     }
 
     static function resolveMembers():Bool {
@@ -458,12 +475,19 @@ class FixTargetLockMod {
 
     static function onBetterModSettingsChanged(_:Dynamic):Void {
         var wasEnabled = config.enabled;
+        var allowedHeroTargets = config.allowHeroTargets;
         loadConfig();
         if (wasEnabled && !config.enabled)
             disableAndUnlock();
         else if (!wasEnabled && config.enabled) {
             lastAppliedTargetLock = null;
             applyFeatureFlag();
+        }
+        if (allowedHeroTargets && !config.allowHeroTargets && lastController != null) {
+            try {
+                if (TargetLockGame.isHero(getLockedTarget(lastController)) && resolveMembers())
+                    HlxRuntime.callResolved(leaveLockMember, [lastController]);
+            } catch (_:Dynamic) {}
         }
     }
 

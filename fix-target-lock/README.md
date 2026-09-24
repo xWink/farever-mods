@@ -30,12 +30,18 @@ Open **Mod Settings** from Farever's Game Menu to configure the mod.
 - **Enable** restores the target-lock feature. Disabling the mod clears the current lock and restores Farever's original feature flag.
 - **Auto-unlock when target dies** clears the lock as soon as the locked enemy is defeated or despawns. It is enabled by default.
 - **Press Lock Target to switch targets** changes the lock directly to Farever's current `autoTarget` when another enemy is aimed at. Pressing it without another valid target still unlocks normally. It is disabled by default.
+- **Allow locking onto heroes** includes other players when you press Lock Target, using the game's normal distance, visibility and aiming rules. Target-based skills are then directed at that player through the normal skill-use path. Works with target switching and auto-unlock, and is disabled by default. Turning it off clears a current hero lock.
 - **Disable automatic camera movement** prevents Farever from pulling the camera's yaw and pitch toward the locked enemy, leaving camera rotation under manual control while preserving the normal locked-camera sensitivity. It is disabled by default.
 - **Enable quick cast** lets you hold a ground-targeted skill's bound button to aim, then release it to cast. Uses the native ground indicator and cancellation controls. It works without a target lock and is disabled by default.
 - Use Farever's normal **Lock Target** key or controller binding to toggle a target lock.
 - Farever's native animated hard-lock indicator appears above the locked enemy.
 
 Settings are saved to `Farever\hlx\config\fix-target-lock\config.json`.
+
+Hero locking provides a target for abilities that support players; it does not
+start a native duel or enable every ability to damage players. Skill-specific
+hit rules, cooldowns, resource costs and server PvP checks still apply. Ground
+aiming and ordinary unlocked auto-targeting keep their existing behavior.
 
 ## How it works
 

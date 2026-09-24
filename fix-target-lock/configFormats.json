@@ -23,6 +23,11 @@
       "label": "Press Lock Target to switch targets"
     },
     {
+      "key": "allowHeroTargets",
+      "type": "checkbox",
+      "label": "Allow locking onto heroes"
+    },
+    {
       "key": "disableCameraMovement",
       "type": "checkbox",
       "label": "Disable automatic camera movement"
