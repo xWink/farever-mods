@@ -45,7 +45,11 @@ GitHub publishing uses the built-in workflow token and needs no additional key.
    `<project>/v<version>` as an annotated tag, and publishes the GitHub release.
 5. For stable versions, the pinned official Nexus upload Action uploads that
    same ZIP, makes it the main/default mod-manager download, updates the mod-page
-   version, and adds the supplied changelog. Older downloads are retained.
+   version, and adds the supplied changelog. The Nexus file display name is just
+   the configured mod name (for example, `More Settings`); its version is stored
+   separately. GitHub release titles still include the version. Uploading the
+   replacement archives the previous version of that Nexus file rather than
+   leaving it as an active download. Archived files are retained, not deleted.
 6. GitHub stores `release-manifest.json` (source/request identity and ZIP hash)
    and, after successful Nexus upload/changelog creation, `nexus-receipt.json`.
    The run summary shows the GitHub and Nexus links and any failed stage.

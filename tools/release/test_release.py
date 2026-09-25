@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 import shutil
 import unittest
@@ -48,6 +49,32 @@ class ReleaseTests(unittest.TestCase):
         line = output_path.read_text()
         self.assertEqual(len(line.splitlines()), 1)
         self.assertEqual(json.loads(line.removeprefix('plan='))['notes'], self.request['notes'])
+
+    def nexus_upload_inputs(self):
+        # Check the actual workflow binding, so a correct plan cannot hide a
+        # regression that passes the GitHub release title to Nexus again.
+        workflow = Path(__file__).resolve().parents[2] / '.github/workflows/release-mod.yml'
+        upload = workflow.read_text().split('uses: Nexus-Mods/upload-action@', 1)[1]
+        upload = upload.split('\n      - ', 1)[0]
+        return dict(re.findall(r'^          (\w+): (.+)$', upload, re.MULTILINE))
+
+    def test_nexus_upload_uses_plain_mod_name_and_separate_version(self):
+        inputs = self.nexus_upload_inputs()
+        fields = {}
+        for key in ('display_name', 'version'):
+            binding = re.fullmatch(r'\$\{\{ fromJSON\(needs.prepare.outputs.plan\)\.(\w+) \}\}', inputs[key])
+            self.assertIsNotNone(binding, f'{key} must come from the validated release plan')
+            fields[key] = binding[1]
+        for project, mod in self.config.items():
+            for version in ('1.8.0', '2.0.1'):
+                with self.subTest(project=project, version=version):
+                    plan = release.validate_request({**self.request, 'project': project, 'version': version}, self.config)
+                    self.assertEqual(plan[fields['display_name']], mod['title'])
+                    self.assertEqual(plan[fields['version']], version)
+                    self.assertEqual(plan['title'], f"{mod['title']} {version}")
+
+    def test_nexus_upload_archives_previous_version(self):
+        self.assertEqual(self.nexus_upload_inputs()['archive_existing_version'], "'true'")
 
     def test_validation_rejects_bad_versions_and_paths(self):
         for version in ['v1.2.3', '1.02.3', '1.2', '1.2.3\nEVIL=1', '1.2.3;echo bad', '1.2.3-rc.01']:

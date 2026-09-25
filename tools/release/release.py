@@ -69,6 +69,7 @@ def validate_request(request, config):
     identity = {key: request[key] for key in ('project', 'version', 'commit', 'notes')}
     fingerprint = hashlib.sha256(json.dumps(identity, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
     return {**request, **mod, 'tag': f"{request['project']}/v{version}",
+            'mod_name': mod['title'],
             'title': f"{mod['title']} {version}", 'fingerprint': fingerprint,
             'archive': f"farever-{request['project']}.zip", 'prerelease': bool(match[4]),
             'nexus_url': f"https://www.nexusmods.com/farever/mods/{mod['nexus_page_id']}"}

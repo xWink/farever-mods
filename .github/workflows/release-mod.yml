@@ -137,13 +137,13 @@ jobs:
           mod_id: ${{ fromJSON(needs.prepare.outputs.plan).nexus_mod_id }}
           filename: ${{ steps.github.outputs.archive }}
           version: ${{ fromJSON(needs.prepare.outputs.plan).version }}
-          display_name: ${{ fromJSON(needs.prepare.outputs.plan).title }}
+          display_name: ${{ fromJSON(needs.prepare.outputs.plan).mod_name }}
           changelog: ${{ fromJSON(needs.prepare.outputs.plan).notes }}
           category: main
           update_mod_version: 'true'
           primary_mod_manager_download: 'true'
           allow_mod_manager_download: 'true'
-          archive_existing_version: 'false'
+          archive_existing_version: 'true'
       - name: Verify Nexus upload and record completion
         if: steps.github.outputs.nexus_done != 'true'
         env:
