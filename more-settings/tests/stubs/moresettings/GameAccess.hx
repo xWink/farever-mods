@@ -9,6 +9,9 @@ class GameAccess {
     public static var reads:Int = 0;
     public static var data:Dynamic;
     public static var inputArrayCalls:Int = 0;
+    public static var blitCalls:Int = 0;
+    public static var blitElements:Int = 0;
+    public static var removedElements:Int = 0;
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, value:Dynamic):Void if (o != null) Reflect.setField(o, name, value);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
@@ -17,7 +20,9 @@ class GameAccess {
     }
     public static function integer(v:Dynamic, fallback:Int = 0):Int return Std.int(number(v, fallback));
     public static function array(v:Dynamic, proxy:Bool = false):Array<Dynamic> {
-        if (proxy) v = field(v, "array"); return v == null ? [] : cast v;
+        if (proxy) v = field(v, "array");
+        if (field(v, "items") != null) return (cast v.items:Array<Dynamic>).copy();
+        return v == null ? [] : cast v;
     }
     public static function isA(o:Dynamic, name:String):Bool {
         if (o == null) return false;
@@ -34,6 +39,22 @@ class GameAccess {
         case "set_text": set(o, "text", args[0]); args[0];
         case "getDyn": inputArrayCalls++; o.items[args[0]];
         case "setDyn": inputArrayCalls++; o.items[args[0]] = args[1]; null;
+        case "blit":
+            var count:Int = args[3];
+            var source:Array<Dynamic> = args[1].items;
+            var copy = source.slice(args[2], args[2] + count);
+            for (i in 0...count) o.items[args[0] + i] = copy[i];
+            blitCalls++; blitElements += count; null;
+        case "resize":
+            var items:Array<Dynamic> = o.items;
+            items.resize(args[0]); o.length = items.length; null;
+        case "remove":
+            if (type == "h2d.Object") { o.parent = null; removedElements++; null; }
+            else {
+                var items:Array<Dynamic> = o.items;
+                var removed = items.remove(args[0]); o.length = items.length; removed;
+            }
+        case "hasClass": (cast o.classes:Array<String>).indexOf(args[0]) >= 0;
         case "getFocusedTextInput": field(o, "textInput");
         case "get": field(o, args[0]);
         case "getSourceSkill": field(o, "sourceSkill") == null ? o : field(o, "sourceSkill");

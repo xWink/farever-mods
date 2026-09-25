@@ -3,6 +3,7 @@ package moresettings;
 typedef MoreSettingsConfig = {
     var disableProfanityFilter:Bool;
     var showBossHealth:Bool;
+    var performanceOptimization:Bool;
     var hideUiKey:Int;
     var adjustUnfocusedVolume:Bool;
     var backgroundVolume:Float;
@@ -23,6 +24,7 @@ class SettingsData {
     public static function defaults():MoreSettingsConfig return {
         disableProfanityFilter: true,
         showBossHealth: false,
+        performanceOptimization: false,
         hideUiKey: 113, // hxd.Key.F2
         adjustUnfocusedVolume: true, backgroundVolume: 0,
         adjustFastTravelVolume: false, fastTravelVolume: 0,

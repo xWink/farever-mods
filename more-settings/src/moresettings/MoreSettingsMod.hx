@@ -35,6 +35,7 @@ class MoreSettingsMod {
         }
         SettingsData.normalize(config);
         BossHealth.enabled = config.showBossHealth;
+        PerformanceHooks.enabled = config.performanceOptimization;
         hideUi.configure(config.hideUiKey);
         config.save();
         audio = new AudioControl(config);
@@ -43,6 +44,7 @@ class MoreSettingsMod {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             SettingsData.normalize(config);
             BossHealth.enabled = config.showBossHealth;
+            PerformanceHooks.enabled = config.performanceOptimization;
             hideUi.configure(config.hideUiKey);
             AllyEffects.configure(config);
             try audio.configure(config) catch (e:Dynamic) audioError(e);

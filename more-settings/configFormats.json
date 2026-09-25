@@ -17,6 +17,11 @@
       "label": "Show boss health"
     },
     {
+      "key": "performanceOptimization",
+      "type": "checkbox",
+      "label": "Performance Optimization"
+    },
+    {
       "key": "hideUiKey",
       "type": "keybinding",
       "label": "Hide UI hotkey"
