@@ -19,7 +19,7 @@
     {
       "key": "performanceOptimization",
       "type": "checkbox",
-      "label": "Performance Optimization"
+      "label": "Performance improvements"
     },
     {
       "key": "hideUiKey",
