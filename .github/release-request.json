@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.4.3",
-  "commit": "396c4070da34c59364a2ffaf6904ec23680a05ee",
-  "notes": "- Target dummy fights are now saved in Fight History.\n- Added a Target Dummies category between World Bosses and Other. Previously saved target-dummy fights also appear in this category.\n",
+  "project": "more-settings",
+  "version": "1.8.0",
+  "commit": "f456bb39dc4778ad775296ff7b22f72681459f50",
+  "notes": "- Added new setting \"Performance improvements\", which reduces the frequency and severity of game freezes/lag/hitches.\n",
   "dry_run": false
 }
