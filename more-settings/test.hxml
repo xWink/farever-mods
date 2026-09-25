@@ -10,3 +10,9 @@
 -cp tests
 -main PerformanceTest
 --interp
+--next
+-cp src
+-cp tests/stubs
+-cp tests
+-main TerrainCacheTest
+--interp

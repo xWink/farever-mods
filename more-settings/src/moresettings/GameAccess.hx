@@ -55,6 +55,11 @@ class GameAccess {
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
         return HlxRuntime.callResolved(member(type, name, true), args);
     }
+    /** Prebind hot calls; args include the receiver and may be reused by the caller. */
+    public static function bind(type:String, name:String):Array<Dynamic>->Dynamic {
+        var resolved = member(type, name);
+        return args -> HlxRuntime.callResolved(resolved, args);
+    }
     public static function current(type:String, name:String):Dynamic {
         var t = HlxRuntime.resolveType(type);
         return t == null ? null : HlxRuntime.resolveStaticField(t, name);

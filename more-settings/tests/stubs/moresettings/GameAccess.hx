@@ -12,6 +12,37 @@ class GameAccess {
     public static var blitCalls:Int = 0;
     public static var blitElements:Int = 0;
     public static var removedElements:Int = 0;
+    public static var terrainLookups:Int = 0;
+    public static var terrainBindings:Int = 0;
+    public static var beforeTerrainLookup:Void->Void;
+    public static var failTerrainBinding:Bool = false;
+    public static function bind(type:String, name:String):Array<Dynamic>->Dynamic {
+        return args -> {
+            if (type == "world.terrain.TerrainData" && name == "getChunk") {
+                terrainLookups++;
+                if (beforeTerrainLookup != null) beforeTerrainLookup();
+                var data = args[0];
+                var x = Math.floor(args[1] / data.chunkWidth);
+                var y = Math.floor(args[2] / data.chunkWidth);
+                var chunks:Map<Int, Dynamic> = data.chunks;
+                return chunks.get((x + 16384) | ((y + 16384) << 16));
+            }
+            if (type == "haxe.ds.IntMap" && name == "get") {
+                var map:Map<Int, Dynamic> = args[0]; return map.get(args[1]);
+            }
+            if (type == "client.Renderer" && name == "setTerrainGlobals") {
+                if (failTerrainBinding) throw "native terrain binding failed";
+                terrainBindings++;
+                args[0].boundTerrain = args[0].terrain;
+                return null;
+            }
+            if (type == "h3d.mat.Texture" && name == "set_lastFrame") {
+                if (args[0].lastFrame != -1) args[0].lastFrame = args[1];
+                return args[0].lastFrame;
+            }
+            throw "Unexpected bound native call: " + type + "." + name;
+        };
+    }
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, value:Dynamic):Void if (o != null) Reflect.setField(o, name, value);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
