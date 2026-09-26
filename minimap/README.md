@@ -66,7 +66,8 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Next Rift | Purple-magenta closed fissure at the next location while the timer is above 15:00 |
 | Active Rift | Round magenta-purple energy ball at the next location when the timer is 15:00 or less |
 | Open Rift Portal | Larger jagged pink tear with a dark interior |
-| Respawn points | White cross |
+| Unlocked respawn points | Stone basin filled with bright cyan-blue water; hover label **Respawn Point** |
+| Undiscovered respawn points | The same basin with an empty stone floor; hover label **Respawn Point (Undiscovered)** |
 | Obelisks | Broad grey stone idol with a split crown and gold inlays |
 | Soulstone summoning circles | Purple rune ring surrounding a pink faceted soulstone |
 | NPCs | Yellow circle |
@@ -85,6 +86,8 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 **Show NPCs** also controls the Guild Merchant, Glory Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. All player markers, including your character arrow, draw behind other marker types so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
 
 Party member arrows use the same yellow as sparkling markers, outlining the arrow's edges and rear notch. Membership follows the game's native group check and refreshes with the live markers, so joining or leaving a party updates the outline automatically. **Show players** controls both ordinary and party player markers; facing direction, scaling, hover details, and height filtering work the same for both.
+
+Respawn point markers use a flat stone pool, short neck, and broad cap matching the world model. Their water and hover label follow the current character's unlock progress and update after activation. **Show respawn points** controls both states; marker scaling, hover distances, and vertical filtering apply to both. Obelisks keep their separate icon.
 
 All three chest markers use flat, front-facing geometry without glow. Vault and recipe chests follow the game's native definition ancestry, independent of translated names; other chests use the wooden chest icon. **Show chests** controls all three, with the same opened/hidden checks, distance details, marker scaling, and vertical filtering. Recipe chest hover names always read **Recipe Chest**. Elite enemy rings use the native Elite flag and preserve enemy size and Codex filters; sparkling companion alerts still require the Spark flag.
 

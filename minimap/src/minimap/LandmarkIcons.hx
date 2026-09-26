@@ -24,6 +24,73 @@ class LandmarkIcons {
         else if (kind == "recycler") recycling(graphics, radius);
     }
 
+    public static function respawnPoint(g:Dynamic, r:Float, unlocked:Bool):Void {
+        // A flat stone basin with the reference's short neck, broad cap and inset.
+        fill(g, 0x232e32);
+        polygon(g, r, [-0.27, -0.88, 0.27, -0.88, 0.28, -0.17, -0.28, -0.17]);
+        polygon(g, r, [-0.62, -0.93, -0.45, -1.08, 0.45, -1.08, 0.62, -0.93,
+            0.53, -0.7, -0.53, -0.7]);
+        ellipse(g, r, 0, 0.23, 0.97, 0.83);
+        end(g);
+        fill(g, 0x596b70);
+        polygon(g, r, [-0.18, -0.82, 0.18, -0.82, 0.22, -0.18, -0.22, -0.18]);
+        polygon(g, r, [-0.52, -0.91, -0.4, -1, 0.4, -1, 0.52, -0.91,
+            0.46, -0.78, -0.46, -0.78]);
+        ellipse(g, r, 0, 0.23, 0.88, 0.75);
+        end(g);
+        fill(g, 0x758580);
+        polygon(g, r, [-0.52, -0.91, -0.4, -1, 0.4, -1, 0.46, -0.94,
+            -0.36, -0.91, -0.46, -0.78]);
+        end(g);
+        fill(g, 0x34464d);
+        polygon(g, r, [-0.055, -0.66, 0.055, -0.66, 0.075, -0.36, -0.075, -0.36]);
+        // Short radial joints make the outer rim read as fitted stone blocks.
+        for (i in 0...9) {
+            var a = i * Math.PI * 2 / 9 - 0.025, b = a + 0.05;
+            polygon(g, r, [Math.cos(a) * 0.66, 0.23 + Math.sin(a) * 0.56,
+                Math.cos(a) * 0.89, 0.23 + Math.sin(a) * 0.75,
+                Math.cos(b) * 0.89, 0.23 + Math.sin(b) * 0.75,
+                Math.cos(b) * 0.66, 0.23 + Math.sin(b) * 0.56]);
+        }
+        ellipse(g, r, 0, 0.23, 0.68, 0.58);
+        end(g);
+        fill(g, 0x9b9275);
+        ellipse(g, r, 0, -0.8, 0.16, 0.12);
+        end(g);
+        fill(g, 0x514879);
+        ellipse(g, r, 0, -0.8, 0.105, 0.077);
+        end(g);
+        if (unlocked) {
+            fill(g, 0x37dfef);
+            ellipse(g, r, 0, 0.23, 0.61, 0.51);
+            end(g);
+            fill(g, 0x08ade9);
+            ellipse(g, r, 0, 0.25, 0.53, 0.44);
+            end(g);
+            // One flat cyan curl suggests the blue water without a glow effect.
+            G.call("h2d.Graphics", "lineStyle", g, [0.75, 0x49e4f2, 1.0]);
+            for (i in 0...25) {
+                var a = -1.3 + i * Math.PI * 1.6 / 24;
+                var curl = 0.39 - i * 0.26 / 24;
+                G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", g,
+                    [Math.cos(a) * curl * r, (0.25 + Math.sin(a) * curl * 0.82) * r]);
+            }
+            G.call("h2d.Graphics", "lineStyle", g, [0.0, 0, 0.0]);
+        } else {
+            fill(g, 0x747e79);
+            ellipse(g, r, 0, 0.23, 0.61, 0.51);
+            end(g);
+            fill(g, 0x8c9386);
+            ellipse(g, r, 0, 0.29, 0.49, 0.37);
+            end(g);
+            // Exposed stone at the bottom of the empty, undiscovered basin.
+            fill(g, 0x596660);
+            polygon(g, r, [-0.42, 0.1, 0.4, 0.3, 0.4, 0.35, -0.42, 0.15]);
+            polygon(g, r, [-0.04, 0.23, 0.01, 0.24, -0.1, 0.62, -0.15, 0.62]);
+            end(g);
+        }
+    }
+
     static function recycling(g:Dynamic, r:Float):Void {
         // Folded ribbons with rounded returns, like the classic recycling loop.
         // Sample the curves into retained geometry; leave the centre transparent.

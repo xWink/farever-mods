@@ -14,6 +14,7 @@ private typedef MapPoint = {
     var ?heading:Float;
     var ?sparkling:Bool;
     var ?partyMember:Bool;
+    var ?respawnUnlocked:Bool;
     var ?eventElement:String;
     var ?entity:Dynamic;
     var ?inf:Dynamic;
@@ -414,7 +415,12 @@ class MinimapMarkers {
                 case "soulstone": config.showSoulstoneCircles;
                 default: config.showNpcs;
             };
-            if (show && near(point.x, point.y, x, y, radius)) points.push(point);
+            if (show && near(point.x, point.y, x, y, radius)) {
+                // Definitions are cached, but unlocks belong to the current
+                // character and must refresh after activating a respawn point.
+                if (point.kind == "respawn") point.respawnUnlocked = RespawnMarkers.unlocked(point.inf, progress);
+                points.push(point);
+            }
         }
         for (point in liveNpcs) if (point != null && near(point.x, point.y, x, y, radius)) points.push(point);
         if (config.showSecretOrbs && progress != null) for (id => point in secretOrbs) {
@@ -601,7 +607,7 @@ class MinimapMarkers {
         case "bank", "demon", "player", "activity", "ascension", "companion": 7;
         case "plant", "ore", "boss": 5;
         case "obelisk", "dungeon", "soulstone", "secretOrb", "glory", "chest", "vaultChest", "recipeChest": 8;
-        case "targetDummy", "upcomingRift", "infusion", "craft", "recycler": 9;
+        case "targetDummy", "upcomingRift", "infusion", "craft", "recycler", "respawn": 9;
         case "riftPortal": 11;
         case "inactiveRift", "nextRift", "upgrade": 10;
         default: 3.5;
@@ -674,6 +680,7 @@ class MinimapMarkers {
     function markerName(point:MapPoint):String {
         if (point.kind == "secretOrb") return "Secret Orb";
         if (point.kind == "recipeChest") return "Recipe Chest";
+        if (point.kind == "respawn") return RespawnMarkers.name(point.respawnUnlocked == true);
         if (point.name != null) return point.name;
         var name = "";
         try {
@@ -699,7 +706,6 @@ class MinimapMarkers {
         if (name == "") name = switch point.kind {
             case "chest": "Chest";
             case "vaultChest": "Vault Chest";
-            case "respawn": "Respawn point";
             case "obelisk": "Obelisk";
             case "soulstone": "Soulstone summoning circle";
             case "bank": "Guild Merchant";
@@ -754,13 +760,15 @@ class MinimapMarkers {
             pool.push({icon: G.create("h2d.Graphics", [parent]), key: "", directional: false});
         for (i in 0...points.length) {
             var point = points[i], marker = pool[i];
-            var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "");
+            var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "")
+                + (point.respawnUnlocked == true ? ":unlocked" : "");
             // Draw in local pixels once per appearance, then reuse the geometry
             // as the marker moves, zooms or counter-rotates with the map.
             if (marker.key != key) {
                 graphics = marker.icon;
                 G.call("h2d.Graphics", "clear", graphics);
-                drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember, heading: 0, x: 0, y: 0, z: 0});
+                drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember,
+                    respawnUnlocked: point.respawnUnlocked, heading: 0, x: 0, y: 0, z: 0});
                 marker.key = key;
             }
             marker.directional = point.kind == "player";
@@ -776,6 +784,10 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "respawn") {
+            LandmarkIcons.respawnPoint(graphics, markerRadius(kind), point.respawnUnlocked == true);
+            return;
+        }
         if (kind == "player" && point.partyMember == true) {
             LandmarkIcons.partyPlayer(graphics, markerRadius(kind));
             return;
@@ -796,7 +808,6 @@ class MinimapMarkers {
             case "activity": 0x7f3e91;
             case "ascension": 0xffc45a;
             case "enemy", "boss": 0xff6860;
-            case "respawn": 0xffffff;
             case "npc": 0xffdf78;
             case "bank": 0xffdc42;
             case "demon": 0xe8a1ff;
@@ -887,9 +898,6 @@ class MinimapMarkers {
                     0.45, 0.75, 0, 1, -0.45, 0.75, -0.8, 0.25]);
                 polygon(point, r, [-0.9, -1, -0.2, -0.3, -0.8, 0.05]);
                 polygon(point, r, [0.9, -1, 0.8, 0.05, 0.2, -0.3]);
-            case "respawn":
-                G.call("h2d.Graphics", "drawRect", graphics, [x - r / 3, y - r, r * 2 / 3, r * 2]);
-                G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - r / 3, r * 2, r * 2 / 3]);
             case "npc":
                 G.call("h2d.Graphics", "drawCircle", graphics, [x, y, r, 32]);
             default:
