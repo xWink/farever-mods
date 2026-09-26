@@ -1,7 +1,7 @@
 {
   "project": "minimap",
-  "version": "1.6.1",
-  "commit": "ffe13f4c8c24c242cf59bb957dd1151ea5dac6ac",
-  "notes": "- Minor performance optimization",
+  "version": "1.7.0",
+  "commit": "ff8ea3321548faebe563bfb3014bf4b1f6cc74eb",
+  "notes": "- New markers for chests, vault chests, and recipe chests\n- New marker for party members\n- New markers for discovered and undiscovered respawn points\n- Elite enemies now have the same marker as sparkling enemies\n- Fixed the outline for alert arrows to have even thickness all the way around",
   "dry_run": false
 }
