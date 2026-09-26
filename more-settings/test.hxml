@@ -16,3 +16,9 @@
 -cp tests
 -main TerrainCacheTest
 --interp
+--next
+-cp src
+-cp tests/stubs
+-cp tests
+-main PacingTest
+--interp

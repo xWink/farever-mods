@@ -113,6 +113,10 @@ The **Activities** section includes **Show activities**, **Hide completed activi
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings is optional; the mod works with its defaults without it.
 
+## Map loading
+
+Map textures use the game's asynchronous image-loading path when their format and backend support it, with the native synchronous fallback otherwise. The minimap keeps at most two requests outstanding, prioritizes visible tiles, and prepares up to four adjacent tiles within its existing cache allowance. It finalizes at most one tile and attaches at most one bitmap per update. Tiles are displayed only after the full texture is ready, avoiding stretched loading placeholders. Shared native textures are never disposed by the minimap, and outstanding native loads cannot attach to a disposed map. This behavior is automatic; it does not require More Settings or its performance option. Unsupported image formats and individual GPU uploads may still do synchronous work.
+
 ## Building
 
 Use Haxe 4.3.7 and the HLX runtime:

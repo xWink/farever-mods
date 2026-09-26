@@ -2,6 +2,7 @@ package minimap;
 
 /** Native activity, Codex, item and drawing boundaries for interpreter regression tests. */
 class GameAccess {
+    public static var nativeCall:(String, String, Dynamic, Array<Dynamic>)->Dynamic;
     public static var statusOwner:String = "Config";
     public static var eventArguments:Int = 1;
     public static var eventStatusCalls:Int = 0;
@@ -49,6 +50,9 @@ class GameAccess {
 
     public static function field(object:Dynamic, name:String):Dynamic
         return object == null ? null : Reflect.field(object, name);
+
+    public static function set(object:Dynamic, name:String, value:Dynamic):Void
+        Reflect.setField(object, name, value);
 
     public static function text(value:Dynamic, fallback:String = ""):String
         return value == null ? fallback : Std.string(value);
@@ -119,6 +123,7 @@ class GameAccess {
     }
 
     public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
+        if (nativeCall != null) return nativeCall(type, name, object, args == null ? [] : args);
         if (type == "st.event.WorldEvents" && name == "getEventStatus") {
             eventStatusCalls++;
             if (args.length != eventArguments) throw "Incorrect native argument count";

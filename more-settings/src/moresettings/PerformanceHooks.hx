@@ -1,19 +1,126 @@
 package moresettings;
 
 import hlx.runtime.HlxPrefixResult;
+import moresettings.GameAccess as G;
 
 /** Opt-in fixes for audited client queues and terrain rendering. */
 class PerformanceHooks {
     public static var enabled(default, set):Bool = false;
     static var queue = new WorkerQueue();
     static var terrain = new TerrainGlobalsCache();
+    static var pacing = new TerrainPacing();
+    static var appearances = new AppearanceJobs();
+    static var combatText = new CombatTextPool();
+    static var app:Dynamic;
+    static var pacingFailed:Bool = false;
+    static var appearanceFailed:Bool = false;
+    static var textFailed:Bool = false;
     static var queueFailed:Bool = false;
     static var feedFailed:Bool = false;
     static var terrainFailed:Bool = false;
 
     static function set_enabled(value:Bool):Bool {
-        if (!value) terrain.clear();
+        if (!value) { terrain.clear(); pacing.clear(); combatText.clear(); }
         return enabled = value;
+    }
+
+    public static function update(instance:Dynamic):Void {
+        app = instance;
+        // Also closes an unfinished scope if a native update threw last frame.
+        pacing.clear();
+        try appearances.recoverWorker() catch (e:Dynamic) appearanceError(e);
+        if (enabled && !textFailed) try combatText.sweep() catch (e:Dynamic) textError(e);
+    }
+
+    public static function dispose():Void {
+        app = null; pacing.clear(); terrain.clear(); appearances.dispose(); combatText.clear();
+    }
+
+    static function textError(e:Dynamic):Void {
+        if (!textFailed) trace("[More Settings] Performance combat-text reuse disabled: " + Std.string(e));
+        textFailed = true;
+        try combatText.clear() catch (_:Dynamic) {}
+    }
+
+    static function schedulingError(e:Dynamic):Void {
+        if (!pacingFailed) trace("[More Settings] Performance terrain pacing disabled: " + Std.string(e));
+        pacingFailed = true; pacing.clear();
+    }
+
+    @:hlx.prefix(world.terrain.Terrain.updateChunkLoad)
+    static function beginTerrain(instance:Dynamic, position:Dynamic, context:Dynamic):HlxPrefixResult<Void> {
+        if (enabled && !pacingFailed) try {
+            var worker = G.staticCall("lib.Workers", "get", []);
+            pacing.begin(instance, G.number(G.call("world.terrain.Terrain", "getLoadingBudget", instance)),
+                G.field(app, "hero") != null && G.field(worker, "inLoading") == false);
+        } catch (e:Dynamic) schedulingError(e);
+        return Continue;
+    }
+
+    @:hlx.postfix(world.terrain.Terrain.updateChunkLoad)
+    static function finishTerrain(instance:Dynamic, position:Dynamic, context:Dynamic, result:Void):Void pacing.clear();
+
+    @:hlx.prefix(world.terrain.Terrain.unloadFarChunks)
+    static function beginUnload(instance:Dynamic):HlxPrefixResult<Void> { pacing.unloading(instance, true); return Continue; }
+
+    @:hlx.postfix(world.terrain.Terrain.unloadFarChunks)
+    static function endUnload(instance:Dynamic, result:Void):Void pacing.unloading(instance, false);
+
+    @:hlx.prefix(world.terrain.Terrain.removeChunkObject)
+    static function removeChunk(instance:Dynamic, chunk:Dynamic):HlxPrefixResult<Void>
+        return pacing.deferRemoval(instance) ? Skip : Continue;
+
+    @:hlx.prefix(world.terrain.ChunkObject.updateQuality)
+    static function quality(instance:Dynamic, feature:Int, value:Int):HlxPrefixResult<Void> {
+        try if (pacing.deferQuality(instance, feature, value)) return Skip catch (e:Dynamic) schedulingError(e);
+        return Continue;
+    }
+
+    @:hlx.prefix(client.UnitView.clearWeapon)
+    static function clearWeapon(instance:Dynamic, slot:Int, index:Int):HlxPrefixResult<Void> {
+        // Outstanding jobs must still be invalidated after the toggle is disabled.
+        appearances.cancel(instance, slot, index);
+        return Continue;
+    }
+
+    @:hlx.prefix(client.UnitView.addWeaponAsync)
+    static function weapon(instance:Dynamic, path:String, prefab:Dynamic, slot:Int, index:Int):HlxPrefixResult<Void> {
+        if (enabled && !appearanceFailed) try {
+            if (appearances.schedule(instance, path, prefab, slot, index)) return Skip;
+        } catch (e:Dynamic) {
+            appearanceError(e);
+        }
+        return Continue;
+    }
+
+    @:hlx.prefix(client.UnitView.checkReady)
+    static function ready(instance:Dynamic):HlxPrefixResult<Void>
+        return enabled && !appearanceFailed && appearances.deferReady(instance) ? Skip : Continue;
+
+    @:hlx.postfix(lib.Workers.work)
+    static function afterWorker(instance:Dynamic, result:Void):Void {
+        try appearances.finishWorker() catch (e:Dynamic) appearanceError(e);
+    }
+
+    static function appearanceError(e:Dynamic):Void {
+        if (!appearanceFailed) trace("[More Settings] Performance appearance scheduling disabled: " + Std.string(e));
+        appearanceFailed = true;
+    }
+
+    @:hlx.prefix(ui.comp.DamageDisplay.display)
+    static function damageDisplay(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic> {
+        if (enabled && !textFailed) try {
+            var reused = combatText.reuse(damage, position);
+            if (reused != null) return SkipWith(reused);
+        } catch (e:Dynamic) textError(e);
+        return Continue;
+    }
+
+    @:hlx.prefix(ui.UIElement.bindUpdate)
+    static function damageAnimation(instance:Dynamic, callback:hl.Ref<Float->Void>):HlxPrefixResult<Void> {
+        if (enabled && !textFailed && G.isA(instance, "ui.comp.DamageDisplay"))
+            try callback.set(combatText.capture(instance, callback.get())) catch (e:Dynamic) textError(e);
+        return Continue;
     }
 
     static function terrainError(e:Dynamic):Void {
@@ -50,6 +157,7 @@ class PerformanceHooks {
 
     @:hlx.prefix(lib.Workers.work)
     static function work(instance:Dynamic):HlxPrefixResult<Void> {
+        appearances.beginWorker();
         // A nested work() must use the current cursor even if a job toggles us off.
         if ((!enabled || queueFailed) && !queue.active(instance)) return Continue;
         try return queue.run(instance) ? Skip : Continue catch (e:Dynamic) {

@@ -9,6 +9,7 @@ private typedef MapTile = {
     var resolution:Int;
     var path:String;
     var tile:Dynamic;
+    var loading:MapTileLoad;
     var lastUsed:Int;
 }
 
@@ -74,6 +75,8 @@ class MinimapView {
     var index:Map<String, MapTile> = [];
     var sprites:Map<String, Dynamic> = [];
     var wanted:Array<MapTile> = [];
+    var prefetch:Array<MapTile> = [];
+    var pending:Array<MapTile> = [];
     var cached:Array<MapTile> = [];
     var generation:Int = 0;
 
@@ -190,7 +193,7 @@ class MinimapView {
             var key = tileKey(x, y);
             var previous = index[key];
             if (previous != null && Math.abs(previous.resolution - preferred) <= Math.abs(resolution - preferred)) continue;
-            index[key] = {x: x, y: y, resolution: resolution, path: DIRECTORY + "/" + name, tile: null, lastUsed: 0};
+            index[key] = {x: x, y: y, resolution: resolution, path: DIRECTORY + "/" + name, tile: null, loading: null, lastUsed: 0};
         }
         if (!index.iterator().hasNext()) throw "No overworld map tiles were found";
     }
@@ -480,19 +483,42 @@ class MinimapView {
             var delta = ax * ax + ay * ay - bx * bx - by * by;
             return delta < 0 ? -1 : delta > 0 ? 1 : 0;
         });
+        // A small adjacent ring prepares likely next tiles before they enter
+        // view. Visible requests always take priority over speculative work.
+        prefetch = [];
+        for (tx in minX - 1...maxX + 2) for (ty in minY - 1...maxY + 2) {
+            var key = tileKey(tx, ty);
+            var entry = index[key];
+            if (entry != null && !keep.exists(key)) prefetch.push(entry);
+        }
+        prefetch.sort((a, b) -> {
+            var ax = (a.x + 0.5) * tileWorldWidth - x, ay = (a.y + 0.5) * tileWorldWidth - y;
+            var bx = (b.x + 0.5) * tileWorldWidth - x, by = (b.y + 0.5) * tileWorldWidth - y;
+            var delta = ax * ax + ay * ay - bx * bx - by * by;
+            return delta < 0 ? -1 : delta > 0 ? 1 : 0;
+        });
+        var ahead = Std.int(Math.max(0, Math.min(4, CACHE_LIMIT - wanted.length)));
+        if (prefetch.length > ahead) prefetch.resize(ahead);
+        // Protect selected prefetches from immediate eviction behind older
+        // visible tiles; otherwise a full cache would repeatedly request them.
+        for (entry in prefetch) entry.lastUsed = generation;
     }
 
     function loadNextTile():Void {
+        for (entry in pending) {
+            var tile = entry.loading.take();
+            if (tile == null) continue;
+            entry.tile = tile; entry.loading = null;
+            cached.push(entry); pending.remove(entry);
+            trimCache();
+            break; // Bound foreground finalization too.
+        }
         for (entry in wanted) {
             var key = tileKey(entry.x, entry.y);
             if (sprites.exists(key)) continue;
             if (entry.tile == null) {
-                var resource = G.call("hxd.res.Loader", "load", loader, [entry.path]);
-                entry.tile = G.call("h2d.Tile", "clone", G.call("hxd.res.Any", "toTile", resource));
-                // Opening the native map can center its cached tiles. Keep our copy independent.
-                G.set(entry.tile, "dx", 0.0);
-                G.set(entry.tile, "dy", 0.0);
-                cached.push(entry);
+                if (entry.loading == null && pending.length < 2) { requestTile(entry); return; }
+                continue;
             }
             var bitmap = G.create("h2d.Bitmap", [entry.tile, tileLayer]);
             G.call("h2d.Bitmap", "set_width", bitmap, [tileWorldWidth]);
@@ -500,8 +526,17 @@ class MinimapView {
             position(bitmap, entry.x * tileWorldWidth, entry.y * tileWorldWidth);
             sprites[key] = bitmap;
             trimCache();
-            return; // At most one image load per game update.
+            return; // At most one bitmap attachment per game update.
         }
+        if (pending.length < 2) for (entry in prefetch) if (entry.tile == null && entry.loading == null) {
+            requestTile(entry); return;
+        }
+    }
+
+    function requestTile(entry:MapTile):Void {
+        var resource = G.call("hxd.res.Loader", "load", loader, [entry.path]);
+        entry.loading = new MapTileLoad(resource);
+        pending.push(entry);
     }
 
     function trimCache():Void {
@@ -541,7 +576,7 @@ class MinimapView {
         nextHoverRefresh = 0; hoverMouseX = Math.NaN; hoverMouseY = Math.NaN;
         transparency = -1;
         markerScale = 0;
-        index = []; sprites = []; wanted = []; cached = [];
+        index = []; sprites = []; wanted = []; cached = []; prefetch = []; pending = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
         panelX = Math.NaN; panelY = Math.NaN;
     }
