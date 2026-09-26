@@ -13,6 +13,7 @@ private typedef MapPoint = {
     var ?elevation:Int;
     var ?heading:Float;
     var ?sparkling:Bool;
+    var ?partyMember:Bool;
     var ?eventElement:String;
     var ?entity:Dynamic;
     var ?inf:Dynamic;
@@ -364,6 +365,7 @@ class MinimapMarkers {
                 }
             }
             if (point == null) point = {kind: kind, x: px, y: py, z: G.number(G.field(unit, "posz"), Math.NaN), sparkling: sparkling, entity: unit,
+                partyMember: kind == "player" && G.call("ent.Hero", "isSameGroup", hero, [unit]) == true,
                 heading: kind == "player" ? G.number(G.field(unit, "rotationZ")) : 0};
             // Share the exact sampled position with the alert. Settings can
             // hide normal companion markers while leaving alerts enabled.
@@ -613,7 +615,7 @@ class MinimapMarkers {
     }
 
     static function elevationOffset(point:MapPoint):Float
-        return markerRadius(point.kind) + (point.sparkling == true ? 3.5 : 1) + 3;
+        return markerRadius(point.kind) + (point.partyMember == true ? 4.5 : point.sparkling == true ? 3.5 : 1) + 3;
 
     function updateElevations(points:Array<MapPoint>, pool:Array<ElevationMarker>, parent:Dynamic, scale:Float):Void {
         trimElevations(pool, points.length);
@@ -647,7 +649,7 @@ class MinimapMarkers {
                 checkHero = false;
                 if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
             }
-            var r = (markerRadius(point.kind) + (point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
+            var r = (markerRadius(point.kind) + (point.partyMember == true ? 4.5 : point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
             var hit = nearCursor(x, y, point.x, point.y, r);
             if (!hit && point.elevation != null && point.elevation != 0) {
                 var offset = elevationOffset(point) * markerScale / scale;
@@ -752,13 +754,13 @@ class MinimapMarkers {
             pool.push({icon: G.create("h2d.Graphics", [parent]), key: "", directional: false});
         for (i in 0...points.length) {
             var point = points[i], marker = pool[i];
-            var key = point.kind + (point.sparkling == true ? ":spark" : "");
+            var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "");
             // Draw in local pixels once per appearance, then reuse the geometry
             // as the marker moves, zooms or counter-rotates with the map.
             if (marker.key != key) {
                 graphics = marker.icon;
                 G.call("h2d.Graphics", "clear", graphics);
-                drawIcon({kind: point.kind, sparkling: point.sparkling, heading: 0, x: 0, y: 0, z: 0});
+                drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember, heading: 0, x: 0, y: 0, z: 0});
                 marker.key = key;
             }
             marker.directional = point.kind == "player";
@@ -774,6 +776,10 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "player" && point.partyMember == true) {
+            LandmarkIcons.partyPlayer(graphics, markerRadius(kind));
+            return;
+        }
         if (kind == "chest" || kind == "vaultChest" || kind == "recipeChest") {
             ChestIcons.draw(graphics, kind, markerRadius(kind));
             return;
@@ -803,7 +809,7 @@ class MinimapMarkers {
         shape(point, radius + (sparkling && kind != "companion" ? 3.5 : 1));
         G.call("h2d.Graphics", "endFill", graphics);
         if (sparkling && (kind == "enemy" || kind == "boss")) {
-            G.call("h2d.Graphics", "beginFill", graphics, [0xffdc42, 1.0]);
+            G.call("h2d.Graphics", "beginFill", graphics, [LandmarkIcons.SPARKLING_COLOR, 1.0]);
             shape(point, radius + 2.5);
             G.call("h2d.Graphics", "endFill", graphics);
         }
@@ -902,7 +908,7 @@ class MinimapMarkers {
 
     static function drawAlertArrow(graphics:Dynamic):Void {
         LandmarkIcons.sparklingRing(graphics, 12);
-        LandmarkIcons.alertArrow(graphics, 7.7, 0xffdc42);
+        LandmarkIcons.alertArrow(graphics, 7.7, LandmarkIcons.SPARKLING_COLOR);
     }
 
     static function arrowShape(graphics:Dynamic, x:Float, y:Float, radius:Float, heading:Float):Void {

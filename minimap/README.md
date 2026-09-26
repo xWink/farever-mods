@@ -53,6 +53,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | --- | --- |
 | Your character | Flat ivory arrow |
 | Other players | Larger light-blue arrow showing facing direction |
+| Party members | The same light-blue arrow with a yellow outline following its shape |
 | Plants | Green leaf |
 | Ore | Gray stone |
 | Enemies | Red circle; larger for bosses; thick yellow ring for elites and sparkling variants |
@@ -82,6 +83,8 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Undiscovered secret orbs | Gold orb with an ivory centre and broken purple rings |
 
 **Show NPCs** also controls the Guild Merchant, Glory Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. All player markers, including your character arrow, draw behind other marker types so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
+
+Party member arrows use the same yellow as sparkling markers, outlining the arrow's edges and rear notch. Membership follows the game's native group check and refreshes with the live markers, so joining or leaving a party updates the outline automatically. **Show players** controls both ordinary and party player markers; facing direction, scaling, hover details, and height filtering work the same for both.
 
 All three chest markers use flat, front-facing geometry without glow. Vault and recipe chests follow the game's native definition ancestry, independent of translated names; other chests use the wooden chest icon. **Show chests** controls all three, with the same opened/hidden checks, distance details, marker scaling, and vertical filtering. Recipe chest hover names always read **Recipe Chest**. Elite enemy rings use the native Elite flag and preserve enemy size and Codex filters; sparkling companion alerts still require the Spark flag.
 

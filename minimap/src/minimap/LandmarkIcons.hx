@@ -5,6 +5,7 @@ import minimap.GameAccess as G;
 /** Local pixel geometry, retained by the marker pool across refreshes. */
 class LandmarkIcons {
     public static inline var RIFT_ALERT_COLOR:Int = 0xc94a9f;
+    public static inline var SPARKLING_COLOR:Int = 0xffdc42;
 
     public static function draw(graphics:Dynamic, kind:String, radius:Float):Void {
         if (kind == "obelisk") obelisk(graphics, radius);
@@ -481,12 +482,30 @@ class LandmarkIcons {
         polygon(g, 1, [r + padding, 0, shoulder - padding, head, shoulder - padding, -head]);
     }
 
+    public static function partyPlayer(g:Dynamic, radius:Float):Void {
+        // Trace only the arrow's outside contour, including its rear notch.
+        // Draw the blue fill last so the outline preserves the ordinary arrow.
+        // Start midway along an edge so the stroke joins at every corner,
+        // especially the tip, rather than leaving two end caps there.
+        var contour:Array<Float> = [0.1, 0.35, -0.8, 0.7, -0.45, 0, -0.8, -0.7, 1, 0];
+        G.call("h2d.Graphics", "lineStyle", g, [3.0, 0x201b1b, 1.0]);
+        polygon(g, radius, contour);
+        G.call("h2d.Graphics", "lineStyle", g, [2.0, SPARKLING_COLOR, 1.0]);
+        polygon(g, radius, contour);
+        G.call("h2d.Graphics", "lineStyle", g, [0.0, 0, 0.0]);
+        // The same two solid triangles as the ordinary blue player arrow.
+        fill(g, 0x70d8ff);
+        polygon(g, radius, [1, 0, -0.45, 0, -0.8, -0.7]);
+        polygon(g, radius, [1, 0, -0.8, 0.7, -0.45, 0]);
+        end(g);
+    }
+
     public static function sparklingRing(g:Dynamic, radius:Float):Void {
         // Stroke the ring instead of filling disks: its centre stays transparent.
         // Retain thin dark edges for contrast, then reset stroke state for icons.
         G.call("h2d.Graphics", "lineStyle", g, [4.5, 0x201b1b, 1.0]);
         G.call("h2d.Graphics", "drawCircle", g, [0., 0., radius - 2.25, 32]);
-        G.call("h2d.Graphics", "lineStyle", g, [2.5, 0xffdc42, 1.0]);
+        G.call("h2d.Graphics", "lineStyle", g, [2.5, SPARKLING_COLOR, 1.0]);
         G.call("h2d.Graphics", "drawCircle", g, [0., 0., radius - 2.25, 32]);
         G.call("h2d.Graphics", "lineStyle", g, [0., 0, 0.0]);
     }
