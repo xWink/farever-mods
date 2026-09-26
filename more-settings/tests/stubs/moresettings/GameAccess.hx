@@ -2,7 +2,6 @@ package moresettings;
 
 /** Test adapter: plain objects stand in for native HL objects and arrays. */
 class GameAccess {
-    public static var nativeCall:(String, String, Dynamic, Array<Dynamic>)->Dynamic;
     public static var master:Float = 1;
     public static var focused:Bool = true;
     public static var writes:Int = 0;
@@ -19,7 +18,6 @@ class GameAccess {
     public static var failTerrainBinding:Bool = false;
     public static function bind(type:String, name:String):Array<Dynamic>->Dynamic {
         return args -> {
-            if (nativeCall != null) return nativeCall(type, name, args[0], args.slice(1));
             if (type == "world.terrain.TerrainData" && name == "getChunk") {
                 terrainLookups++;
                 if (beforeTerrainLookup != null) beforeTerrainLookup();
@@ -64,9 +62,7 @@ class GameAccess {
     public static function callInstance(o:Dynamic, name:String):Dynamic return call("", name, o);
     public static function current(type:String, name:String):Dynamic
         return type == "fmod.Api" && name == "initialized" ? audioReady : field(data, name);
-    public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
-        if (nativeCall != null) return nativeCall(type, name, o, args == null ? [] : args);
-        return switch name {
+    public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic return switch name {
         case "bindUpdate":
             var callbacks:Array<Float->Void> = field(o, "callbacks");
             var callback:Float->Void = args[0];
@@ -101,11 +97,8 @@ class GameAccess {
         case "isActive": field(o, "playing") == true;
         case "stop": set(o, "playing", false); set(o, "stops", integer(field(o, "stops")) + 1); null;
         default: throw "Unexpected native call: " + type + "." + name;
-        };
-    }
-    public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
-        if (nativeCall != null) return nativeCall(type, name, null, args);
-        return switch name {
+    };
+    public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic return switch name {
         case "getInstance": {};
         case "getVcaVolume":
             if (!audioReady) throw "Access violation: FMOD has not initialized";
@@ -116,6 +109,5 @@ class GameAccess {
             if (args[0] != "vca:/MASTER") throw "Unexpected VCA write: " + args[0];
             master = args[1]; writes++; null;
         default: throw "Unexpected native static call: " + type + "." + name;
-        };
-    }
+    };
 }

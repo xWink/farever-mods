@@ -77,7 +77,6 @@ class MoreSettingsMod {
     @:hlx.prefix(GameApp.update)
     static function beforeUpdate(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
         app = instance;
-        PerformanceHooks.update(instance);
         AllyEffects.update(instance);
         if (audio != null && haxe.Timer.stamp() >= audioRetryAt)
             try audio.update(G.field(instance, "hero")) catch (e:Dynamic) audioError(e);
@@ -100,7 +99,6 @@ class MoreSettingsMod {
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         if (audio != null) try audio.dispose() catch (e:Dynamic) audioError(e);
         AllyEffects.dispose();
-        PerformanceHooks.dispose();
         app = null;
         return Continue;
     }
