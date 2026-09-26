@@ -120,12 +120,12 @@ share of your damage, and DPS. A full-width history view also has casts,
 average damage per cast, hits, average damage per hit, and critical-hit percentage.
 Ability DPS uses the entire fight's duration, matching the player's total DPS.
 **Damage (%)** shows only the skill's numeric share of the player's total damage.
-The adjacent **Distribution** column shows the split within that skill's damage:
+The adjacent **Phys/Magic/Raw** column shows the split within that skill's damage:
 muted red for physical, muted blue for magical, and unfilled gray for Raw. Each bar represents
 100% of that skill's damage, regardless of its contribution to the player's total.
-Percentages appear beneath each bar in **Phys / Magic / Raw** order, matching the
-labels below the column heading. Narrow windows stack these labels and values
-vertically so all three percentages remain readable.
+Percentages appear above each bar in the order shown in the column heading.
+Narrow windows wrap the heading and stack the values vertically so all three
+percentages remain readable.
 Logs with missing or incomplete damage-type data show a dash instead of a bar.
 The numeric total keeps its separate **Damage** column. Narrow windows abbreviate
 headings and keep the core columns readable. Ability rows have no hover tooltip.

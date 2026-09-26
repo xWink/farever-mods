@@ -99,13 +99,13 @@ class NativeSkillTable {
                 G.call("domkit.Properties", "addClass", G.field(t, "dom"), ["bold-14"]);
             (cast row.texts:Map<String, Dynamic>)[key] = t;
         }
-        for (i in 0...3) {
-            var t = label(dom, ""); absolute(obj, t);
-            var left = G.enumeration("h2d.Align", "Left");
-            G.call("h2d.Text", "set_textAlign", t, [left]); style(t, "text-align", left);
-            (cast row.distributionTexts:Array<Dynamic>).push(t);
-        }
         if (index >= 0) {
+            for (i in 0...3) {
+                var t = label(dom, ""); absolute(obj, t);
+                var left = G.enumeration("h2d.Align", "Left");
+                G.call("h2d.Text", "set_textAlign", t, [left]); style(t, "text-align", left);
+                (cast row.distributionTexts:Array<Dynamic>).push(t);
+            }
             row.icon = G.create("h2d.Bitmap", [null, obj]); absolute(obj, row.icon);
             G.call("ui.UIElement", "set_onClick", obj, [back]);
         }
@@ -115,7 +115,7 @@ class NativeSkillTable {
         var heading:Bool = row.index < 0;
         var stacked = false;
         for (column in columns) if (column.key == "distribution") stacked = column.width - 10 < 105;
-        var height = stacked ? 60 : 40;
+        var height = stacked ? 60 : heading ? 30 : 40;
         size(row.obj, width, height);
         G.call("h2d.Graphics", "clear", row.graphic);
         if (!heading && row.index % 2 == 0) rect(row.graphic, 0, 0, width, height, 0x5b4334, .06);
@@ -135,23 +135,26 @@ class NativeSkillTable {
                 if (!heading && row.tile != null) { x += 32; cellWidth -= 32; }
                 fit(t, value, x, cellWidth, height, false);
             } else if (column.key == "distribution") {
-                if (heading || row.physical < 0) fit(t, value, x, cellWidth, heading ? 22 : height, false);
+                if (heading)
+                    fitDetail(t, stacked ? StringTools.replace(value, "/", "/\n") : value, x, 3, cellWidth, height - 6);
+                else if (row.physical < 0) fit(t, value, x, cellWidth, height, false);
                 else {
                     show(t, false);
                     var physicalWidth = cellWidth * row.physical;
                     var magicalWidth = cellWidth * row.magical;
                     // Every bar represents this ability's own damage, with Raw
                     // left as the unfilled gray portion after physical/magical.
-                    rect(row.graphic, x, 7, cellWidth, 8, 0x70757d, .35);
-                    if (physicalWidth > 0) rect(row.graphic, x, 7, physicalWidth, 8, PHYSICAL_COLOR, .95);
-                    if (magicalWidth > 0) rect(row.graphic, x + physicalWidth, 7, magicalWidth, 8, MAGICAL_COLOR, .95);
+                    var barY = stacked ? 48 : 26;
+                    rect(row.graphic, x, barY, cellWidth, 8, 0x70757d, .35);
+                    if (physicalWidth > 0) rect(row.graphic, x, barY, physicalWidth, 8, PHYSICAL_COLOR, .95);
+                    if (magicalWidth > 0) rect(row.graphic, x + physicalWidth, barY, magicalWidth, 8, MAGICAL_COLOR, .95);
                 }
-                if (heading || row.physical >= 0) {
-                    var labels:Array<String> = heading ? ["Phys", "Magic", "Raw"] : row.percentages;
+                if (!heading && row.physical >= 0) {
+                    var labels:Array<String> = row.percentages;
                     for (i in 0...3) {
                         var detail = distributionTexts[i]; show(detail, true);
                         fitDetail(detail, labels[i], stacked ? x : x + cellWidth * i / 3,
-                            stacked ? 20 + i * 12 : 23, stacked ? cellWidth : cellWidth / 3, heading || stacked ? 12 : 14);
+                            stacked ? 6 + i * 12 : 6, stacked ? cellWidth : cellWidth / 3, stacked ? 12 : 14);
                     }
                 }
             } else fit(t, value, x, cellWidth, height, true);

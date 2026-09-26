@@ -27,7 +27,7 @@ class SkillBreakdown {
             : width >= 500 ? [.32, .19, .24, .14, .11]
             : width >= 360 ? [.36, .17, .19, .15, .13] : [.31, .19, .18, .18, .14];
         var titles = ["ability" => "Ability", "percent" => width < 360 ? "Dmg%" : width < 500 ? "Dmg %" : "Damage (%)",
-            "distribution" => width < 500 ? "Dist." : "Distribution", "damage" => width < 500 ? "Dmg" : "Damage",
+            "distribution" => "Phys/Magic/Raw", "damage" => width < 500 ? "Dmg" : "Damage",
             "casts" => "Casts", "avgCast" => "Avg cast",
             "hits" => "Hits", "avgHit" => "Avg hit", "crit" => "Crit %", "dps" => "DPS"];
         var result:Array<SkillColumn> = [];
