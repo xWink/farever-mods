@@ -22,9 +22,9 @@ class SkillBreakdown {
         var keys = width >= 800 ? KEYS
             : width >= 700 ? ["ability", "percent", "distribution", "damage", "casts", "hits", "crit", "dps"]
             : ["ability", "percent", "distribution", "damage", "dps"];
-        var ratios = width >= 800 ? [.23, .115, .125, .09, .06, .08, .055, .085, .075, .085]
-            : width >= 700 ? [.27, .14, .16, .115, .075, .07, .08, .09]
-            : width >= 500 ? [.36, .19, .20, .14, .11]
+        var ratios = width >= 800 ? [.21, .115, .15, .09, .06, .08, .055, .08, .075, .085]
+            : width >= 700 ? [.25, .14, .18, .115, .075, .07, .08, .09]
+            : width >= 500 ? [.32, .19, .24, .14, .11]
             : width >= 360 ? [.36, .17, .19, .15, .13] : [.31, .19, .18, .18, .14];
         var titles = ["ability" => "Ability", "percent" => width < 360 ? "Dmg%" : width < 500 ? "Dmg %" : "Damage (%)",
             "distribution" => width < 500 ? "Dist." : "Distribution", "damage" => width < 500 ? "Dmg" : "Damage",
