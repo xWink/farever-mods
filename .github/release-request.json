@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.8.0",
-  "commit": "f456bb39dc4778ad775296ff7b22f72681459f50",
-  "notes": "- Added new setting \"Performance improvements\", which reduces the frequency and severity of game freezes/lag/hitches.\n",
+  "project": "minimap",
+  "version": "1.6.1",
+  "commit": "ffe13f4c8c24c242cf59bb957dd1151ea5dac6ac",
+  "notes": "- Minor performance optimization",
   "dry_run": false
 }
