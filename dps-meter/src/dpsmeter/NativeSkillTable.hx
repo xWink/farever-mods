@@ -7,10 +7,12 @@ import dpsmeter.NativeUi.*;
 
 /** One ability per row, shared by live, history, and rift recap charts. */
 class NativeSkillTable {
-    static inline var PHYSICAL_COLOR:Int = 0xbd8982;
-    static inline var MAGICAL_COLOR:Int = 0x86a4bd;
+    static inline var PHYSICAL_COLOR:Int = 0xcc7d72;
+    static inline var MAGICAL_COLOR:Int = 0x6d9fca;
+    static inline var RAW_COLOR:Int = 0xf2eee7;
 
     public var object(default, null):Dynamic;
+    public var headerHeight(default, null):Int = 30;
     var root:Dynamic;
     var header:Dynamic;
     var rows:Array<Dynamic> = [];
@@ -20,12 +22,12 @@ class NativeSkillTable {
     var id:String;
     var width:Int = 0;
     var columns:Array<SkillColumn> = [];
-    public function new(parent:Dynamic, id:String, back:Void->Void) {
+    public function new(parent:Dynamic, id:String, back:Void->Void, ?headerParent:Dynamic) {
         this.id = id; this.back = back;
         root = node("flow", parent, [], id + "Table", "vertical");
         object = G.field(root, "obj"); padding(object, 0);
         flow(root, "set_verticalSpacing", 0); style(object, "vspacing", 0);
-        header = makeRow(-1);
+        header = makeRow(-1, headerParent);
         show(object, false);
     }
     public function clear():Void { names = []; icons = []; }
@@ -82,8 +84,8 @@ class NativeSkillTable {
             layout(header); header.font = G.field(nameText, "font"); header.scale = G.field(nameText, "scaleX");
         }
     }
-    function makeRow(index:Int):Dynamic {
-        var dom = node("element", root, [], id + "SkillRow" + index, "horizontal");
+    function makeRow(index:Int, ?parent:Dynamic):Dynamic {
+        var dom = node("element", parent == null ? root : parent, [], id + "SkillRow" + index, "horizontal");
         var obj = G.field(dom, "obj"); padding(obj, 0);
         var row:Dynamic = {obj: obj, texts: new Map<String, Dynamic>(), values: new Map<String, String>(),
             graphic: G.create("h2d.Graphics", [obj]), icon: null, tile: null,
@@ -116,6 +118,7 @@ class NativeSkillTable {
         var stacked = false;
         for (column in columns) if (column.key == "distribution") stacked = column.width - 10 < 105;
         var height = stacked ? 60 : heading ? 30 : 40;
+        if (heading) headerHeight = height;
         size(row.obj, width, height);
         G.call("h2d.Graphics", "clear", row.graphic);
         if (!heading && row.index % 2 == 0) rect(row.graphic, 0, 0, width, height, 0x5b4334, .06);
@@ -143,9 +146,9 @@ class NativeSkillTable {
                     var physicalWidth = cellWidth * row.physical;
                     var magicalWidth = cellWidth * row.magical;
                     // Every bar represents this ability's own damage, with Raw
-                    // left as the unfilled gray portion after physical/magical.
+                    // occupying the off-white portion after physical/magical.
                     var barY = stacked ? 48 : 26;
-                    rect(row.graphic, x, barY, cellWidth, 8, 0x70757d, .35);
+                    rect(row.graphic, x, barY, cellWidth, 8, RAW_COLOR, .95);
                     if (physicalWidth > 0) rect(row.graphic, x, barY, physicalWidth, 8, PHYSICAL_COLOR, .95);
                     if (magicalWidth > 0) rect(row.graphic, x + physicalWidth, barY, magicalWidth, 8, MAGICAL_COLOR, .95);
                 }

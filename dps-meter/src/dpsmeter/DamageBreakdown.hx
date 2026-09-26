@@ -84,7 +84,7 @@ class DamageBreakdown {
     public function distribution(total:Float):Null<DamageDistribution> {
         var physical = types["physical"].damage, magical = types["magical"].damage, raw = types["raw"].damage;
         var known = physical + magical + raw;
-        // Gray means Raw, so incomplete/older records must not look like Raw.
+        // The remainder means Raw, so incomplete/older records must not look like Raw.
         // Exported totals are rounded to whole damage; type buckets stay exact.
         if (total <= 0 || known <= 0 || types["unclassified"].damage > 0
             || Math.abs(known - total) > Math.max(0.5, total * 0.000001)) return null;

@@ -6,10 +6,17 @@ import dpsmeter.NativeUi.*;
 
 /** The same scrollable player/skill chart in the live meter and phase recaps. */
 class NativeDamageChart {
+    var root:Dynamic;
+    var headerRoot:Dynamic;
     var rowsRoot:Dynamic;
     var rows:Array<Dynamic> = [];
     var id:String;
     var width:Int = 1;
+    var height:Int = 1;
+    var skillView:Bool = false;
+    var viewportWidth:Int = 0;
+    var viewportHeight:Int = 0;
+    var viewportHeaderHeight:Int = -1;
     var displayed:Null<Fight>;
     var selectedPlayer:String = "";
     var skillTable:NativeSkillTable;
@@ -17,7 +24,15 @@ class NativeDamageChart {
     var empty:Dynamic;
     public function new(parent:Dynamic, id:String, emptyText:String = "") {
         this.id = id;
-        rowsRoot = node("flow", parent, [], id, "vertical");
+        root = node("flow", parent, [], id + "Chart", "vertical");
+        padding(G.field(root, "obj"), 0);
+        flow(root, "set_verticalSpacing", 0); style(G.field(root, "obj"), "vspacing", 0);
+        // The header is a sibling of the scrolling body, so native clipping
+        // and mouse-wheel scrolling affect only player/skill rows.
+        headerRoot = node("flow", root, [], id + "Header", "vertical");
+        padding(G.field(headerRoot, "obj"), 0);
+        show(G.field(headerRoot, "obj"), false);
+        rowsRoot = node("flow", root, [], id, "vertical");
         var object = G.field(rowsRoot, "obj");
         padding(object, 0);
         flow(rowsRoot, "set_verticalSpacing", 12);
@@ -28,19 +43,29 @@ class NativeDamageChart {
         if (emptyText != "") empty = label(rowsRoot, emptyText);
         skillTable = new NativeSkillTable(rowsRoot, id, () -> {
             selectedPlayer = ""; resetScroll(); lastRefresh = -1;
-        });
+        }, headerRoot);
     }
     public function resize(width:Int, height:Int):Void {
-        this.width = width;
-        size(G.field(rowsRoot, "obj"), width, height);
+        this.width = width; this.height = height;
+        size(G.field(root, "obj"), width, height);
+        layoutViewport();
         if (empty != null) G.call("ui.comp.FmtText", "set_maxWidthText", empty, [width]);
         for (row in rows) sizeRow(row);
         lastRefresh = -1;
     }
+    function layoutViewport():Void {
+        var headerHeight = skillView ? skillTable.headerHeight : 0;
+        if (viewportWidth == width && viewportHeight == height && viewportHeaderHeight == headerHeight) return;
+        viewportWidth = width; viewportHeight = height; viewportHeaderHeight = headerHeight;
+        show(G.field(headerRoot, "obj"), skillView);
+        size(G.field(headerRoot, "obj"), width, headerHeight);
+        size(G.field(rowsRoot, "obj"), width, Std.int(Math.max(1, height - headerHeight)));
+    }
     public function snapshotHeight():Int {
         var list = G.field(rowsRoot, "obj");
         NativeFightSnapshot.reflow(list);
-        return Std.int(Math.ceil(Math.max(30, G.number(G.field(list, "contentHeight")))));
+        var headerHeight = skillView ? skillTable.headerHeight : 0;
+        return Std.int(Math.ceil(Math.max(30, headerHeight + G.number(G.field(list, "contentHeight")))));
     }
     public function snapshotScroll():Float return G.number(G.field(G.field(rowsRoot, "obj"), "scrollPosY"));
     public function restoreScroll(value:Float):Void flow(rowsRoot, "set_scrollPosY", value);
@@ -64,10 +89,17 @@ class NativeDamageChart {
         var total = 0.0;
         for (p in ranked) total += p.damage;
         var selected = fight == null ? null : fight.players[selectedPlayer];
+        if (skillView != (selected != null)) {
+            skillView = selected != null;
+            layoutViewport();
+        }
         if (selected != null) {
             show(empty, false);
             for (row in rows) show(row.obj, false);
             skillTable.update(selected, seconds, availableRowWidth());
+            // Narrow layouts have a taller heading. Reserve its final height
+            // after laying out the columns, including scrollbar width changes.
+            layoutViewport();
             return;
         }
         show(skillTable.object, false);
