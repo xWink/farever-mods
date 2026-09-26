@@ -51,6 +51,29 @@ class DamageBreakdownTest {
         var skill:Dynamic = player.skills["Mixed"].json("Mixed", 1).damage_breakdown;
         check(skill.physical.damage == 60 && skill.magical.damage == 40 && skill.magical.percent == 40,
             "The same ability can deal both types; it is not assigned one fixed type");
+        var distribution = player.skills["Mixed"].damageBreakdown.distribution(100);
+        check(distribution.physical == 0.6 && distribution.magical == 0.4 && distribution.raw == 0,
+            "Distribution uses each ability's damage, independently of party contribution");
+        var mixed = new DamageBreakdown();
+        mixed.add(hit(581, "physical", "Physical")); mixed.add(hit(9884, "magical", "Magic"));
+        distribution = mixed.distribution(10465);
+        check(Math.abs(distribution.physical - 581 / 10465) < 0.000001
+            && Math.abs(distribution.magical - 9884 / 10465) < 0.000001,
+            "Recorded mixed Gaping Wound damage retains unrounded bar proportions");
+        mixed.add(hit(1000, "raw", "Raw"));
+        distribution = mixed.distribution(11465);
+        check(Math.abs(distribution.physical + distribution.magical + distribution.raw - 1) < 0.000001
+            && Math.abs(distribution.raw - 1000 / 11465) < 0.000001, "Raw occupies the remaining gray share");
+        var rawOnly = new DamageBreakdown(); rawOnly.add(hit(20, "raw", "Raw"));
+        distribution = rawOnly.distribution(20);
+        check(distribution.physical == 0 && distribution.magical == 0 && distribution.raw == 1,
+            "A fully Raw skill has a completely gray bar");
+        var rounded = new DamageBreakdown(); rounded.add(hit(10.4, "magical", "Magic"));
+        check(rounded.distribution(10).magical == 1, "Rounded exported totals do not invent a Raw remainder");
+        check(new DamageBreakdown().distribution(100) == null && mixed.distribution(0) == null
+            && mixed.distribution(12000) == null, "Missing, zero and incomplete totals have no distribution bar");
+        mixed.add(hit(1, "unclassified", ""));
+        check(mixed.distribution(11466) == null, "Unknown damage cannot be mistaken for Raw");
 
         var record = Json.parse(Json.stringify(FightHistory.encode(fight, "mixed")));
         var restored = FightHistory.decode(record);

@@ -3,6 +3,8 @@ package dpsmeter;
 import dpsmeter.CombatModel.DamageEvent;
 import dpsmeter.CombatModel.SkillStats;
 
+typedef DamageDistribution = {physical:Float, magical:Float, raw:Float};
+
 private class DamageBucket {
     public var damage:Float = 0;
     public var hits:Int = 0;
@@ -79,6 +81,15 @@ class DamageBreakdown {
     }
     public static function percent(amount:Float, total:Float):Float
         return total > 0 ? SkillStats.rounded(amount / total * 100, 1) : 0;
+    public function distribution(total:Float):Null<DamageDistribution> {
+        var physical = types["physical"].damage, magical = types["magical"].damage, raw = types["raw"].damage;
+        var known = physical + magical + raw;
+        // Gray means Raw, so incomplete/older records must not look like Raw.
+        // Exported totals are rounded to whole damage; type buckets stay exact.
+        if (total <= 0 || known <= 0 || types["unclassified"].damage > 0
+            || Math.abs(known - total) > Math.max(0.5, total * 0.000001)) return null;
+        return {physical: physical / known, magical: magical / known, raw: raw / known};
+    }
     public function summary(total:Float):String {
         if (!hasData() || total <= 0) return "";
         // Keep missing/unsupported hits in the denominator, including an older

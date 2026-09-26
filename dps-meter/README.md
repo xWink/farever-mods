@@ -119,10 +119,13 @@ Each ability occupies one row with its game icon, display name, total damage,
 share of your damage, and DPS. A full-width history view also has casts,
 average damage per cast, hits, average damage per hit, and critical-hit percentage.
 Ability DPS uses the entire fight's duration, matching the player's total DPS.
-Wide tables label the share/bar area **Damage (%)** and the numeric total **Damage**.
-The bars and printed percentages both use the player's total damage, so a skill
-responsible for 20% of the damage fills 20% of its bar. Narrow windows keep the core columns
-readable. Ability rows have no hover tooltip.
+**Damage (%)** shows only the skill's numeric share of the player's total damage.
+The adjacent **Distribution** column shows the split within that skill's damage:
+red for physical, blue for magical, and unfilled gray for Raw. Each bar represents
+100% of that skill's damage, regardless of its contribution to the player's total.
+Logs with missing or incomplete damage-type data show a dash instead of a bar.
+The numeric total keeps its separate **Damage** column. Narrow windows abbreviate
+headings and keep the core columns readable. Ability rows have no hover tooltip.
 **Back** returns to the same page of attempts, then to the encounter names.
 **Escape** closes an open sort/filter dropdown first, then the history window,
 without also closing a window underneath it.

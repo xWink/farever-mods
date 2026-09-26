@@ -1018,13 +1018,14 @@ class HistoryTest {
             totalDps += v.dps; totalPercent += v.percent;
         }
         check(totalDps == 35.05 && totalPercent == 100, "Reopened ability DPS sums to the archived player's DPS");
-        for (width in [280, 360, 579, 580, 799, 800, 828, 852]) {
+        for (width in [280, 360, 499, 500, 579, 580, 699, 700, 799, 800, 828, 852]) {
             var columns = SkillBreakdown.columns(width); var edge = 0;
             for (c in columns) { check(c.x == edge && c.width > 0, "Table columns cannot overlap at width " + width); edge += c.width; }
-            check(edge == width && columns[0].key == "ability" && columns[1].key == "damage"
+            check(edge == width && columns[0].key == "ability" && columns[1].key == "percent"
+                && columns[2].key == "distribution" && columns[3].key == "damage"
                 && columns[columns.length - 1].key == "dps", "Core information fits every supported width " + width);
         }
-        check(SkillBreakdown.columns(828).length == 8, "Normal history width shows every reference column");
+        check(SkillBreakdown.columns(828).length == 10, "Normal history width shows every statistic and the separate distribution");
     }
 }
 
