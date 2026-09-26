@@ -475,11 +475,17 @@ class LandmarkIcons {
 
     static function alertArrowShape(g:Dynamic, r:Float, padding:Float):Void {
         var tail = -0.9 * r - padding, shoulder = 0.4 * r;
-        var shaft = 0.23 * r + padding, head = 0.45 * r + padding;
+        var shaft = 0.23 * r + padding;
+        // Offset each triangle edge perpendicularly by the same padding as
+        // the shaft. Adding padding to X/Y alone thins the two slanted edges.
+        var slope = 0.45 / 0.6;
+        var normalLength = Math.sqrt(1 + slope * slope);
+        var tip = r + padding * normalLength / slope;
+        var head = 0.45 * r + padding * (normalLength + slope);
         // Two convex fills avoid a concave junction and keep the outline intact
         // where the shaft meets the head. Padding stays inside the alert bounds.
         polygon(g, 1, [tail, -shaft, shoulder, -shaft, shoulder, shaft, tail, shaft]);
-        polygon(g, 1, [r + padding, 0, shoulder - padding, head, shoulder - padding, -head]);
+        polygon(g, 1, [tip, 0, shoulder - padding, head, shoulder - padding, -head]);
     }
 
     public static function partyPlayer(g:Dynamic, radius:Float):Void {
