@@ -15,6 +15,7 @@ class PerformanceHooks {
     static var pacingFailed:Bool = false;
     static var appearanceFailed:Bool = false;
     static var textFailed:Bool = false;
+    static var forwardingDamageAnimation:Bool = false;
     static var queueFailed:Bool = false;
     static var feedFailed:Bool = false;
     static var terrainFailed:Bool = false;
@@ -117,10 +118,31 @@ class PerformanceHooks {
     }
 
     @:hlx.prefix(ui.UIElement.bindUpdate)
-    static function damageAnimation(instance:Dynamic, callback:hl.Ref<Float->Void>):HlxPrefixResult<Void> {
-        if (enabled && !textFailed && G.isA(instance, "ui.comp.DamageDisplay"))
-            try callback.set(combatText.capture(instance, callback.get())) catch (e:Dynamic) textError(e);
-        return Continue;
+    static function damageAnimation(instance:Dynamic, callback:Float->Void):HlxPrefixResult<Void> {
+        // HLX uses this declaration as the native receiver signature. bindUpdate
+        // takes a closure by value; hl.Ref here corrupts even unrelated UI calls.
+        if (forwardingDamageAnimation || !enabled || textFailed || !G.isA(instance, "ui.comp.DamageDisplay")) return Continue;
+        var bind:Array<Dynamic>->Dynamic;
+        var wrapped:Float->Void;
+        try {
+            bind = G.bind("ui.UIElement", "bindUpdate");
+            wrapped = combatText.capture(instance, callback);
+        } catch (e:Dynamic) { textError(e); return Continue; }
+        if (wrapped == callback) return Continue;
+
+        // Forward the wrapped closure through the native method once. The
+        // guard lets the nested dispatch reach the original implementation.
+        forwardingDamageAnimation = true;
+        try bind([instance, wrapped]) catch (e:Dynamic) {
+            forwardingDamageAnimation = false;
+            textError(e);
+            // Native bindUpdate can fail after registering its callback. Do not
+            // bind it twice; detach this failed visual and let its widget expire.
+            try G.call("h2d.Object", "remove", instance) catch (_:Dynamic) {}
+            return Skip;
+        }
+        forwardingDamageAnimation = false;
+        return Skip;
     }
 
     static function terrainError(e:Dynamic):Void {

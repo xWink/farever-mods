@@ -22,3 +22,9 @@
 -cp tests
 -main PacingTest
 --interp
+--next
+-cp src
+-cp tests/stubs
+-cp tests
+-main UpdateBindingTest
+--interp
