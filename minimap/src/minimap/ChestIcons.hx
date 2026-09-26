@@ -12,8 +12,8 @@ class ChestIcons {
     static function treasure(g:Dynamic, r:Float, vault:Bool):Void {
         var trim = vault ? 0xd5ad55 : 0x8e8375;
         var trimLight = vault ? 0xf2d27a : 0xbcb1a0;
-        var wood = vault ? 0xa83d40 : 0x99502f;
-        var lower = vault ? 0x792d37 : 0x704328;
+        var wood = vault ? 0xe02c3a : 0x99502f;
+        var lower = vault ? 0xb51f32 : 0x704328;
         if (vault) {
             // The vault's gold diamond crest rises above its red lid.
             patch(g, r, trim, [0, -1.03, 0.39, -0.67, 0, -0.31, -0.39, -0.67], true);
@@ -27,7 +27,7 @@ class ChestIcons {
         }
         patch(g, r, wood, [-0.99, -0.68, 0.99, -0.68, 0.94, -0.08,
             0.75, 0.14, -0.75, 0.14, -0.94, -0.08], true);
-        patch(g, r, vault ? 0xc2554d : 0xb87245,
+        patch(g, r, vault ? 0xff5258 : 0xb87245,
             [-0.91, -0.64, 0.91, -0.64, 0.9, -0.53, -0.9, -0.53]);
         if (!vault)
             patch(g, r, 0x673924, [-0.72, -0.32, 0.72, -0.32, 0.72, -0.26, -0.72, -0.26]);
