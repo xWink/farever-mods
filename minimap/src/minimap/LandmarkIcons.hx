@@ -25,68 +25,111 @@ class LandmarkIcons {
     }
 
     public static function respawnPoint(g:Dynamic, r:Float, unlocked:Bool):Void {
-        // A flat stone basin with the reference's short neck, broad cap and inset.
-        fill(g, 0x232e32);
-        polygon(g, r, [-0.27, -0.88, 0.27, -0.88, 0.28, -0.17, -0.28, -0.17]);
-        polygon(g, r, [-0.62, -0.93, -0.45, -1.08, 0.45, -1.08, 0.62, -0.93,
-            0.53, -0.7, -0.53, -0.7]);
-        ellipse(g, r, 0, 0.23, 0.97, 0.83);
+        // Broad, shallow stone platform beneath the upright monument and basin.
+        fill(g, 0x293d48);
+        ellipse(g, r, 0, 0.49, 1.04, 0.51);
         end(g);
-        fill(g, 0x596b70);
-        polygon(g, r, [-0.18, -0.82, 0.18, -0.82, 0.22, -0.18, -0.22, -0.18]);
-        polygon(g, r, [-0.52, -0.91, -0.4, -1, 0.4, -1, 0.52, -0.91,
-            0.46, -0.78, -0.46, -0.78]);
-        ellipse(g, r, 0, 0.23, 0.88, 0.75);
+        fill(g, 0x475f6b);
+        ellipse(g, r, 0, 0.51, 0.97, 0.44);
         end(g);
-        fill(g, 0x758580);
-        polygon(g, r, [-0.52, -0.91, -0.4, -1, 0.4, -1, 0.46, -0.94,
-            -0.36, -0.91, -0.46, -0.78]);
+        fill(g, 0x6c8792);
+        ellipse(g, r, 0, 0.44, 0.97, 0.43);
         end(g);
-        fill(g, 0x34464d);
-        polygon(g, r, [-0.055, -0.66, 0.055, -0.66, 0.075, -0.36, -0.075, -0.36]);
-        // Short radial joints make the outer rim read as fitted stone blocks.
-        for (i in 0...9) {
-            var a = i * Math.PI * 2 / 9 - 0.025, b = a + 0.05;
-            polygon(g, r, [Math.cos(a) * 0.66, 0.23 + Math.sin(a) * 0.56,
-                Math.cos(a) * 0.89, 0.23 + Math.sin(a) * 0.75,
-                Math.cos(b) * 0.89, 0.23 + Math.sin(b) * 0.75,
-                Math.cos(b) * 0.66, 0.23 + Math.sin(b) * 0.56]);
+        fill(g, 0x49616e);
+        for (i in 0...10) {
+            var a = i * Math.PI * 2 / 10 - 0.025, b = a + 0.05;
+            polygon(g, r, [Math.cos(a) * 0.63, 0.44 + Math.sin(a) * 0.29,
+                Math.cos(a) * 0.96, 0.44 + Math.sin(a) * 0.43,
+                Math.cos(b) * 0.96, 0.44 + Math.sin(b) * 0.43,
+                Math.cos(b) * 0.63, 0.44 + Math.sin(b) * 0.29]);
         }
-        ellipse(g, r, 0, 0.23, 0.68, 0.58);
         end(g);
-        fill(g, 0x9b9275);
-        ellipse(g, r, 0, -0.8, 0.16, 0.12);
+
+        // Flared shoulders, a gently peaked cap and feet set behind the pool.
+        fill(g, 0x293d48);
+        polygon(g, r, [-0.24, -0.75, 0.24, -0.75, 0.35, 0.2, -0.35, 0.2]);
+        polygon(g, r, [0, -1.1, 0.58, -0.9, 0.53, -0.67, 0.3, -0.55,
+            -0.3, -0.55, -0.53, -0.67, -0.58, -0.9]);
+        for (side in [-1, 1]) polygon(g, r, [0.3, -0.06, 0.48, 0.24, 0.2, 0.18], side);
         end(g);
-        fill(g, 0x514879);
-        ellipse(g, r, 0, -0.8, 0.105, 0.077);
+        fill(g, 0x8ca5b4);
+        polygon(g, r, [-0.18, -0.73, 0.18, -0.73, 0.28, 0.16, -0.28, 0.16]);
+        polygon(g, r, [0, -1.02, 0.49, -0.85, 0.46, -0.72, 0.23, -0.61,
+            -0.23, -0.61, -0.46, -0.72, -0.49, -0.85]);
+        for (side in [-1, 1]) polygon(g, r, [0.25, 0, 0.37, 0.18, 0.2, 0.15], side);
+        end(g);
+        fill(g, 0xb0c2c5);
+        for (side in [-1, 1]) polygon(g, r, [0, -1.02, 0.49, -0.85, 0.44, -0.8, 0, -0.96], side);
+        polygon(g, r, [-0.18, -0.63, -0.11, -0.6, -0.18, 0.13, -0.26, 0.16]);
+        end(g);
+        fill(g, 0x5d7b93);
+        polygon(g, r, [-0.085, -0.54, 0.085, -0.54, 0.11, 0.12, -0.11, 0.12]);
+        end(g);
+        fill(g, 0x7b9eb7);
+        for (y in [-0.4, -0.2, 0.0]) polygon(g, r, [0, y - 0.08, 0.075, y, 0, y + 0.08, -0.075, y]);
+        end(g);
+        fill(g, 0x3b4f64);
+        ellipse(g, r, 0, -0.73, 0.19, 0.18);
+        end(g);
+        fill(g, 0xe0d29c);
+        ellipse(g, r, 0, -0.73, 0.16, 0.15);
+        end(g);
+        fill(g, 0x766792);
+        ellipse(g, r, 0, -0.73, 0.105, 0.1);
+        end(g);
+
+        // The raised inner ring sits on the platform, in front of the monument.
+        fill(g, 0x344b5c);
+        ellipse(g, r, 0, 0.49, 0.71, 0.36);
+        end(g);
+        fill(g, 0x8a9eaa);
+        ellipse(g, r, 0, 0.43, 0.66, 0.31);
+        end(g);
+        fill(g, 0x536d7e);
+        for (i in 0...10) {
+            var a = i * Math.PI * 2 / 10 - 0.03, b = a + 0.06;
+            polygon(g, r, [Math.cos(a) * 0.52, 0.43 + Math.sin(a) * 0.23,
+                Math.cos(a) * 0.66, 0.43 + Math.sin(a) * 0.31,
+                Math.cos(b) * 0.66, 0.43 + Math.sin(b) * 0.31,
+                Math.cos(b) * 0.52, 0.43 + Math.sin(b) * 0.23]);
+        }
+        ellipse(g, r, 0, 0.43, 0.53, 0.245);
         end(g);
         if (unlocked) {
             fill(g, 0x37dfef);
-            ellipse(g, r, 0, 0.23, 0.61, 0.51);
+            ellipse(g, r, 0, 0.43, 0.5, 0.22);
             end(g);
             fill(g, 0x08ade9);
-            ellipse(g, r, 0, 0.25, 0.53, 0.44);
+            ellipse(g, r, 0, 0.44, 0.42, 0.17);
             end(g);
             // One flat cyan curl suggests the blue water without a glow effect.
             G.call("h2d.Graphics", "lineStyle", g, [0.75, 0x49e4f2, 1.0]);
             for (i in 0...25) {
                 var a = -1.3 + i * Math.PI * 1.6 / 24;
-                var curl = 0.39 - i * 0.26 / 24;
+                var curl = 0.33 - i * 0.22 / 24;
                 G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", g,
-                    [Math.cos(a) * curl * r, (0.25 + Math.sin(a) * curl * 0.82) * r]);
+                    [Math.cos(a) * curl * r, (0.44 + Math.sin(a) * curl * 0.4) * r]);
             }
             G.call("h2d.Graphics", "lineStyle", g, [0.0, 0, 0.0]);
         } else {
-            fill(g, 0x747e79);
-            ellipse(g, r, 0, 0.23, 0.61, 0.51);
+            fill(g, 0x727e95);
+            ellipse(g, r, 0, 0.43, 0.5, 0.22);
             end(g);
-            fill(g, 0x8c9386);
-            ellipse(g, r, 0, 0.29, 0.49, 0.37);
+            fill(g, 0x9096a9);
+            polygon(g, r, [-0.36, 0.44, -0.18, 0.32, 0.15, 0.31, 0.32, 0.4, 0.14, 0.48, -0.15, 0.5]);
             end(g);
             // Exposed stone at the bottom of the empty, undiscovered basin.
-            fill(g, 0x596660);
-            polygon(g, r, [-0.42, 0.1, 0.4, 0.3, 0.4, 0.35, -0.42, 0.15]);
-            polygon(g, r, [-0.04, 0.23, 0.01, 0.24, -0.1, 0.62, -0.15, 0.62]);
+            fill(g, 0x67788c);
+            polygon(g, r, [-0.39, 0.44, 0.38, 0.48, 0.37, 0.515, -0.39, 0.475]);
+            polygon(g, r, [0.055, 0.25, 0.095, 0.25, 0.035, 0.46, -0.005, 0.46]);
+            end(g);
+        }
+        for (side in [-1, 1]) {
+            fill(g, 0x344c59);
+            polygon(g, r, [0.83, 0.18, 0.91, 0.14, 1, 0.48, 0.79, 0.48], side);
+            end(g);
+            fill(g, 0x809ba5);
+            polygon(g, r, [0.84, 0.22, 0.89, 0.19, 0.93, 0.39, 0.81, 0.43], side);
             end(g);
         }
     }
