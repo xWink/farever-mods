@@ -110,14 +110,14 @@ class GameAccess {
             codexThresholdReads++;
             return field(args[0], "thresholds");
         }
-        if (type != "HActivity" || name != "isOfType") throw "Unexpected native static call";
+        if ((type != "HActivity" && type != "HElement") || name != "isOfType") throw "Unexpected native static call";
         var inf = args[0];
-        // Native HActivity.isOfType follows IDs through the inheritance chain.
+        // Native definition checks follow IDs through the inheritance chain.
         while (inf != null) {
             if (field(inf, "id") == args[1]) return true;
             var parent = field(inf, "inherit");
             if (parent == null) return false;
-            inf = definitions[parent];
+            inf = type == "HElement" ? elements[parent] : definitions[parent];
         }
         return false;
     }

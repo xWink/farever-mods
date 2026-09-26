@@ -40,7 +40,7 @@ with the new client.
 - Independent enemy filters for Codex XP completion, full mastery, and target dummies.
 - Companion markers with an option to hide variants already in your collection.
 - Yellow-ringed edge arrows guide you toward uncollected sparkling companions when their markers are out of view.
-- Yellow rings highlight sparkling enemies and bosses.
+- Yellow rings highlight elite enemies and sparkling enemies and bosses.
 - Individual plant and ore type filters.
 - Hover over markers or guidance arrows to see their name, horizontal distance, and relative height below the map.
 - Optional vertical-distance filter hides map markers above or below a chosen threshold while keeping guidance arrows available.
@@ -55,7 +55,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Other players | Larger light-blue arrow showing facing direction |
 | Plants | Green leaf |
 | Ore | Gray stone |
-| Enemies | Red circle; larger for bosses; thick yellow ring for sparkling variants |
+| Enemies | Red circle; larger for bosses; thick yellow ring for elites and sparkling variants |
 | Target dummies | Tan practice dummy on a wooden cross, with a red bullseye |
 | Companions | Green pawprint; thick yellow ring for sparkling variants |
 | Activities | Purple square with a white four-point star |
@@ -76,10 +76,14 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 | Weapon Upgrade | Grey stone forge with gold studs and a bright multicoloured flame |
 | Crafting Station | Boat-shaped wooden workbench with cyan bottles, a scroll, and a hanging rune sign |
 | Infusion Crucible | Stone basin with turquoise liquid, a copper rim, and a floating pink orb |
-| Chests | Orange rectangular treasure chest |
+| Abandoned chests | Brown wooden chest with dull metal bands and a brass lock |
+| Vault chests | Red chest with gold bands, a keyhole, and a diamond crest |
+| Recipe chests | Burgundy pouch with cream parchment scrolls; hover label **Recipe Chest** |
 | Undiscovered secret orbs | Gold orb with an ivory centre and broken purple rings |
 
 **Show NPCs** also controls the Guild Merchant, Glory Merchant, Demon Huntress, and station icons. NPC markers draw in front of all other map elements. All player markers, including your character arrow, draw behind other marker types so crowds cannot obscure them. **Show chests** and **Show secret orbs** are separate options in the **Markers** section.
+
+All three chest markers use flat, front-facing geometry without glow. Vault and recipe chests follow the game's native definition ancestry, independent of translated names; other chests use the wooden chest icon. **Show chests** controls all three, with the same opened/hidden checks, distance details, marker scaling, and vertical filtering. Recipe chest hover names always read **Recipe Chest**. Elite enemy rings use the native Elite flag and preserve enemy size and Codex filters; sparkling companion alerts still require the Spark flag.
 
 Glory Merchants are identified by the PTR's dedicated merchant unit (`TODO_MOG_Merchant`), with service-title and Glory-price checks as fallbacks; Infusion Crucibles use the new client's native station type. Both appear automatically wherever those services exist, with the same hover distances, height indicators, and vertical filtering as other NPC markers. A live NPC's resolved definition can replace a generic map definition. Their definitions and icon geometry are cached, and the same build continues to support the current client.
 

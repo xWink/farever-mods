@@ -10,6 +10,11 @@ class EnemyMarkersTest {
 
     static function main():Void {
         var markers = new EnemyMarkers();
+        eq(EnemyMarkers.highlighted(null), false, "missing definition has no yellow ring");
+        for (flags in [0, 1, 4, 16, 32, 64])
+            eq(EnemyMarkers.highlighted({flags: flags}), false, "ordinary and non-elite boss flags do not add a ring");
+        for (flags in [8, 8 | 16, 8 | 32, 1 << 22, (1 << 22) | 8])
+            eq(EnemyMarkers.highlighted({flags: flags}), true, "elites and sparkling variants share the yellow ring");
         // Deliberately use a different group index from the current game.
         // Localized names and new unit IDs must not change classification.
         var dummy = {id: "FuturePracticeTarget", name: "Mannequin", group: 42, flags: 0x38,

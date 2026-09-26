@@ -30,6 +30,11 @@
 --next
 -cp src
 -cp tests
+-main ChestMarkersTest
+--interp
+--next
+-cp src
+-cp tests
 -main RiftMarkersTest
 --interp
 --next

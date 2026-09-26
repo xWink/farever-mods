@@ -67,6 +67,7 @@ class MinimapMarkers {
     var gatherKinds:Map<String, String> = [];
     var gatherFilters:Map<String, String> = [];
     var enemies = new EnemyMarkers();
+    var chests = new ChestMarkers();
     var worldEvents = new WorldEventAccess();
     var npcKinds:Map<String, String> = [];
     var npcDefinitions:Map<String, Dynamic> = [];
@@ -359,6 +360,7 @@ class MinimapMarkers {
                     }
                     kind = enemyKinds[id];
                     if (kind == "") continue;
+                    sparkling = (kind == "enemy" || kind == "boss") && EnemyMarkers.highlighted(inf);
                 }
             }
             if (point == null) point = {kind: kind, x: px, y: py, z: G.number(G.field(unit, "posz"), Math.NaN), sparkling: sparkling, entity: unit,
@@ -389,7 +391,7 @@ class MinimapMarkers {
                 // the game, including activity chests. Locked chests still show.
                 var state = G.call("ent.Element", "getElementStateInf", element, [player]);
                 var flags = G.integer(G.field(state, "flags"));
-                if ((flags & 0x29) == 0) points.push({kind: "chest", x: px, y: py,
+                if ((flags & 0x29) == 0) points.push({kind: chests.kind(G.field(element, "inf")), x: px, y: py,
                     z: G.number(G.field(element, "posz"), Math.NaN), entity: element});
             } else if (active) {
                 // Gatherable.consume disables the entity until its next respawn.
@@ -594,9 +596,9 @@ class MinimapMarkers {
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
 
     static function markerRadius(kind:String):Float return switch kind {
-        case "bank", "demon", "chest", "player", "activity", "ascension", "companion": 7;
+        case "bank", "demon", "player", "activity", "ascension", "companion": 7;
         case "plant", "ore", "boss": 5;
-        case "obelisk", "dungeon", "soulstone", "secretOrb", "glory": 8;
+        case "obelisk", "dungeon", "soulstone", "secretOrb", "glory", "chest", "vaultChest", "recipeChest": 8;
         case "targetDummy", "upcomingRift", "infusion", "craft", "recycler": 9;
         case "riftPortal": 11;
         case "inactiveRift", "nextRift", "upgrade": 10;
@@ -669,6 +671,7 @@ class MinimapMarkers {
 
     function markerName(point:MapPoint):String {
         if (point.kind == "secretOrb") return "Secret Orb";
+        if (point.kind == "recipeChest") return "Recipe Chest";
         if (point.name != null) return point.name;
         var name = "";
         try {
@@ -693,6 +696,7 @@ class MinimapMarkers {
         } catch (_:Dynamic) {}
         if (name == "") name = switch point.kind {
             case "chest": "Chest";
+            case "vaultChest": "Vault Chest";
             case "respawn": "Respawn point";
             case "obelisk": "Obelisk";
             case "soulstone": "Soulstone summoning circle";
@@ -722,7 +726,7 @@ class MinimapMarkers {
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
         // All Rift states draw above enemies; services retain top priority.
-        for (kind in ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "companion", "enemy", "boss", "targetDummy", "respawn", "obelisk", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal", "npc", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion"]) {
+        for (kind in ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "vaultChest", "recipeChest", "companion", "enemy", "boss", "targetDummy", "respawn", "obelisk", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal", "npc", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion"]) {
             for (point in points) if (point.kind == kind) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
@@ -770,6 +774,10 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "chest" || kind == "vaultChest" || kind == "recipeChest") {
+            ChestIcons.draw(graphics, kind, markerRadius(kind));
+            return;
+        }
         if (kind == "obelisk" || kind == "dungeon" || kind == "soulstone" || kind == "secretOrb" || kind == "targetDummy"
             || kind == "riftPortal" || kind == "upcomingRift" || kind == "inactiveRift" || kind == "nextRift"
             || kind == "glory" || kind == "infusion" || kind == "craft" || kind == "upgrade" || kind == "recycler") {
@@ -781,7 +789,6 @@ class MinimapMarkers {
             case "ore": 0xb7bcc7;
             case "activity": 0x7f3e91;
             case "ascension": 0xffc45a;
-            case "chest": 0xffa044;
             case "enemy", "boss": 0xff6860;
             case "respawn": 0xffffff;
             case "npc": 0xffdf78;
@@ -823,7 +830,7 @@ class MinimapMarkers {
             G.call("h2d.Graphics", "drawCircle", graphics, [-radius * 0.08, -radius * 0.08, radius * 0.13, 24]);
             G.call("h2d.Graphics", "endFill", graphics);
         }
-        if ((isNpc(kind) && kind != "npc") || kind == "chest" || kind == "plant" || kind == "ore") {
+        if ((isNpc(kind) && kind != "npc") || kind == "plant" || kind == "ore") {
             G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 1.0]);
             detail(point, radius);
             G.call("h2d.Graphics", "endFill", graphics);
@@ -867,8 +874,6 @@ class MinimapMarkers {
                     -0.7, 0.55, -0.7, 0.85, 0.4, 0.85, 0.75, 0.55, 0.75, 0.1,
                     0.4, -0.15, -0.3, -0.15, -0.4, -0.25, -0.4, -0.4, -0.3, -0.5, 0.7, -0.5]);
                 G.call("h2d.Graphics", "drawRect", graphics, [x - 0.13 * r, y - 1.05 * r, 0.26 * r, 2.15 * r]);
-            case "chest":
-                G.call("h2d.Graphics", "drawRect", graphics, [x - r, y - 0.75 * r, 2 * r, 1.5 * r]);
             case "demon":
                 // Keep the face and horns convex so both sides triangulate
                 // independently at world-map coordinates.
@@ -930,10 +935,6 @@ class MinimapMarkers {
                 polygon(point, r, [-0.55, -0.5, -0.4, -0.6, -0.1, -0.1, -0.3, 0]);
                 polygon(point, r, [-0.3, -0.15, -0.1, -0.1, -0.65, 0.45, -0.8, 0.35]);
                 polygon(point, r, [-0.1, -0.1, 0.65, -0.1, 0.7, 0.1, -0.1, 0.1]);
-            case "chest":
-                // Keep the lock and lid seam inside the solid rectangular body.
-                G.call("h2d.Graphics", "drawRect", graphics, [point.x - 0.8 * r, point.y - 0.15 * r, 1.6 * r, 0.15 * r]);
-                G.call("h2d.Graphics", "drawRect", graphics, [point.x - 0.16 * r, point.y - 0.1 * r, 0.32 * r, 0.3 * r]);
             case "demon":
                 polygon(point, r, [-0.6, -0.05, -0.15, 0.1, -0.2, 0.3, -0.5, 0.25]);
                 polygon(point, r, [0.6, -0.05, 0.15, 0.1, 0.2, 0.3, 0.5, 0.25]);

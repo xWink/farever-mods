@@ -9,6 +9,12 @@ class EnemyMarkers {
 
     public function new() {}
 
+    public static function highlighted(inf:Dynamic):Bool {
+        // Native Unit flags: Elite (bit 3) and Spark (bit 22).
+        // This is only used for hostile enemy/boss markers, never pet alerts.
+        return (G.integer(G.field(inf, "flags")) & ((1 << 3) | (1 << 22))) != 0;
+    }
+
     public function kind(inf:Dynamic, kills:Int, hideCompleted:Bool, hideMastered:Bool, hideTargetDummies:Bool):String {
         if (inf == null) return "";
         // Resolve the native group value once; do not assume its numeric index.
