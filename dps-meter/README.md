@@ -116,9 +116,8 @@ the Raw affinity under unclassified recover its share when opened. Older logs wi
 damage-type information keep their existing summary. Click a
 player to see their skills; click a skill row to return to the player chart.
 Each ability occupies one row with its game icon, display name, total damage,
-share of your damage, and DPS. A full-width history view also has casts,
+and share of your damage. A full-width history view also has casts,
 average damage per cast, hits, average damage per hit, and critical-hit percentage.
-Ability DPS uses the entire fight's duration, matching the player's total DPS.
 **Damage (%)** shows only the skill's numeric share of the player's total damage.
 The adjacent **Phys/Magic/Raw** column shows the split within that skill's damage:
 red for physical, blue for magical, and off-white for Raw. Each bar represents

@@ -1023,9 +1023,10 @@ class HistoryTest {
             for (c in columns) { check(c.x == edge && c.width > 0, "Table columns cannot overlap at width " + width); edge += c.width; }
             check(edge == width && columns[0].key == "ability" && columns[1].key == "percent"
                 && columns[2].key == "distribution" && columns[3].key == "damage"
-                && columns[columns.length - 1].key == "dps", "Core information fits every supported width " + width);
+                && columns[columns.length - 1].key == (width >= 700 ? "crit" : "damage")
+                && !Lambda.exists(columns, c -> c.key == "dps"), "Core information fits every supported width without a DPS column " + width);
         }
-        check(SkillBreakdown.columns(828).length == 10, "Normal history width shows every statistic and the separate distribution");
+        check(SkillBreakdown.columns(828).length == 9, "Normal history width shows every remaining statistic and the separate distribution");
     }
 }
 

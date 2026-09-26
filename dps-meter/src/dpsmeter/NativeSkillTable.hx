@@ -7,8 +7,8 @@ import dpsmeter.NativeUi.*;
 
 /** One ability per row, shared by live, history, and rift recap charts. */
 class NativeSkillTable {
-    static inline var PHYSICAL_COLOR:Int = 0xcc7d72;
-    static inline var MAGICAL_COLOR:Int = 0x6d9fca;
+    static inline var PHYSICAL_COLOR:Int = 0xc95846;
+    static inline var MAGICAL_COLOR:Int = 0x438dcc;
     static inline var RAW_COLOR:Int = 0xf2eee7;
 
     public var object(default, null):Dynamic;
@@ -64,7 +64,7 @@ class NativeSkillTable {
             row.values = ["ability" => names[key], "percent" => Std.string(SkillStats.rounded(v.percent, 1)) + "%",
                 "distribution" => distribution == null ? "—" : "", "damage" => compact(v.damage), "casts" => Std.string(v.casts),
                 "avgCast" => compact(v.avgCast), "hits" => Std.string(v.hits), "avgHit" => compact(v.avgHit),
-                "crit" => Std.string(SkillStats.rounded(v.crit, 1)) + "%", "dps" => compact(v.dps)];
+                "crit" => Std.string(SkillStats.rounded(v.crit, 1)) + "%"];
             var values:Map<String, String> = row.values;
             var signature = row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
                 + "|" + [for (key in SkillBreakdown.KEYS) values[key]].join("|");
@@ -97,7 +97,7 @@ class NativeSkillTable {
             G.call("ui.comp.FmtText", "set_useEllipsis", t, [true]);
             var left = G.enumeration("h2d.Align", "Left");
             G.call("h2d.Text", "set_textAlign", t, [left]); style(t, "text-align", left);
-            if (index < 0 || key == "ability" || key == "dps")
+            if (index < 0 || key == "ability")
                 G.call("domkit.Properties", "addClass", G.field(t, "dom"), ["bold-14"]);
             (cast row.texts:Map<String, Dynamic>)[key] = t;
         }
