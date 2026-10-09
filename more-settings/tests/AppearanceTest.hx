@@ -104,7 +104,7 @@ class AppearanceTest {
             if (entry.type == "title") categories.push(entry.label);
             if (entry.key == "changeAppearance") action = entry;
         }
-        eq(categories.slice(0, 3).join(","), "General,Combat,Social", "Social follows Combat after moving appearance into the character UI");
+        eq(categories.slice(0, 4).join(","), "General,Combat,Nameplates,Social", "Custom Nameplates stay between Combat and Social after moving appearance into the character UI");
         eq(action, null, "Appearance editor is accessed through the native Barbershop button");
 
         // Go through the actual component factory, including the stub's XML

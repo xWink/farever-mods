@@ -54,6 +54,18 @@ class InspectTargetsTest {
         remote.removed = false;
         remote.hero.loadout.equipment.content = null;
         check(!Targets.available(Targets.remoteHero(local, "friend")), "Partially loaded equipment is unavailable");
+        var stackGear:Dynamic = {stacks:[]};
+        var stackHero:Dynamic = {loadout:{equipment:stackGear}};
+        check(Targets.available(stackHero), "Replicated stack-based equipment remains inspectable");
+        check(Targets.equipment(stackHero) == stackGear, "Inspect uses the same stack-based equipment as the menu check");
+        var nativeGear:Dynamic = {content:[]};
+        var nativeHero:Dynamic = {equipment:nativeGear};
+        check(Targets.available(nativeHero), "The native equipment accessor remains an Inspect fallback");
+        check(Targets.equipment(nativeHero) == nativeGear, "Inspect reads the equipment accepted by the menu check");
+        check(Targets.available({weapon1:{kind:"Sword"}}), "A replicated main weapon can open Inspect");
+        check(Targets.available({weapon2:{kind:"Bow"}}), "A replicated arsenal weapon can open Inspect");
+        check(!Targets.available({removed:true, equipment:nativeGear, weapon1:{kind:"Sword"}}),
+            "Removed heroes stay unavailable even with cached equipment");
         check(!Targets.available(null), "Offline friends fail cleanly");
         check(!Targets.available({removed:false}), "Missing loadouts fail cleanly");
         check(Targets.remoteHero(null, "friend") == null, "Logging out before clicking is safe");

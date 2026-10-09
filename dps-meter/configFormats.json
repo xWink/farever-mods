@@ -18,6 +18,7 @@
     { "key": "showIncompleteCodexKills", "type": "checkbox", "label": "Show unmastered Codex kills" },
     { "key": "showCompletedCodexKills", "type": "checkbox", "label": "Show mastered Codex kills" },
     { "type": "title", "label": "Recaps" },
-    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" }
+    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" },
+    { "key": "showDeathLog", "type": "checkbox", "label": "Show death recap", "tooltip": { "enabled": true, "tooltipText": "After you die, show the last 10 seconds you were alive: each hit and heal the game reported, your health at that moment, the spell, and who it came from. Turn this off to hide the recap." } }
   ]
 }

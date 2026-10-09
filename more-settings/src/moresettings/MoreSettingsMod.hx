@@ -32,6 +32,8 @@ class MoreSettingsMod {
         PerformanceHooks.enabled = config.performanceOptimization;
         StallMetrics.configure(config.performanceDiagnostics);
         DungeonPartyGuard.enabled = config.waitForParty;
+        NameplateColors.enabled = config.classColoredNames;
+        NameplateWeapons.enabled = config.showNameplateWeapons;
         DungeonLeaveButton.enabled = config.leaveDungeonButton;
         CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
         MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
@@ -46,6 +48,8 @@ class MoreSettingsMod {
             PerformanceHooks.enabled = config.performanceOptimization;
             StallMetrics.configure(config.performanceDiagnostics);
             DungeonPartyGuard.enabled = config.waitForParty;
+            NameplateColors.enabled = config.classColoredNames;
+            NameplateWeapons.enabled = config.showNameplateWeapons;
             DungeonLeaveButton.enabled = config.leaveDungeonButton;
             CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
             MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
@@ -58,6 +62,12 @@ class MoreSettingsMod {
     @:hlx.prefix(HText.cleanPlayerText)
     static function cleanPlayerText(text:String):HlxPrefixResult<String> {
         return config.disableProfanityFilter ? SkipWith(StringTools.htmlEscape(text)) : Continue;
+    }
+
+    @:hlx.postfix(ui.hud.HeroWidget.initActive)
+    static function afterHeroNameplate(instance:Dynamic, result:Void):Void {
+        try NameplateColors.attach(instance) catch (e:Dynamic) NameplateColors.reportError(e);
+        try NameplateWeapons.attach(instance) catch (e:Dynamic) NameplateWeapons.reportError(e);
     }
 
     @:hlx.postfix(ui.comp.HealthBar.init)

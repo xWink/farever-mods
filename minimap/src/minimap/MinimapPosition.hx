@@ -16,4 +16,11 @@ class MinimapPosition {
         var fraction = percent(offset) / 100;
         return margin + travel * (reverse ? 1 - fraction : fraction);
     }
+
+    /** Outer frame covering 80% of the screen, centered on both axes. */
+    public static function overview(screenWidth:Float, screenHeight:Float):{x:Float, y:Float, width:Float, height:Float} {
+        var width = Math.max(1, screenWidth * 0.8);
+        var height = Math.max(1, screenHeight * 0.8);
+        return {x: (screenWidth - width) / 2, y: (screenHeight - height) / 2, width: width, height: height};
+    }
 }

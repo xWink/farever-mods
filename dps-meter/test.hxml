@@ -21,6 +21,11 @@
 --interp
 --next
 -cp src
+-cp tests
+-main DeathLogTest
+--interp
+--next
+-cp src
 -cp tests/controller
 -main ControllerFocusTest
 --interp

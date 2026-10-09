@@ -136,6 +136,7 @@ class PlayerInspect {
         var controller = G.current("client.PlayerController", "inst");
         return controller == null ? null : G.call("client.PlayerController", "get_hero", controller);
     }
+
     public static function remoteHero(local:Dynamic, uid:String):Dynamic {
         return InspectTargets.remoteHero(local, uid);
     }

@@ -26,6 +26,8 @@ class EnemyMarkers {
         if (dummyGroup != null && group != null && G.integer(group) == dummyGroup)
             return hideTargetDummies ? "" : "targetDummy";
         if (codex.hidden(G.text(G.field(inf, "id")), inf, kills, hideCompleted, hideMastered)) return "";
-        return (G.integer(G.field(inf, "flags")) & 0x38) != 0 ? "boss" : "enemy";
+        var flags = G.integer(G.field(inf, "flags"));
+        // Boss and miniboss share the bits that already draw a larger marker. Elite is a named world creature.
+        return (flags & 0x38) != 0 ? "boss" : "enemy";
     }
 }

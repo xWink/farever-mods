@@ -10,6 +10,7 @@ typedef MeterSettings = {
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
     var showRiftRecaps:Bool;
+    var showDeathLog:Bool;
     var showBossKills:Bool;
     // Keep persisted keys so existing choices carry over to the mastery filters.
     var showIncompleteCodexKills:Bool;
@@ -41,6 +42,7 @@ class MeterConfig {
         hideOutOfCombat: false,
         hideDelay: 3,
         showRiftRecaps: true,
+        showDeathLog: true,
         showBossKills: true,
         showIncompleteCodexKills: true,
         showCompletedCodexKills: false,

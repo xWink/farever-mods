@@ -15,6 +15,7 @@ class DpsMeterMod {
     static var view:NativeMeterWindow;
     static var recapView:NativeRiftRecapWindow;
     static var historyView:NativeHistoryWindow;
+    static var deathView:NativeDeathLogWindow;
     static var kills:KillNotifications;
     static var writer:RunWriter;
     static function main():Void {
@@ -25,6 +26,7 @@ class DpsMeterMod {
         historyView = new NativeHistoryWindow(config);
         view = new NativeMeterWindow(config, () -> historyView.open());
         recapView = new NativeRiftRecapWindow();
+        deathView = new NativeDeathLogWindow();
         kills = new KillNotifications(config);
         writer = new RunWriter();
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
@@ -74,7 +76,8 @@ class DpsMeterMod {
 
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
-        return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing || NativeHistoryWindow.constructing ? Skip : Continue;
+        return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing
+            || NativeHistoryWindow.constructing || NativeDeathLogWindow.constructing ? Skip : Continue;
     }
     @:hlx.prefix(ui.BaseUI.closeFirstClosableUI)
     static function closeHistoryOnEscape(instance:Dynamic, onlyEscapeClosable:Null<Bool>):HlxPrefixResult<Bool> {
@@ -101,6 +104,11 @@ class DpsMeterMod {
         if (collector != null) try collector.damage(instance, damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
         return Continue;
     }
+    @:hlx.postfix(ui.hud.EffectsFeed.displayHeal)
+    static function onReceivedHeal(instance:Dynamic, damage:Dynamic, result:Void):Void {
+        // Same call that draws the green number for heals on the local player.
+        if (collector != null && config.enabled) try collector.receivedHeal(damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
+    }
     @:hlx.postfix(ent.Hero.onEnterCombat)
     static function onCombatEnter(instance:Dynamic, result:Void):Void {
         if (collector != null && config.enabled) try collector.combatEnter(G.uid(instance), haxe.Timer.stamp())
@@ -108,8 +116,10 @@ class DpsMeterMod {
     }
     @:hlx.postfix(ent.GameObject.rpcDie__impl)
     static function onTargetDeath(instance:Dynamic, result:Void):Void {
-        if (collector != null && config.enabled) try collector.model.onTargetDeath(G.uid(instance), haxe.Timer.stamp())
-        catch (_:Dynamic) {}
+        if (collector != null && config.enabled) try {
+            collector.noteDeath(instance, haxe.Timer.stamp());
+            collector.model.onTargetDeath(G.uid(instance), haxe.Timer.stamp());
+        } catch (_:Dynamic) {}
     }
     @:hlx.postfix(ent.Hero.onLeaveCombat)
     static function onCombatExit(instance:Dynamic, result:Void):Void {
@@ -141,12 +151,24 @@ class DpsMeterMod {
                 if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) historyView.toggle();
             }
             if (config.enabled) collector.update(instance, now);
+            // Space respawns from the death screen. Close immediately on that
+            // key, and also when a revive makes the hero alive again.
+            var ui = G.current("ui.BaseUI", "current");
+            var typing = ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) != null;
+            var respawn = deathView.isOpen() && !typing && G.staticCall("hxd.Key", "isPressed", [32]) == true;
+            if (collector.revived || respawn) {
+                collector.revived = false;
+                deathView.dismiss();
+            }
+            var death = collector.deathLog.take();
+            if (death != null && config.showDeathLog) deathView.present(death);
             flushFights();
             writer.update(now);
         } catch (_:Dynamic) {}
         // A UI failure must never stop the collector or discard a finished report.
         try view.update(collector.model, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
         try recapView.update(collector.model, config.enabled && config.showRiftRecaps, G.field(instance, "hero") != null, now) catch (_:Dynamic) {}
+        try deathView.update(config.enabled && config.showDeathLog, now) catch (_:Dynamic) {}
         try historyView.update(writer, config.enabled && G.field(instance, "hero") != null, now)
         catch (e:Dynamic) { historyView.dispose(); trace("[DPS Meter] Could not display history: " + Std.string(e)); }
         try kills.update(instance, collector.model, writer, now) catch (_:Dynamic) {}

@@ -16,6 +16,8 @@ class HoverMeasurements {
     var count:Int = 0;
     var fontScale:Float;
     var width:Float = 0;
+    var ink:Int = 0xd0ccc2;
+    var shade:Int = 0x171b24;
 
     public function new(parent:Dynamic, font:Dynamic) {
         root = G.create("h2d.Object", [parent]);
@@ -40,6 +42,24 @@ class HoverMeasurements {
         G.call("h2d.Object", "set_visible", root, [false]);
     }
 
+    public function setInk(textColor:Int, shadowColor:Int):Void {
+        if (ink == textColor && shade == shadowColor) return;
+        ink = textColor;
+        shade = shadowColor;
+        for (slot in slots) {
+            G.call("h2d.Text", "set_textColor", slot.text, [ink]);
+            G.call("h2d.Text", "set_textColor", slot.shadow, [shade]);
+            slot.direction = "";
+        }
+        G.call("h2d.Graphics", "clear", separator);
+        for (shadow in [true, false]) {
+            var offset = shadow ? 1 : 0;
+            G.call("h2d.Graphics", "beginFill", separator, [shadow ? shade : ink, 1.]);
+            G.call("h2d.Graphics", "drawCircle", separator, [offset, offset, 1., 8]);
+            G.call("h2d.Graphics", "endFill", separator);
+        }
+    }
+
     public function setValues(values:Array<MarkerMeasurement>):Void {
         count = values.length;
         width = 0;
@@ -51,8 +71,8 @@ class HoverMeasurements {
             if (!visible) continue;
             var value = values[i];
             if (slot.direction != value.direction) {
-                drawArrow(slot.arrowShadow, value.direction, 0x171b24);
-                drawArrow(slot.arrow, value.direction, 0xd0ccc2);
+                drawArrow(slot.arrowShadow, value.direction, shade);
+                drawArrow(slot.arrow, value.direction, ink);
                 slot.direction = value.direction;
             }
             var label = value.metres + " m";

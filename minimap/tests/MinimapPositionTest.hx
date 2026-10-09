@@ -35,6 +35,14 @@ class MinimapPositionTest {
         close(P.percent(40.6), 41, "manual fractions normalize to whole percentages");
         close(P.percent(Math.NaN), 0, "invalid config returns to normal position");
         close(P.percent(Math.POSITIVE_INFINITY), 0, "infinite config returns to normal position");
+        var frame = P.overview(1920, 1080);
+        close(frame.width, 1536, "overview width is 80% of the screen");
+        close(frame.height, 864, "overview height is 80% of the screen");
+        close(frame.x, 192, "overview is centered horizontally");
+        close(frame.y, 108, "overview is centered vertically");
+        var wide = P.overview(1000, 500);
+        close(wide.x * 2 + wide.width, 1000, "overview leaves equal side margins");
+        close(wide.y * 2 + wide.height, 500, "overview leaves equal top and bottom margins");
         Sys.println('Minimap position tests passed ($checks checks)');
     }
 }

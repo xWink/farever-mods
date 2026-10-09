@@ -8,6 +8,8 @@ typedef MoreSettingsConfig = {
     var rebindSocialInteract:Bool;
     var socialInteractKey:Int;
     var fancyDamageNumbers:Bool;
+    var classColoredNames:Bool;
+    var showNameplateWeapons:Bool;
     var disableDamageNumbers:Bool;
     var crabgantuaRockfallWarnings:Bool;
     var hideAlliedMinionHealthBars:Bool;
@@ -38,6 +40,8 @@ class SettingsData {
         rebindSocialInteract: false,
         socialInteractKey: 0, // Unassigned until the player chooses a key.
         fancyDamageNumbers: false,
+        classColoredNames: true,
+        showNameplateWeapons: true,
         disableDamageNumbers: false,
         crabgantuaRockfallWarnings: true,
         hideAlliedMinionHealthBars: false,

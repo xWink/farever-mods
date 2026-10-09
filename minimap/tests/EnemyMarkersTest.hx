@@ -1,4 +1,5 @@
 import minimap.EnemyMarkers;
+import minimap.EliteNames;
 import minimap.GameAccess as G;
 
 class EnemyMarkersTest {
@@ -41,9 +42,17 @@ class EnemyMarkersTest {
         eq(markers.kind(mob, 20, false, true, false), "", "mastered enemies can still be hidden");
         eq(markers.kind(mob, 0, false, true, false), "enemy", "character changes use fresh kills");
         eq(markers.kind(mob, 8, true, false, false), "", "partial filter retains its XP milestone");
-        for (flags in [8, 16, 32])
+        eq(EliteNames.hasId("Boar_Z4W_E"), true, "a known elite unit id matches before the name");
+        eq(EliteNames.hasId("Boar_Z1W"), false, "a normal unit id is not elite");
+        eq(EliteNames.has("Boar Burnham"), true, "a Metaforge elite name matches");
+        eq(EliteNames.has("boar burnham"), true, "elite names ignore case and spaces");
+        eq(EliteNames.has("da'Lida"), true, "apostrophes do not block an elite name");
+        eq(EliteNames.has("Coyote"), false, "a normal enemy name is not elite");
+        eq(markers.kind({id: "EliteFlag", group: 37, flags: 8}, 0, false, false, true),
+            "boss", "the larger boss marker includes the elite flag bit");
+        for (flags in [16, 32])
             eq(markers.kind({id: "Boss" + flags, group: 37, flags: flags}, 0, false, false, true),
-                "boss", "boss markers survive the dummy filter");
+                "boss", "boss and miniboss flags stay larger boss markers");
 
         G.dummyGroup = null;
         eq(new EnemyMarkers().kind({id: "MissingGroup"}, 0, false, false, true), "enemy",

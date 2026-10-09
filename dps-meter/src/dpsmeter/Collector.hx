@@ -6,6 +6,8 @@ import dpsmeter.GameAccess as G;
 
 class Collector {
     public var model:CombatModel;
+    public var deathLog:DeathLog = new DeathLog();
+    public var revived:Bool = false;
     var config:MeterSettings;
     var hero:Dynamic;
     var layer:Dynamic;
@@ -27,6 +29,7 @@ class Collector {
         var nextHero = G.field(app, "hero");
         var nextLayer = G.field(nextHero, "layer");
         if (hero != nextHero || layer != nextLayer) {
+            if (deathLog.reset()) revived = true;
             model.reset(now); hero = nextHero; layer = nextLayer;
             groupMembers = []; lastGroupSeen = -1; lastRoster = -1;
             profileRefresh = []; profileWeapons = [];
@@ -34,6 +37,7 @@ class Collector {
             riftWait = null;
         }
         if (hero == null) return;
+        noteLife(now);
         if (now - lastRoster < 0.25) return;
         lastRoster = now;
         var mine = profile(hero);
@@ -169,28 +173,12 @@ class Collector {
         var skill = gamecompat.HitSkill.read(damage, G.field);
         var uid = G.text(G.field(damage, "weakSource"));
         if (uid == "" || uid == "0") uid = G.uid(source);
-        var summoner = G.field(source, "summonOwner");
-        var summonSkill = G.field(source, "summonSourceSkill");
-        if (summonSkill != null) {
-            // Use the exact skill that created this minion. The native resolver
-            // follows nested summons, child skills and Status.instigatorSkill.
-            // Resolve on the actual type so Status's override is preserved.
-            var origin = G.call(hl.Type.getDynamic(summonSkill).getTypeName(), "getSourceSkill", summonSkill);
-            if (G.text(G.field(origin, "kind")) != "") skill = origin;
-            // A source-skill link can arrive before summonOwner during replication.
-            if (summoner == null && origin != null)
-                summoner = G.call(hl.Type.getDynamic(origin).getTypeName(), "getSourceObject", origin);
-        }
-        if (summoner != null) {
-            // Ownership is independent of whether a minion inherits its owner's
-            // combat stats. Follow every summonOwner even for nested summons.
-            while (summoner != null) {
-                source = summoner;
-                summoner = G.field(source, "summonOwner");
-            }
-            source = G.call("ent.GameObject", "resolveProxy", source);
-            uid = G.uid(source);
-        }
+        var credited = creditOwner(source, skill);
+        if (credited.source != source) uid = G.uid(credited.source);
+        source = credited.source;
+        skill = credited.skill;
+        // Heals received by you are recorded from EffectsFeed.displayHeal.
+        if (target == hero && !incomingHeal(damage)) recordIncoming(source, skill, damage, now);
         var info = profile(source);
         if (info == null && !model.profiles.exists(uid)) return;
         if (G.field(layer, "isRift") == true) {
@@ -237,6 +225,132 @@ class Collector {
             targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,
             bossLevel: G.integer(G.field(target, "_level")), bossFoeId: G.integer(G.field(target, "foeId"))});
+    }
+    public function noteDeath(unit:Dynamic, now:Float):Void {
+        if (hero == null || unit == null) return;
+        if (unit != hero && G.uid(unit) != model.me) return;
+        deathLog.observe(true, now);
+    }
+    function noteLife(now:Float):Void {
+        var dead = false;
+        try dead = G.call("ent.GameObject", "isDead", hero) == true catch (_:Dynamic) {}
+        // A revive can clear the corpse before the dying animation flag does.
+        // Health above zero means the player is back, including after Space respawn.
+        if (!dead && G.field(hero, "dying") == true) {
+            var health = Math.NaN;
+            try health = G.number(G.call("ent.Unit", "get_health", hero), Math.NaN) catch (_:Dynamic) {}
+            dead = !Math.isFinite(health) || health <= 0;
+        }
+        if (deathLog.observe(dead, now)) revived = true;
+    }
+    /** Heals the local player actually received. Same feed as the green combat numbers. */
+    public function receivedHeal(damage:Dynamic, now:Float):Void {
+        if (!config.enabled || hero == null || damage == null) return;
+        var raw = G.number(G.field(damage, "_amount"));
+        try raw = G.number(G.call("st.skill.DamageResult", "get_amount", damage), raw) catch (_:Dynamic) {}
+        var scale = 1.0;
+        try {
+            var factor = G.number(G.call("st.skill.DamageResult", "getDynamicScalingFactor", damage), 1);
+            if (factor > 0) scale = factor;
+        } catch (_:Dynamic) {}
+        var shown = DeathLog.shownHeal(raw, scale);
+        if (!(shown >= 1)) return;
+        var source:Dynamic = null;
+        var skill:Dynamic = null;
+        try source = G.call("st.skill.DamageResult", "get_source", damage) catch (_:Dynamic) {}
+        try skill = gamecompat.HitSkill.read(damage, G.field) catch (_:Dynamic) {}
+        var credited = creditOwner(source, skill);
+        var skillId = G.text(G.field(credited.skill, "kind"));
+        var skillName = StringTools.replace(skillId, "_", " ");
+        try {
+            var resolved = NativeCombatMetadata.skillName(skillId);
+            if (resolved != "") skillName = resolved;
+        } catch (_:Dynamic) {}
+        var who = attacker(credited.source);
+        var hp = Math.NaN;
+        var maxHp = Math.NaN;
+        // This runs after the heal is applied, so the bar is the resulting health.
+        try hp = G.number(G.call("ent.Unit", "get_health", hero), Math.NaN) catch (_:Dynamic) {}
+        try maxHp = G.number(G.call("ent.Unit", "get_maxHealth", hero), Math.NaN) catch (_:Dynamic) {}
+        var critical = G.field(damage, "_critical") == true;
+        try if (G.call("st.skill.DamageResult", "get_critical", damage) == true) critical = true catch (_:Dynamic) {}
+        deathLog.record({
+            time: now, amount: shown, heal: true, critical: critical, kill: false,
+            skill: skillName, skillId: skillId, source: who.name, className: who.className,
+            hp: hp, maxHp: maxHp
+        });
+    }
+    function incomingHeal(damage:Dynamic):Bool {
+        var effectValue = G.field(damage, "effect");
+        var effectName = "";
+        try effectName = Type.enumConstructor(effectValue) catch (_:Dynamic) {}
+        if (effectName == "") effectName = G.text(effectValue);
+        return DeathLog.isHeal(effectName, G.integer(effectValue));
+    }
+    function creditOwner(source:Dynamic, skill:Dynamic):{source:Dynamic, skill:Dynamic} {
+        var summoner = G.field(source, "summonOwner");
+        var summonSkill = G.field(source, "summonSourceSkill");
+        if (summonSkill != null) {
+            var origin = null;
+            try origin = G.call(hl.Type.getDynamic(summonSkill).getTypeName(), "getSourceSkill", summonSkill) catch (_:Dynamic) {}
+            if (G.text(G.field(origin, "kind")) != "") skill = origin;
+            if (summoner == null && origin != null)
+                try summoner = G.call(hl.Type.getDynamic(origin).getTypeName(), "getSourceObject", origin) catch (_:Dynamic) {}
+        }
+        if (summoner != null) {
+            while (summoner != null) {
+                source = summoner;
+                summoner = G.field(source, "summonOwner");
+            }
+            try source = G.call("ent.GameObject", "resolveProxy", source) catch (_:Dynamic) {}
+        }
+        return {source: source, skill: skill};
+    }
+    function recordIncoming(source:Dynamic, skill:Dynamic, damage:Dynamic, now:Float):Void {
+        var amount = G.number(G.field(damage, "_amount"));
+        var effectValue = G.field(damage, "effect");
+        var effectName = "";
+        try effectName = Type.enumConstructor(effectValue) catch (_:Dynamic) {}
+        if (effectName == "") effectName = G.text(effectValue);
+        var healing = DeathLog.isHeal(effectName, G.integer(effectValue));
+        var kill = !healing && G.field(damage, "_kill") == true;
+        if (!(amount > 0) && !kill) return;
+        var skillId = G.text(G.field(skill, "kind"));
+        var skillName = StringTools.replace(skillId, "_", " ");
+        try {
+            var resolved = NativeCombatMetadata.skillName(skillId);
+            if (resolved != "") skillName = resolved;
+        } catch (_:Dynamic) {}
+        var who = attacker(source);
+        var before = Math.NaN;
+        var maxHp = Math.NaN;
+        // This hook runs before the hit changes health, so the bar shows the result.
+        try before = G.number(G.call("ent.Unit", "get_health", hero), Math.NaN) catch (_:Dynamic) {}
+        try maxHp = G.number(G.call("ent.Unit", "get_maxHealth", hero), Math.NaN) catch (_:Dynamic) {}
+        var after = DeathLog.healthAfter(before, maxHp, amount, healing);
+        deathLog.record({
+            time: now,
+            amount: amount,
+            heal: healing,
+            critical: G.field(damage, "_critical") == true,
+            kill: kill,
+            skill: skillName,
+            skillId: skillId,
+            source: who.name,
+            className: who.className,
+            hp: after,
+            maxHp: maxHp
+        });
+    }
+    function attacker(source:Dynamic):{name:String, className:String} {
+        var named = profile(source);
+        if (named != null && named.name != "") return {name: named.name, className: named.className};
+        var name = "";
+        try name = G.text(G.call("ent.Unit", "getName", source)) catch (_:Dynamic) {}
+        if (name == "") name = G.text(G.field(source, "name"));
+        if (name == "") name = G.text(G.field(source, "kind"));
+        if (name == "") name = G.text(G.field(G.field(source, "inf"), "id"));
+        return {name: name == "" ? "Unknown" : name, className: ""};
     }
     public function profile(h:Dynamic):Null<PlayerInfo> {
         var name = G.text(G.field(h, "name"));

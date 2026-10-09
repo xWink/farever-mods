@@ -159,8 +159,14 @@ class CombatUiTest {
         var rows:Array<Dynamic> = descriptor.configs;
         var keys = [for (row in rows) Std.string(row.key)];
         eq(keys.indexOf("disableDamageNumbers"), keys.indexOf("fancyDamageNumbers") + 1, "damage toggle follows fancy numbers");
-        var social = [for (row in rows) Std.string(row.label)].indexOf("Social");
-        eq(keys[social - 1], "hideAlliedMinionHealthBars", "minion bars last in Combat");
+        var combatEnd = -1;
+        var inCombat = false;
+        for (i in 0...rows.length) if (rows[i].type == "title") {
+            if (inCombat) { combatEnd = i; break; }
+            if (rows[i].label == "Combat") inCombat = true;
+        }
+        eq(combatEnd > 0, true, "Combat has a following settings section");
+        eq(keys[combatEnd - 1], "hideAlliedMinionHealthBars", "minion bars last in Combat");
         for (row in rows) {
             if (row.type == "title") eq(["Appearance", "Unfocused Volume", "Fast Travel Music"].indexOf(row.label), -1, "retired sections removed");
             eq(["changeAppearance", "adjustUnfocusedVolume", "backgroundVolume", "adjustFastTravelVolume", "fastTravelVolume"].indexOf(row.key), -1, "retired controls removed");

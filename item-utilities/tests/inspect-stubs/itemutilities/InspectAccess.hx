@@ -16,6 +16,9 @@ class InspectAccess {
             case "ui.BaseElement.get_myPlayer": object.me;
             case "ui.BaseElement.get_baseUI": object.ui;
             case "st.Player.getName": object.name;
+            case "ent.Hero.get_equipment": field(object, "equipment");
+            case "ent.Hero.get_weapon1": field(object, "weapon1");
+            case "ent.Hero.get_weapon2": field(object, "weapon2");
             case "st.GameLayer.getPlayerById":
                 var found:Dynamic = null;
                 for (p in array(object.players)) if (p.uid == args[0]) found = p;

@@ -30,6 +30,11 @@
 --next
 -cp src
 -cp tests
+-main PlayerMarkersTest
+--interp
+--next
+-cp src
+-cp tests
 -main ChestMarkersTest
 --interp
 --next
@@ -75,10 +80,15 @@
 --next
 -cp src
 -cp tests
--main MapTileLoadTest
+-main MinimapMenuTest
 --interp
 --next
 -cp src
 -cp tests
--main PlayerMarkersTest
+-main MinimapButtonLayoutTest
+--interp
+--next
+-cp src
+-cp tests
+-main MapTileLoadTest
 --interp

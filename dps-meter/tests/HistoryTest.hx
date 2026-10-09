@@ -1231,7 +1231,7 @@ class HistoryTest {
         var source = FightHistory.encode(sample(), "chosen");
         store.save(source); store.save(FightHistory.encode(sample(), "keep"));
         store.query(request("delete", "", 0, "chosen"));
-        check(recycled.length == 1 && recycled[0] == FileSystem.fullPath(root + "/history/The Guardian") + "/chosen.json", "Only the selected archive file is passed to the recycler by absolute path");
+        check(recycled.length == 1 && recycled[0] == FileSystem.fullPath(root + "/history/The Guardian/chosen.json"), "Only the selected archive file is passed to the recycler by absolute path");
         check(File.getContent(root + "/Recycle Bin/chosen.json") == Json.stringify(source), "The recycled log keeps its full original contents for recovery");
         check(store.query(request("fights", "The Guardian")).entries.length == 1, "Successful recycling removes the fight from the index immediately");
         check(FileSystem.exists(archivePath(root, "keep")), "Other combat logs are untouched");

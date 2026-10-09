@@ -40,9 +40,20 @@ class InspectTargets {
         return G.field(hero, "removed") == true ? null : hero;
     }
 
+    public static function equipment(hero:Dynamic):Dynamic {
+        if (hero == null) return null;
+        var result = G.field(G.field(hero, "loadout"), "equipment");
+        if (result != null) return result;
+        try return G.call("ent.Hero", "get_equipment", hero) catch (_:Dynamic) return null;
+    }
+
     public static function available(hero:Dynamic):Bool {
-        var equipment = G.field(G.field(hero, "loadout"), "equipment");
-        return hero != null && G.field(hero, "removed") != true
-            && equipment != null && G.field(equipment, "content") != null;
+        if (hero == null || G.field(hero, "removed") == true) return false;
+        var gear = equipment(hero);
+        if (gear != null && (G.field(gear, "content") != null || G.field(gear, "stacks") != null)) return true;
+        // Keep the existing Inspect fallbacks when only weapons have replicated.
+        for (method in ["get_weapon1", "get_weapon2"])
+            try { if (G.call("ent.Hero", method, hero) != null) return true; } catch (_:Dynamic) {}
+        return false;
     }
 }

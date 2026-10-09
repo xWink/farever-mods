@@ -15,6 +15,7 @@ class GameAccess {
     public static var releasedInput:String;
     public static var failRelease:Bool = false;
     public static var releaseReads:Int = 0;
+    public static var removedTips:Int = 0;
     public static function setCurrent(type:String, name:String, value:Dynamic):Void
         set(data, name, value);
     public static function bind(type:String, name:String):Array<Dynamic>->Dynamic {
@@ -45,6 +46,11 @@ class GameAccess {
         };
     }
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
+    public static function create(type:String, args:Array<Dynamic>):Dynamic {
+        if (type == "h2d.Interactive" && args.length != 4)
+            throw "Native Interactive requires width, height, parent and shape";
+        return {type: type, args: args, parent: args.length > 0 ? args[0] : null};
+    }
     public static function set(o:Dynamic, name:String, value:Dynamic):Void if (o != null) Reflect.setField(o, name, value);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
     public static function number(v:Dynamic, fallback:Float = 0):Float {
@@ -66,6 +72,15 @@ class GameAccess {
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic return switch name {
         case "get_myPlayer": field(data, "player");
         case "set_visible": set(o, "visible", args[0]); args[0];
+        case "setTip":
+            if (args.length != 4) throw "Native BaseUI.setTip requires content, anchor, position and spacing";
+            var tip = {content: args[0], anchor: args[1], parent: field(o, "root")};
+            set(o, "currentTip", tip); tip;
+        case "removeTip":
+            if (args.length != 1) throw "Native BaseUI.removeTip requires its optional tip argument";
+            var tip = field(o, "currentTip");
+            if (tip != null) { set(tip, "parent", null); set(o, "currentTip", null); removedTips++; }
+            null;
         case "isOwner": field(o, "isOwner") == true;
         case "get_group": field(o, "group");
         case "getPlayerInfo":
@@ -118,6 +133,10 @@ class GameAccess {
         default: throw "Unexpected native call: " + type + "." + name;
     };
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic return switch name {
+        case "fromItem":
+            if (type != "ui.Tooltip" || args.length != 2 || args[0] != field(args[1], "inf"))
+                throw "Native Tooltip.fromItem requires the definition followed by the item";
+            {definition: args[0], item: args[1]};
         case "isReleased":
             if (field(data, "_noCheckMode") != true) throw "Ground aim input mode was not bypassed";
             releaseReads++;
