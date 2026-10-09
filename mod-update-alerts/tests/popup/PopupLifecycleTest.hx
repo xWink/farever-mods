@@ -44,9 +44,24 @@ class PopupLifecycleTest {
         screenReadiness();
         menuConstruction();
         changelogNavigation();
+        rowAlignment();
         GameAccess.currentUi=null;
         GameAccess.icons=null;
         return checks;
+    }
+    static function rowAlignment():Void {
+        var popup = new UpdatePopup();
+        var name:Dynamic = {x:16.,y:88.,textHeight:20.,scaleY:1.};
+        var version:Dynamic = {x:340.,y:88.,textHeight:20.,scaleY:1.,needUpdateScale:true,fittedScale:0.6};
+        popup.rows = [[name,version]];
+        popup.changes = [{visible:true,calculatedHeight:32.}];
+        popup.alignRows();
+        eq(name.y+name.textHeight*name.scaleY/2,100.);
+        eq(version.y+version.textHeight*version.scaleY/2,100.);
+        eq(version.x,340.);
+        version.fittedScale = 0.9;version.needUpdateScale = true;
+        popup.alignRows();
+        eq(version.y+version.textHeight*version.scaleY/2,100.);
     }
     static function screenReadiness():Void {
         // No menu screen, gameplay layer, hero, or completed splash is needed.

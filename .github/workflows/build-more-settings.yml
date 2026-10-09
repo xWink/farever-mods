@@ -76,6 +76,13 @@ jobs:
           mkdir -p build
           haxe -cp src -cp tests/damage-stubs -cp tests -main DamageNumbersTest -hl build/damage-numbers-test.hl
           ../.combat-hashlink/hl build/damage-numbers-test.hl
+      - name: Test character locks and 64-bit IDs on HashLink
+        working-directory: more-settings
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink
+        run: |
+          haxe -D hl-ver=1.16.0 -cp src -cp tests/social-stubs -cp tests/character-lock-stubs -cp tests -main CharacterLocksTest -hl build/character-locks-test.hl
+          ../.combat-hashlink/hl build/character-locks-test.hl
       - name: Test appearance isolation and saving on HashLink
         working-directory: more-settings
         env:

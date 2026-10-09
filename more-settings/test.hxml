@@ -81,3 +81,10 @@
 -cp tests
 -main ResourceCleanupTest
 --interp
+--next
+-cp src
+-cp tests/social-stubs
+-cp tests/character-lock-stubs
+-cp tests
+-main CharacterLocksTest
+--interp

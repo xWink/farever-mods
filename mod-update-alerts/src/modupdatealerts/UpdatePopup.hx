@@ -220,8 +220,26 @@ class UpdatePopup {
         G.call("h2d.Object","setScale",window,[scale]);
         position(window,top.x+(bottom.x-top.x-760*scale)/2,top.y+(bottom.y-top.y-WINDOW_HEIGHT*scale)/2);
         alignTitle();
+        alignRows();
         stage="updating window";
         return true;
+    }
+    function alignRows():Void {
+        if (detailIndex >= 0) return;
+        for (i in 0...rows.length) {
+            if (G.field(changes[i], "visible") != true) continue;
+            var center = 84 + i * ROW_SPACING
+                + Math.max(28, G.number(G.field(changes[i], "calculatedHeight"))) / 2;
+            for (item in rows[i]) {
+                // FmtText scales long versions to fit their column. Center the
+                // resulting height, rather than keeping the unscaled top edge.
+                if (G.field(item, "needUpdateScale") == true) G.call("ui.comp.FmtText", "updateScale", item);
+                var height = G.number(G.call("h2d.Text", "get_textHeight", item))
+                    * G.number(G.field(item, "scaleY"), 1);
+                var y = center - height / 2;
+                if (G.field(item, "y") != y) position(item, G.number(G.field(item, "x")), y);
+            }
+        }
     }
     function alignTitle():Void {
         G.call("ui.comp.FmtText","updateScale",headingStyle);

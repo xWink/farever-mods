@@ -30,6 +30,9 @@ class GameAccess {
             case "h2d.Object.remove":
                 object.parent=null;object.removed=true;
             case "h2d.Object.set_visible": object.visible=args[0];
+            case "h2d.Object.setPosition": object.x=args[0];object.y=args[1];
+            case "h2d.Text.get_textHeight": return object.textHeight;
+            case "ui.comp.FmtText.updateScale": object.scaleY=object.fittedScale;object.needUpdateScale=false;
             case "ui.comp.FmtText.set_text": object.text=args[0];
             case "ui.comp.CheckBox.set_selected": object.selected=args[0];
             case "ui.win.BaseWindow.set_windowFlags": object.windowFlags=args[0];

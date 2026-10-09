@@ -10,9 +10,9 @@ Open **More Settings** in [Better Mod Settings](../better-mod-settings/).
 
 | Category | Controls | Defaults |
 | --- | --- | --- |
-| General | Show boss health; Performance improvements; Performance diagnostics; Wait for party to enter dungeon; Leave dungeon button; Hide UI hotkey | Boss health, performance improvements and diagnostics off; waiting for party and leave dungeon button on; Hide UI defaults to F2 |
-| Combat | Fancy damage numbers; Disable damage numbers; Keep Crabgantua rockfall warnings visible; Hide allied minion HP bars | Fancy numbers, damage hiding and minion bar hiding off; Crabgantua warnings on |
-| Social | Disable profanity filter; Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Enable friend notes; Rebind social interact hotkey; Social interact hotkey | Profanity option on (imports previous preference); connection filtering and social rebind off; social key unassigned; commands, close after sending, and notes on |
+| General | Performance improvements; Performance diagnostics; Leave dungeon button; Hide UI hotkey | Performance improvements and diagnostics off; leave dungeon button on; Hide UI defaults to F2 |
+| Combat | Fancy damage numbers; Disable damage numbers; Show boss health; Keep Crabgantua rockfall warnings visible; Hide allied minion HP bars | Fancy numbers, damage hiding, boss health and minion bar hiding off; Crabgantua warnings on |
+| Social | Disable profanity filter; Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Enable friend notes; Wait for party to enter dungeon; Rebind social interact hotkey; Social interact hotkey | Profanity option on (imports previous preference); connection filtering and social rebind off; social key unassigned; commands, close after sending, notes and waiting for party on |
 | Rift Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
 | Dungeon Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
 | Overworld Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
@@ -44,6 +44,8 @@ Gradients span the placed glyph geometry, excluding the formatted text's blank l
 
 **Hide allied minion HP bars**, the last Combat option, hides the overhead health/shield bars of allied summoned units. Your own summons retain their native health bars. Enemy health bars, player/party bars and boss panels remain native. Changing the setting restores the most recent native visibility; ownership and hostility changes are checked on the parent widget so a hidden bar can become visible again.
 
+**Character locks** adds a closed-lock button to the Characters panel on the character selection screen. Turn lock mode on, then click a character to lock or unlock it; locked characters show a lock in the upper-right corner of their card. Turn lock mode off to select and play normally. Delete is disabled for locked characters, and the deletion request is checked again after confirmation. Locks are saved locally by the character’s persistent database ID in `hlx/config/more-settings/character-locks.json`, so characters sharing a name remain independent. Lock mode resets when the menu is reopened; saved protection remains. This uses native UI and does not require Item Utilities or ImGui.
+
 **Barbershop** is a native button on your character’s appearance page, above the glove appearance slot and to the right of the model’s head, with matching 15-unit top and right insets. The top inset matches the native Character button’s bottom inset. It needs no ImGui dependency. Click it to edit your body type, skin and eye colors, eyebrows, facial shapes, hair, facial hair, and hair color. The window includes a rotatable character preview with equipment hidden, Body/Face/Hair tabs, and the same player-available choices as character creation. **Save** applies the appearance through the game's normal replicated character property and save path. **Cancel**, the close button, or Escape discards the private preview. Leaving the world or changing characters also discards it.
 
 **Social**, directly below **Combat**, contains the following options. Slash commands, closing chat after sending, and friend notes are enabled by default; hiding connection notifications is off. Existing saved preferences are preserved:
@@ -56,7 +58,7 @@ Gradients span the placed glyph geometry, excluding the formatted text's blank l
 
 The profanity option applies to displayed player text and keeps HTML escaping. Character-name validation is unchanged.
 
-**Show boss health** adds the boss's current HP before its percentage in the top-of-screen boss bar: `123,456 (100%)`. It uses the actual Health attribute, rounded down to a whole number like the game's numeric health display, and updates throughout the fight. The native percentage and shield information are preserved. Toggle it at any time under **General**; disabling it restores the native label. If the native resource-display option already shows numeric HP, that label stays unchanged.
+**Show boss health** adds the boss's current HP before its percentage in the top-of-screen boss bar: `123,456 (100%)`. It uses the actual Health attribute, rounded down to a whole number like the game's numeric health display, and updates throughout the fight. The native percentage and shield information are preserved. Toggle it at any time under **Combat**, below **Disable damage numbers**; disabling it restores the native label. If the native resource-display option already shows numeric HP, that label stays unchanged.
 
 **Performance improvements** is an optional checkbox under **General**, off by default. It can be changed while playing. It addresses specific findings from the static performance review:
 
@@ -91,8 +93,8 @@ Version 5 also separates engine begin/end, 3D scenes, 2D/UI scenes, renderer pro
 
 The timing buffer reuses numeric arrays and records during collection; the HLX hook dispatcher and native context lookups still have overhead. Automated tests cover timing, nesting, bounded storage, deferred/rate-limited reporting, loading/focus gating, exception recovery and background-thread exclusion. Actual overhead and freeze attribution must be checked in game. `graphics-cleanup` times the native `cleanTextures` method; earlier diagnostic builds tried the unhookable `garbage` callback field, producing startup lookup warnings and missing that measurement.
 
-**Wait for party to enter dungeon** appears after Performance diagnostics under
-**General** and is enabled by default, including for existing installations.
+**Wait for party to enter dungeon** appears after **Enable friend notes** under
+**Social** and is enabled by default, including for existing installations.
 When you own a dungeon or rift entry lobby, Start stays disabled and reads
 **Waiting for party members** until every party member has joined that same
 entry menu and is ready. Solo entry, teammates' Ready buttons, countdown
