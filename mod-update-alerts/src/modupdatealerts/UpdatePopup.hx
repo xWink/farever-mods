@@ -32,6 +32,9 @@ class UpdatePopup {
     var next:Dynamic;
     var checkbox:Dynamic;
     static inline var PAGE_SIZE=6;
+    static inline var ROW_SPACING=40;
+    static inline var WINDOW_HEIGHT=535;
+    static inline var CONTENT_HEIGHT=WINDOW_HEIGHT-68;
     public function new() {}
 
     public static function ready(ui:Dynamic):Bool {
@@ -63,9 +66,9 @@ class UpdatePopup {
         G.set(dom,"component",G.staticCall("domkit.Component","get",["options-window",null]));
         var content=G.field(dom,"contentRoot");
         if(content==null) throw "Native title window content was not initialized";
-        size(window,760,490);
+        size(window,760,WINDOW_HEIGHT);
         for (child in children(window)) if (G.field(child,"bgMask")!=null) {
-            absolute(window,child); padding(child,0); size(child,760,490); position(child,0,0);
+            absolute(window,child); padding(child,0); size(child,760,WINDOW_HEIGHT); position(child,0,0);
         }
         var header=G.field(window,"header");
         padding(window,0); padding(header,0); padding(content,0);
@@ -75,7 +78,7 @@ class UpdatePopup {
         var close=G.field(header,"closeBtn");
         show(close,true); absolute(header,close); size(close,36,36); position(close,708,12);
         G.call("ui.UIElement","set_onClick",close,[dismiss]);
-        absolute(window,content); size(content,744,422); position(content,8,60);
+        absolute(window,content); size(content,744,CONTENT_HEIGHT); position(content,8,60);
 
         stage="building update list";
         body=node("options-content",dom,[0],"modUpdaterBody");
@@ -83,7 +86,7 @@ class UpdatePopup {
         container=prepareChartBody(body);
         var options=G.field(bodyObject,"optionsList");
         for (object in [bodyObject,options,container]) {
-            padding(object,0); size(object,744,422);
+            padding(object,0); size(object,744,CONTENT_HEIGHT);
             var limit=G.enumeration("h2d.FlowOverflow","Limit");
             G.call("h2d.Flow","set_overflow",object,[limit]); style(object,"overflow",limit);
         }
@@ -108,31 +111,31 @@ class UpdatePopup {
         for (item in columns)
             G.call("domkit.Properties","addClass",G.field(item,"dom"),["bold-14"]);
         for (i in 0...PAGE_SIZE) {
-            rows.push([text(parent,"",16,88+i*31,310),text(parent,"",340,88+i*31,106),text(parent,"",468,88+i*31,116)]);
+            rows.push([text(parent,"",16,88+i*ROW_SPACING,310),text(parent,"",340,88+i*ROW_SPACING,106),text(parent,"",468,88+i*ROW_SPACING,116)]);
             var slot=i;
             var action=button(parent,"Changes","modUpdaterChanges"+i,()->openChangelog(page*PAGE_SIZE+slot));
-            absolute(container,action);size(action,116,28);position(action,612,84+i*31);
+            absolute(container,action);size(action,116,28);position(action,612,84+i*ROW_SPACING);
             changes.push(action);
         }
         previous=button(parent,"Previous","modUpdaterPrevious",()->{ if(page>0){page--;refresh();} });
         next=button(parent,"Next","modUpdaterNext",()->{ if((page+1)*PAGE_SIZE<this.updates.length){page++;refresh();} });
         for (item in [previous,next]) { absolute(container,item); size(item,110,32); }
-        position(previous,16,307); position(next,618,307);
-        pageText=text(parent,"",300,313,200);
+        position(previous,16,CONTENT_HEIGHT-115); position(next,618,CONTENT_HEIGHT-115);
+        pageText=text(parent,"",300,CONTENT_HEIGHT-109,200);
         back=button(parent,"Back","modUpdaterBack",()->{detailIndex=-1;refresh();});
         absolute(container,back);size(back,92,32);position(back,16,48);
         detailTitle=text(parent,"",124,56,604);
         G.call("domkit.Properties","addClass",G.field(detailTitle,"dom"),["bold-14"]);
         var notes=node("flow",parent,[],"modUpdaterChangelog","vertical");
         notesPanel=G.field(notes,"obj");
-        absolute(container,notesPanel);padding(notesPanel,8);size(notesPanel,712,246);position(notesPanel,16,92);
+        absolute(container,notesPanel);padding(notesPanel,8);size(notesPanel,712,CONTENT_HEIGHT-176);position(notesPanel,16,92);
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         flow(notes,"set_overflow",scroll);style(notesPanel,"overflow",scroll);
         notesText=label(notes,"");
         G.call("ui.comp.FmtText","set_maxWidthText",notesText,[668]);
         stage="building reminder checkbox";
         checkbox=G.field(node("check-box",parent,["Don't remind me again about these versions"],"modUpdaterIgnore"),"obj");
-        absolute(container,checkbox); size(checkbox,712,38); position(checkbox,16,355);
+        absolute(container,checkbox); size(checkbox,712,38); position(checkbox,16,CONTENT_HEIGHT-67);
         G.call("h2d.Flow","set_paddingLeft",checkbox,[12]); style(checkbox,"padding-left",12);
         G.call("ui.comp.CheckBox","set_selected",checkbox,[selected]);
         G.set(checkbox,"onValueChange",function(value:Bool):Void {ignore=value;onPreference(value);});
@@ -212,10 +215,10 @@ class UpdatePopup {
         }
         var scene=G.field(ui,"s2d");
         var top=local(0,0), bottom=local(G.number(G.field(scene,"width"),1920),G.number(G.field(scene,"height"),1080));
-        var scale=Math.min(1,Math.min((bottom.x-top.x-32)/760,(bottom.y-top.y-32)/490));
+        var scale=Math.min(1,Math.min((bottom.x-top.x-32)/760,(bottom.y-top.y-32)/WINDOW_HEIGHT));
         scale=Math.max(0.25,scale);
         G.call("h2d.Object","setScale",window,[scale]);
-        position(window,top.x+(bottom.x-top.x-760*scale)/2,top.y+(bottom.y-top.y-490*scale)/2);
+        position(window,top.x+(bottom.x-top.x-760*scale)/2,top.y+(bottom.y-top.y-WINDOW_HEIGHT*scale)/2);
         alignTitle();
         stage="updating window";
         return true;
