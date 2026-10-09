@@ -1,7 +1,7 @@
 {
-  "project": "mod-update-alerts",
-  "version": "1.0.1",
+  "project": "more-settings",
+  "version": "1.16.0",
   "commit": "0cdf2f1ec90463b76b3a86a815ff4a6a73910ac6",
-  "notes": "UI improvements when multiple mod updates are available",
+  "notes": "- Added character locks in the character selection screen. Use this to prevent a character from being deleted accidentally.\n- Added Performance diagnostics option, which can be used to acquire logs of game freezes.\n- Moved \"Show boss health\" from General to Combat category\n- Moved \"Disable profanity filter\" from General to Social category\n- Moved \"Wait for party to enter dungeon\" from General to Social category",
   "dry_run": false
 }
