@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.11.0",
-  "commit": "e19b6285fd2e986124b3034daa6cbfbdd27c35a0",
-  "notes": "- Added an option to mark inventory items as junk, similar to locking.\n- Locked items cannot be marked as junk. Junk items cannot be locked.\n- Junk items cannot be equipped or banked.\n- Marking an item as junk marks all exact copies of that item as junk (including picking up new ones) until you unmark it as junk.\n- Junk is saved per-character.\n- Added a \"Sell all junk\" button to the Guild Merchant's trade window.\n- Fixed an issue where Spark Master choices were not saved in skill presets.\n",
+  "project": "mod-update-alerts",
+  "version": "1.0.1",
+  "commit": "0cdf2f1ec90463b76b3a86a815ff4a6a73910ac6",
+  "notes": "UI improvements when multiple mod updates are available",
   "dry_run": false
 }
