@@ -10,6 +10,8 @@ private class SlowFrame {
     public var incomplete = false;
     public var bufferTrims = 0;
     public var cleanup = new CleanupSample();
+    public var renderStages = new RenderStages();
+    public var renderAllocations = new RenderAllocations();
     public var total:Array<Float> = [for (_ in 0...FrameMetrics.COUNT) 0.0];
     public var maximum:Array<Float> = [for (_ in 0...FrameMetrics.COUNT) 0.0];
     public var calls:Array<Int> = [for (_ in 0...FrameMetrics.COUNT) 0];
@@ -44,7 +46,18 @@ class FrameMetrics {
     public static inline var CLEANUP_JOIN = 23;
     public static inline var CLEANUP_PUBLISH = 24;
     public static inline var RECYCLE_NATIVE = 25;
-    public static inline var COUNT = 26;
+    public static inline var ENGINE_BEGIN = 26;
+    public static inline var ENGINE_END = 27;
+    public static inline var SCENE_3D = 28;
+    public static inline var SCENE_2D = 29;
+    public static inline var RENDER_PASSES = 30;
+    public static inline var PIPELINE_CREATE = 31;
+    public static inline var PBR_BEGIN = 32;
+    public static inline var PBR_END = 33;
+    public static inline var LIGHTING = 34;
+    public static inline var DLSS_RENDER = 35;
+    public static inline var RESERVED_MEMORY = 36;
+    public static inline var COUNT = 37;
     public static inline var CAPACITY = 32;
     public static inline var THRESHOLD = 0.500;
     static inline var QUIET_SECONDS = 2.0;
@@ -52,7 +65,9 @@ class FrameMetrics {
         "shader-source", "pipeline-replay", "graphics-cleanup", "frame-wait", "flush-frame",
         "pso-save", "begin-frame", "dlss-state", "dlss-mode", "driver-reset",
         "frame-setup", "buffer-reset", "frame-recycle", "frame-queries", "frame-tail",
-        "cleanup-hook", "cleanup-memory", "cleanup-join", "cleanup-publish", "recycle-native"];
+        "cleanup-hook", "cleanup-memory", "cleanup-join", "cleanup-publish", "recycle-native",
+        "engine-begin", "engine-end", "scene-3d", "scene-2d", "render-passes", "pipeline-create",
+        "pbr-begin", "pbr-end", "lighting", "dlss-render", "reserved-memory"];
 
     var clock:Void->Float;
     var epoch:Float;
@@ -75,6 +90,8 @@ class FrameMetrics {
     var driverIncomplete = false;
     var bufferTrims = 0;
     var cleanup = new CleanupSample();
+    var renderStages = new RenderStages();
+    var renderAllocations = new RenderAllocations();
     var starts:Array<Float> = [for (_ in 0...COUNT) 0.0];
     var depth:Array<Int> = [for (_ in 0...COUNT) 0];
     var totals:Array<Float> = [for (_ in 0...COUNT) 0.0];
@@ -108,6 +125,8 @@ class FrameMetrics {
         driverIncomplete = false;
         bufferTrims = 0;
         cleanup.reset();
+        renderStages.reset();
+        renderAllocations.reset();
         for (i in 0...COUNT) { depth[i] = 0; totals[i] = 0; maxima[i] = 0; counts[i] = 0; }
         active = true;
     }
@@ -136,6 +155,30 @@ class FrameMetrics {
         if (elapsed > maxima[id]) maxima[id] = elapsed;
         counts[id]++;
         if (id <= PRESENT && --phaseDepth == 0) phaseTotal += now - phaseStart;
+    }
+
+    public function beginRender():Void {
+        if (!active) return;
+        begin(RENDER);
+        if (depth[RENDER] == 1) renderAllocations.read(true);
+    }
+    public function endRender():Void {
+        if (!active || depth[RENDER] == 0) return;
+        if (depth[RENDER] == 1) renderAllocations.read(false);
+        end(RENDER);
+    }
+    public function beginScene():Void {
+        if (!active) return;
+        begin(SCENE_3D);
+        renderStages.beginScene(clock());
+    }
+    public function sceneMark(name:String):Void {
+        if (active && renderStages.depth > 0) renderStages.mark(name, clock());
+    }
+    public function endScene():Void {
+        if (!active || depth[SCENE_3D] == 0) return;
+        renderStages.endScene(clock());
+        end(SCENE_3D);
     }
 
     /** Checkpoints partition beginFrame without replacing any native graphics work. */
@@ -192,7 +235,7 @@ class FrameMetrics {
             return;
         }
         if (eligibleSince < 0) eligibleSince = now;
-        var incomplete = driverIncomplete;
+        var incomplete = driverIncomplete || renderStages.depth != 0;
         for (d in depth) if (d != 0) incomplete = true;
         // Require stable, focused gameplay; loading and returning from Alt-Tab
         // should not fill the diagnostic buffer with expected long frames.
@@ -211,6 +254,8 @@ class FrameMetrics {
             record.incomplete = incomplete;
             record.bufferTrims = bufferTrims;
             record.cleanup.copyFrom(cleanup);
+            record.renderStages.copyFrom(renderStages);
+            record.renderAllocations.copyFrom(renderAllocations);
             for (i in 0...COUNT) {
                 record.total[i] = totals[i]; record.maximum[i] = maxima[i]; record.calls[i] = counts[i];
             }
@@ -236,10 +281,12 @@ class FrameMetrics {
         var at = Date.fromTime(epoch + (record.at - origin) * 1000).toString();
         var parts = [for (i in 0...COUNT) if (record.calls[i] > 0)
             labels[i] + "=" + ms(record.total[i]) + "ms(max=" + ms(record.maximum[i]) + ",n=" + record.calls[i] + ")"];
-        var line = '[More Settings] Freeze metrics v4: at=$at frame=${ms(record.body)}ms gap=${ms(record.gap)}ms'
+        var line = '[More Settings] Freeze metrics v5: at=$at frame=${ms(record.body)}ms gap=${ms(record.gap)}ms'
             + ' outside-phases=${ms(record.outside)}ms combat=${record.combat} optimization=${record.optimized}'
             + ' incomplete=${record.incomplete} overwritten=$overwritten interrupted=$interrupted buffer-trims=${record.bufferTrims}; '
-            + parts.join(" ") + "; " + record.cleanup.describe() + "; timings are inclusive wall time, not GPU or GC attribution.";
+            + parts.join(" ") + "; " + record.cleanup.describe()
+            + "; " + record.renderStages.describe() + "; " + record.renderAllocations.describe()
+            + "; timings are inclusive wall time, not GPU or GC attribution; allocation counters are process-wide.";
         head = (head + 1) % CAPACITY;
         pending--;
         return line;

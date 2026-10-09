@@ -24,6 +24,11 @@ class StallMetrics {
     }
     public static function begin(id:Int):Void { if (onMain()) metrics.begin(id); }
     public static function end(id:Int):Void { if (onMain()) metrics.end(id); }
+    public static function beginRender():Void { if (onMain()) metrics.beginRender(); }
+    public static function endRender():Void { if (onMain()) metrics.endRender(); }
+    public static function beginScene():Void { if (onMain()) metrics.beginScene(); }
+    public static function sceneMark(name:String):Void { if (onMain()) metrics.sceneMark(name); }
+    public static function endScene():Void { if (onMain()) metrics.endScene(); }
     public static function beginDriverFrame():Void { if (onMain()) metrics.beginDriverFrame(); }
     public static function driverStep(expected:Int, next:Int, trim:Bool = false):Void {
         if (onMain()) metrics.driverStep(expected, next, trim);

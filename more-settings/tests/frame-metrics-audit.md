@@ -191,3 +191,67 @@ diagnostics; and run the real cleanup scheduler's offload, pressure, unknown
 memory, cap, disabled, failed and in-flight-empty-queue paths. Query exceptions
 close scopes and preserve native ownership. Windows GPU attribution still
 requires the user's gameplay sample; these tests do not reproduce their driver.
+
+
+## Version 5: rendering detail and allocation context
+
+Verified against the October 7 Live HL6 upload, SHA-256
+`5f288029b34682fa63d22e90000cb8ff91d23d08fbacc965952a799ba92e452f`.
+The bytecode reader needed its HL6 debug-assignment third field and Catch
+global operand support corrected; structure validation then succeeded. Native
+signatures were checked from that client's functions and prototype/static
+companion bindings.
+
+| Scope/boundary | Native signature | Handling |
+| --- | --- | --- |
+| engine-begin | h3d.Engine.begin() -> Bool | Return unchanged |
+| engine-end | h3d.Engine.end() -> Void | Continue |
+| scene-3d | h3d.scene.Scene.render(Engine) -> Void | Start/end named-stage stack |
+| scene-2d | h2d.Scene.render(Engine) -> Void | Continue |
+| named stages | client.Renderer.mark(String) -> Void | Observe existing label; continue |
+| render-passes | h3d.scene.Renderer.process(ArrayObj) -> Void | renderer-setup / scene-tail markers |
+| pipeline-create | static DX12Driver.makePipeline(CompiledShader, PipelineBuilder) -> abstract | Dynamic pass-through preserves the game's abstract identity |
+| pbr-begin / pbr-end | client.Renderer.beginPbr() / endPbr() -> Void | Continue |
+| lighting | client.Renderer.lighting() -> Void | Continue |
+| dlss-render | client.Renderer.dlss() -> Void | Continue |
+| reserved-memory | client.Renderer.updateReservedMem() -> Void | Continue |
+
+Scene.mark is a callback field and must not be hooked. Its default forwards to
+the renderer's real mark method. Scene.render emits sync/emit markers, and the
+client override is called even without the game's benchmark enabled. The marker
+prefix neither replaces the callback nor changes the native benchmark. Other
+renderers or overridden callbacks may provide fewer markers; enclosing scene
+and process scopes still measure their time.
+
+makePipeline is static (no instance argument). It runs on required cache misses
+or optional warmup and ends with native graphics-pipeline creation. The main-thread
+gate excludes worker compilation. Arguments, return object/null, exceptions and
+ownership are preserved; no pipeline is retained. Waits before entering the method
+are outside its timer. No hooks are added to flushPipeline, compileShader, scene
+syncRec/emitRec, resource allocation or individual draw calls.
+
+RenderStages uses 48 fixed slots and an eight-level scene stack. Existing immutable
+marker string references are retained in bounded records; no names are constructed
+while collecting. Nested scenes pause the parent interval. Repeated labels
+aggregate time and retain maximum interval/count. Output sorts after quiet,
+out-of-combat gameplay and prints the top four totals. Marker/depth overflow is
+visible as dropped; unmatched scene postfixes mark the frame incomplete. Intervals
+include all work until the next marker, not only a named draw call.
+
+RenderAllocations reads std.gc_stats directly, avoiding the object allocated by
+hl.Gc.stats(). Only outer Engine.render calls are paired. Separate render deltas
+are summed, excluding allocations between them. Counters include worker and hook
+dispatch allocations. The native reports cumulative allocation bytes/count and
+managed heap pages; it does not expose collection count/duration. No GC flags,
+collection behavior, GPU queries, tracing, stacks or heap dumps are changed/added.
+Missing pairs/counter resets stay unknown. Allocation activity is not GC attribution.
+
+The 500 ms threshold, 32-record ring, focused-gameplay gate, deferred noncombat
+output and one-record-per-second drain are unchanged. Tests cover a 750 ms pipeline
+creation inside the character stage; equally slow UI/DLSS/lighting/reserved-memory/
+PBR work without pipeline calls; nested scenes/renders; overflow; missing postfix
+recovery; retained/reset snapshots; disabled/foreign-thread gates; and real HL
+allocation-counter reads. Interpreter: 169 checks. HashLink: 173 checks. The
+v5 timing-core benchmark with 30 markers and native counter sampling measured
+about 8.86 microseconds/frame (100,000 iterations), excluding HLX dispatch and
+native context lookups. This is not in-game overhead or a controlled v4 comparison.

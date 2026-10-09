@@ -61,7 +61,7 @@ class FrameMetricsTest {
         m.begin(M.BEGIN_FRAME); now += 0.005; m.end(M.BEGIN_FRAME);
         m.end(M.PRESENT); m.endFrame(); quiet(m);
         var line = take(m);
-        for (part in ["Freeze metrics v4", "frame=2053ms", "present=2047ms", "flush-frame=2001ms",
+        for (part in ["Freeze metrics v5", "frame=2053ms", "present=2047ms", "flush-frame=2001ms",
             "pso-save=2000ms", "begin-frame=5ms", "frame-wait=0ms", "dlss-state=1ms", "outside-phases=0ms"])
             has(line, part, "nested presentation detail: " + part);
 
@@ -160,6 +160,97 @@ class FrameMetricsTest {
         m.cleanupEvent(C.ERROR); eq(m.cleanup.events, 0, "events outside a frame ignored");
     }
 
+    static function renderBreakdown():Void {
+        var m = fresh(); warm(m);
+        m.beginFrame(); m.context(true, true, true); m.beginRender();
+        m.begin(M.ENGINE_BEGIN); now += 0.002; m.end(M.ENGINE_BEGIN);
+        m.beginScene(); now += 0.001; m.sceneMark("sync"); now += 0.003;
+        m.sceneMark("emit"); now += 0.001; m.sceneMark("renderer-setup");
+        m.begin(M.RENDER_PASSES); m.begin(M.PBR_BEGIN); now += 0.002; m.end(M.PBR_BEGIN);
+        m.sceneMark("chara"); m.begin(M.PIPELINE_CREATE); now += 0.750; m.end(M.PIPELINE_CREATE);
+        m.sceneMark("water"); now += 0.010; m.end(M.RENDER_PASSES);
+        m.sceneMark("scene-tail"); now += 0.001; m.endScene();
+        m.begin(M.ENGINE_END); now += 0.001; m.end(M.ENGINE_END); m.endRender();
+        m.endFrame(); quiet(m);
+        var line = take(m);
+        for (part in ["frame=771ms", "render=771ms", "scene-3d=768ms", "render-passes=762ms",
+            "pipeline-create=750ms", "engine-begin=2ms", "engine-end=1ms", "pbr-begin=2ms",
+            "chara=750ms(max=750,n=1)", "water=10ms", "outside-phases=0ms", "incomplete=false"])
+            has(line, part, "separates pipeline creation, markers and outer render: " + part);
+        has(line, "render-stages={observed=7 dropped=0", "stage snapshot survives quiet frames");
+
+        // A slow UI or renderer subsystem must not be called a pipeline stall.
+        for (id in [M.SCENE_2D, M.DLSS_RENDER, M.LIGHTING, M.RESERVED_MEMORY, M.PBR_END]) {
+            m.beginFrame(); m.context(true, true, true); m.beginRender();
+            m.begin(id); now += 0.750; m.end(id); m.endRender(); m.endFrame(); quiet(m);
+            line = take(m);
+            has(line, M.labels[id] + "=750ms", "locates other rendering work");
+            eq(line.indexOf("pipeline-create="), -1, "unused pipeline scope is absent");
+            has(line, "render-stages={observed=0", "no stale named stages");
+        }
+        // Nested scene previews/reflections pause their parent's named interval.
+        m.beginFrame(); m.context(true, true, true); m.beginRender(); m.beginScene();
+        m.sceneMark("parent"); now += 0.010; m.beginScene(); m.sceneMark("child");
+        now += 0.600; m.endScene(); now += 0.020; m.endScene(); m.endRender();
+        m.endFrame(); quiet(m); line = take(m);
+        has(line, "child=600ms(max=600,n=1)", "nested scene measured");
+        has(line, "parent=30ms(max=20,n=2)", "nested child not charged to parent's marker");
+        has(line, "scene-3d=630ms(max=630,n=1)", "recursive scene total is inclusive only once");
+        has(line, "incomplete=false", "nested scenes close cleanly");
+
+        m.beginFrame(); m.context(true, true, true); m.beginScene(); now += 0.600;
+        m.endFrame(); quiet(m); has(take(m), "incomplete=true", "missing scene postfix flagged");
+        var before = reads; m.sceneMark("outside"); m.endScene();
+        eq(reads, before, "markers outside scenes do not read clocks");
+        frame(m, 0.600); quiet(m); has(take(m), "render-stages={observed=0", "interrupted stage cleared");
+
+        var stages = new moresettings.RenderStages(); stages.beginScene(0);
+        for (i in 0...100) stages.mark("stage" + i, i + 1);
+        stages.endScene(102);
+        eq(stages.used, moresettings.RenderStages.CAPACITY, "distinct marker storage bounded");
+        eq(stages.dropped > 0, true, "marker overflow visible");
+        eq(stages.names.length, moresettings.RenderStages.CAPACITY, "marker array never grows");
+        stages.reset();
+        for (i in 0...12) stages.beginScene(i);
+        for (i in 0...12) stages.endScene(20 + i);
+        eq(stages.depth, 0, "nested overflow recovers"); eq(stages.dropped > 0, true, "nested overflow visible");
+        stages.reset(); eq(stages.dropped, 0, "overflow resets each frame");
+    }
+
+    static function allocationCounters():Void {
+        var a = new moresettings.RenderAllocations();
+        a.sample(false, 1000, 2, 1048576); eq(a.samples, 0, "missing allocation baseline ignored");
+        a.sample(true, 1000, 2, 1048576); a.sample(false, 2024, 5, 2097152);
+        a.sample(true, 3000, 7, 2097152); a.sample(false, 4024, 9, 2097152);
+        eq(a.bytes, 2048.0, "separate renders sum deltas, excluding work between renders");
+        eq(a.allocations, 5.0, "allocation count deltas"); eq(a.samples, 2, "paired samples counted");
+        var snapshot = new moresettings.RenderAllocations(); snapshot.copyFrom(a); a.reset();
+        has(snapshot.describe(), "allocated-KiB=2 allocations=5 heap-MiB=2", "snapshot retained");
+        has(a.describe(), "allocated-KiB=unknown", "absent counters do not pretend to be zero");
+        a.sample(true, 1000, 10, 0); a.sample(false, 100, 2, 0);
+        eq(a.samples, 0, "reset counters ignored");
+        #if hl
+        a.read(true);
+        var bytes = haxe.io.Bytes.alloc(4096); bytes.set(0, 42);
+        a.read(false);
+        eq(a.samples, 1, "native counter API available");
+        eq(a.bytes >= 4096, true, "native allocation burst observed");
+        eq(a.allocations > 0, true, "native allocation count observed");
+        eq(bytes.get(0), 42, "sampling preserves native allocations");
+        #end
+        var m = fresh(); warm(m);
+        m.beginFrame(); m.context(true, true, true); m.beginRender(); m.beginRender();
+        now += 0.600; m.endRender(); m.endRender(); m.endFrame(); quiet(m);
+        var line = take(m);
+        has(line, "render=600ms(max=600,n=1)", "nested render only timed once");
+        #if hl
+        has(line, "render-alloc={samples=1", "nested render only samples outer pair");
+        #else
+        has(line, "render-alloc={samples=0", "non-HL counters explicitly unavailable");
+        #end
+        frame(m, 0.499); eq(m.pending, 0, "still suppresses sub-500 ms frames");
+    }
+
     static function overlapAndMissingPostfix():Void {
         var m = fresh(); warm(m);
         m.beginFrame(); m.context(true, true, false); m.begin(M.UPDATE);
@@ -221,6 +312,8 @@ class FrameMetricsTest {
         var before = reads; var done = new Lock();
         Thread.create(() -> {
             StallMetrics.begin(M.SHADER_SOURCE); StallMetrics.end(M.SHADER_SOURCE);
+            StallMetrics.beginRender(); StallMetrics.beginScene(); StallMetrics.sceneMark("foreign");
+            StallMetrics.endScene(); StallMetrics.endRender();
             StallMetrics.beginDriverFrame();
             StallMetrics.driverStep(M.FRAME_SETUP, M.BUFFER_RESET, true); StallMetrics.endDriverFrame();
             StallMetrics.driverRecycleReady(); StallMetrics.cleanupEvent(C.ERROR);
@@ -230,12 +323,16 @@ class FrameMetricsTest {
         eq(done.wait(3), true, "background test completed");
         eq(reads, before, "background hooks do not sample clocks");
         eq(m.active, true, "background hook cannot end main frame");
+        eq(m.renderStages.used, 0, "background marker collection excluded");
+        eq(m.renderAllocations.samples, 0, "background allocation sampling excluded");
         eq(m.eligible, true, "background hook cannot change context");
         eq(m.cleanup.events, 0, "background hook cannot change cleanup outcome");
         eq(m.cleanup.queued, 0, "background hook cannot change cleanup counts");
         eq(m.cleanup.memoryReads, 0, "background hook cannot change memory sample");
         now += 0.016; StallMetrics.endFrame(); StallMetrics.configure(false); before = reads;
         StallMetrics.beginFrame(); StallMetrics.begin(M.RENDER); StallMetrics.end(M.RENDER);
+        StallMetrics.beginRender(); StallMetrics.beginScene(); StallMetrics.sceneMark("disabled");
+        StallMetrics.endScene(); StallMetrics.endRender();
         StallMetrics.beginDriverFrame(); StallMetrics.driverStep(M.FRAME_SETUP, M.BUFFER_RESET); StallMetrics.endDriverFrame();
         StallMetrics.context(true, true, true); StallMetrics.endFrame();
         StallMetrics.driverRecycleReady(); StallMetrics.cleanupEvent(C.ERROR);
@@ -246,10 +343,13 @@ class FrameMetricsTest {
 
     static function benchmark():Void {
         var m = new M(); var start = haxe.Timer.stamp(); var frames = 100000;
+        var markers = [for (i in 0...30) "stage" + i];
         for (_ in 0...frames) {
             m.beginFrame(); m.context(true, true, true);
             m.begin(M.UPDATE); m.begin(M.WORKERS); m.end(M.WORKERS); m.end(M.UPDATE);
-            m.begin(M.RENDER); m.end(M.RENDER);
+            m.beginRender(); m.beginScene();
+            for (name in markers) m.sceneMark(name);
+            m.endScene(); m.endRender();
             m.begin(M.PRESENT);
             m.begin(M.FLUSH_FRAME); m.begin(M.PIPELINE_SAVE); m.end(M.PIPELINE_SAVE); m.end(M.FLUSH_FRAME);
             m.begin(M.DLSS_STATE); m.end(M.DLSS_STATE);
@@ -267,7 +367,7 @@ class FrameMetricsTest {
         Sys.println('Timing-buffer microbenchmark: ${elapsed * 1000000 / frames} us/frame ($frames frames; excludes HLX hooks/native context reads).');
     }
     static function main():Void {
-        timings(); presentationBreakdown(); beginFrameBreakdown(); cleanupBreakdown(); overlapAndMissingPostfix(); gatingAndGaps(); boundedOutput(); threadsAndDisabled();
+        timings(); presentationBreakdown(); beginFrameBreakdown(); cleanupBreakdown(); renderBreakdown(); allocationCounters(); overlapAndMissingPostfix(); gatingAndGaps(); boundedOutput(); threadsAndDisabled();
         eq(moresettings.SettingsData.defaults().performanceDiagnostics, false, "diagnostics opt-in");
         Sys.println('Frame metrics: $checks checks passed.');
         if (Sys.args().indexOf("--bench") >= 0) benchmark();

@@ -4,7 +4,7 @@ import hlx.runtime.HlxPrefixResult;
 import moresettings.GameAccess as G;
 import moresettings.FrameMetrics as M;
 
-/** A few frame-level/rare-operation hooks; never per hit, entity update or draw. */
+/** Frame/stage boundaries and rare pipeline creation; never per hit, entity update or draw. */
 class DiagnosticHooks {
     public static function update(app:Dynamic, optimization:Bool):Void {
         if (!StallMetrics.enabled) return;
@@ -28,11 +28,118 @@ class DiagnosticHooks {
 
     @:hlx.prefix(h3d.Engine.render)
     static function beforeRender(instance:Dynamic, object:Dynamic):HlxPrefixResult<Bool> {
-        StallMetrics.begin(M.RENDER); return Continue;
+        StallMetrics.beginRender(); return Continue;
     }
     @:hlx.postfix(h3d.Engine.render)
     static function afterRender(instance:Dynamic, object:Dynamic, result:Bool):Bool {
-        StallMetrics.end(M.RENDER); return result;
+        StallMetrics.endRender(); return result;
+    }
+
+    @:hlx.prefix(h3d.scene.Scene.render)
+    static function beforeScene(instance:Dynamic, engine:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.beginScene(); return Continue;
+    }
+    @:hlx.postfix(h3d.scene.Scene.render)
+    static function afterScene(instance:Dynamic, engine:Dynamic, result:Void):Void StallMetrics.endScene();
+
+    // Scene.mark is a callback field, not a method. Its default callback forwards
+    // to this real client renderer method, including the sync/emit boundaries.
+    @:hlx.prefix(client.Renderer.mark)
+    static function beforeSceneMark(instance:Dynamic, name:String):HlxPrefixResult<Void> {
+        StallMetrics.sceneMark(name); return Continue;
+    }
+    @:hlx.prefix(h3d.scene.Renderer.process)
+    static function beforePasses(instance:Dynamic, passes:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.sceneMark("renderer-setup");
+        StallMetrics.begin(M.RENDER_PASSES); return Continue;
+    }
+    @:hlx.postfix(h3d.scene.Renderer.process)
+    static function afterPasses(instance:Dynamic, passes:Dynamic, result:Void):Void {
+        StallMetrics.end(M.RENDER_PASSES);
+        StallMetrics.sceneMark("scene-tail");
+    }
+
+    // A cache-miss-only static method. Do not hook flushPipeline/compileShader:
+    // those are hot paths even when every pipeline/shader is already cached.
+    @:hlx.prefix(h3d.impl.DX12Driver.makePipeline)
+    static function beforePipeline(shader:Dynamic, builder:Dynamic):HlxPrefixResult<Dynamic> {
+        StallMetrics.begin(M.PIPELINE_CREATE); return Continue;
+    }
+    @:hlx.postfix(h3d.impl.DX12Driver.makePipeline)
+    static function afterPipeline(shader:Dynamic, builder:Dynamic, result:Dynamic):Dynamic {
+        StallMetrics.end(M.PIPELINE_CREATE); return result;
+    }
+
+    @:hlx.prefix(h3d.Engine.begin)
+    static function beforeEngineBegin(instance:Dynamic):HlxPrefixResult<Bool> {
+        StallMetrics.begin(M.ENGINE_BEGIN); return Continue;
+    }
+    @:hlx.postfix(h3d.Engine.begin)
+    static function afterEngineBegin(instance:Dynamic, result:Bool):Bool {
+        StallMetrics.end(M.ENGINE_BEGIN); return result;
+    }
+
+    @:hlx.prefix(h3d.Engine.end)
+    static function beforeEngineEnd(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.ENGINE_END); return Continue;
+    }
+    @:hlx.postfix(h3d.Engine.end)
+    static function afterEngineEnd(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.ENGINE_END);
+    }
+
+    @:hlx.prefix(h2d.Scene.render)
+    static function beforeUiRender(instance:Dynamic, engine:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.SCENE_2D); return Continue;
+    }
+    @:hlx.postfix(h2d.Scene.render)
+    static function afterUiRender(instance:Dynamic, engine:Dynamic, result:Void):Void {
+        StallMetrics.end(M.SCENE_2D);
+    }
+
+    @:hlx.prefix(client.Renderer.beginPbr)
+    static function beforePbrBegin(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.PBR_BEGIN); return Continue;
+    }
+    @:hlx.postfix(client.Renderer.beginPbr)
+    static function afterPbrBegin(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.PBR_BEGIN);
+    }
+
+    @:hlx.prefix(client.Renderer.endPbr)
+    static function beforePbrEnd(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.PBR_END); return Continue;
+    }
+    @:hlx.postfix(client.Renderer.endPbr)
+    static function afterPbrEnd(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.PBR_END);
+    }
+
+    @:hlx.prefix(client.Renderer.lighting)
+    static function beforeLighting(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.LIGHTING); return Continue;
+    }
+    @:hlx.postfix(client.Renderer.lighting)
+    static function afterLighting(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.LIGHTING);
+    }
+
+    @:hlx.prefix(client.Renderer.dlss)
+    static function beforeDlss(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.DLSS_RENDER); return Continue;
+    }
+    @:hlx.postfix(client.Renderer.dlss)
+    static function afterDlss(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.DLSS_RENDER);
+    }
+
+    @:hlx.prefix(client.Renderer.updateReservedMem)
+    static function beforeReservedMemory(instance:Dynamic):HlxPrefixResult<Void> {
+        StallMetrics.begin(M.RESERVED_MEMORY); return Continue;
+    }
+    @:hlx.postfix(client.Renderer.updateReservedMem)
+    static function afterReservedMemory(instance:Dynamic, result:Void):Void {
+        StallMetrics.end(M.RESERVED_MEMORY);
     }
 
     @:hlx.prefix(h3d.impl.DX12Driver.present)
