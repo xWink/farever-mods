@@ -7,15 +7,6 @@
       "label": "General"
     },
     {
-      "key": "showBossHealth",
-      "type": "checkbox",
-      "label": "Show boss health",
-      "tooltip": {
-        "enabled": true,
-        "tooltipText": "Boss health bars will show the raw health value alongside percentage. Instead of just \"100%\", you will see \"150,000 (100%)\"."
-      }
-    },
-    {
       "key": "performanceOptimization",
       "type": "checkbox",
       "label": "Performance improvements",
@@ -31,15 +22,6 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Records timing information for freezes of 500 ms or longer. Keeps a small buffer in memory and writes to the mod log after combat. Enable while investigating freezes; works with Performance improvements on or off."
-      }
-    },
-    {
-      "key": "waitForParty",
-      "type": "checkbox",
-      "label": "Wait for party to enter dungeon",
-      "tooltip": {
-        "enabled": true,
-        "tooltipText": "Prevents entering a dungeon solo while in a party."
       }
     },
     {
@@ -76,6 +58,15 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Hides floating damage and healing numbers, including incoming damage and healing numbers in the effects feed."
+      }
+    },
+    {
+      "key": "showBossHealth",
+      "type": "checkbox",
+      "label": "Show boss health",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Boss health bars will show the raw health value alongside percentage. Instead of just \"100%\", you will see \"150,000 (100%)\"."
       }
     },
     {
@@ -139,6 +130,15 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Add a private note of up to 30 characters from a friend's settings menu. Notes appear beside their name and are saved on this computer. Save an empty note to remove it."
+      }
+    },
+    {
+      "key": "waitForParty",
+      "type": "checkbox",
+      "label": "Wait for party to enter dungeon",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Prevents entering a dungeon solo while in a party."
       }
     },
     {
