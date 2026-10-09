@@ -1,5 +1,4 @@
 -lib hlx-runtime
--lib hl-imgui
 -D hl-ver=1.16.0
 -cp src
 -cp ../shared/src
@@ -12,7 +11,6 @@
 -D hl-ver=1.16.0
 -cp ../shared/bootstrap
 -D dependency-mod=item-utilities
--D dependency-imgui
 -main moddependencies.Bootstrap
 -dce full
 -hl build/item-utilities/item-utilities.hl

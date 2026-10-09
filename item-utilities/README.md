@@ -12,7 +12,7 @@ and covered portions cannot intercept clicks through foreground native UI.
 
 ## Installation
 
-**Required:** HLX Core, [Better Mod Settings](https://www.nexusmods.com/farever/mods/10), and [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17). Item Utilities also requires the Farever ImGui plugin. A missing dependency shows a desktop error naming what to install and closes Farever before this mod starts.
+**Required:** HLX Core, [Better Mod Settings](https://www.nexusmods.com/farever/mods/10), and [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17). ImGui is not required. A missing dependency shows a desktop error naming what to install and closes Farever before this mod starts.
 
 Install the **complete archive**, including the `implementation/` subfolder. Missing or mismatched implementation files also stop startup with a reinstall message.
 
@@ -21,7 +21,7 @@ Install the **complete archive**, including the `implementation/` subfolder. Mis
 
 ### Manual Installation
 1. Install HLX Core.
-2. Install the Farever ImGui plugin.
+2. Install [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17).
 3. Download the latest release or successful build artifact.
 4. Install [Better Mod Settings](https://github.com/xWink/farever-mods/tree/main/better-mod-settings)
 5. Install the ZIP with Vortex, or extract it directly into the Farever game directory. The archive already contains:
@@ -316,11 +316,10 @@ Available settings include:
 - [HLX Core](https://github.com/hlx-framework/hlx-core)
 - [Better Mod Settings](https://www.nexusmods.com/farever/mods/10) (mandatory)
 - [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17) (mandatory)
-- The Farever ImGui plugin used by HLX mods with overlay interfaces
 
 ## Building for development
 
-Install Haxe 4.3.7, HLX Runtime, and `hl-imgui`, then run:
+Install Haxe 4.3.7 and HLX Runtime, then run:
 
 ```sh
 cd item-utilities

@@ -19,10 +19,6 @@ on:
         description: Human-readable mod name
         required: true
         type: string
-      imgui:
-        description: Whether this mod requires the Farever ImGui plugin
-        default: false
-        type: boolean
       required-settings:
         description: Package the mandatory dependency startup check
         default: false
@@ -75,10 +71,6 @@ jobs:
       - name: Install HLX runtime
         run: haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
 
-      - name: Install ImGui
-        if: inputs.imgui
-        run: haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
-
       - name: Test required dependency checks
         if: inputs.required-settings
         working-directory: shared
@@ -89,7 +81,7 @@ jobs:
 
       - name: Package
         env:
-          REQUIREMENTS: ${{ inputs.imgui && 'Requires HLX Core, Better Mod Settings, Mod Update Alerts, and the Farever ImGui plugin.' || inputs.required-settings && 'Requires HLX Core, Better Mod Settings, and Mod Update Alerts.' || 'Requires HLX Core.' }}
+          REQUIREMENTS: ${{ inputs.required-settings && 'Requires HLX Core, Better Mod Settings, and Mod Update Alerts.' || 'Requires HLX Core.' }}
           REQUIRED_SETTINGS: ${{ inputs.required-settings }}
         run: |
           destination="package/hlx/mods/$MODULE"

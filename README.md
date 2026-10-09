@@ -22,9 +22,9 @@ the Farever game directory. Each archive contains just that mod under
 README. Installed mod folders are unchanged.
 
 All mods require [HLX Core 0.0.8 or newer](https://github.com/hlx-framework/hlx-core/releases/tag/0.0.8)
-for the September 30 Live client. Only Item Utilities also requires the
-[Farever ImGui plugin](https://www.nexusmods.com/farever/mods/4), which draws its
-deposit buttons, equipment presets, and item-lock controls and icons.
+for the September 30 Live client. Item Utilities uses native game UI for its
+deposit buttons, equipment presets, and item-lock controls and icons; it does
+not require the Farever ImGui plugin.
 DPS Meter handles log uploads inside the HLX mod and uses native game UI.
 
 ## Settings
@@ -48,12 +48,6 @@ Use Haxe 4.3.7 and install the same dependencies used by CI:
 
 ```sh
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-```
-
-Only Item Utilities needs the additional ImGui library:
-
-```sh
-haxelib git hl-imgui https://github.com/laymain/farever-mods.git main imgui/hl-imgui/src
 ```
 
 Change into the project you want to compile:

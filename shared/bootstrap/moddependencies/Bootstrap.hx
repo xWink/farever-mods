@@ -2,19 +2,13 @@ package moddependencies;
 
 /**
  * HLX catches exceptions from a mod's main(), while native imports are resolved
- * before main() can run. Keep this entry separate from the implementation so a
- * missing ImGui library cannot prevent our actionable error from being shown.
+ * before main() can run. Keep this entry separate so missing dependencies are
+ * reported before the implementation initializes.
  */
 @:access(String)
 class Bootstrap {
-    // Optional binding: probing a missing plugin must not abort native linking.
-    #if dependency_imgui
-    @:hlNative("?imgui", "igGetVersion")
-    static function imguiVersion():hl.Bytes { return null; }
-    #end
-
-    // Farever ships this native desktop dialog. It needs
-    // neither the game UI nor ImGui; a missing UI library still leaves a log.
+    // Farever ships this native desktop dialog. If it is unavailable,
+    // the dependency error is still logged before exiting.
     @:hlNative("?ui", "ui_dialog")
     static function dialog(title:hl.Bytes, text:hl.Bytes, flags:Int):Int { return 0; }
 
@@ -23,10 +17,9 @@ class Bootstrap {
 
     static function main():Void {
         var id = Build.modId();
-        var missing = DependencyCheck.missing(id,
+        var missing = DependencyCheck.missing(
             DependencyCheck.isBytecode("hlx/mods/better-mod-settings/better-mod-settings.hl"),
-            DependencyCheck.isBytecode("hlx/mods/mod-update-alerts/mod-update-alerts.hl"),
-            #if dependency_imgui hl.Api.isPrimLoaded(imguiVersion) #else true #end);
+            DependencyCheck.isBytecode("hlx/mods/mod-update-alerts/mod-update-alerts.hl"));
         if (missing.length > 0) stop(DependencyCheck.message(id, missing));
 
         // Keep the original basename: HLX derives moduleName(), config paths,

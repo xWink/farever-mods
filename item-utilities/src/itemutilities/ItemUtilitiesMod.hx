@@ -2,7 +2,6 @@ package itemutilities;
 
 import haxe.Json;
 import haxe.ds.ObjectMap;
-import imgui.ref.BoolRef;
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import modconfig.ConfigMigration;
@@ -111,10 +110,10 @@ class ItemUtilitiesMod {
         "better-mod-settings/config-changed/";
     static inline var CRAFTING_COMPONENT_TYPE = "CraftingComponent";
 
-    static var enabled = new BoolRef(true);
-    static var showDepositMaterials = new BoolRef(true);
-    static var showLockVisuals = new BoolRef(true);
-    static var sortingIgnoresLockedItems = new BoolRef(false);
+    static var enabled:Bool = true;
+    static var showDepositMaterials:Bool = true;
+    static var showLockVisuals:Bool = true;
+    static var sortingIgnoresLockedItems:Bool = false;
     static var presetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var skillPresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var selectedSkillPreset:Int = 0;
@@ -276,19 +275,19 @@ class ItemUtilitiesMod {
                 function(_:Dynamic):Void resetCharacterData(resetKind)
             );
         }
-        PlayerInspect.initialize(() -> enabled.get());
+        PlayerInspect.initialize(() -> enabled);
     }
 
     @:hlx.postfix(GameApp.finishedLoading)
     static function restoreLocksAfterLoading(instance:Dynamic, result:Void):Void {
-        if (enabled.get()) reconcileItemLocks();
+        if (enabled) reconcileItemLocks();
     }
 
     @:hlx.postfix(client.PlayerController.updateInputs)
     static function prepareQuickLoot(instance:Dynamic, dt:Float, result:Void):Void {
         // PlayerController.update only reaches updateInputs when gameplay
         // input is unblocked. Its next input query is the normal Interact press.
-        quickLootState.prepare(instance, enabled.get() && config.holdInteractToQuickLoot);
+        quickLootState.prepare(instance, enabled && config.holdInteractToQuickLoot);
     }
 
     @:hlx.postfix(client.PlayerController.update)
@@ -304,7 +303,7 @@ class ItemUtilitiesMod {
 
         // The context was consumed before any nested input/interaction calls.
         // A real press remains untouched, including presses on NPCs and chests.
-        if (!enabled.get() || !config.holdInteractToQuickLoot) {
+        if (!enabled || !config.holdInteractToQuickLoot) {
             quickLootState.release(controller);
             return result;
         }
@@ -356,7 +355,7 @@ class ItemUtilitiesMod {
     static function filterQuickLootTarget(instance:Dynamic, result:Dynamic):Dynamic {
         if (!quickLootState.filtersTarget(instance))
             return result;
-        if (result == null || !enabled.get() || !config.holdInteractToQuickLoot)
+        if (result == null || !enabled || !config.holdInteractToQuickLoot)
             return null;
 
         try {
@@ -502,7 +501,7 @@ class ItemUtilitiesMod {
     @:hlx.prefix(ui.BaseUI.setTip)
     static function suppressLockEditItemTooltip(instance:Dynamic, element:Dynamic,
         anchor:Dynamic, position:Dynamic, nesting:Dynamic):HlxPrefixResult<Dynamic> {
-        if (!enabled.get() || (!(showLockVisuals.get() && lockEditMode) && !junkEditMode))
+        if (!enabled || (!(showLockVisuals && lockEditMode) && !junkEditMode))
             return Continue;
         for (entry in visibleSlots) {
             var slot:Dynamic = entry.slot;
@@ -517,8 +516,7 @@ class ItemUtilitiesMod {
 
     @:hlx.prefix(App.render)
     static function updateNativeControls(instance:Dynamic, engine:Dynamic):HlxPrefixResult<Void> {
-        // Update after game/UI input and before native drawing, never in the
-        // ImGui present pass after the owning windows have already rendered.
+        // Update after game/UI input and before the owning windows render.
         try draw() catch (error:Dynamic) logLockError("native controls", error);
         try NativeUtilityUi.endFrame() catch (error:Dynamic) logLockError("native control cleanup", error);
         return Continue;
@@ -536,7 +534,7 @@ class ItemUtilitiesMod {
 
     @:hlx.prefix(st.Loadout.requestCompleteItem)
     static function completeMoteInstantly(instance:Dynamic, item:Dynamic):HlxPrefixResult<Dynamic> {
-        if (!enabled.get() || !config.instantMoteConversion)
+        if (!enabled || !config.instantMoteConversion)
             return Continue;
         // Internal IDs cover every elemental mote, independently of language.
         var kind:String = fieldOrNull(item, "kind");
@@ -720,7 +718,7 @@ class ItemUtilitiesMod {
     @:hlx.prefix(st.Inventory.requestSort)
     static function ignoreLockedItemsDuringSort(instance:Dynamic, indexes:Array<Int>,
         callback:Dynamic):HlxPrefixResult<Dynamic> {
-        if (!sortingIgnoresLockedItems.get() || instance != sourceInventory || indexes == null)
+        if (!sortingIgnoresLockedItems || instance != sourceInventory || indexes == null)
             return Continue;
 
         var content = getContent(instance);
@@ -830,12 +828,12 @@ class ItemUtilitiesMod {
         if (lockedSortActive && !lockedSortWaiting)
             transferNextLockedSortItem();
 
-        if (activeBankWindow != null && enabled.get() && showDepositMaterials.get())
+        if (activeBankWindow != null && enabled && showDepositMaterials)
             drawBankHeaderButton();
-        if (activeScrapWindow != null && enabled.get() && showDepositMaterials.get())
+        if (activeScrapWindow != null && enabled && showDepositMaterials)
             drawRecyclerHeaderButton();
 
-        if (enabled.get()) {
+        if (enabled) {
             if (activeInventoryUI == null || !isUiVisible(activeInventoryUI)) {
                 lockEditMode = false;
                 junkEditMode = false;
@@ -860,7 +858,7 @@ class ItemUtilitiesMod {
             drawSkillPresetButtons();
             drawAppearancePresetButtons();
             drawJunkControls();
-            if (showLockVisuals.get()) {
+            if (showLockVisuals) {
                 drawLockHeaderButton();
                 if (lockEditMode)
                     drawLockSlotOverlays();
@@ -907,7 +905,7 @@ class ItemUtilitiesMod {
 
         var rect = NativeUiLayout.rect(sortButton, -38, 0, 32, 30);
         NativeUtilityUi.button(fieldOrNull(sortButton, "parent"), "recycler-deposit", rect, "all", "Deposit all", () -> {
-            if (enabled.get() && showDepositMaterials.get() && !recyclerDepositing) beginRecyclerDeposit();
+            if (enabled && showDepositMaterials && !recyclerDepositing) beginRecyclerDeposit();
         });
     }
 
@@ -915,7 +913,7 @@ class ItemUtilitiesMod {
         mode:Int, suffix:String, tooltip:String):Void {
         NativeUtilityUi.button(fieldOrNull(sortButton, "parent"), "bank-deposit-" + suffix, rect, suffix,
             StringTools.trim(tooltip), () -> {
-                if (enabled.get() && showDepositMaterials.get() && !depositing) beginDepositMode(mode);
+                if (enabled && showDepositMaterials && !depositing) beginDepositMode(mode);
             });
     }
 
@@ -1045,7 +1043,7 @@ class ItemUtilitiesMod {
         };
         NativeUtilityUi.presets(parent, "presets-" + cast(kind, Int), rect, busy, selected,
             preset -> {
-                if (!enabled.get()) return;
+                if (!enabled) return;
                 switch kind {
                     case Equipment: selectEquipmentPreset(preset); activateEquipmentPreset(preset);
                     case Talent: selectTalentPreset(preset); activateTalentPreset(preset);
@@ -1053,7 +1051,7 @@ class ItemUtilitiesMod {
                     case Appearance: selectAppearancePreset(preset); activateAppearancePreset(preset);
                 }
             }, () -> {
-                if (!enabled.get()) return;
+                if (!enabled) return;
                 switch kind {
                     case Equipment: saveCurrentEquipmentToPreset(selectedWeaponPreset);
                     case Talent: saveCurrentTalentsToPreset(selectedTalentPreset);
@@ -1114,7 +1112,7 @@ class ItemUtilitiesMod {
     }
 
     static function saveCurrentTalentsToPreset(preset:Int):Void {
-        if (!enabled.get() || talentPresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || talentPresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1138,7 +1136,7 @@ class ItemUtilitiesMod {
     }
 
     static function activateTalentPreset(preset:Int):Void {
-        if (!enabled.get() || talentPresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || talentPresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1181,7 +1179,7 @@ class ItemUtilitiesMod {
         try {
             var hero = resolveHero();
             var app = currentGameApp();
-            if (!enabled.get() || hero != talentPresetHero
+            if (!enabled || hero != talentPresetHero
                 || fieldOrNull(app, "host") != talentPresetHost
                 || heroPersistentId(hero) != talentPresetCharacterId || !talentsReady(hero)) {
                 talentPresetTransfer.cancel("Talent preset stopped because the session changed.");
@@ -1330,7 +1328,7 @@ class ItemUtilitiesMod {
     }
 
     static function saveCurrentAppearancesToPreset(preset:Int):Void {
-        if (!enabled.get() || appearancePresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || appearancePresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1354,7 +1352,7 @@ class ItemUtilitiesMod {
     }
 
     static function activateAppearancePreset(preset:Int):Void {
-        if (!enabled.get() || appearancePresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || appearancePresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1397,7 +1395,7 @@ class ItemUtilitiesMod {
         try {
             var hero = resolveHero();
             var app = currentGameApp();
-            if (!enabled.get() || hero != appearancePresetHero
+            if (!enabled || hero != appearancePresetHero
                 || fieldOrNull(app, "host") != appearancePresetHost
                 || heroPersistentId(hero) != appearancePresetCharacterId || !appearancesReady(hero)) {
                 appearancePresetTransfer.cancel("Appearance preset stopped because the session changed.");
@@ -1476,7 +1474,7 @@ class ItemUtilitiesMod {
     }
 
     static function saveCurrentSkillsToPreset(preset:Int):Void {
-        if (!enabled.get() || skillPresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || skillPresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1509,7 +1507,7 @@ class ItemUtilitiesMod {
     }
 
     static function activateSkillPreset(preset:Int):Void {
-        if (!enabled.get() || skillPresetTransfer.active || !PresetSlots.valid(preset)) return;
+        if (!enabled || skillPresetTransfer.active || !PresetSlots.valid(preset)) return;
         try {
             var hero = resolveHero();
             var characterId = heroPersistentId(hero);
@@ -1562,7 +1560,7 @@ class ItemUtilitiesMod {
         try {
             var hero = resolveHero();
             var app = currentGameApp();
-            if (!enabled.get() || hero != skillPresetHero
+            if (!enabled || hero != skillPresetHero
                 || fieldOrNull(app, "host") != skillPresetHost
                 || heroPersistentId(hero) != skillPresetCharacterId || !talentsReady(hero)) {
                 skillPresetTransfer.cancel("Skill preset stopped because the session changed.");
@@ -1828,7 +1826,7 @@ class ItemUtilitiesMod {
         var rect = NativeUiLayout.rect(sortButton, -38, 0, 32, 30);
         NativeUtilityUi.button(fieldOrNull(sortButton, "parent"), "edit-locks", rect, "lock",
             null, () -> {
-                if (enabled.get() && showLockVisuals.get()) {
+                if (enabled && showLockVisuals) {
                     lockEditMode = !lockEditMode;
                     junkEditMode = false;
                 }
@@ -1836,7 +1834,7 @@ class ItemUtilitiesMod {
     }
 
     static function isItemJunk(item:Dynamic):Bool {
-        if (!enabled.get() || item == null) return false;
+        if (!enabled || item == null) return false;
         var hero = resolveHero();
         var character = heroPersistentId(hero);
         var kind = G.text(fieldOrNull(item, "kind"));
@@ -1846,7 +1844,7 @@ class ItemUtilitiesMod {
     }
 
     static function toggleItemJunk(item:Dynamic):Void {
-        if (!enabled.get() || !isLockLoadoutReady()) return;
+        if (!enabled || !isLockLoadoutReady()) return;
         reconcileItemLocks();
         if (isItemLocked(item)) return;
         var hero = resolveHero();
@@ -1865,9 +1863,9 @@ class ItemUtilitiesMod {
         var sort = fieldOrNull(playerInventoryComp, "sortButton");
         if (activeInventoryUI != null && isUiVisible(activeInventoryUI) && isUiVisible(sort)) {
             NativeUtilityUi.button(fieldOrNull(sort, "parent"), "edit-junk",
-                NativeUiLayout.rect(sort, showLockVisuals.get() ? -76 : -38, 0, 32, 30),
+                NativeUiLayout.rect(sort, showLockVisuals ? -76 : -38, 0, 32, 30),
                 "junk", null, () -> {
-                    if (!enabled.get()) return;
+                    if (!enabled) return;
                     junkEditMode = !junkEditMode;
                     lockEditMode = false;
                 }, junkEditMode);
@@ -1880,7 +1878,7 @@ class ItemUtilitiesMod {
             if (!junkBadgeCache.exists(item)) junkBadgeCache.set(item, isItemJunk(item));
             if (junkBadgeCache.get(item) && !isItemLocked(item)) NativeUtilityUi.badge(slot, "junk-badge");
             if (junkEditMode) NativeUtilityUi.lockInput(slot, () -> {
-                if (!enabled.get() || !junkEditMode || !isActiveInventoryGridSlot(entry, slot)) return;
+                if (!enabled || !junkEditMode || !isActiveInventoryGridSlot(entry, slot)) return;
                 var item = authoritativeSlotItem(entry, slot);
                 if (item != null) toggleItemJunk(item);
             });
@@ -1917,7 +1915,7 @@ class ItemUtilitiesMod {
     }
 
     static function beginJunkSale():Void {
-        if (!enabled.get() || junkSale.active || !isUiVisible(activeMerchant)
+        if (!enabled || junkSale.active || !isUiVisible(activeMerchant)
             || !NativeJunk.isGuildMerchant(activeMerchant) || !isLockLoadoutReady()) return;
         reconcileItemLocks();
         var hero = resolveHero();
@@ -1948,7 +1946,7 @@ class ItemUtilitiesMod {
         try {
             if (junkSale.active) {
                 var hero = resolveHero();
-                if (!enabled.get() || hero != junkSaleHero || heroPersistentId(hero) != junkSaleCharacter
+                if (!enabled || hero != junkSaleHero || heroPersistentId(hero) != junkSaleCharacter
                     || fieldOrNull(currentGameApp(), "host") != junkSaleHost
                     || fieldOrNull(fieldOrNull(hero, "loadout"), "inventory") != junkSaleInventory
                     || !isLockLoadoutReady() || activeMerchant != junkSaleMerchant
@@ -2003,7 +2001,7 @@ class ItemUtilitiesMod {
             if (!isActiveLockSlot(entry, slot) || authoritativeSlotItem(entry, slot) == null) continue;
             NativeUtilityUi.lockInput(slot, () -> {
                 // Resolve at click time: sorting/transfers can replace a slot's item.
-                if (!enabled.get() || !showLockVisuals.get() || !lockEditMode || !isActiveLockSlot(entry, slot)) return;
+                if (!enabled || !showLockVisuals || !lockEditMode || !isActiveLockSlot(entry, slot)) return;
                 var item = authoritativeSlotItem(entry, slot);
                 if (item != null) toggleItemLock(item);
             });
@@ -2703,7 +2701,7 @@ class ItemUtilitiesMod {
     }
 
     static function isItemLocked(item:Dynamic):Bool {
-        if (!enabled.get() || item == null)
+        if (!enabled || item == null)
             return false;
         var app = currentGameApp();
         var hero = fieldOrNull(app, "hero");
@@ -3172,25 +3170,25 @@ class ItemUtilitiesMod {
         try {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             var data:Dynamic = config;
-            var wasEnabled = enabled.get();
+            var wasEnabled = enabled;
             if (Reflect.hasField(data, "enabled"))
-                enabled.set(Reflect.field(data, "enabled"));
+                enabled = Reflect.field(data, "enabled");
             if (Reflect.hasField(data, "showDepositMaterials"))
-                showDepositMaterials.set(Reflect.field(data, "showDepositMaterials"));
+                showDepositMaterials = Reflect.field(data, "showDepositMaterials");
             if (Reflect.hasField(data, "showLockVisuals"))
-                showLockVisuals.set(Reflect.field(data, "showLockVisuals"));
+                showLockVisuals = Reflect.field(data, "showLockVisuals");
             if (Reflect.hasField(data, "sortingIgnoresLockedItems"))
-                sortingIgnoresLockedItems.set(Reflect.field(data, "sortingIgnoresLockedItems"));
+                sortingIgnoresLockedItems = Reflect.field(data, "sortingIgnoresLockedItems");
             loadPresetHotkeyConfig(data);
             junkState.load(Reflect.field(data, "junkRules"));
-            if ((!enabled.get() && wasEnabled) || !showDepositMaterials.get()) {
+            if ((!enabled && wasEnabled) || !showDepositMaterials) {
                 cancelDeposit();
                 cancelRecyclerDeposit();
             }
-            if (!enabled.get() || !showLockVisuals.get())
+            if (!enabled || !showLockVisuals)
                 lockEditMode = false;
-            if (!enabled.get()) { junkEditMode = false; junkSale.cancel(); }
-            if (!enabled.get() || !sortingIgnoresLockedItems.get())
+            if (!enabled) { junkEditMode = false; junkSale.cancel(); }
+            if (!enabled || !sortingIgnoresLockedItems)
                 cancelLockedSort(false);
         } catch (_:Dynamic) {}
     }
@@ -3198,12 +3196,12 @@ class ItemUtilitiesMod {
     static function loadConfig():Void {
         try {
             var data:Dynamic = config;
-            if (Reflect.hasField(data, "enabled")) enabled.set(Reflect.field(data, "enabled"));
-            if (Reflect.hasField(data, "showDepositMaterials")) showDepositMaterials.set(Reflect.field(data, "showDepositMaterials"));
+            if (Reflect.hasField(data, "enabled")) enabled = Reflect.field(data, "enabled");
+            if (Reflect.hasField(data, "showDepositMaterials")) showDepositMaterials = Reflect.field(data, "showDepositMaterials");
             if (Reflect.hasField(data, "showLockVisuals"))
-                showLockVisuals.set(Reflect.field(data, "showLockVisuals"));
+                showLockVisuals = Reflect.field(data, "showLockVisuals");
             if (Reflect.hasField(data, "sortingIgnoresLockedItems"))
-                sortingIgnoresLockedItems.set(Reflect.field(data, "sortingIgnoresLockedItems"));
+                sortingIgnoresLockedItems = Reflect.field(data, "sortingIgnoresLockedItems");
             loadPresetHotkeyConfig(data);
             junkState.load(Reflect.field(data, "junkRules"));
             if (Reflect.hasField(data, "selectedWeaponPresets")) {
@@ -3292,10 +3290,10 @@ class ItemUtilitiesMod {
             });
         }
         try {
-            config.enabled = enabled.get();
-            config.showDepositMaterials = showDepositMaterials.get();
-            config.showLockVisuals = showLockVisuals.get();
-            config.sortingIgnoresLockedItems = sortingIgnoresLockedItems.get();
+            config.enabled = enabled;
+            config.showDepositMaterials = showDepositMaterials;
+            config.showLockVisuals = showLockVisuals;
+            config.sortingIgnoresLockedItems = sortingIgnoresLockedItems;
             PresetSlots.saveHotkeys(config, "preset", presetHotkeyKeys);
             PresetSlots.saveHotkeys(config, "appearancePreset", appearancePresetHotkeyKeys);
             PresetSlots.saveHotkeys(config, "skillPreset", skillPresetHotkeyKeys);

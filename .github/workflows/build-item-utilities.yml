@@ -73,4 +73,3 @@ jobs:
       required-settings: true
       module: item-utilities
       title: Item Utilities
-      imgui: true

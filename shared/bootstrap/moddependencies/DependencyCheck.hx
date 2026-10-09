@@ -3,7 +3,7 @@ package moddependencies;
 import sys.FileSystem;
 import sys.io.File;
 
-/** The entry module uses no mod, game, or ImGui code before this check passes. */
+/** The entry module uses no mod or game code before this check passes. */
 class DependencyCheck {
     public static function title(id:String):String {
         return switch (id) {
@@ -16,11 +16,10 @@ class DependencyCheck {
         };
     }
 
-    public static function missing(id:String, settingsInstalled:Bool, updateAlertsInstalled:Bool, imguiLoaded:Bool):Array<String> {
+    public static function missing(settingsInstalled:Bool, updateAlertsInstalled:Bool):Array<String> {
         var result = [];
         if (!settingsInstalled) result.push("Better Mod Settings");
         if (!updateAlertsInstalled) result.push("Mod Update Alerts");
-        if (id == "item-utilities" && !imguiLoaded) result.push("Farever ImGui plugin");
         return result;
     }
 

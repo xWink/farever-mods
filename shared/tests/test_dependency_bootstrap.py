@@ -1,6 +1,7 @@
 """Real HashLink subprocess tests; set HAXE, HL and LD_LIBRARY_PATH as needed.
 
-Uses harmless native fixtures instead of a game window or ImGui renderer.
+Uses a harmless native dialog fixture instead of a game window.
+No ImGui plugin is installed or loaded.
 The exact bootstrap arguments come from each mod's compile.hxml.
 """
 import os
@@ -58,8 +59,7 @@ class StatProbe {
                 args.extend(parts)
             subprocess.run([HAXE, *args], cwd=cls.compiled, check=True, capture_output=True)
 
-        # The signatures match the real HashLink primitives. Never call ImGui;
-        # isPrimLoaded must inspect the binding without initializing a renderer.
+        # The signature matches the real HashLink desktop dialog primitive.
         cls.libs = {}
         for lib, source in {
             "ui": r'''
@@ -70,11 +70,6 @@ static int dialog(const uint16_t *title, const uint16_t *message, int flags) {
     printf("DIALOG[%d] ", flags); text(title); putchar('\n'); text(message); putchar('\n'); fflush(stdout); return 0;
 }
 void *hlp_ui_dialog(const char **signature) { *signature = "PBBi_i"; return (void*)dialog; }
-''',
-            "imgui": r'''
-#include <stdlib.h>
-static void *version(void) { abort(); }
-void *hlp_igGetVersion(const char **signature) { *signature = "P_B"; return (void*)version; }
 ''',
         }.items():
             source_path = cls.base / (lib + ".c")
@@ -111,7 +106,7 @@ int stat(const char *path, struct stat *info) {
     def tearDownClass(cls):
         cls.temp.cleanup()
 
-    def launch(self, mod, settings=True, alerts=True, imgui=True, ui=True, implementation="valid",
+    def launch(self, mod, settings=True, alerts=True, ui=True, implementation="valid",
                linked=False, zero_link_size=False):
         with tempfile.TemporaryDirectory(dir=self.base) as directory:
             game = Path(directory)
@@ -153,7 +148,7 @@ int stat(const char *path, struct stat *info) {
                     binary.symlink_to(os.path.relpath(target, binary.parent))
             env = dict(os.environ)
             env["LD_LIBRARY_PATH"] = ":".join(
-                [str(self.libs[lib]) for lib, enabled in [("ui", ui), ("imgui", imgui)] if enabled]
+                ([str(self.libs["ui"])] if ui else [])
                 + [env.get("LD_LIBRARY_PATH", "")])
             if zero_link_size:
                 env["LD_PRELOAD"] = str(self.zero_symlink_stat)
@@ -177,10 +172,10 @@ int stat(const char *path, struct stat *info) {
                 self.assertIn("- Better Mod Settings", output)
                 self.assertFalse(ran)
 
-    def test_all_five_load_matching_implementation(self):
+    def test_all_five_load_matching_implementation_without_imgui(self):
         for mod in MODS:
             with self.subTest(mod=mod):
-                code, output, ran = self.launch(mod, imgui=mod == "item-utilities")
+                code, output, ran = self.launch(mod)
                 self.assertEqual(code, 0, output)
                 self.assertNotIn("DIALOG", output)
                 self.assertTrue(ran)
@@ -222,20 +217,12 @@ int stat(const char *path, struct stat *info) {
                     self.assertNotIn("- Farever ImGui plugin", output)
                     self.assertFalse(ran)
 
-    def test_missing_imgui_is_an_actionable_error_not_a_linker_crash(self):
-        code, output, ran = self.launch("item-utilities", imgui=False)
-        self.assertEqual(code, 1, output)
-        self.assertIn("DIALOG[2]", output)
-        self.assertIn("- Farever ImGui plugin", output)
-        self.assertNotIn("- Better Mod Settings", output)
-        self.assertFalse(ran)
-
     def test_reports_all_missing_dependencies(self):
-        code, output, ran = self.launch("item-utilities", settings=False, alerts=False, imgui=False)
+        code, output, ran = self.launch("item-utilities", settings=False, alerts=False)
         self.assertEqual(code, 1, output)
         self.assertIn("- Better Mod Settings", output)
         self.assertIn("- Mod Update Alerts", output)
-        self.assertIn("- Farever ImGui plugin", output)
+        self.assertNotIn("ImGui", output)
         self.assertFalse(ran)
 
     def test_missing_or_mixed_implementation_cannot_start(self):
