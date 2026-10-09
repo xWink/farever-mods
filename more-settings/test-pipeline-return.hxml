@@ -1,0 +1,8 @@
+# Supply the real hlx-runtime/src classpath on the command line.
+-cp src
+-cp tests
+-cp tests/pipeline-stubs
+--macro hlx.runtime.HookDiscoveryMacro.use([])
+-main PipelineReturnTest
+-dce full
+-hl build/pipeline-return-test/test.hl

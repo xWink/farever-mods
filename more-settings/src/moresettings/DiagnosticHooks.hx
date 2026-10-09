@@ -61,6 +61,11 @@ class DiagnosticHooks {
 
     // A cache-miss-only static method. Do not hook flushPipeline/compileShader:
     // those are hot paths even when every pipeline/shader is already cached.
+    // makePipeline returns a native dx_resource, not a Haxe object. Dispatch
+    // boxes that handle as Dynamic; rawReturn unwraps it at the generated
+    // receiver boundary so DX12 receives the handle rather than the box address.
+    // This is required even when diagnostics are disabled or still at startup.
+    @:hlx.rawReturn
     @:hlx.prefix(h3d.impl.DX12Driver.makePipeline)
     static function beforePipeline(shader:Dynamic, builder:Dynamic):HlxPrefixResult<Dynamic> {
         StallMetrics.begin(M.PIPELINE_CREATE); return Continue;

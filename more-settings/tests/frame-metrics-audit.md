@@ -225,10 +225,28 @@ and process scopes still measure their time.
 
 makePipeline is static (no instance argument). It runs on required cache misses
 or optional warmup and ends with native graphics-pipeline creation. The main-thread
-gate excludes worker compilation. Arguments, return object/null, exceptions and
+gate excludes worker compilation. Arguments, native handle/null, exceptions and
 ownership are preserved; no pipeline is retained. Waits before entering the method
 are outside its timer. No hooks are added to flushPipeline, compileShader, scene
 syncRec/emitRec, resource allocation or individual draw calls.
+
+The native return type is `hl.Abstract<dx_resource>`. The contributors intentionally
+use Dynamic for cross-module dispatch, but the receiver must use `@:hlx.rawReturn`
+to unbox the result before returning to the caller. Without that marker the caller
+receives the Dynamic wrapper's address and passes it to
+`dx12.command_list_set_pipeline_state` in `flushPipeline` (line 3717), causing a
+startup access violation. Timing gates cannot protect this ABI boundary: it is
+traversed even before gameplay and with diagnostics disabled. `compileSource`
+returns an ordinary `haxe.io.Bytes` object and must **not** use rawReturn.
+
+`PipelineReturnTest` uses the real HLX hook-discovery macro and production
+DiagnosticHooks with a small native caller that checks pointer identity. It runs
+the generated receiver with diagnostics disabled at startup, enabled before the
+first frame, during gameplay, from a background thread, and after disabling.
+Both non-null and null handles are covered. A deliberately boxed receiver is a
+negative control; the test also fails on the production receiver if rawReturn is
+removed. Game access/dispatch are fixtures, and no ImGui or DX12 renderer is
+loaded. This verifies the pointer ABI, not rendering on the user's GPU.
 
 RenderStages uses 48 fixed slots and an eight-level scene stack. Existing immutable
 marker string references are retained in bounded records; no names are constructed

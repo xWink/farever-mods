@@ -10,9 +10,9 @@ Open **More Settings** in [Better Mod Settings](../better-mod-settings/).
 
 | Category | Controls | Defaults |
 | --- | --- | --- |
-| General | Disable profanity filter; Show boss health; Performance improvements; Performance diagnostics; Wait for party to enter dungeon; Leave dungeon button; Hide UI hotkey | Profanity option on (imports previous preference); boss health, performance improvements and diagnostics off; waiting for party and leave dungeon button on; Hide UI defaults to F2 |
+| General | Show boss health; Performance improvements; Performance diagnostics; Wait for party to enter dungeon; Leave dungeon button; Hide UI hotkey | Boss health, performance improvements and diagnostics off; waiting for party and leave dungeon button on; Hide UI defaults to F2 |
 | Combat | Fancy damage numbers; Disable damage numbers; Keep Crabgantua rockfall warnings visible; Hide allied minion HP bars | Fancy numbers, damage hiding and minion bar hiding off; Crabgantua warnings on |
-| Social | Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Enable friend notes; Rebind social interact hotkey; Social interact hotkey | Connection filtering and social rebind off; social key unassigned; commands, close after sending, and notes on |
+| Social | Disable profanity filter; Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Enable friend notes; Rebind social interact hotkey; Social interact hotkey | Profanity option on (imports previous preference); connection filtering and social rebind off; social key unassigned; commands, close after sending, and notes on |
 | Rift Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
 | Dungeon Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
 | Overworld Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |

@@ -53,6 +53,21 @@ jobs:
           persist-credentials: false
       - name: Build the HashLink combat test runtime
         run: make -C .combat-hashlink -j2 hl
+      - uses: actions/checkout@v4
+        with:
+          repository: hlx-framework/hlx-core
+          ref: 70800e6e279ca5df2bd2cb45d347c92a3d30e435
+          path: .pipeline-hlx
+          persist-credentials: false
+      - name: Test native pipeline handle return at startup
+        working-directory: more-settings
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/more-settings/build/pipeline-return-test:${{ github.workspace }}/.combat-hashlink
+        run: |
+          mkdir -p build/pipeline-return-test
+          cc -std=c11 -fPIC -shared -I ../.combat-hashlink/src tests/native/pipeline_pointer_test.c -L ../.combat-hashlink -lhl -o build/pipeline-return-test/pipeline_pointer_test.hdll
+          haxe -cp ../.pipeline-hlx/hlx-runtime/src test-pipeline-return.hxml
+          ../.combat-hashlink/hl build/pipeline-return-test/test.hl
       - name: Test damage-number styling on HashLink
         working-directory: more-settings
         env:

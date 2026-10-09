@@ -7,11 +7,6 @@
       "label": "General"
     },
     {
-      "key": "disableProfanityFilter",
-      "type": "checkbox",
-      "label": "Disable profanity filter"
-    },
-    {
       "key": "showBossHealth",
       "type": "checkbox",
       "label": "Show boss health",
@@ -104,6 +99,11 @@
     {
       "type": "title",
       "label": "Social"
+    },
+    {
+      "key": "disableProfanityFilter",
+      "type": "checkbox",
+      "label": "Disable profanity filter"
     },
     {
       "key": "hideFriendConnectionNotifications",
