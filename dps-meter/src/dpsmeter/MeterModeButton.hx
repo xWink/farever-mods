@@ -26,9 +26,8 @@ class MeterModeButton {
     function draw():Void {
         G.call("h2d.Graphics", "clear", graphic);
         if (!healing) {
-            // Two double-bit battle axes, with broad blades on both sides of
-            // each haft. Keep the heads above the handle crossing with a clear
-            // gap between their outlines, even at the native 24px icon size.
+            // Broad, curved double-bit heads stay separated above the crossed
+            // handles. Use the button's side padding to keep the blades legible.
             axe(-Math.PI / 4);
             axe(Math.PI / 4);
             return;
@@ -41,17 +40,23 @@ class MeterModeButton {
     function axe(angle:Float):Void {
         G.call("h2d.Graphics", "lineStyle", graphic, [1.1, 0x5b4334, 1.0]);
         G.call("h2d.Graphics", "beginFill", graphic, [0xb99164, 1.0]);
-        rotated([[11.,3.],[13.,3.],[13.,25.],[11.,25.],[11.,3.]], angle);
+        rotated([[11.,0.5],[13.,0.5],[13.,27.5],[11.,27.5],[11.,0.5]], angle);
         G.call("h2d.Graphics", "endFill", graphic);
         G.call("h2d.Graphics", "beginFill", graphic, [0xe8d4b2, 1.0]);
-        rotated([[11.,4.],[9.,3.5],[8.5,2.5],[8.,4.],[7.5,6.],[8.,7.5],[8.5,9.],[9.,8.],[11.,7.],
-            [13.,7.],[15.,8.],[15.5,9.],[16.,7.5],[16.5,6.],[16.,4.],[15.5,2.5],[15.,3.5],[13.,4.],[11.,4.]], angle);
+        rotated([[11.,4.],[9.8,3.9],[8.7,3.5],[7.7,2.8],[6.8,1.8],[6.,0.5],
+            [5.45,1.75],[5.05,3.],[4.85,4.25],[4.8,5.5],[4.85,6.75],[5.05,8.],[5.45,9.25],[6.,10.5],
+            [6.8,9.2],[7.7,8.2],[8.7,7.5],[9.8,7.1],[11.,7.],[13.,7.],
+            [14.2,7.1],[15.3,7.5],[16.3,8.2],[17.2,9.2],[18.,10.5],
+            [18.55,9.25],[18.95,8.],[19.15,6.75],[19.2,5.5],[19.15,4.25],[18.95,3.],[18.55,1.75],[18.,0.5],
+            [17.2,1.8],[16.3,2.8],[15.3,3.5],[14.2,3.9],[13.,4.],[11.,4.]], angle);
         G.call("h2d.Graphics", "endFill", graphic);
     }
     function rotated(points:Array<Array<Float>>, angle:Float):Void {
         var cosine = Math.cos(angle), sine = Math.sin(angle);
-        path([for (p in points) [12 + (p[0] - 12) * cosine - (p[1] - 14.5) * sine,
-            14.5 + (p[0] - 12) * sine + (p[1] - 14.5) * cosine]]);
+        // Lower the crossing to leave a gap between the broad heads, then fit
+        // the whole silhouette inside the existing button with room for its outline.
+        path([for (p in points) [12 + 0.86 * ((p[0] - 12) * cosine - (p[1] - 18) * sine),
+            16.2 + 0.86 * ((p[0] - 12) * sine + (p[1] - 18) * cosine)]]);
     }
     function path(points:Array<Array<Float>>):Void {
         G.call("h2d.Graphics", "moveTo", graphic, [points[0][0], points[0][1]]);
