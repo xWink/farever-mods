@@ -11,7 +11,7 @@ class NativeSkillTable {
     static inline var MAGICAL_COLOR:Int = 0x438dcc;
     static inline var RAW_COLOR:Int = 0xf2eee7;
     static inline var TEAM_COLOR:Int = 0x56ad72;
-    static inline var SELF_COLOR:Int = 0x438dcc;
+    static inline var SELF_COLOR:Int = 0xe5bd4f;
 
     public var object(default, null):Dynamic;
     public var headerHeight(default, null):Int = 30;

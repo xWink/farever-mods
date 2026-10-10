@@ -78,7 +78,7 @@ switching views does not reset the encounter or change its damage statistics.
 
 Healing output includes overhealing. Click a healer to view their abilities,
 healing share, output, casts, hits, critical rate, and HPS. A **Team/Self** bar
-splits each ability's output into healing others (green) and self-healing (blue),
+splits each ability's output into healing others (green) and self-healing (yellow),
 with the two percentages above it. Unattributed output is not labeled as either;
 it stays neutral, or shows **—** if the whole split is unknown.
 The history header shows the selected player's HPS, **Healing output**, and
