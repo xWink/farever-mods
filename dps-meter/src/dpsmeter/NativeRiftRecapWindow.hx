@@ -7,6 +7,7 @@ import dpsmeter.NativeUi.*;
 
 /** One dismissible native window containing both finalized rift charts. */
 class NativeRiftRecapWindow {
+    static inline var HEADER_HEIGHT = 60;
     public static var constructing:Bool = false;
     var window:Dynamic;
     var owner:Dynamic;
@@ -221,16 +222,14 @@ class NativeRiftRecapWindow {
             width = w; height = h;
             size(window, width, height);
             if (frameBackground != null) { size(frameBackground, width, height); position(frameBackground, 0, 0); }
-            size(header, width - 2, 60);
+            size(header, width - 2, HEADER_HEIGHT);
             position(header, 0, 0);
             size(close, 36, 36);
             position(close, width - 52, 12);
             size(snapshotButton, HistoryButtons.SNAPSHOT_SIZE, HistoryButtons.SNAPSHOT_SIZE);
-            position(modeButton.object, 24, 12);
             modeButton.resize(HistoryButtons.SNAPSHOT_SIZE);
-            position(snapshotButton, 66, 12);
             G.call("ui.comp.FmtText", "set_maxWidthText", title, [width - 252]);
-            var contentTop = snapshot ? 8 : 60;
+            var contentTop = snapshot ? 8 : HEADER_HEIGHT;
             var bodyHeight = height - contentTop - 8;
             size(windowContent, width - 16, bodyHeight);
             position(windowContent, 8, contentTop);
@@ -248,7 +247,13 @@ class NativeRiftRecapWindow {
 
     function alignLabels():Void {
         G.call("ui.comp.FmtText", "updateScale", title);
-        position(title, (width - textWidth(title)) / 2, (60 - textHeight(title)) / 2);
+        position(title, (width - textWidth(title)) / 2, (HEADER_HEIGHT - textHeight(title)) / 2);
+        // Native styles can settle after construction. Center the styled controls
+        // on the title's header row, with snapshot first and the mode toggle second.
+        var snapshotHeight = G.number(G.call("h2d.Flow", "get_outerHeight", snapshotButton), HistoryButtons.SNAPSHOT_SIZE);
+        var modeHeight = G.number(G.call("h2d.Flow", "get_outerHeight", modeButton.object), HistoryButtons.SNAPSHOT_SIZE);
+        position(snapshotButton, 24, (HEADER_HEIGHT - snapshotHeight) / 2);
+        position(modeButton.object, 66, (HEADER_HEIGHT - modeHeight) / 2);
         fitSummary(recapHeading, headingStyle, 1.75);
         fitSummary(recapInfo, summaryStyle, 1);
         position(recapHeading, 16, 16 + (34 - textHeight(recapHeading)) / 2);
