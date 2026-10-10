@@ -120,6 +120,7 @@ class PlayerStats {
 
 class Fight {
     public var players:Map<String, PlayerStats> = [];
+    public var healingReceived:HealingReceived = new HealingReceived();
     public var participants:Map<String, Bool> = [];
     public var targets:Map<String, Bool> = [];
     public var killedTargets:Map<String, Bool> = [];
@@ -159,6 +160,7 @@ class Fight {
         }
         if (!players.exists(e.source)) players[e.source] = new PlayerStats(info);
         players[e.source].add(e, info);
+        if (e.effect == 1) healingReceived.add(e);
         if (e.effect != 1 && e.targetDummy == true) targetDummy = true;
         if (e.effect != 1 && e.target != "") targets[e.target] = true;
         if (e.effect != 1 && e.kill && e.target != "") killedTargets[e.target] = true;
@@ -200,6 +202,7 @@ class Fight {
         result.category = category;
         result.targetDummy = targetDummy;
         result.categoryVersion = categoryVersion;
+        result.healingReceived = healingReceived.copy();
         result.me = me; result.meName = meName; result.meClass = meClass; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
             var next = new PlayerStats(p.info);
@@ -225,6 +228,7 @@ class Fight {
     public function json(timestamp:String, reportId:Int):Dynamic {
         var seconds = duration();
         var result:Dynamic = {session_id: reportKey() + "-" + timestamp + "-" + reportId,
+            healing_received: healingReceived.json(),
             game_version: gameVersion, duration_sec: SkillStats.rounded(seconds, 3), is_boss: isBoss, boss_kind: bossKind,
             difficulty: difficulty, activity_id: activityId, boss_level: bossLevel, boss_foe_id: bossFoeId,
             players: [for (p in ranked()) if (p.info.name != "") p.json(seconds)]};

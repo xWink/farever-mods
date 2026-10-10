@@ -33,6 +33,7 @@ class FightHistory {
             }
         }];
         return {version: 1, gameVersion: fight.gameVersion, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
+            healingReceived: fight.healingReceived.json(),
             me: fight.me, meName: fight.meName, meClass: fight.meClass, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
             activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase,
             difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
@@ -66,6 +67,7 @@ class FightHistory {
         if (RiftRecapHistory.isRecap(record)) throw "Open this log as a rift recap.";
         validate(record);
         var fight = new Fight(1);
+        fight.healingReceived = HealingReceived.read(record.healingReceived);
         fight.gameVersion = text(record.gameVersion);
         fight.startedAt = record.startedAt;
         fight.last = 1 + number(record.duration);
@@ -128,6 +130,7 @@ class FightHistory {
             }
         }];
         return {version: 1, gameVersion: text(report.game_version), id: id, name: name, startedAt: timestamp - duration * 1000, duration: duration, players: players,
+            healingReceived: HealingReceived.read(report.healing_received).json(),
             activityId: text(report.activity_id), bossKind: text(report.boss_kind), phase: phase,
             difficulty: difficulty(report.difficulty), partySize: Std.int(number(report.party_size)), outcome: outcome(report.outcome)};
     }

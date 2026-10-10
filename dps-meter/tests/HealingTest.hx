@@ -37,14 +37,14 @@ class HealingTest {
             && values.avgHit == 500 && values.avgCast == 1000, "Healing breakdown uses output and full encounter duration");
         for (width in [300, 400, 550, 750, 900]) for (recap in [false, true]) {
             var damage = SkillBreakdown.columns(width, recap), healing = SkillBreakdown.columns(width, recap, true);
-            check(healing.length == damage.length - 1 && ![for (c in healing) c.key].contains("distribution"),
-                "Healing removes the effective-healing column at every width and in recaps");
+            check(healing.length == damage.length && healing[2].key == "distribution" && healing[2].title == "Team/Self",
+                "Healing has a Team/Self column at every width and in recaps");
             var x = 0;
             for (column in healing) {
                 check(column.x == x && column.width > 0, "Remaining healing columns are contiguous and nonempty");
                 x += column.width;
             }
-            check(x == width, "Healing columns use the space freed by actual healing");
+            check(x == width, "Healing columns fit the available width");
             check(Json.stringify(SkillBreakdown.columns(width, recap)) == Json.stringify(damage),
                 "Switching to healing and back leaves damage columns untouched");
         }
@@ -105,7 +105,7 @@ class HealingTest {
             "Old logs load without inventing healing records");
         check(HealingDisplay.detail(entry, old).indexOf("Total healing: unavailable") >= 0
             && HealingDisplay.detail(entry, old).indexOf("Actual healing") < 0, "Damage-only logs do not invent healing totals");
-        boundaries(); zeroContributionIdentity();
+        boundaries(); zeroContributionIdentity(); recipients();
         Sys.println('Healing meter: $checks checks passed');
     }
     static final OBSOLETE = ["actual", "overheal", "measuredOutput", "measuredHits", "estimatedActualHits", "actualMethod"];
@@ -124,6 +124,89 @@ class HealingTest {
         for (key in OBSOLETE) Reflect.setField(healing, key, key == "actualMethod" ? "replicated-health-correlation" : cast 125);
         for (s in (cast healing.skills:Array<Dynamic>))
             for (key in OBSOLETE) Reflect.setField(s, key, 125);
+    }
+    static function recipients():Void {
+        var fight = new Fight(10); fight.me = "me"; fight.meName = "me";
+        var e = event(11, "me", true, 300); e.target = "me";
+        fight.add(e, profile("me"));
+        e = event(12, "me", true, 700); e.target = "ally";
+        fight.add(e, profile("me"));
+        e = event(13, "healer", true, 500); e.target = "me";
+        fight.add(e, profile("healer"));
+        e = event(14, "healer", true, 200); e.target = "healer";
+        fight.add(e, profile("healer"));
+        var stats = fight.players["me"].healing, skill = fight.players["me"].healingSkills["Mixed"];
+        check(stats.teamOutput == 700 && stats.selfOutput == 300 && stats.output == 1000,
+            "Caster identity splits outgoing healing into team and self without changing total output");
+        check(skill.distribution().team == .7 && skill.distribution().self == .3,
+            "An ability's bar uses its own team/self percentages");
+        check(fight.healingReceived.total("me") == 800 && fight.healingReceived.total("ally") == 700
+            && fight.healingReceived.total("healer") == 200,
+            "Incoming healing credits recipients, including self-heals, exactly once");
+        check(!fight.players.exists("ally") && fight.healingReceived.total("nobody") == 0,
+            "Receiving-only players are tracked without inventing outgoing healing or damage rows");
+        e = event(15, "me", true, 100); e.target = "me"; e.unattributedHealing = true; e.skill = "Regen / unattributed";
+        fight.add(e, profile("me"));
+        check(stats.selfOutput == 300 && stats.unattributedOutput == 100
+            && fight.players["me"].healingSkills[e.skill].distribution() == null,
+            "Unattributed recovery never becomes confirmed self-healing");
+        check(Math.abs(stats.distribution().team + stats.distribution().self - 1000 / 1100) < .000001,
+            "Unattributed output stays neutral rather than inflating the colored shares");
+        check(fight.healingReceived.total("me") == 900, "Unattributed recovery still has a known recipient");
+        var unknown = new dpsmeter.HealingStats();
+        e = event(16, "me", true, 80); e.target = ""; unknown.add(e);
+        check(unknown.distribution() == null && unknown.unattributedOutput == 80,
+            "Missing recipients cannot be classified as team healing");
+        fight.healingReceived.add(e);
+        check(fight.healingReceived.total("me") == 900 && fight.healingReceived.total("") == null,
+            "An unknown recipient never becomes the caster's incoming healing");
+        fight.last = 20; fight.closed = 20;
+        var record = Json.parse(Json.stringify(FightHistory.encode(fight, "recipients")));
+        var restored = FightHistory.decode(record), copy = fight.copy();
+        var report = fight.json("time", 1);
+        var imported = FightHistory.decode(FightHistory.legacy(Json.parse(Json.stringify(report)), 100000, "recipients-import"));
+        for (f in [restored, copy, imported]) {
+            check(f.healingReceived.total("me") == 900 && f.healingReceived.total("ally") == 700,
+                "Recipient totals survive detached copies, archives and report imports");
+            check(f.players["me"].healing.teamOutput == 700 && f.players["me"].healing.selfOutput == 300
+                && f.players["me"].healing.unattributedOutput == 100
+                && f.players["me"].healingSkills["Mixed"].distribution().team == .7,
+                "Player and ability distributions survive every persistence path");
+        }
+        var entry = FightHistory.entry(record);
+        check(HealingDisplay.detail(entry, restored).indexOf("Total healing received: 900") >= 0
+            && HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Total healing received: 200") >= 0,
+            "Incoming header follows the selected player");
+        var recap = RiftRecapHistory.decode(RiftRecapHistory.encode({gate: fight, boss: fight}, "recipient-recap"));
+        check(HealingDisplay.recapDetail(recap).indexOf("Total healing received: 1,800") >= 0,
+            "Recap header sums incoming healing across both recorded phases");
+        var onlyRecipient = new Fight(10); onlyRecipient.me = "ally";
+        e = event(11, "healer", true, 700); e.target = "ally";
+        onlyRecipient.add(e, profile("healer"));
+        check(HealingDisplay.detail(FightHistory.entry(FightHistory.encode(onlyRecipient, "only-recipient")), onlyRecipient)
+            .indexOf("Total healing received: 700") >= 0,
+            "The local header includes incoming healing even when that player has no output row");
+        e = event(21, "me", true, 100); e.target = "me";
+        fight.add(e, profile("me"));
+        check(copy.healingReceived.total("me") == 900 && record.healingReceived.me == 900 && report.healing_received.me == 900
+            && copy.players["me"].healing.selfOutput == 300,
+            "Later heals cannot mutate saved or worker-bound recipient totals and distributions");
+        Reflect.deleteField(record, "healingReceived");
+        for (p in (cast record.players:Array<Dynamic>)) {
+            Reflect.deleteField(p.healing, "distribution");
+            for (s in (cast p.healing.skills:Array<Dynamic>)) Reflect.deleteField(s, "distribution");
+        }
+        var old = FightHistory.decode(record);
+        check(old.healingReceived.total("me") == null && old.players["me"].healingSkills["Mixed"].distribution() == null
+            && old.players["me"].healing.output == 1100,
+            "Older healing logs keep output without inventing a recipient split");
+        check(HealingDisplay.detail(entry, old).indexOf("Total healing received: unavailable") >= 0,
+            "Old logs show unavailable instead of a misleading zero");
+        var resaved = FightHistory.decode(FightHistory.encode(old, "resaved-recipients"));
+        check(resaved.healingReceived.total("me") == null && resaved.players["me"].healing.distribution() == null,
+            "Re-saving an older log preserves missing-data status");
+        check(HealingDisplay.recapDetail({gate: old, boss: restored}).indexOf("Total healing received: unavailable") >= 0,
+            "A recap with an older phase cannot present a partial incoming total as complete");
     }
     static function zeroContributionIdentity():Void {
         var m = new CombatModel(0, "test"); m.me = "me";

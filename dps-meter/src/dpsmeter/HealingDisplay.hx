@@ -33,23 +33,29 @@ class HealingDisplay {
         var p = selected == null ? local(fight) : selected;
         var known = p != null && p.healingRecorded;
         var name = p == null ? entry.playerName : p.info.name;
+        var received = fight == null ? null : fight.healingReceived.total(p == null ? fight.me : p.info.uid);
         return FightHistory.dateLabel(entry.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
             + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
-            + "  ·  Total healing: " + (known ? output(p.healing, p.heal, number) : "unavailable");
+            + "\nTotal healing: " + (known ? output(p.healing, p.heal, number) : "unavailable")
+            + "  ·  Total healing received: " + (received == null ? "unavailable" : number(received));
     }
     public static function recapDetail(recap:RiftRecap):String {
         var first = recap.gate == null ? recap.boss : recap.gate;
         var name = "", total = new HealingStats(), known = true;
+        var received = 0.0, receivedKnown = true;
         for (fight in [recap.gate, recap.boss]) if (fight != null) {
             var p = local(fight);
+            var incoming = fight.healingReceived.total(p == null ? fight.me : p.info.uid);
+            if (incoming == null) receivedKnown = false; else received += incoming;
             if (p == null || !p.healingRecorded) { known = false; continue; }
             name = p.info.name;
             total.output += p.heal; total.unknownOutputHits += p.healing.unknownOutputHits;
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)
-            + "  ·  Total healing: " + (known ? output(total, total.output, number) : "unavailable");
+            + "\nTotal healing: " + (known ? output(total, total.output, number) : "unavailable")
+            + "  ·  Total healing received: " + (receivedKnown ? number(received) : "unavailable");
     }
 }

@@ -10,6 +10,8 @@ class NativeSkillTable {
     static inline var PHYSICAL_COLOR:Int = 0xc95846;
     static inline var MAGICAL_COLOR:Int = 0x438dcc;
     static inline var RAW_COLOR:Int = 0xf2eee7;
+    static inline var TEAM_COLOR:Int = 0x56ad72;
+    static inline var SELF_COLOR:Int = 0x438dcc;
 
     public var object(default, null):Dynamic;
     public var headerHeight(default, null):Int = 30;
@@ -74,6 +76,12 @@ class NativeSkillTable {
             var values:Map<String, String> = row.values;
             if (healing) {
                 var stats = player.healingSkills[key];
+                var split = stats.distribution();
+                row.physical = split == null ? -1.0 : split.team;
+                row.magical = split == null ? -1.0 : split.self;
+                row.percentages = split == null ? [] : [for (share in [split.team, split.self])
+                    Std.string(SkillStats.rounded(share * 100, 1)) + "%"];
+                values["distribution"] = split == null ? "—" : "";
                 values["damage"] = HealingDisplay.output(stats, v.damage, compact);
                 values["dps"] = HealingDisplay.output(stats, v.dps, compact);
                 values["avgCast"] = HealingDisplay.output(stats, v.avgCast, compact);
@@ -161,19 +169,19 @@ class NativeSkillTable {
                     show(t, false);
                     var physicalWidth = cellWidth * row.physical;
                     var magicalWidth = cellWidth * row.magical;
-                    // Every bar represents this ability's own damage, with Raw
-                    // occupying the off-white portion after physical/magical.
+                    // Healing reuses the same layout: team first, then self.
+                    // Any unclassified output remains neutral, never self-healing.
                     var barY = stacked ? 48 : 26;
-                    rect(row.graphic, x, barY, cellWidth, 8, RAW_COLOR, .95);
-                    if (physicalWidth > 0) rect(row.graphic, x, barY, physicalWidth, 8, PHYSICAL_COLOR, .95);
-                    if (magicalWidth > 0) rect(row.graphic, x + physicalWidth, barY, magicalWidth, 8, MAGICAL_COLOR, .95);
+                    rect(row.graphic, x, barY, cellWidth, 8, healing ? 0xaaa39a : RAW_COLOR, .95);
+                    if (physicalWidth > 0) rect(row.graphic, x, barY, physicalWidth, 8, healing ? TEAM_COLOR : PHYSICAL_COLOR, .95);
+                    if (magicalWidth > 0) rect(row.graphic, x + physicalWidth, barY, magicalWidth, 8, healing ? SELF_COLOR : MAGICAL_COLOR, .95);
                 }
                 if (!heading && row.physical >= 0) {
                     var labels:Array<String> = row.percentages;
-                    for (i in 0...3) {
+                    for (i in 0...labels.length) {
                         var detail = distributionTexts[i]; show(detail, true);
-                        fitDetail(detail, labels[i], stacked ? x : x + cellWidth * i / 3,
-                            stacked ? 3 + i * 14 : 5, stacked ? cellWidth : cellWidth / 3, stacked ? 14 : 16);
+                        fitDetail(detail, labels[i], stacked ? x : x + cellWidth * i / labels.length,
+                            stacked ? 3 + i * 14 : 5, stacked ? cellWidth : cellWidth / labels.length, stacked ? 14 : 16);
                     }
                 }
             } else fit(t, value, x, cellWidth, height, true);

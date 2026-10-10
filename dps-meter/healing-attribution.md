@@ -41,6 +41,12 @@ based on another meter's UI. The implementation is independent of Farever Book.
 7. Display plain output/HPS without tilde/lower-bound decorations. No actual-healing
    column, header, bar, effective-healing total, or overheal total is retained.
    Ignore those fields in older logs and strip them when importing/re-encoding.
+8. After reconciliation, split outgoing output by caster/recipient identity:
+   different UIDs are team healing, equal UIDs are self-healing. Keep HP-only
+   recovery and missing recipients unclassified. Credit the full recorded amount
+   to the recipient's incoming total once. These totals use the same evidence as
+   output; they are not effective healing. Save the split per player/ability and
+   incoming totals per fight. Missing fields in older logs remain unavailable.
 
 ## Why missing HP cannot reliably determine overheal
 
@@ -65,8 +71,10 @@ been removed.
 Regression tests cover output preservation, FX/RPC deduplication, both HP/FX
 arrival orders, remote self-heals and remote-to-remote heals, status instigators,
 summon ownership, unknown formulas and criticals, output fallback, archive/phase
-boundaries, queue pressure and shutdown. UI tests check healing column removal
-and full-width layout while retaining damage columns. Serialization tests check
+boundaries, queue pressure and shutdown. Tests cover self/team shares, receiving-only
+players, unknown-source recovery, incoming totals after FX/RPC deduplication,
+selected-player/recap headers, and detached storage. UI tests check the Team/Self
+column and full-width layout while retaining damage columns. Serialization tests check
 that history, recaps and uploader reports contain no effective-healing fields,
 including after importing or re-encoding older logs. Native hooks still require
 multiplayer verification in the running game.

@@ -36,12 +36,15 @@ class HealingCaptureTest {
             check(s.hits == 1 && s.output == 500, "Complementary FX/RPC count once and match either HP order");
             check(s.knownCritHits == 1 && s.crits == 1 && s.estimatedHits == 0, "The exact amount/crit replaces the estimate");
             check(m.current.players["me"].heal == 0, "A matched HP gain is not counted again as regen");
+            check(m.current.healingReceived.total("me") == 500 && s.teamOutput == 500 && s.selfOutput == 0,
+                "Merged FX/RPC adds one team heal and one full incoming amount, independent of HP gain");
             check(m.current.pendingHealing == 0 && m.boss.pendingHealing == 0, "All merged scope holds released");
         }
         var m = model(), c = new HealingCapture();
         heal(c, m, 11); heal(c, m, 11.1, "b"); c.health("me", 100, 400, 11.2, m.captureHealing("me")); c.flush(15.1);
         check(m.current.players["a"].heal == 500 && m.current.players["b"].heal == 500, "Concurrent healers keep their individual output");
         check(m.current.players["me"].heal == 0, "An ambiguous matched gain is never counted again as regeneration");
+        check(m.current.healingReceived.total("me") == 1000, "Concurrent healers add to the same recipient without overwriting");
 
         m = model(); c = new HealingCapture();
         heal(c, m, 11); heal(c, m, 11.2); c.flush(15.1);
@@ -55,6 +58,8 @@ class HealingCaptureTest {
         check(s.output == 50 && s.unattributedHits == 1 && s.unknownOutputHits == 1 && !Reflect.hasField(s.json(), "overheal"),
             "Unmatched recovery is explicit unattributed HP, not fabricated total/overheal");
         check(HealingDisplay.output(s, s.output, Std.string) == "50", "Recovery-only output also omits decorations");
+        check(s.selfOutput == 0 && s.teamOutput == 0 && s.unattributedOutput == 50 && m.current.healingReceived.total("me") == 50,
+            "Unmatched recovery counts as received but remains unclassified by caster");
         c.health("me", 0, 200, 14, m.captureHealing("me")); c.flush(17.1);
         check(s.hits == 1 && m.current.pendingHealing == 0, "Spawn/revive HP is excluded and releases its scope");
 
@@ -85,6 +90,7 @@ class HealingCaptureTest {
         c.flush(14.1); m.update(15, false);
         check(m.history.length == 1 && m.history[0].players["a"].heal == 500 && m.history[0].last == 11.2,
             "Final heal enters its original closed fight without extending duration");
+        check(m.history[0].healingReceived.total("me") == 500, "Recipient totals settle in the original closed encounter");
         c.health("me", 150, 200, 14, m.captureHealing("me")); c.flush(17.1);
         check(m.history[0].players["me"].heal == 0 && m.session.players["me"].heal == 0, "Out-of-combat regeneration stays out of encounters");
 
@@ -95,6 +101,8 @@ class HealingCaptureTest {
         c.flush(15.1); m.update(16, true);
         check(m.history.length == 1 && m.history[0].players["a"].heal == 500 && !m.current.players.exists("a"),
             "A delayed gate heal cannot leak into the boss phase");
+        check(m.history[0].healingReceived.total("me") == 500 && m.current.healingReceived.total("me") == 0,
+            "Delayed incoming healing stays in gates instead of leaking into the boss phase");
 
         m = model(); c = new HealingCapture();
         for (i in 0...80) heal(c, m, 11 + i * .001);

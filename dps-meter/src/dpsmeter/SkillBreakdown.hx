@@ -41,14 +41,7 @@ class SkillBreakdown {
             "casts" => "Casts", "avgCast" => "Avg cast",
             "hits" => "Hits", "avgHit" => "Avg hit", "crit" => "Crit %", "dps" => "DPS"];
         if (healing) {
-            // Remove the effective-healing column and distribute its space
-            // across the remaining cells. Do not mutate the shared damage keys.
-            keys = keys.copy();
-            var index = keys.indexOf("distribution");
-            keys.splice(index, 1); ratios.splice(index, 1);
-            var total = 0.0;
-            for (ratio in ratios) total += ratio;
-            ratios = [for (ratio in ratios) ratio / total];
+            titles["distribution"] = "Team/Self";
             titles["percent"] = width < 500 && !recap ? "Heal %" : "Healing %";
             titles["damage"] = width < 500 && !recap ? "Heal" : "Healing";
             titles["dps"] = "HPS";

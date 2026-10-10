@@ -77,8 +77,14 @@ a keybinding. Both kinds of data are always collected and saved;
 switching views does not reset the encounter or change its damage statistics.
 
 Healing output includes overhealing. Click a healer to view their abilities,
-healing share, output, casts, hits, critical rate, and HPS. The history header
-shows the selected player's HPS and total healing. The meter does not display or
+healing share, output, casts, hits, critical rate, and HPS. A **Team/Self** bar
+splits each ability's output into healing others (green) and self-healing (blue),
+with the two percentages above it. Unattributed output is not labeled as either;
+it stays neutral, or shows **—** if the whole split is unknown.
+The history header shows the selected player's HPS, total healing, and **Total
+healing received**. Received healing includes incoming self-heals and heals from
+others, including overheal, plus observed unattributed recovery. Recap headers
+sum incoming healing across the recorded phases. The meter does not display or
 save actual/effective healing or overheal amounts: the client does not receive
 reliable pre-heal HP for each healing event.
 
@@ -108,7 +114,13 @@ server combat log: effects outside client visibility and server-only scripted
 heals can still be missing or unattributed.
 
 New history records and uploader reports add a `healing` object per player with
-`output`, hit/crit/cast counts, and a `skills` array. Evidence counts (`knownCritHits`,
+`output`, hit/crit/cast counts, a `distribution` object (`team`, `self`,
+`unattributed` output amounts), and a `skills` array containing the same split.
+Each fight also stores incoming totals by recipient UID in `healingReceived`
+(`healing_received` in uploader reports), including recipients with no output.
+Older records without this data show **unavailable** for incoming totals and
+**—** for the split; they cannot be reconstructed retroactively.
+Evidence counts (`knownCritHits`,
 `estimatedHits`, `unknownOutputHits`, `unattributedHits`) preserve the distinction
 between exact output, estimates and recovery-only data. Actual-healing, overheal,
 and effective-healing coverage fields are no longer written. Damage fields and
