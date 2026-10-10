@@ -43,7 +43,12 @@ class NativeDamageChart {
         var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
         flow(rowsRoot, "set_overflow", scroll);
         style(object, "overflow", scroll);
-        if (emptyText != "") empty = label(rowsRoot, emptyText);
+        if (emptyText != "") {
+            empty = label(rowsRoot, emptyText);
+            // Keep empty-state text clear of the fixed table header. Padding
+            // belongs to this label so populated rows retain their spacing.
+            G.set(G.call("h2d.Flow", "getProperties", object, [empty]), "paddingTop", 12);
+        }
         skillTable = new NativeSkillTable(rowsRoot, id, () -> selectPlayer(""), headerRoot, recap);
     }
     public function setHealing(value:Bool):Void {
