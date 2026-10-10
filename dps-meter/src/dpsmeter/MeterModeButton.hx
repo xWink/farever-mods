@@ -81,7 +81,10 @@ class MeterModeButton {
             }
             previous = end;
         }
-        path(points);
+        // Enlarge the curved heads by 15% around their attachment to the haft.
+        var center = axePoint(64, 64, mirror);
+        path([for (p in points) [center[0] + (p[0] - center[0]) * 1.15,
+            center[1] + (p[1] - center[1]) * 1.15]]);
         G.call("h2d.Graphics", "endFill", graphic);
     }
     function path(points:Array<Array<Float>>):Void {
