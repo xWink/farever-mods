@@ -77,7 +77,7 @@ Healing output includes overhealing. Click a healer to view their abilities,
 healing share, output, casts, hits, critical rate, and HPS. **Actual healing** shows
 observed restored health, with a green bar for its share of the ability's output;
 the remaining pale portion is overheal. The history header shows the selected
-player's HPS and actual healing total.
+player's HPS, total healing, and actual healing.
 
 Healing includes self-heals and other-player-to-other-player heals observed by this
 client. Exact owner-delivered `rpcDisplayHeal` results take priority. When those
@@ -88,12 +88,19 @@ The game’s own healing scaling helper estimates missing output using the skill
 rank, attributes, stacks and tick count. Final server scripts/modifiers and remote
 critical rolls are not fully replicated, so these amounts are estimates.
 
-**`~` means estimated**, **`≥` means only a lower bound is known**, and **Unavailable**
-means the amount could not be determined. An unknown critical rate displays **—**;
-a mixed critical rate uses only the known rolls and is marked **~**. Overlapping
-healers or damage can make actual healing ambiguous; those amounts stay unavailable
-(or **partial** in totals). The same heal is never counted once for its FX and again
-for its exact notification. Counts settle after a short correlation delay.
+Healing values are displayed as plain numbers. **Unavailable** means an amount
+could not be determined; **—** means the critical rate is unknown. Critical rates
+use the known rolls only. Estimates and coverage remain recorded in log metadata.
+An incomplete actual-healing sum is displayed as unavailable, not as a small or
+zero total that implies the missing heals were overheal.
+
+For an HP gain with several nearby healing effects, the meter estimates each
+heal's share using its output within the nearest event burst. A gain is assigned
+only once, exact output caps its possible effective amount, and separate damage
+updates do not erase observed gains. Coalesced damage/healing and unseen events
+still prevent a guaranteed server-accurate total. The same heal is not counted
+once for its FX and again for its exact notification. Counts settle after a short
+correlation delay.
 
 An unmatched combat HP gain appears as **Regen / unattributed**, credited to the
 recipient. This is observed recovery, not proof of regeneration, a known caster,

@@ -7,18 +7,18 @@ import dpsmeter.RiftTracker.RiftRecap;
 /** Presentation helpers keep damage labels and old history data untouched. */
 class HealingDisplay {
     public static function actual(stats:HealingStats, format:Float->String):String {
-        if (stats.hits > 0 && stats.measuredHits == 0) return "Unavailable";
-        return (stats.estimatedActualHits > 0 ? "~" : "") + format(stats.actual) + (stats.complete() ? "" : " (partial)");
+        // Without a partial marker, never present a known subset as the total.
+        // In particular, a few measured overheals cannot prove zero recovery.
+        if (!stats.complete()) return "Unavailable";
+        return format(stats.actual);
     }
     public static function output(stats:HealingStats, value:Float, format:Float->String):String {
-        if (stats.unknownOutputHits > 0) return value > 0
-            ? (stats.estimatedHits > stats.unknownOutputHits ? "~" : "≥") + format(value) : "Unavailable";
-        return (stats.estimatedHits > 0 ? "~" : "") + format(value);
+        if (stats.unknownOutputHits > 0 && value <= 0) return "Unavailable";
+        return format(value);
     }
     public static function crit(stats:HealingStats):String {
         if (stats.knownCritHits == 0) return "—";
-        return (stats.knownCritHits < stats.hits ? "~" : "")
-            + Std.string(SkillStats.rounded(stats.crits * 100 / stats.knownCritHits, 1)) + "%";
+        return Std.string(SkillStats.rounded(stats.crits * 100 / stats.knownCritHits, 1)) + "%";
     }
     public static function number(value:Float):String {
         var label = FightHistory.dpsLabel(value, false);
@@ -43,6 +43,7 @@ class HealingDisplay {
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
             + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
+            + "  ·  Total healing: " + (known ? output(p.healing, p.heal, number) : "unavailable")
             + "  ·  Actual healing: " + (known ? actual(p.healing, number) : "unavailable");
     }
     public static function recapDetail(recap:RiftRecap):String {
@@ -52,11 +53,13 @@ class HealingDisplay {
             var p = local(fight);
             if (p == null || !p.healingRecorded) { known = false; continue; }
             name = p.info.name;
+            total.output += p.heal; total.unknownOutputHits += p.healing.unknownOutputHits;
             total.actual += p.healing.actual; total.hits += p.healing.hits; total.measuredHits += p.healing.measuredHits;
             total.estimatedActualHits += p.healing.estimatedActualHits;
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)
+            + "  ·  Total healing: " + (known ? output(total, total.output, number) : "unavailable")
             + "  ·  Actual healing: " + (known ? actual(total, number) : "unavailable");
     }
 }

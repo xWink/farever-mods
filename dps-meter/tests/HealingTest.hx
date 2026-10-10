@@ -56,20 +56,33 @@ class HealingTest {
             && summary.indexOf("Magical") < 0, "Healing header shows HPS and restored health");
         check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("HPS: 200") >= 0,
             "Selected healer owns the summary");
+        check(summary.indexOf("Total healing: 1,000") >= 0
+            && summary.indexOf("Total healing:") < summary.indexOf("Actual healing:"),
+            "History header shows total healing before actual healing");
+        check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Total healing: 2,000") >= 0,
+            "Total healing follows the selected player rather than the local player");
         var report = fight.json("time", 1), copy = fight.copy();
         var legacy = FightHistory.decode(FightHistory.legacy(Json.parse(Json.stringify(report)), 100000, "import"));
         check(legacy.players["me"].healing.actual == 125, "Report migration preserves healing");
         var recap = RiftRecapHistory.decode(RiftRecapHistory.encode({gate: fight, boss: fight}, "recap"));
         check(recap.gate.players["me"].healingSkills["Mixed"].output == 1000 && recap.boss.players["healer"].heal == 2000,
             "Persisted recaps carry healing in both phases");
+        var recapHeader = HealingDisplay.recapDetail(recap);
+        check(recapHeader.indexOf("Total healing: 2,000") >= 0 && recapHeader.indexOf("Actual healing: 250") >= 0,
+            "Rift recap header combines total and actual healing across both phases");
         fight.add(event(21, "me", true, 100, 50), profile("me"));
         check(copy.players["me"].healing.actual == 125 && copy.players["me"].healingSkills["Mixed"].output == 1000,
             "Finalized snapshots do not share healing objects with ongoing collection");
         check(record.players[0].healing.actual == 125 && report.players[0].healing.skills[0].output == 1000,
             "Worker payloads are detached from live healing");
         restored.add(event(22, "me", true, 100), profile("me"));
-        check(!player.healing.complete() && HealingDisplay.actual(player.healing, HealingDisplay.number) == "125 (partial)",
-            "Missing health observations never silently count as zero/overheal");
+        check(!player.healing.complete() && HealingDisplay.actual(player.healing, HealingDisplay.number) == "Unavailable",
+            "Incomplete actual totals are unavailable, never a misleading subset without a partial label");
+        player.healing.estimatedHits = 1; player.healing.unknownOutputHits = 1; player.healing.knownCritHits = 1;
+        var clean = HealingDisplay.detail(entry, restored);
+        check(clean.indexOf("~") < 0 && clean.indexOf("≥") < 0 && clean.indexOf("(partial)") < 0,
+            "Healing headers remove every requested uncertainty decoration");
+        check(HealingDisplay.crit(player.healing).indexOf("~") < 0, "Mixed critical samples also omit the tilde");
         for (p in (cast record.players:Array<Dynamic>)) Reflect.deleteField(p, "healing");
         var old = FightHistory.decode(record);
         check(old.players["me"].damage == 100 && !old.players["me"].healingRecorded && !HealingDisplay.recorded(old),

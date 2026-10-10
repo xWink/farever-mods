@@ -82,7 +82,6 @@ class NativeSkillTable {
                 values["avgHit"] = HealingDisplay.output(stats, v.avgHit, compact);
                 values["crit"] = HealingDisplay.crit(stats);
                 if (player.healing.unknownOutputHits > 0) values["percent"] = "—";
-                else if (player.healing.estimatedHits > 0) values["percent"] = "~" + values["percent"];
             }
             var signature = healing + "|" + row.actualShare + "|" + row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
                 + "|" + [for (key in SkillBreakdown.KEYS) values[key]].join("|");
