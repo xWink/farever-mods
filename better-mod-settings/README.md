@@ -153,9 +153,11 @@ Consumers must check both the key and modifier; passing the object to
 and polling. Custom hotkeys use Farever's strict modifier matching, so `Ctrl+1`
 does not also activate an unmodified `1` hotkey.
 
-Hold the modifier and press the main key when assigning a combination. Tapping a
-modifier by itself binds that key. Like Farever, modifier combinations work with
-letters, number-row and numpad digits, F1–F24, Enter, Tab, arrow keys, and left/right
+Hold the modifier and press the main key when assigning a combination; the picker
+saves it when the main key is released. Either left or right Ctrl, Shift, or Alt
+works. Tapping a modifier by itself binds that key on release. Like Farever,
+modifier combinations work with letters, number-row and numpad digits, F1–F24,
+Enter, Tab, arrow keys, and left/right
 mouse buttons. Other keys keep their single-key behavior. Only one modifier is
 stored; if several are held, Farever's priority is Ctrl, then Shift, then Alt.
 

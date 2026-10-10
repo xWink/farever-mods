@@ -8,6 +8,8 @@ class KeyCaptureInput {
     var held:Map<Int, Bool> = new Map();
     var heldCount:Int = 0;
     var pendingKey:Dynamic = 0;
+    var heldBinding:Dynamic = 0;
+    var bindingReleaseKey:Int = -1;
     var allowModifiers:Bool = false;
     var modifierCandidate:Int = 0;
     var activityFrame:Null<Int> = null;
@@ -29,23 +31,20 @@ class KeyCaptureInput {
                 heldCount++;
             }
         }
-        pendingKey = 0;
-        modifierCandidate = 0;
+        clearSelection();
         this.allowModifiers = allowModifiers;
         activityFrame = null;
         state.begin();
     }
 
     public function finish():Void {
-        pendingKey = 0;
-        modifierCandidate = 0;
+        clearSelection();
         state.finish();
     }
 
     public function reset():Void {
         clearHeld();
-        pendingKey = 0;
-        modifierCandidate = 0;
+        clearSelection();
         activityFrame = null;
         state.reset();
     }
@@ -55,15 +54,49 @@ class KeyCaptureInput {
         heldCount = 0;
     }
 
+    function clearSelection():Void {
+        pendingKey = 0;
+        heldBinding = 0;
+        bindingReleaseKey = -1;
+        modifierCandidate = 0;
+    }
+
+    // Heaps emits generic modifiers plus a second event with LOC_LEFT/LOC_RIGHT.
+    static function modifierCode(key:Int):Int return switch key {
+        case 272, 528: 16;
+        case 273, 529: 17;
+        case 274, 530: 18;
+        default: key;
+    };
+
+    function isHeld(key:Int):Bool {
+        return held.exists(key) || (Hotkey.isModifier(key)
+            && (held.exists(key | 256) || held.exists(key | 512)));
+    }
+
     function press(key:Int, frame:Int, pulse:Bool = false):Void {
         activityFrame = frame;
-        if (!held.exists(key) && capturing && !Hotkey.isBound(pendingKey) && key >= 0 && key < 512) {
-            if (allowModifiers && Hotkey.isModifier(key)) {
+        var code = allowModifiers ? modifierCode(key) : key;
+        if (!held.exists(key) && capturing && !Hotkey.isBound(pendingKey) && code >= 0 && code < 512
+            && (!Hotkey.isBound(heldBinding) || code == 27)) {
+            if (allowModifiers && Hotkey.isModifier(code)) {
                 // Wait for the main key. A modifier tapped alone is still assignable.
-                modifierCandidate = key;
+                modifierCandidate = code;
             } else {
-                pendingKey = allowModifiers ? Hotkey.capture(key, held.exists) : key;
-                if (Hotkey.isBound(pendingKey)) modifierCandidate = 0;
+                var binding:Dynamic = allowModifiers ? Hotkey.capture(code, isHeld) : code;
+                if (Hotkey.isBound(binding)) {
+                    modifierCandidate = 0;
+                    if (!allowModifiers || pulse || code == 27) {
+                        // Wheel pulses have no release; Escape cancels immediately.
+                        heldBinding = 0;
+                        bindingReleaseKey = -1;
+                        pendingKey = binding;
+                    } else {
+                        // Remember the modifier now, even if it is released first.
+                        heldBinding = binding;
+                        bindingReleaseKey = key;
+                    }
+                }
             }
         }
         if (!pulse && !held.exists(key)) {
@@ -79,18 +112,24 @@ class KeyCaptureInput {
             case "EKeyDown", "EPush":
                 press(key, frame);
             case "EKeyUp", "ERelease":
-                if (capturing && !Hotkey.isBound(pendingKey) && key == modifierCandidate) {
-                    pendingKey = key;
-                    modifierCandidate = 0;
-                }
                 if (held.remove(key)) heldCount--;
+                if (capturing && !Hotkey.isBound(pendingKey)) {
+                    if (key == bindingReleaseKey && Hotkey.isBound(heldBinding)) {
+                        pendingKey = heldBinding;
+                        heldBinding = 0;
+                        bindingReleaseKey = -1;
+                    } else if (!Hotkey.isBound(heldBinding) && modifierCandidate != 0
+                        && modifierCode(key) == modifierCandidate && !isHeld(modifierCandidate)) {
+                        pendingKey = modifierCandidate;
+                        modifierCandidate = 0;
+                    }
+                }
                 activityFrame = frame;
             case "EWheel":
                 press(key, frame, true);
             case "EFocusLost", "EReleaseOutside":
                 clearHeld();
-                pendingKey = 0;
-                modifierCandidate = 0;
+                clearSelection();
                 activityFrame = frame;
             default:
                 return false;
