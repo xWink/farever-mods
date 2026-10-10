@@ -6,12 +6,6 @@ import dpsmeter.RiftTracker.RiftRecap;
 
 /** Presentation helpers keep damage labels and old history data untouched. */
 class HealingDisplay {
-    public static function actual(stats:HealingStats, format:Float->String):String {
-        // Without a partial marker, never present a known subset as the total.
-        // In particular, a few measured overheals cannot prove zero recovery.
-        if (!stats.complete()) return "Unavailable";
-        return format(stats.actual);
-    }
     public static function output(stats:HealingStats, value:Float, format:Float->String):String {
         if (stats.unknownOutputHits > 0 && value <= 0) return "Unavailable";
         return format(value);
@@ -43,8 +37,7 @@ class HealingDisplay {
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
             + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
-            + "  ·  Total healing: " + (known ? output(p.healing, p.heal, number) : "unavailable")
-            + "  ·  Actual healing: " + (known ? actual(p.healing, number) : "unavailable");
+            + "  ·  Total healing: " + (known ? output(p.healing, p.heal, number) : "unavailable");
     }
     public static function recapDetail(recap:RiftRecap):String {
         var first = recap.gate == null ? recap.boss : recap.gate;
@@ -54,12 +47,9 @@ class HealingDisplay {
             if (p == null || !p.healingRecorded) { known = false; continue; }
             name = p.info.name;
             total.output += p.heal; total.unknownOutputHits += p.healing.unknownOutputHits;
-            total.actual += p.healing.actual; total.hits += p.healing.hits; total.measuredHits += p.healing.measuredHits;
-            total.estimatedActualHits += p.healing.estimatedActualHits;
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)
-            + "  ·  Total healing: " + (known ? output(total, total.output, number) : "unavailable")
-            + "  ·  Actual healing: " + (known ? actual(total, number) : "unavailable");
+            + "  ·  Total healing: " + (known ? output(total, total.output, number) : "unavailable");
     }
 }

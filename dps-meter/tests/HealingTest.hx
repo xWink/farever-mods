@@ -12,26 +12,24 @@ class HealingTest {
     }
     static function profile(id:String):PlayerInfo return {uid: id, name: id, isMe: id == "me", className: "cleric",
         weapon: null, classSkills: [], weaponSkills: []};
-    static function event(time:Float, source:String, heal:Bool, amount:Float, actual:Null<Float> = null):DamageEvent return {
-        time: time, source: source, amount: amount, actualHealing: actual, critical: true, kill: false,
+    static function event(time:Float, source:String, heal:Bool, amount:Float):DamageEvent return {
+        time: time, source: source, amount: amount, critical: true, kill: false,
         effect: heal ? 1 : 0, skill: "Mixed", target: heal ? "ally" : "boss", bossKind: heal ? "" : "Boss",
         bossFlags: heal ? 0 : 16, bossLevel: 30, bossFoeId: 1, damageType: "magical"
     };
     static function main():Void {
         var fight = new Fight(10, "0.3.0.test"); fight.me = "me";
         fight.add(event(10, "me", false, 100), profile("me"));
-        fight.add(event(11, "me", true, 500, 125), profile("me"));
-        fight.add(event(11.1, "me", true, 500, 0), profile("me"));
-        fight.add(event(12, "healer", true, 2000, 1000), profile("healer"));
+        fight.add(event(11, "me", true, 500), profile("me"));
+        fight.add(event(11.1, "me", true, 500), profile("me"));
+        fight.add(event(12, "healer", true, 2000), profile("healer"));
         fight.last = 20; fight.closed = 20;
         var me = fight.players["me"];
         check(me.damage == 100 && me.hits == 1 && me.crits == 1 && me.skills["Mixed"].damage == 100,
             "A mixed healing/damage skill keeps every damage statistic unchanged");
-        check(me.heal == 1000 && me.healing.output == 1000 && me.healing.actual == 125,
-            "Output includes partial and complete overheal; effective healing does not");
+        check(me.heal == 1000 && me.healing.output == 1000, "Output retains the full amounts of both heals");
         check(me.healingSkills["Mixed"].casts == 1 && me.healingSkills["Mixed"].hits == 2
             && me.healingSkills["Mixed"].crits == 2, "Healing has independent cast/hit/crit counts");
-        check(me.healing.complete() && me.healing.measuredOutput == 1000, "Zero effective healing is a known measurement");
         check(fight.ranked(true, true)[0].info.uid == "healer" && fight.ranked(false, true).length == 1,
             "Rank healing by output without inserting healing-only rows in damage view");
         var values = SkillBreakdown.healingValues(me.healingSkills["Mixed"], me.heal, fight.duration());
@@ -39,57 +37,93 @@ class HealingTest {
             && values.avgHit == 500 && values.avgCast == 1000, "Healing breakdown uses output and full encounter duration");
         for (width in [300, 400, 550, 750, 900]) for (recap in [false, true]) {
             var damage = SkillBreakdown.columns(width, recap), healing = SkillBreakdown.columns(width, recap, true);
-            check(damage.length == healing.length, "Modes retain the same responsive column counts");
-            for (i in 0...damage.length) check(damage[i].width == healing[i].width && damage[i].x == healing[i].x,
-                "Changing mode does not alter damage column geometry");
-            check([for (c in healing) if (c.key == "distribution") c.title][0] == "Actual healing", "Healing replaces damage types");
+            check(healing.length == damage.length - 1 && ![for (c in healing) c.key].contains("distribution"),
+                "Healing removes the effective-healing column at every width and in recaps");
+            var x = 0;
+            for (column in healing) {
+                check(column.x == x && column.width > 0, "Remaining healing columns are contiguous and nonempty");
+                x += column.width;
+            }
+            check(x == width, "Healing columns use the space freed by actual healing");
+            check(Json.stringify(SkillBreakdown.columns(width, recap)) == Json.stringify(damage),
+                "Switching to healing and back leaves damage columns untouched");
         }
         var record = Json.parse(Json.stringify(FightHistory.encode(fight, "healing")));
         var restored = FightHistory.decode(record), player = restored.players["me"];
-        check(player.heal == 1000 && player.healing.actual == 125 && player.healingSkills["Mixed"].output == 1000,
-            "History JSON roundtrip retains both meters including per-ability effective healing");
+        check(player.heal == 1000 && player.healing.output == 1000 && player.healingSkills["Mixed"].output == 1000,
+            "History JSON roundtrip retains both meters including per-ability healing output");
         var entry = FightHistory.entry(record);
         check(FightHistory.chartDetail(entry).indexOf("Your DPS: 10") >= 0 && FightHistory.chartDetail(entry).indexOf("Magical: 100%") >= 0,
             "Damage history header is unchanged");
         var summary = HealingDisplay.detail(entry, restored);
-        check(summary.indexOf("Your HPS: 100") >= 0 && summary.indexOf("Actual healing: 125") >= 0
-            && summary.indexOf("Magical") < 0, "Healing header shows HPS and restored health");
+        check(summary.indexOf("Your HPS: 100") >= 0 && summary.indexOf("Actual healing") < 0
+            && summary.indexOf("Magical") < 0, "Healing header shows HPS without an actual-healing value");
         check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("HPS: 200") >= 0,
             "Selected healer owns the summary");
-        check(summary.indexOf("Total healing: 1,000") >= 0
-            && summary.indexOf("Total healing:") < summary.indexOf("Actual healing:"),
-            "History header shows total healing before actual healing");
+        check(summary.indexOf("Total healing: 1,000") >= 0, "History header retains total healing");
         check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Total healing: 2,000") >= 0,
             "Total healing follows the selected player rather than the local player");
         var report = fight.json("time", 1), copy = fight.copy();
         var legacy = FightHistory.decode(FightHistory.legacy(Json.parse(Json.stringify(report)), 100000, "import"));
-        check(legacy.players["me"].healing.actual == 125, "Report migration preserves healing");
+        check(legacy.players["me"].healing.output == 1000, "Report migration preserves healing");
         var recap = RiftRecapHistory.decode(RiftRecapHistory.encode({gate: fight, boss: fight}, "recap"));
         check(recap.gate.players["me"].healingSkills["Mixed"].output == 1000 && recap.boss.players["healer"].heal == 2000,
             "Persisted recaps carry healing in both phases");
         var recapHeader = HealingDisplay.recapDetail(recap);
-        check(recapHeader.indexOf("Total healing: 2,000") >= 0 && recapHeader.indexOf("Actual healing: 250") >= 0,
-            "Rift recap header combines total and actual healing across both phases");
-        fight.add(event(21, "me", true, 100, 50), profile("me"));
-        check(copy.players["me"].healing.actual == 125 && copy.players["me"].healingSkills["Mixed"].output == 1000,
+        check(recapHeader.indexOf("Total healing: 2,000") >= 0 && recapHeader.indexOf("Actual healing") < 0,
+            "Rift recap header combines healing output across both phases without actual healing");
+        fight.add(event(21, "me", true, 100), profile("me"));
+        check(copy.players["me"].healing.output == 1000 && copy.players["me"].healingSkills["Mixed"].output == 1000,
             "Finalized snapshots do not share healing objects with ongoing collection");
-        check(record.players[0].healing.actual == 125 && report.players[0].healing.skills[0].output == 1000,
+        check(record.players[0].healing.output == 1000 && report.players[0].healing.skills[0].output == 1000,
             "Worker payloads are detached from live healing");
         restored.add(event(22, "me", true, 100), profile("me"));
-        check(!player.healing.complete() && HealingDisplay.actual(player.healing, HealingDisplay.number) == "Unavailable",
-            "Incomplete actual totals are unavailable, never a misleading subset without a partial label");
+        check(player.healing.output == 1100, "Output does not depend on having a matched HP observation");
         player.healing.estimatedHits = 1; player.healing.unknownOutputHits = 1; player.healing.knownCritHits = 1;
         var clean = HealingDisplay.detail(entry, restored);
         check(clean.indexOf("~") < 0 && clean.indexOf("≥") < 0 && clean.indexOf("(partial)") < 0,
             "Healing headers remove every requested uncertainty decoration");
         check(HealingDisplay.crit(player.healing).indexOf("~") < 0, "Mixed critical samples also omit the tilde");
+        for (data in [record, report, RiftRecapHistory.encode(recap, "output_recap")]) outputOnly(data);
+        // The previous build stored guessed effective healing. Ignore it on
+        // read, and strip it if that record is saved/exported/imported again.
+        for (p in (cast record.players:Array<Dynamic>)) addObsolete(p.healing);
+        var oldHealing = FightHistory.decode(record);
+        check(oldHealing.players["me"].healing.output == 1000
+            && oldHealing.players["me"].healingSkills["Mixed"].output == 1000,
+            "Older healing logs retain their player and skill output");
+        outputOnly(FightHistory.encode(oldHealing, "resaved"));
+        outputOnly(oldHealing.json("time", 1));
+        for (p in (cast report.players:Array<Dynamic>)) addObsolete(p.healing);
+        var imported = FightHistory.legacy(report, 100000, "old-import");
+        outputOnly(imported);
+        check(FightHistory.decode(imported).players["healer"].heal == 2000,
+            "Legacy import strips effective fields without changing healing totals");
         for (p in (cast record.players:Array<Dynamic>)) Reflect.deleteField(p, "healing");
         var old = FightHistory.decode(record);
         check(old.players["me"].damage == 100 && !old.players["me"].healingRecorded && !HealingDisplay.recorded(old),
             "Old logs load without inventing healing records");
-        check(HealingDisplay.detail(entry, old).indexOf("Actual healing: unavailable") >= 0, "Old logs do not claim zero actual healing");
+        check(HealingDisplay.detail(entry, old).indexOf("Total healing: unavailable") >= 0
+            && HealingDisplay.detail(entry, old).indexOf("Actual healing") < 0, "Damage-only logs do not invent healing totals");
         boundaries(); zeroContributionIdentity();
         Sys.println('Healing meter: $checks checks passed');
+    }
+    static final OBSOLETE = ["actual", "overheal", "measuredOutput", "measuredHits", "estimatedActualHits", "actualMethod"];
+    static function outputOnly(value:Dynamic):Void {
+        if (value == null || Std.isOfType(value, String)) return;
+        if (Std.isOfType(value, Array)) {
+            for (item in (cast value:Array<Dynamic>)) outputOnly(item);
+        } else if (Reflect.isObject(value)) {
+            for (key in Reflect.fields(value)) {
+                check(!OBSOLETE.contains(key), "History, recaps and uploader reports must not save " + key);
+                outputOnly(Reflect.field(value, key));
+            }
+        }
+    }
+    static function addObsolete(healing:Dynamic):Void {
+        for (key in OBSOLETE) Reflect.setField(healing, key, key == "actualMethod" ? "replicated-health-correlation" : cast 125);
+        for (s in (cast healing.skills:Array<Dynamic>))
+            for (key in OBSOLETE) Reflect.setField(s, key, 125);
     }
     static function zeroContributionIdentity():Void {
         var m = new CombatModel(0, "test"); m.me = "me";
@@ -132,18 +166,18 @@ class HealingTest {
     static function boundaries():Void {
         var m = new CombatModel(0, "test"); m.me = "me";
         for (id in ["me", "healer"]) { m.profiles[id] = profile(id); m.party[id] = true; }
-        m.record(event(1, "me", true, 100, 50));
+        m.record(event(1, "me", true, 100));
         check(m.current == null && m.boss == null, "Out-of-combat heals do not start/log phantom damage fights");
         m.onCombatEnter("me", 10); m.record(event(10, "me", false, 100));
         var start = m.current.start, lastDamage = m.boss.last;
-        m.record(event(11, "healer", true, 1000, 200));
-        check(m.current.players["healer"].heal == 1000 && m.boss.players["healer"].healing.actual == 200,
+        m.record(event(11, "healer", true, 1000));
+        check(m.current.players["healer"].heal == 1000 && m.boss.players["healer"].healing.output == 1000,
             "A healer need not damage the boss to be included in local and uploaded logs");
         check(m.current.start == start && m.boss.last == lastDamage && m.current.players["me"].damage == 100,
             "Healing preserves encounter start and uploader damage-idle boundaries");
         m.onCombatExit("me", 20); m.update(21, false);
         check(m.history.length == 1 && m.history[0].players["healer"].heal == 1000, "Encounter archive retains both meters");
-        m.record(event(22, "me", true, 100, 50));
+        m.record(event(22, "me", true, 100));
         check(m.history[0].players["me"].heal == 0, "Post-fight recovery does not leak into a completed log");
     }
 }

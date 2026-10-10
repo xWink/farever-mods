@@ -10,8 +10,8 @@ typedef PlayerInfo = {
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
-    ?damageType:String, ?affinity:String, ?targetDummy:Bool, ?actualHealing:Float,
-    ?estimatedHealing:Bool, ?unknownHealing:Bool, ?estimatedActual:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool
+    ?damageType:String, ?affinity:String, ?targetDummy:Bool,
+    ?estimatedHealing:Bool, ?unknownHealing:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool
 };
 
 class SkillStats {
@@ -108,7 +108,6 @@ class PlayerStats {
         if (!healingRecorded) return null;
         var data = healing.json();
         var ids = [for (id in healingSkills.keys()) id]; ids.sort(Reflect.compare);
-        Reflect.setField(data, "actualMethod", "replicated-health-correlation");
         Reflect.setField(data, "skills", [for (id in ids) {
             var skill = healingSkills[id].json(); Reflect.setField(skill, "id", id); skill;
         }]);

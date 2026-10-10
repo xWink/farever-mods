@@ -63,14 +63,12 @@ class NativeSkillTable {
             var v = healing ? SkillBreakdown.healingValues(player.healingSkills[key], player.heal, duration)
                 : SkillBreakdown.values(player.skills[key], player.damage, duration);
             var distribution = healing ? null : player.skills[key].damageBreakdown.distribution(player.skills[key].damage);
-            row.actualShare = healing && player.healingSkills[key].complete() && player.healingSkills[key].unknownOutputHits == 0 && v.damage > 0
-                ? player.healingSkills[key].actual / v.damage : -1.0;
             row.physical = distribution == null ? -1.0 : distribution.physical;
             row.magical = distribution == null ? -1.0 : distribution.magical;
             row.percentages = distribution == null ? [] : [for (share in [distribution.physical, distribution.magical, distribution.raw])
                 Std.string(SkillStats.rounded(share * 100, 1)) + "%"];
             row.values = ["ability" => names[key], "percent" => Std.string(SkillStats.rounded(v.percent, 1)) + "%",
-                "distribution" => healing ? HealingDisplay.actual(player.healingSkills[key], compact) : distribution == null ? "—" : "", "damage" => compact(v.damage), "casts" => Std.string(v.casts),
+                "distribution" => distribution == null ? "—" : "", "damage" => compact(v.damage), "casts" => Std.string(v.casts),
                 "avgCast" => compact(v.avgCast), "hits" => Std.string(v.hits), "avgHit" => compact(v.avgHit),
                 "crit" => Std.string(SkillStats.rounded(v.crit, 1)) + "%", "dps" => compact(v.dps)];
             var values:Map<String, String> = row.values;
@@ -83,7 +81,7 @@ class NativeSkillTable {
                 values["crit"] = HealingDisplay.crit(stats);
                 if (player.healing.unknownOutputHits > 0) values["percent"] = "—";
             }
-            var signature = healing + "|" + row.actualShare + "|" + row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
+            var signature = healing + "|" + row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
                 + "|" + [for (key in SkillBreakdown.KEYS) values[key]].join("|");
             var nameText = (cast row.texts:Map<String, Dynamic>)["ability"];
             var font = G.field(nameText, "font"); var scale = G.field(nameText, "scaleX");
@@ -158,11 +156,6 @@ class NativeSkillTable {
             } else if (column.key == "distribution") {
                 if (heading)
                     fitDetail(t, stacked ? StringTools.replace(value, "/", "/\n") : value, x, 3, cellWidth, height - 6);
-                else if (healing && row.actualShare >= 0) {
-                    fitDetail(t, value, x, 3, cellWidth, 18);
-                    rect(row.graphic, x, 26, cellWidth, 8, RAW_COLOR, .95);
-                    if (row.actualShare > 0) rect(row.graphic, x, 26, cellWidth * row.actualShare, 8, 0x529b65, .95);
-                }
                 else if (row.physical < 0) fit(t, value, x, cellWidth, height, false);
                 else {
                     show(t, false);

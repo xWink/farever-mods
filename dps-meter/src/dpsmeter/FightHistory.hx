@@ -124,7 +124,7 @@ class FightHistory {
                 uid: text(p.uid), name: text(p.name), isMe: p.is_me == true,
                 className: text(Reflect.field(p, "class")), damage: number(p.total_damage), heal: number(p.heal),
                 hits: number(p.hits), crits: number(p.crits), kills: number(p.kills),
-                skills: skills, damageBreakdown: p.damage_breakdown, healing: p.healing
+                skills: skills, damageBreakdown: p.damage_breakdown, healing: HealingStats.outputRecord(p.healing)
             }
         }];
         return {version: 1, gameVersion: text(report.game_version), id: id, name: name, startedAt: timestamp - duration * 1000, duration: duration, players: players,

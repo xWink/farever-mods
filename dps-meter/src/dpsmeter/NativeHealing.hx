@@ -27,14 +27,6 @@ class NativeHealing {
     public static function key(skill:Dynamic, step:Int):String {
         return G.text(G.field(skill, "kind")) + "/" + G.uid(skill) + "/" + step;
     }
-    public static function full(target:Dynamic):Bool {
-        if (target == null) return false;
-        try {
-            var health = G.number(G.call("ent.Unit", "get_health", target), Math.NaN);
-            var max = G.number(G.call("ent.Unit", "get_maxHealth", target), Math.NaN);
-            return Math.isFinite(health) && Math.isFinite(max) && max > 0 && health >= max;
-        } catch (_:Dynamic) return false;
-    }
     public static function estimate(hit:Dynamic, target:Dynamic):Null<Float> {
         var step = G.field(hit, "step"), skill = G.field(step, "baseSkill");
         if (step == null || G.field(hit, "ctx") == null || skill == null) return null;

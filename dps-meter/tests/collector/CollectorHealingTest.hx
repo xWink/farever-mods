@@ -24,14 +24,14 @@ class CollectorHealingTest {
         c.healthChanged(attributes, 200, 11);
         c.healingFX(me, hit, 11); c.healing(other, heal, 11); c.healingCapture.flush(14.1);
         var p = c.model.current.players["healer"];
-        check(p != null && p.heal == 500 && p.healing.actual == 100, "Remote healing is attributed to the healer, not target or RPC receiver");
+        check(p != null && p.heal == 500, "Remote healing is attributed to the healer, not target or RPC receiver");
         check(p.hits == 0 && p.crits == 0 && p.healingSkills["Priest_Heal"].crits == 1, "Critical healing never alters damage statistics");
         check(p.healing.hits == 1 && p.healing.estimatedHits == 0, "FX and exact RPC for the same native skill/step deduplicate");
         c.healing(other, heal, 15); c.healingCapture.flush(18.1);
-        check(p.heal == 1000 && p.healing.actual == 100 && p.healing.measuredHits == 2, "A later full overheal does not reuse HP");
+        check(p.heal == 1000 && p.healing.hits == 2, "A later heal retains its output even without an HP increase");
         me.health = 50.; attributes.__host.isSyncingProperty = -1;
         c.healthChanged(attributes, 200, 19); c.healing(other, heal, 19); c.healingCapture.flush(22.1);
-        check(p.heal == 1500 && p.healing.actual == 100 && !p.healing.complete(), "Prediction is not counted as restored health");
+        check(p.heal == 1500 && c.model.current.players["me"].heal == 0, "Predicted HP does not create a second healing entry");
         config.enabled = false; c.healing(other, heal, 23); c.healingFX(me, hit, 23); c.healingCapture.flush(26.1);
         check(p.heal == 1500, "Disabled meter collects neither healing channel");
         config.enabled = true; other.simulatingServer = true; c.healing(other, heal, 27); c.healingCapture.flush(30.1);
@@ -41,7 +41,7 @@ class CollectorHealingTest {
 
         attributes.unit = other; attributes.health = 100.; attributes.__host.isSyncingProperty = 26;
         c.healthChanged(attributes, 300, 31); c.healingFX(other, hit, 31.01); c.healingCapture.flush(34.1);
-        check(p.heal == 1750 && p.healing.actual == 300 && p.healing.estimatedHits == 1 && p.healing.knownCritHits == 3,
+        check(p.heal == 1750 && p.healing.estimatedHits == 1 && p.healing.knownCritHits == 3,
             "Remote self-healing is captured without its owner-only RPC, with unknown crit and estimated output");
         check(p.healingSkills["Priest_Heal"].output == 1750, "Only healing effects are evaluated, never the damage/RNG path");
 
@@ -49,7 +49,7 @@ class CollectorHealingTest {
         c.model.party["third"] = true; c.profile(third);
         attributes.unit = third; attributes.health = 50.;
         c.healthChanged(attributes, 150, 35); c.healingFX(third, hit, 35); c.healingCapture.flush(38.1);
-        check(p.heal == 2000 && p.healing.actual == 400 && !c.model.current.players.exists("third"),
+        check(p.heal == 2000 && !c.model.current.players.exists("third"),
             "Other-player to other-player healing is credited to caster, never both caster and recipient");
 
         var status:Dynamic = {__type: "st.skill.Status", kind: "Priest_Regrowth", __uid: "hot", owner: me, instigator: other};
@@ -67,7 +67,7 @@ class CollectorHealingTest {
 
         attributes.unit = third; attributes.health = 150.;
         c.healthChanged(attributes, 200, 47); c.healingCapture.flush(50.1);
-        check(c.model.current.players["third"].healingSkills["Regen / unattributed"].actual == 50,
+        check(c.model.current.players["third"].healingSkills["Regen / unattributed"].output == 50,
             "Unmatched replicated player recovery is visible without inventing a spell or caster");
         check(c.model.current.players["me"].damage == 100 && c.model.current.pendingHealing == 0,
             "All channels preserve damage and release pending archive holds");

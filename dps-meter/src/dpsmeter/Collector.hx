@@ -169,7 +169,7 @@ class Collector {
         if (host == null || G.integer(G.field(host, "isSyncingProperty"), -1) < 0) return;
         var target = G.field(attributes, "unit"), uid = G.uid(target);
         var before = G.number(G.field(attributes, "health"));
-        if (uid == "" || before <= 0 || before == after) return;
+        if (uid == "" || before <= 0 || before >= after) return;
         if (!model.profiles.exists(uid) && G.field(target, "player") == null
             && G.field(target, "summonOwner") == null) return;
         // Only combat recovery on known heroes can become unattributed healing.
@@ -202,8 +202,7 @@ class Collector {
         var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), amount);
         e.critical = G.field(result, "_critical") == true;
         var key = NativeHealing.key(rawSkill, G.integer(G.field(result, "stepIdx")));
-        var full = NativeHealing.full(target);
-        healingCapture.heal(e, model.captureHealing(owner.uid), key, true, full);
+        healingCapture.heal(e, model.captureHealing(owner.uid), key, true);
     }
     public function healingFX(target:Dynamic, hit:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || hit == null || G.field(target, "simulatingServer") == true) return;
@@ -217,10 +216,9 @@ class Collector {
         var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
         e.unknownHealing = estimate == null;
         var key = NativeHealing.key(rawSkill, G.integer(G.field(G.field(hit, "step"), "index")));
-        var full = NativeHealing.full(target);
-        healingCapture.heal(e, model.captureHealing(owner.uid), key, false, full);
+        healingCapture.heal(e, model.captureHealing(owner.uid), key, false);
     }
-    public function damage(target:Dynamic, damage:Dynamic, now:Float, ?actualHealing:Float):Void {
+    public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;
         // The uploader may resume a copied boss snapshot; settle its pending
         // heals before copying, never mutate an already exported report.
@@ -296,7 +294,7 @@ class Collector {
         } catch (_:Dynamic) {} // Keep counting the hit if classification is unavailable.
         model.record({time: now, source: uid, amount: G.number(G.field(damage, "_amount")),
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
-            effect: effect, skill: skillId, damageType: damageType, affinity: affinity, actualHealing: actualHealing,
+            effect: effect, skill: skillId, damageType: damageType, affinity: affinity,
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
             targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,
