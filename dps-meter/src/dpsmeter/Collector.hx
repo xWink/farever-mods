@@ -316,9 +316,13 @@ class Collector {
         for (key in ["attackComboSkill", "secondarySkill", "dashSkill"]) addSkill(classSkills, G.field(h, key));
         for (key in ["attackSkills", "skillSlots"]) for (skill in G.array(G.field(h, key))) addSkill(classSkills, skill);
         for (skill in G.array(G.field(h, "weaponSkills"))) addSkill(weaponSkills, skill);
-        // Prefer class skill IDs: Hero.kind / HeroData.kind can identify a skin.
-        var className = "";
-        for (id in classSkills) { className = inferClass(id); if (className != "") break; }
+        // Hero.getDetailedInfos uses inf.id as heroClass. Remote heroes can
+        // lack the local skill caches / HeroData, especially before attacking.
+        // Read that replicated unit definition so healing-only players also
+        // receive their class colour without first needing a damage event.
+        var className = inferClass(G.text(G.field(G.field(h, "inf"), "id")));
+        if (className == "") for (id in classSkills) { className = inferClass(id); if (className != "") break; }
+        if (className == "") className = inferClass(G.text(G.field(h, "kind")));
         if (className == "") className = inferClass(G.text(G.field(G.field(player, "heroData"), "kind")));
         if (className == "" && model.profiles.exists(id) && model.profiles[id].name == name)
             className = model.profiles[id].className;

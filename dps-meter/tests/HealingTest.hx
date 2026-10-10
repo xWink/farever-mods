@@ -60,8 +60,8 @@ class HealingTest {
             && summary.indexOf("Magical") < 0, "Healing header shows HPS without an actual-healing value");
         check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("HPS: 200") >= 0,
             "Selected healer owns the summary");
-        check(summary.indexOf("Total healing: 1,000") >= 0, "History header retains total healing");
-        check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Total healing: 2,000") >= 0,
+        check(summary.indexOf("Healing output: 1,000") >= 0, "History header retains total healing");
+        check(HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Healing output: 2,000") >= 0,
             "Total healing follows the selected player rather than the local player");
         var report = fight.json("time", 1), copy = fight.copy();
         var legacy = FightHistory.decode(FightHistory.legacy(Json.parse(Json.stringify(report)), 100000, "import"));
@@ -70,7 +70,7 @@ class HealingTest {
         check(recap.gate.players["me"].healingSkills["Mixed"].output == 1000 && recap.boss.players["healer"].heal == 2000,
             "Persisted recaps carry healing in both phases");
         var recapHeader = HealingDisplay.recapDetail(recap);
-        check(recapHeader.indexOf("Total healing: 2,000") >= 0 && recapHeader.indexOf("Actual healing") < 0,
+        check(recapHeader.indexOf("Healing output: 2,000") >= 0 && recapHeader.indexOf("Actual healing") < 0,
             "Rift recap header combines healing output across both phases without actual healing");
         fight.add(event(21, "me", true, 100), profile("me"));
         check(copy.players["me"].healing.output == 1000 && copy.players["me"].healingSkills["Mixed"].output == 1000,
@@ -103,7 +103,7 @@ class HealingTest {
         var old = FightHistory.decode(record);
         check(old.players["me"].damage == 100 && !old.players["me"].healingRecorded && !HealingDisplay.recorded(old),
             "Old logs load without inventing healing records");
-        check(HealingDisplay.detail(entry, old).indexOf("Total healing: unavailable") >= 0
+        check(HealingDisplay.detail(entry, old).indexOf("Healing output: unavailable") >= 0
             && HealingDisplay.detail(entry, old).indexOf("Actual healing") < 0, "Damage-only logs do not invent healing totals");
         boundaries(); zeroContributionIdentity(); recipients();
         Sys.println('Healing meter: $checks checks passed');
@@ -174,17 +174,17 @@ class HealingTest {
                 "Player and ability distributions survive every persistence path");
         }
         var entry = FightHistory.entry(record);
-        check(HealingDisplay.detail(entry, restored).indexOf("Total healing received: 900") >= 0
-            && HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Total healing received: 200") >= 0,
+        check(HealingDisplay.detail(entry, restored).indexOf("Healing received: 900") >= 0
+            && HealingDisplay.detail(entry, restored, restored.players["healer"]).indexOf("Healing received: 200") >= 0,
             "Incoming header follows the selected player");
         var recap = RiftRecapHistory.decode(RiftRecapHistory.encode({gate: fight, boss: fight}, "recipient-recap"));
-        check(HealingDisplay.recapDetail(recap).indexOf("Total healing received: 1,800") >= 0,
+        check(HealingDisplay.recapDetail(recap).indexOf("Healing received: 1,800") >= 0,
             "Recap header sums incoming healing across both recorded phases");
         var onlyRecipient = new Fight(10); onlyRecipient.me = "ally";
         e = event(11, "healer", true, 700); e.target = "ally";
         onlyRecipient.add(e, profile("healer"));
         check(HealingDisplay.detail(FightHistory.entry(FightHistory.encode(onlyRecipient, "only-recipient")), onlyRecipient)
-            .indexOf("Total healing received: 700") >= 0,
+            .indexOf("Healing received: 700") >= 0,
             "The local header includes incoming healing even when that player has no output row");
         e = event(21, "me", true, 100); e.target = "me";
         fight.add(e, profile("me"));
@@ -200,12 +200,12 @@ class HealingTest {
         check(old.healingReceived.total("me") == null && old.players["me"].healingSkills["Mixed"].distribution() == null
             && old.players["me"].healing.output == 1100,
             "Older healing logs keep output without inventing a recipient split");
-        check(HealingDisplay.detail(entry, old).indexOf("Total healing received: unavailable") >= 0,
+        check(HealingDisplay.detail(entry, old).indexOf("Healing received: unavailable") >= 0,
             "Old logs show unavailable instead of a misleading zero");
         var resaved = FightHistory.decode(FightHistory.encode(old, "resaved-recipients"));
         check(resaved.healingReceived.total("me") == null && resaved.players["me"].healing.distribution() == null,
             "Re-saving an older log preserves missing-data status");
-        check(HealingDisplay.recapDetail({gate: old, boss: restored}).indexOf("Total healing received: unavailable") >= 0,
+        check(HealingDisplay.recapDetail({gate: old, boss: restored}).indexOf("Healing received: unavailable") >= 0,
             "A recap with an older phase cannot present a partial incoming total as complete");
     }
     static function zeroContributionIdentity():Void {

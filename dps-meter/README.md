@@ -81,8 +81,8 @@ healing share, output, casts, hits, critical rate, and HPS. A **Team/Self** bar
 splits each ability's output into healing others (green) and self-healing (blue),
 with the two percentages above it. Unattributed output is not labeled as either;
 it stays neutral, or shows **—** if the whole split is unknown.
-The history header shows the selected player's HPS, total healing, and **Total
-healing received**. Received healing includes incoming self-heals and heals from
+The history header shows the selected player's HPS, **Healing output**, and
+**Healing received**. Received healing includes incoming self-heals and heals from
 others, including overheal, plus observed unattributed recovery. Recap headers
 sum incoming healing across the recorded phases. The meter does not display or
 save actual/effective healing or overheal amounts: the client does not receive

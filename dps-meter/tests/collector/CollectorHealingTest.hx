@@ -7,6 +7,11 @@ class CollectorHealingTest {
     static function check(value:Bool, message:String):Void { checks++; if (!value) throw message; }
     static function main():Void {
         var config = MeterConfig.defaults(), c = new Collector(config);
+        for (kind in ["Warrior", "Priest", "Mage", "Rogue"]) {
+            var remote:Dynamic = {__uid: kind, name: kind, inf: {id: kind}, player: {isMe: false}};
+            check(c.profile(remote).className == (kind == "Priest" ? "cleric" : kind.toLowerCase()),
+                "Replicated class metadata identifies idle remote players without skill caches or HeroData");
+        }
         var layer:Dynamic = {isRift: false};
         var me:Dynamic = {__uid: "me", name: "Local", layer: layer, player: {isMe: true}, health: 200., maxHealth: 200.};
         var other:Dynamic = {__uid: "healer", name: "Healer", layer: layer, player: {isMe: false}, health: 300., maxHealth: 500.};
@@ -45,7 +50,7 @@ class CollectorHealingTest {
             "Remote self-healing is captured without its owner-only RPC, with unknown crit and estimated output");
         check(p.healingSkills["Priest_Heal"].output == 1750, "Only healing effects are evaluated, never the damage/RNG path");
 
-        var third:Dynamic = {__uid: "third", name: "Third", player: {isMe: false}, layer: layer, health: 150., maxHealth: 500.};
+        var third:Dynamic = {__uid: "third", name: "Third", inf: {id: "Mage"}, player: {isMe: false}, layer: layer, health: 150., maxHealth: 500.};
         c.model.party["third"] = true; c.profile(third);
         attributes.unit = third; attributes.health = 50.;
         c.healthChanged(attributes, 150, 35); c.healingFX(third, hit, 35); c.healingCapture.flush(38.1);
@@ -69,6 +74,8 @@ class CollectorHealingTest {
         c.healthChanged(attributes, 200, 47); c.healingCapture.flush(50.1);
         check(c.model.current.players["third"].healingSkills["Regen / unattributed"].output == 50,
             "Unmatched replicated player recovery is visible without inventing a spell or caster");
+        check(c.model.current.players["third"].damage == 0 && c.model.current.players["third"].info.className == "mage",
+            "Healing-only rows keep their class colour even when the healing ability does not identify a class");
         check(c.model.current.players["me"].damage == 100 && c.model.current.pendingHealing == 0,
             "All channels preserve damage and release pending archive holds");
         Sys.println('Healing client collector: $checks checks passed');

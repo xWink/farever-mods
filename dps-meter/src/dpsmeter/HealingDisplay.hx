@@ -38,8 +38,8 @@ class HealingDisplay {
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
             + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
-            + "\nTotal healing: " + (known ? output(p.healing, p.heal, number) : "unavailable")
-            + "  ·  Total healing received: " + (received == null ? "unavailable" : number(received));
+            + "  ·  Healing output: " + (known ? output(p.healing, p.heal, number) : "unavailable")
+            + "  ·  Healing received: " + (received == null ? "unavailable" : number(received));
     }
     public static function recapDetail(recap:RiftRecap):String {
         var first = recap.gate == null ? recap.boss : recap.gate;
@@ -55,7 +55,7 @@ class HealingDisplay {
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)
-            + "\nTotal healing: " + (known ? output(total, total.output, number) : "unavailable")
-            + "  ·  Total healing received: " + (receivedKnown ? number(received) : "unavailable");
+            + "  ·  Healing output: " + (known ? output(total, total.output, number) : "unavailable")
+            + "  ·  Healing received: " + (receivedKnown ? number(received) : "unavailable");
     }
 }
