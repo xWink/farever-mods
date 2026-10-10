@@ -4,6 +4,7 @@
   "configs": [
     { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
+    { "key": "modeHotkey", "type": "keybinding", "label": "Switch damage/healing hotkey", "tooltip": { "enabled": true, "tooltipText": "Switch between damage and healing in the meter, Fight History, and Rift Recap." } },
     { "type": "title", "label": "DPS Meter" },
     { "key": "transparency", "type": "slider", "label": "Transparency", "min": 0, "max": 100, "step": 1 },
     { "key": "hideOutOfCombat", "type": "checkbox", "label": "Hide when out of combat" },

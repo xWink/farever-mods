@@ -67,10 +67,13 @@ can be removed if no other mod uses it.
 
 ## Healing meter
 
-Click the sword/cross button next to Fight History to switch the live meter between
+Click the crossed-axes/cross button next to Fight History to switch the live meter between
 **damage/DPS** and **healing output/HPS**. The same toggle appears to the left of
 Snapshot when reviewing a fight, including rift recaps. Each window remembers its
-view until the game restarts. Both kinds of data are always collected and saved;
+view until the game restarts. Press **F8** to swap each window's damage/healing view,
+including Fight History and Rift Recap. Rebind **Switch damage/healing hotkey** in
+the **General** settings category. The hotkey is ignored while typing or assigning
+a keybinding. Both kinds of data are always collected and saved;
 switching views does not reset the encounter or change its damage statistics.
 
 Healing output includes overhealing. Click a healer to view their abilities,

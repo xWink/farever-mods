@@ -28,6 +28,7 @@ typedef MeterSettings = {
     var toggleHotkey:Int;
     var unlockHotkey:Int;
     var historyHotkey:Int;
+    var modeHotkey:Int;
 }
 
 /** Meter-specific defaults, size limits and original DLL configuration import. */
@@ -57,7 +58,8 @@ class MeterConfig {
         height: 340,
         toggleHotkey: 121,
         unlockHotkey: 122,
-        historyHotkey: 0
+        historyHotkey: 0,
+        modeHotkey: 119
     };
 
     public static function normalize(config:MeterSettings):Void {

@@ -256,6 +256,15 @@ class NativeHistoryWindow {
         copying = false;
         status(message, failed);
     }
+    public function toggleMode():Void setHealing(!healing);
+    function setHealing(value:Bool):Void {
+        if (copying) return;
+        healing = value;
+        if (modeButton != null) modeButton.setHealing(value);
+        if (chart != null) chart.setHealing(value);
+        if (recapView != null) recapView.setHealing(value);
+        if (chart != null && chartInfo != null) refreshChartDetail();
+    }
     function refreshChartDetail():Void {
         var value = recap != null ? (healing ? HealingDisplay.recapDetail(recap) : FightHistory.recapDetail(recap))
             : healing ? HealingDisplay.detail(selectedEntry, fight, chart.selection()) : FightHistory.chartDetail(selectedEntry, chart.selection());
@@ -324,10 +333,7 @@ class NativeHistoryWindow {
         back = button(panel, "Back", "dpsHistoryBack", goBack);
         folderButton = HistoryButtons.folder(panel, openFolder);
         snapshotButton = HistoryButtons.snapshot(panel, copySnapshot);
-        modeButton = new MeterModeButton(panel, "dpsHistoryMode", value -> {
-            if (pending || copying) return;
-            healing = value; chart.setHealing(value); recapView.setHealing(value); refreshChartDetail();
-        }, healing);
+        modeButton = new MeterModeButton(panel, "dpsHistoryMode", setHealing, healing);
         deleteButton = button(panel, "Delete log", "dpsHistoryDelete", deleteLog);
         HistoryButtons.red(deleteButton);
         detail = label(panel, ""); empty = label(panel, "");
@@ -598,7 +604,7 @@ class NativeHistoryWindow {
             else G.call("h2d.Object", "remove", old);
         }
         owner = null; rows = []; wrappers = []; frame = null; body = null; container = null;
-        chart = null; fight = null; recapView = null; recap = null; width = 0; height = 0;
+        chart = null; fight = null; recapView = null; recap = null; modeButton = null; width = 0; height = 0;
         mode = "categories"; category = ""; group = ""; page = 0; groupsPage = 0; fightsPage = 0;
         headingFont = null; catalog = null;
     }

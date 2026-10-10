@@ -50,6 +50,12 @@ class NativeMeterWindow {
     public function new(config:MeterSettings, openHistory:Void->Void) {
         this.config = config; this.openHistory = openHistory;
     }
+    public function toggleMode():Void setHealing(!healing);
+    function setHealing(value:Bool):Void {
+        healing = value;
+        if (modeButton != null) modeButton.setHealing(value);
+        if (chart != null) chart.setHealing(value);
+    }
 
     public function update(model:CombatModel, active:Bool, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");
@@ -140,7 +146,7 @@ class NativeMeterWindow {
         absolute(G.field(toolbar, "obj"), historyButton);
         padding(historyButton, 0);
         position(historyButton, 12, 0);
-        modeButton = new MeterModeButton(toolbar, "dpsMeterMode", value -> { healing = value; chart.setHealing(value); }, healing);
+        modeButton = new MeterModeButton(toolbar, "dpsMeterMode", setHealing, healing);
         absolute(G.field(toolbar, "obj"), modeButton.object);
         timer = label(toolbar, "0:00");
         absolute(G.field(toolbar, "obj"), timer);
@@ -318,7 +324,7 @@ class NativeMeterWindow {
             MeterControllerFocus.forget(old);
             G.call("h2d.Object", "remove", old);
         }
-        owner = null; chart = null; displayed = null;
+        owner = null; chart = null; displayed = null; modeButton = null;
         body = null; container = null; bossCaption = "";
         outOfCombatSince = -1;
     }

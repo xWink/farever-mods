@@ -36,6 +36,15 @@ class NativeRiftRecapWindow {
     var retryAt:Float = 0;
 
     public function new() {}
+    public function toggleMode():Void setHealing(!healing);
+    function setHealing(value:Bool):Void {
+        if (copying) return;
+        healing = value;
+        if (modeButton != null) modeButton.setHealing(value);
+        if (charts != null) charts.setHealing(value);
+        if (recapInfo != null && displayedRecap != null)
+            G.call("h2d.Text", "set_text", recapInfo, [value ? HealingDisplay.recapDetail(displayedRecap) : FightHistory.recapDetail(displayedRecap)]);
+    }
 
     public function update(model:CombatModel, enabled:Bool, active:Bool, now:Float):Void {
         var ui = G.current("ui.BaseUI", "current");
@@ -110,10 +119,7 @@ class NativeRiftRecapWindow {
         G.call("ui.UIElement", "set_onClick", close, [() -> dispose()]);
         snapshotButton = HistoryButtons.snapshot(G.field(header, "dom"), copySnapshot, "dpsRiftRecapSnapshot");
         absolute(header, snapshotButton);
-        modeButton = new MeterModeButton(G.field(header, "dom"), "dpsRiftRecapMode", value -> {
-            healing = value; charts.setHealing(value);
-            G.call("h2d.Text", "set_text", recapInfo, [value ? HealingDisplay.recapDetail(displayedRecap) : FightHistory.recapDetail(displayedRecap)]);
-        }, healing);
+        modeButton = new MeterModeButton(G.field(header, "dom"), "dpsRiftRecapMode", setHealing, healing);
         absolute(header, modeButton.object);
 
         body = node("options-content", dom, [0], "dpsRiftRecapBody");
@@ -275,7 +281,7 @@ class NativeRiftRecapWindow {
         owner = null; charts = null; wrappers = []; frameBackground = null;
         body = null; container = null; displayedRecap = null;
         recapHeading = null; recapInfo = null; headingStyle = null; summaryStyle = null; snapshotLayout = false;
-        snapshotButton = null; copying = false; statusUntil = 0;
+        snapshotButton = null; modeButton = null; copying = false; statusUntil = 0;
         width = 0; height = 0;
     }
 }

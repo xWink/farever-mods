@@ -155,10 +155,16 @@ class DpsMeterMod {
             }
             // Read the same shared key state as the other hotkeys; BMS consumes
             // assignment input centrally. Zero is unbound, not a mouse binding.
-            if (config.enabled && config.historyHotkey > 0 && G.field(instance, "hero") != null
-                && G.staticCall("hxd.Key", "isPressed", [config.historyHotkey]) == true) {
-                var ui = G.current("ui.BaseUI", "current");
-                if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) historyView.toggle();
+            if (config.enabled && G.field(instance, "hero") != null) {
+                var historyPressed = config.historyHotkey > 0 && G.staticCall("hxd.Key", "isPressed", [config.historyHotkey]) == true;
+                var modePressed = config.modeHotkey > 0 && G.staticCall("hxd.Key", "isPressed", [config.modeHotkey]) == true;
+                if (historyPressed || modePressed) {
+                    var ui = G.current("ui.BaseUI", "current");
+                    if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) {
+                        if (historyPressed) historyView.toggle();
+                        if (modePressed) { view.toggleMode(); historyView.toggleMode(); recapView.toggleMode(); }
+                    }
+                }
             }
             if (config.enabled) collector.update(instance, now);
             else collector.healingCapture.flush(now, true);
