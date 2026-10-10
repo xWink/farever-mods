@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.8.0",
+  "project": "item-utilities",
+  "version": "1.12.0",
   "commit": "99642dc285815dfdd62baeb276b62c429b80b4af",
-  "notes": "- Added healing tracking to the meter, combat history, and rift recaps.\n- Use the toggle button on any DPS Meter window or an assignable hotkey (via settings) to swap between DPS and healing data.\n- All DPS/healing data is logged regardless of which you are viewing.\n- Click on a player in the healing chart to see their healing breakdown.\n- Added support for hotkey modifiers (e.g. \"ctrl\", \"shift\", \"alt\").\n",
+  "notes": "- Fixed an issue in the inspect window where an infused item's tooltip didn't properly highlight the active infusion bonus or infusion set.\n- Fixed an issue in the inspect window where stats on the arsenal weapon were not reduced to 40%.\n- Added support for hotkey modifiers (e.g. \"ctrl\", \"shift\", \"alt\").\n",
   "dry_run": false
 }
