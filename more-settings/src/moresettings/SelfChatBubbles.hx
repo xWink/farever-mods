@@ -35,10 +35,12 @@ class SelfChatBubbles {
             try {
                 var follow = G.enumValue("ui.EWidgetFollowType", "EFollow", [object, null]);
                 widget = G.create("ui.Widget", [follow, ui, null]);
-                // ChatBubble owns polling, sender/channel filtering, text cleaning,
-                // truncation and expiry, exactly as it does for other players.
-                // Its initial poll skips old chat history when the option is enabled.
-                G.create("ui.hud.ChatBubble", [hero, G.field(widget, "container")]);
+                // UnitWidget creates ChatBubble inside the native styled DOM.
+                // Build it before attaching, just like GameObject.createWidget;
+                // a bare ChatBubble skips the normal widget styling context.
+                // HeroWidget adds the name/health UI; UnitWidget only adds chat.
+                var component = G.create("ui.hud.UnitWidget", [hero, null]);
+                G.call("h2d.Object", "addChild", G.field(widget, "container"), [component]);
             } catch (error:Dynamic) {
                 dispose();
                 throw error;

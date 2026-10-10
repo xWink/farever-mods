@@ -22,7 +22,8 @@ class SelfChatBubblesTest {
         eq(G.bubbles.length, 1, "one native bubble");
         var widget:Dynamic = G.ui.widgets[0];
         eq(G.bubbles[0].unit, app.hero, "bubble filters for the local hero's sender identity");
-        eq(G.bubbles[0].parent, widget.container, "native bubble is anchored inside the widget");
+        eq(G.bubbles[0].parent.type, "ui.hud.UnitWidget", "bubble uses the native unit widget styling context");
+        eq(G.bubbles[0].parent.parent, widget.container, "native unit widget is anchored inside the overhead widget");
         eq(widget.followType.object, app.hero.obj, "widget follows the character model");
         eq(widget.offsetZ, 2.05, "uses the normal overhead height offset");
         Bubbles.update(app); Bubbles.configure(true); Bubbles.update(app);
@@ -32,7 +33,7 @@ class SelfChatBubblesTest {
         app.hero.obj = {}; Bubbles.update(app);
         eq(widget.removed, true, "replaced model removes old widget");
         eq(G.ui.widgets.length, 1, "model replacement retains one widget");
-        eq(G.bubbles[1].parent.parent.followType.object, app.hero.obj, "new widget follows replacement model");
+        eq(G.bubbles[1].parent.parent.parent.followType.object, app.hero.obj, "new widget follows replacement model");
         var oldUi:Dynamic = G.ui;
         G.ui = {type: "ui.GameUI", widgets: []}; Bubbles.update(app);
         eq(oldUi.widgets.length, 0, "scene changes detach old UI");

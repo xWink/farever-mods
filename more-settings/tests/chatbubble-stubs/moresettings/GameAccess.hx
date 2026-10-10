@@ -23,15 +23,22 @@ class GameAccess {
             ui.widgets.push(widget);
             return widget;
         }
-        if (type == "ui.hud.ChatBubble") {
+        if (type == "ui.hud.UnitWidget") {
+            if (args[1] != null) throw "Native unit widget must finish construction before attachment";
             if (fail) throw "Native chat bubble failed";
-            var bubble:Dynamic = {unit: args[0], parent: args[1]};
+            var component:Dynamic = {type: type, parent: null};
+            // UnitWidget.init builds its ChatBubble child through native DomKit.
+            var bubble:Dynamic = {unit: args[0], parent: component};
             bubbles.push(bubble);
-            return bubble;
+            return component;
         }
         throw 'Unexpected constructor: $type';
     }
-    public static function call(type:String, name:String, object:Dynamic):Dynamic {
+    public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
+        if (type == "h2d.Object" && name == "addChild") {
+            args[0].parent = object;
+            return null;
+        }
         if (type != "h2d.Object" || name != "remove") throw 'Unexpected call: $type.$name';
         object.parent.widgets.remove(object);
         object.parent = null;
