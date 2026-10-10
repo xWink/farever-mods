@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.12.0",
+  "project": "more-settings",
+  "version": "1.17.0",
   "commit": "99642dc285815dfdd62baeb276b62c429b80b4af",
-  "notes": "- Fixed an issue in the inspect window where an infused item's tooltip didn't properly highlight the active infusion bonus or infusion set.\n- Fixed an issue in the inspect window where stats on the arsenal weapon were not reduced to 40%.\n- Added support for hotkey modifiers (e.g. \"ctrl\", \"shift\", \"alt\").\n",
+  "notes": "- Added a new option in the Social category to enable your own character's chat bubbles.\n- Added support for hotkey modifiers (e.g. \"ctrl\", \"shift\", \"alt\").\n",
   "dry_run": false
 }
