@@ -11,16 +11,19 @@
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main KillNotificationsTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main DamageBreakdownTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/controller
 -main ControllerFocusTest
 --interp
@@ -51,4 +54,10 @@
 -cp ../shared/src
 -cp tests
 -main HealingCaptureTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main HotkeyConfigTest
 --interp

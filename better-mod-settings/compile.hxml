@@ -1,6 +1,7 @@
 -lib hlx-runtime
 -D hl-ver=1.16.0
 -cp src
+-cp ../shared/src
 -main bettermodsettings.BetterModSettingsMod
 -dce full
 -hl build/better-mod-settings/better-mod-settings.hl

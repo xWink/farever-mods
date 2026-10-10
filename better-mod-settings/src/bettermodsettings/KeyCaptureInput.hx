@@ -1,11 +1,15 @@
 package bettermodsettings;
 
+import modinput.Hotkey;
+
 /** Receives assignment input before hxd.Key can publish it to any key poller. */
 class KeyCaptureInput {
     var state = new KeyCaptureState();
     var held:Map<Int, Bool> = new Map();
     var heldCount:Int = 0;
-    var pendingKey:Int = 0;
+    var pendingKey:Dynamic = 0;
+    var allowModifiers:Bool = false;
+    var modifierCandidate:Int = 0;
     var activityFrame:Null<Int> = null;
 
     public var blocking(get, never):Bool;
@@ -15,7 +19,7 @@ class KeyCaptureInput {
 
     public function new() {}
 
-    public function begin(alreadyHeld:Array<Int>):Void {
+    public function begin(alreadyHeld:Array<Int>, allowModifiers:Bool = false):Void {
         // A second picker can open while the previous input is still draining.
         if (!blocking) clearHeld();
         for (key in alreadyHeld) {
@@ -26,18 +30,22 @@ class KeyCaptureInput {
             }
         }
         pendingKey = 0;
+        modifierCandidate = 0;
+        this.allowModifiers = allowModifiers;
         activityFrame = null;
         state.begin();
     }
 
     public function finish():Void {
         pendingKey = 0;
+        modifierCandidate = 0;
         state.finish();
     }
 
     public function reset():Void {
         clearHeld();
         pendingKey = 0;
+        modifierCandidate = 0;
         activityFrame = null;
         state.reset();
     }
@@ -49,8 +57,15 @@ class KeyCaptureInput {
 
     function press(key:Int, frame:Int, pulse:Bool = false):Void {
         activityFrame = frame;
-        if (!held.exists(key) && capturing && pendingKey == 0 && key > 0 && key < 512)
-            pendingKey = key;
+        if (!held.exists(key) && capturing && !Hotkey.isBound(pendingKey) && key >= 0 && key < 512) {
+            if (allowModifiers && Hotkey.isModifier(key)) {
+                // Wait for the main key. A modifier tapped alone is still assignable.
+                modifierCandidate = key;
+            } else {
+                pendingKey = allowModifiers ? Hotkey.capture(key, held.exists) : key;
+                if (Hotkey.isBound(pendingKey)) modifierCandidate = 0;
+            }
+        }
         if (!pulse && !held.exists(key)) {
             held.set(key, true);
             heldCount++;
@@ -64,6 +79,10 @@ class KeyCaptureInput {
             case "EKeyDown", "EPush":
                 press(key, frame);
             case "EKeyUp", "ERelease":
+                if (capturing && !Hotkey.isBound(pendingKey) && key == modifierCandidate) {
+                    pendingKey = key;
+                    modifierCandidate = 0;
+                }
                 if (held.remove(key)) heldCount--;
                 activityFrame = frame;
             case "EWheel":
@@ -71,6 +90,7 @@ class KeyCaptureInput {
             case "EFocusLost", "EReleaseOutside":
                 clearHeld();
                 pendingKey = 0;
+                modifierCandidate = 0;
                 activityFrame = frame;
             default:
                 return false;
@@ -78,7 +98,7 @@ class KeyCaptureInput {
         return true;
     }
 
-    public function takePressedKey():Int {
+    public function takePressedKey():Dynamic {
         var key = pendingKey;
         pendingKey = 0;
         return key;

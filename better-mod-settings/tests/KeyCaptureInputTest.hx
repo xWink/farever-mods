@@ -1,4 +1,5 @@
 import bettermodsettings.KeyCaptureInput;
+import modinput.Hotkey;
 
 class KeyCaptureInputTest {
     static var checks = 0;
@@ -17,10 +18,10 @@ class KeyCaptureInputTest {
         nativeWrites = 0;
     }
 
-    static function begin():Void {
+    static function begin(modifiers:Bool = false):Void {
         var held = [for (key => value in published) if (value > 0) key];
         published = new Map(); // BMS replaces keyPressed with a native empty slice.
-        input.begin(held);
+        input.begin(held, modifiers);
     }
 
     // Models the native key-state writer. No isPressed/isDown/isReleased hooks
@@ -157,6 +158,72 @@ class KeyCaptureInputTest {
         event("ERelease", 1, 2);
         input.update(3); input.update(4);
         eq(input.blocking, false, "direct unbind releases input protection");
+        modifiers();
         Sys.println('Better Mod Settings: $checks central input checks passed.');
+    }
+
+    static function modifiers():Void {
+        for (modifier in 0...3) {
+            fresh(); begin(true);
+            var key = Hotkey.modifierKey(modifier);
+            event("EKeyDown", key, 1);
+            eq(input.takePressedKey(), 0, "modifier waits for a main key across frames");
+            event("EKeyDown", 49, 2);
+            var binding = input.takePressedKey();
+            eq(Hotkey.code(binding), 49, "combo keeps main key");
+            eq(Hotkey.modifier(binding), modifier, "combo keeps native modifier");
+            input.finish();
+            eq(rawDown(key), false, "modifier never leaks while assigning");
+            eq(rawPressed(49, 3), false, "main key never leaks while assigning");
+            event("EKeyUp", 49, 3);
+            input.update(4); input.update(5);
+            eq(input.blocking, true, "modifier must also be released before capture drains");
+            event("EKeyUp", key, 6); input.update(7); input.update(8);
+            eq(input.blocking, false, "entire combination drained");
+            eq(nativeWrites, 0, "no combination press or release reaches native polling");
+            event("EKeyDown", key, 9); event("EKeyDown", 49, 10);
+            eq(rawPressed(49, 11) && Hotkey.matches(binding, rawDown), true, "next deliberate combo activates");
+
+            fresh(); begin(true);
+            event("EKeyDown", key, 1); event("EKeyUp", key, 1);
+            eq(input.takePressedKey(), key, "modifier tapped alone remains assignable");
+        }
+        fresh(); event("EKeyDown", 17, 1); event("EPush", 0, 1); begin(true);
+        event("ERelease", 0, 2); event("EKeyDown", 113, 2);
+        eq(Hotkey.modifier(input.takePressedKey()), 0, "modifier held before opening picker is recognized");
+
+        fresh(); begin(true);
+        event("EKeyDown", 16, 1); event("EKeyDown", 17, 1); event("EKeyDown", 49, 1);
+        eq(Hotkey.modifier(input.takePressedKey()), 0, "multiple held modifiers use Farever priority");
+        input.finish(); event("EKeyUp", 17, 2); event("EKeyUp", 16, 2);
+        eq(input.takePressedKey(), 0, "modifier releases cannot replace completed combination");
+
+        fresh(); begin(true);
+        event("EKeyDown", 17, 1); event("EKeyDown", 27, 2);
+        eq(input.takePressedKey(), 27, "modified Escape still cancels");
+        input.finish(); event("EKeyUp", 27, 3); event("EKeyUp", 17, 3);
+        input.update(4); input.update(5);
+        eq(input.blocking, false, "modified cancellation fully drains");
+
+        fresh(); begin(true);
+        event("EKeyDown", 18, 1); event("EFocusLost", -1, 2); event("EKeyUp", 18, 3);
+        eq(input.takePressedKey(), 0, "focus loss discards pending modifier tap");
+        event("EKeyDown", 49, 4);
+        eq(input.takePressedKey(), 49, "focus loss cannot leave a sticky modifier");
+
+        fresh(); begin(true);
+        event("EKeyDown", 17, 1); event("EPush", 0, 2);
+        var click = input.takePressedKey();
+        eq(Hotkey.code(click), 0, "modified left click uses native mouse code");
+        eq(Hotkey.modifier(click), 0, "modified left click is distinct from unbound");
+        input.finish(); event("ERelease", 0, 3); event("EKeyUp", 17, 3);
+        input.update(4); input.update(5);
+        eq(input.blocking, false, "modified mouse capture drains");
+
+        fresh(); begin(true);
+        event("EKeyDown", 17, 1); event("EWheel", 5, 2);
+        eq(input.takePressedKey(), 5, "wheel does not gain unsupported modifiers");
+        fresh(); begin(); event("EKeyDown", 17, 1);
+        eq(input.takePressedKey(), 17, "third-party single-key controls keep their original format");
     }
 }

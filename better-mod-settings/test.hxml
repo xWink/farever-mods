@@ -1,29 +1,41 @@
 -cp src
+-cp ../shared/src
 -cp tests
 -main KeyCaptureTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main KeyCaptureInputTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main ActionButtonTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main TextSettingTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main DropdownSettingTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main SettingTooltipTest
+--interp
+
+--next
+-cp ../shared/src
+-cp ../shared/tests
+-main HotkeyTest
 --interp

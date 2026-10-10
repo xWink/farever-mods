@@ -6,83 +6,97 @@
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/stubs
 -cp tests
 -main PerformanceTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/stubs
 -cp tests
 -main TerrainCacheTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/stubs
 -cp tests
 -main DungeonPartyGuardTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/stubs
 -cp tests
 -main DungeonLeaveButtonTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/appearance-stubs
 -cp tests
 -main AppearanceTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/damage-stubs
 -cp tests
 -main DamageNumbersTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/warning-stubs
 -cp tests
 -main CrabgantuaWarningsTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/social-stubs
 -cp tests
 -main SocialTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/social-stubs
 -cp tests
 -main SocialInteractTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/stall-stubs
 -cp tests
 -main StallOptimizationTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/combat-ui-stubs
 -cp tests
 -main CombatUiTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main FrameMetricsTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/resource-stubs
 -cp tests
 -main ResourceCleanupTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/social-stubs
 -cp tests/character-lock-stubs
 -cp tests

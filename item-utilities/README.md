@@ -311,6 +311,11 @@ Available settings include:
 - Configure or clear hotkeys for appearance presets 1–5
 - Reset each preset category for the current character after confirmation
 
+Preset hotkeys support one Ctrl, Shift, or Alt modifier with Farever-supported
+keys (for example, `Ctrl+1`). Update Better Mod Settings to assign combinations.
+Existing single-key bindings carry over. Modified and plain preset shortcuts
+are matched separately, so `Ctrl+1` does not also activate a preset bound to `1`.
+
 ## Requirements
 
 - [HLX Core](https://github.com/hlx-framework/hlx-core)

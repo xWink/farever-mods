@@ -125,6 +125,28 @@ class SocialInteractTest {
         binding.attachHint(other);
         eq((cast other.callbacks:Array<Dynamic>).length, 0, "NPC/loot prompts receive no callback");
 
+        config.socialInteractKey = haxe.Json.parse('{"code":82,"modifier":0}');
+        SettingsData.normalize(config);
+        binding.configure(true, config.socialInteractKey);
+        social = value(@:privateAccess SocialHooks.socialBindings(SocialInteract.ACTION));
+        eq(social[0].code, 82, "modified social hint keeps main key");
+        eq(social[0].modifier, 0, "native social hold receives Ctrl modifier");
+        eq(social[0].mode, 2, "modified social hold retains native input mode");
+        cached = social[0];
+        G.longPresses.set(SocialInteract.ACTION, {lastFrame:100});
+        binding.configure(true, {code:82,modifier:0});
+        social = value(@:privateAccess SocialHooks.socialBindings(SocialInteract.ACTION));
+        eq(social[0], cached, "equivalent combination reuses social binding cache");
+        eq(G.longPresses.exists(SocialInteract.ACTION), true, "unrelated reload does not interrupt a hold");
+        binding.configure(true, {code:82,modifier:1});
+        social = value(@:privateAccess SocialHooks.socialBindings(SocialInteract.ACTION));
+        eq(social[0].modifier, 1, "modifier-only social change updates native record");
+        eq(G.longPresses.exists(SocialInteract.ACTION), false, "modifier-only change discards previous hold");
+        eq(original.modifier, 1, "modified social input leaves saved Interact untouched");
+        binding.configure(true, {code:0,modifier:2});
+        social = value(@:privateAccess SocialHooks.socialBindings(SocialInteract.ACTION));
+        eq(social[0].code, 0, "modified social left click stays bound");
+        eq(social[0].modifier, 2, "social left click modifier forwarded");
         binding.configure(true, 0);
         social = value(@:privateAccess SocialHooks.socialBindings(SocialInteract.ACTION));
         eq(social[0].code, null, "Unassigned social key disables keyboard inspection");

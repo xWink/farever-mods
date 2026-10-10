@@ -32,6 +32,7 @@ class PresetSlotsTest {
                 var key = prefix + (slot + 1) + "Hotkey";
                 var matching = descriptors.filter(d -> d.key == key && d.type == "keybinding");
                 check(matching.length == 1, "each slot has exactly one BMS hotkey setting");
+                check(matching[0].modifiers == true, "every preset opts into modifier capture");
             }
         }
         same(config.weaponPresets, [{characterId: "db:1", preset: 2, weapons: []}], "legacy presets are untouched");
@@ -42,6 +43,16 @@ class PresetSlotsTest {
         check(!PresetSlots.valid(-1) && !PresetSlots.valid(5), "out-of-range saved slots are rejected");
         same(PresetSlots.hotkeys({preset1Hotkey: "bad", preset2Hotkey: -1}, "preset"), [0, 0, 0, 0, 0],
             "invalid or missing hotkeys stay unbound");
+        for (prefix in prefixes) {
+            var combinations:Array<Dynamic> = [49, {code:49,modifier:0}, {code:49,modifier:1}, {code:49,modifier:2}, 0];
+            PresetSlots.saveHotkeys(config, prefix, combinations);
+            config = Json.parse(Json.stringify(config));
+            var loaded = PresetSlots.hotkeys(config, prefix);
+            for (slot in 0...5) {
+                check(modinput.Hotkey.code(loaded[slot]) == modinput.Hotkey.code(combinations[slot]), "preset key round-trips");
+                check(modinput.Hotkey.modifier(loaded[slot]) == modinput.Hotkey.modifier(combinations[slot]), "preset modifier round-trips");
+            }
+        }
         trace('Preset slots: $checks checks passed');
     }
 }

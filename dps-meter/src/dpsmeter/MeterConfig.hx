@@ -1,5 +1,7 @@
 package dpsmeter;
 
+import modinput.Hotkey;
+
 import sys.FileSystem;
 import sys.io.File;
 
@@ -25,10 +27,10 @@ typedef MeterSettings = {
     var historyY:Null<Float>;
     var width:Int;
     var height:Int;
-    var toggleHotkey:Int;
-    var unlockHotkey:Int;
-    var historyHotkey:Int;
-    var modeHotkey:Int;
+    var toggleHotkey:Dynamic;
+    var unlockHotkey:Dynamic;
+    var historyHotkey:Dynamic;
+    var modeHotkey:Dynamic;
 }
 
 /** Meter-specific defaults, size limits and original DLL configuration import. */
@@ -63,6 +65,10 @@ class MeterConfig {
     };
 
     public static function normalize(config:MeterSettings):Void {
+        config.toggleHotkey = Hotkey.normalize(config.toggleHotkey, 121);
+        config.unlockHotkey = Hotkey.normalize(config.unlockHotkey, 122);
+        config.historyHotkey = Hotkey.normalize(config.historyHotkey);
+        config.modeHotkey = Hotkey.normalize(config.modeHotkey, 119);
         if (config.historyX != null && !Math.isFinite(config.historyX)) config.historyX = null;
         if (config.historyY != null && !Math.isFinite(config.historyY)) config.historyY = null;
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));

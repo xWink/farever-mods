@@ -35,7 +35,7 @@
     },
     {
       "key": "hideUiKey",
-      "type": "keybinding",
+      "type": "keybinding", "modifiers": true,
       "label": "Hide UI hotkey"
     },
     {
@@ -152,7 +152,7 @@
     },
     {
       "key": "socialInteractKey",
-      "type": "keybinding",
+      "type": "keybinding", "modifiers": true,
       "label": "Social interact hotkey"
     },
     {

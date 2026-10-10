@@ -1,5 +1,7 @@
 package itemutilities;
 
+import modinput.Hotkey;
+
 /** Shared limits and persistent key names for all four preset categories. */
 class PresetSlots {
     public static inline var COUNT = 5;
@@ -12,14 +14,14 @@ class PresetSlots {
     public static inline function label(slot:Int):String return "Preset " + (slot + 1);
 
     /** Old configs retain their first three bindings; new slots start unbound. */
-    public static function hotkeys(config:Dynamic, prefix:String):Array<Int> {
+    public static function hotkeys(config:Dynamic, prefix:String):Array<Dynamic> {
         return [for (slot in 0...COUNT) {
             var value:Dynamic = Reflect.field(config, prefix + (slot + 1) + "Hotkey");
-            Std.isOfType(value, Int) && value > 0 ? cast(value, Int) : 0;
+            Hotkey.normalize(value);
         }];
     }
 
-    public static function saveHotkeys(config:Dynamic, prefix:String, keys:Array<Int>):Void {
+    public static function saveHotkeys(config:Dynamic, prefix:String, keys:Array<Dynamic>):Void {
         for (slot in 0...COUNT)
             Reflect.setField(config, prefix + (slot + 1) + "Hotkey", slot < keys.length ? keys[slot] : 0);
     }

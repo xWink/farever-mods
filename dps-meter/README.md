@@ -342,7 +342,10 @@ its additional statistics, and table headers stay fixed while the rows scroll.
 **Lock or unlock window hotkey** controls movement of both the DPS Meter and
 Fight History. Drag the Fight History title bar when unlocked; its position is
 saved separately and kept on screen. **Show or hide meter hotkey** controls the
-meter's visibility.
+meter's visibility. All four hotkeys support one Ctrl, Shift, or Alt modifier
+with Farever-supported keys. Update Better Mod Settings to assign combinations.
+Existing single-key bindings carry over, and modified shortcuts do not also
+activate their plain-key counterparts.
 
 New history logs include `gameVersion`; uploaded reports include `game_version`.
 Both record the running game's version from `Config.getVersion()`. Reopened

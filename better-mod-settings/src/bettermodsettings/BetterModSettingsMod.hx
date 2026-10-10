@@ -1,6 +1,7 @@
 package bettermodsettings;
 
 import haxe.Json;
+import modinput.Hotkey;
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import hlx.runtime.HlxPrefixResult;
@@ -962,11 +963,12 @@ class BetterModSettingsMod {
                     });
                 }
             } else if (type == "keybinding") {
-                var keyCode = intValue(Reflect.field(mod, "values"), key, 0);
+                var binding = Hotkey.normalize(Reflect.field(Reflect.field(mod, "values"), key));
+                var allowModifiers = Reflect.field(definition, "modifiers") == true;
                 var keyProperties:Dynamic = HlxRuntime.callResolved(createNewMember, [
                     "button",
                     settingParent,
-                    [keyName(keyCode)],
+                    [bindingName(binding)],
                     { id: "setting" + index }
                 ]);
                 var keyButton:Dynamic = keyProperties == null
@@ -977,7 +979,7 @@ class BetterModSettingsMod {
                     var targetMod = mod;
                     var targetKey = key;
                     HlxRuntime.callResolved(setOnClickMember, [keyButton, function():Void {
-                        beginKeyCapture(targetMod, targetKey, keyButton);
+                        beginKeyCapture(targetMod, targetKey, keyButton, allowModifiers);
                     }]);
                     // Cancel capture on press, before the private input reader
                     // could assign this right-click as Mouse Right. Clear on click.
@@ -988,7 +990,7 @@ class BetterModSettingsMod {
                     HlxRuntime.callResolved(setOnRightClickMember, [keyButton, function():Void {
                         cancelKeyCapture();
                         if (saveSetting(targetMod, targetKey, 0))
-                            setKeyButtonText(keyButton, keyName(0));
+                            setKeyButtonText(keyButton, bindingName(0));
                     }]);
                 }
             } else if (type == "button") {
@@ -1349,7 +1351,7 @@ class BetterModSettingsMod {
         }
     }
 
-    static function protectHeldInput():Bool {
+    static function protectHeldInput(allowModifiers:Bool = false):Bool {
         if (!resolveKeyInputMembers()) return false;
         var keyState:Dynamic = HlxRuntime.resolveStaticField(hxdKeyType, "keyPressed");
         if (keyState == null) return false;
@@ -1365,7 +1367,7 @@ class BetterModSettingsMod {
         // Consume input already down when the picker opens as well. Do not replay
         // it later: capture remains active until those physical keys are released.
         HlxRuntime.setStaticField(hxdKeyType, "keyPressed", emptyState);
-        captureInput.begin(held);
+        captureInput.begin(held, allowModifiers);
         return true;
     }
 
@@ -1374,38 +1376,38 @@ class BetterModSettingsMod {
         var capture = capturingKeybind;
         capturingKeybind = null;
         captureInput.finish();
-        setKeyButtonText(capture.button, keyName(intValue(capture.mod.values, capture.key, 0)));
+        setKeyButtonText(capture.button, bindingName(Reflect.field(capture.mod.values, capture.key)));
     }
 
-    static function beginKeyCapture(mod:Dynamic, key:String, button:Dynamic):Void {
+    static function beginKeyCapture(mod:Dynamic, key:String, button:Dynamic, allowModifiers:Bool):Void {
         cancelKeyCapture();
-        if (!protectHeldInput()) return;
+        if (!protectHeldInput(allowModifiers)) return;
         capturingKeybind = { mod: mod, key: key, button: button };
-        setKeyButtonText(button, "Press a key...");
+        setKeyButtonText(button, allowModifiers ? "Press a key or combination..." : "Press a key...");
     }
 
     static function capturePressedKey():Void {
         if (capturingKeybind == null)
             return;
-        var keyCode = captureInput.takePressedKey();
-        if (keyCode > 0) {
+        var binding = captureInput.takePressedKey();
+        if (Hotkey.isBound(binding)) {
             var capture = capturingKeybind;
             capturingKeybind = null;
             captureInput.finish();
-            if (keyCode == 27) {
+            if (Hotkey.code(binding) == 27) {
                 var values:Dynamic = Reflect.field(Reflect.field(capture, "mod"), "values");
                 setKeyButtonText(
                     Reflect.field(capture, "button"),
-                    keyName(intValue(values, Std.string(Reflect.field(capture, "key")), 0))
+                    bindingName(Reflect.field(values, Std.string(Reflect.field(capture, "key"))))
                 );
                 return;
             }
             var saved = saveSetting(
                 Reflect.field(capture, "mod"),
                 Std.string(Reflect.field(capture, "key")),
-                keyCode
+                binding
             );
-            setKeyButtonText(capture.button, keyName(saved ? keyCode : intValue(capture.mod.values, capture.key, 0)));
+            setKeyButtonText(capture.button, bindingName(saved ? binding : Reflect.field(capture.mod.values, capture.key)));
             return;
         }
     }
@@ -1419,9 +1421,10 @@ class BetterModSettingsMod {
             HlxRuntime.callResolved(setButtonTextMember, [button, text]);
     }
 
+    static function bindingName(binding:Dynamic):String
+        return Hotkey.label(Hotkey.normalize(binding), keyName);
+
     static function keyName(keyCode:Int):String {
-        if (keyCode <= 0)
-            return "Not set";
         if (hxdKeyType == null)
             hxdKeyType = HlxRuntime.resolveType("hxd.Key");
         if (hxdKeyType != null && getKeyNameMember == null)

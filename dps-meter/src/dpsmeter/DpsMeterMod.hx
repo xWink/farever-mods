@@ -1,5 +1,7 @@
 package dpsmeter;
 
+import modinput.NativeHotkey;
+
 import dpsmeter.MeterConfig.MeterSettings;
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
@@ -147,17 +149,17 @@ class DpsMeterMod {
         if (collector == null) collector = new Collector(config);
         var now = haxe.Timer.stamp();
         try {
-            if (G.staticCall("hxd.Key", "isPressed", [config.toggleHotkey]) == true) {
+            if (NativeHotkey.isPressed(config.toggleHotkey)) {
                 config.visible = !config.visible; saveConfig();
             }
-            if (G.staticCall("hxd.Key", "isPressed", [config.unlockHotkey]) == true) {
+            if (NativeHotkey.isPressed(config.unlockHotkey)) {
                 config.unlocked = !config.unlocked; saveConfig();
             }
             // Read the same shared key state as the other hotkeys; BMS consumes
             // assignment input centrally. Zero is unbound, not a mouse binding.
             if (config.enabled && G.field(instance, "hero") != null) {
-                var historyPressed = config.historyHotkey > 0 && G.staticCall("hxd.Key", "isPressed", [config.historyHotkey]) == true;
-                var modePressed = config.modeHotkey > 0 && G.staticCall("hxd.Key", "isPressed", [config.modeHotkey]) == true;
+                var historyPressed = NativeHotkey.isPressed(config.historyHotkey);
+                var modePressed = NativeHotkey.isPressed(config.modeHotkey);
                 if (historyPressed || modePressed) {
                     var ui = G.current("ui.BaseUI", "current");
                     if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) {

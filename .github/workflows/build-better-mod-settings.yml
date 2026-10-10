@@ -13,12 +13,14 @@ on:
     tags: ['better-mod-settings/v*']
     paths:
       - 'better-mod-settings/**'
+      - 'shared/**'
       - '.github/workflows/build-better-mod-settings.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
       - 'better-mod-settings/**'
+      - 'shared/**'
       - '.github/workflows/build-better-mod-settings.yml'
       - '.github/workflows/_build-mod.yml'
 
@@ -57,10 +59,14 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.text-hashlink
         run: |
           mkdir -p build
-          haxe -cp src -cp tests -main TextSettingTest -hl build/text-setting-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main TextSettingTest -hl build/text-setting-test.hl
           ../.text-hashlink/hl build/text-setting-test.hl
-          haxe -cp src -cp tests -main DropdownSettingTest -hl build/dropdown-setting-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main DropdownSettingTest -hl build/dropdown-setting-test.hl
           ../.text-hashlink/hl build/dropdown-setting-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main KeyCaptureInputTest -hl build/key-capture-input-test.hl
+          ../.text-hashlink/hl build/key-capture-input-test.hl
+          haxe -cp ../shared/src -cp ../shared/tests -main HotkeyTest -hl build/hotkey-test.hl
+          ../.text-hashlink/hl build/hotkey-test.hl
 
   build:
     needs: test

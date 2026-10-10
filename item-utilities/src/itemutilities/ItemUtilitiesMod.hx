@@ -1,5 +1,7 @@
 package itemutilities;
 
+import modinput.NativeHotkey;
+
 import haxe.Json;
 import haxe.ds.ObjectMap;
 import hlx.runtime.Bus;
@@ -17,30 +19,30 @@ typedef ItemUtilitiesConfig = {
     var showLockVisuals:Bool;
     var sortingIgnoresLockedItems:Bool;
     var instantMoteConversion:Bool;
-    var preset1Hotkey:Int;
-    var preset2Hotkey:Int;
-    var preset3Hotkey:Int;
-    var preset4Hotkey:Int;
-    var preset5Hotkey:Int;
-    var appearancePreset1Hotkey:Int;
-    var appearancePreset2Hotkey:Int;
-    var appearancePreset3Hotkey:Int;
-    var appearancePreset4Hotkey:Int;
-    var appearancePreset5Hotkey:Int;
+    var preset1Hotkey:Dynamic;
+    var preset2Hotkey:Dynamic;
+    var preset3Hotkey:Dynamic;
+    var preset4Hotkey:Dynamic;
+    var preset5Hotkey:Dynamic;
+    var appearancePreset1Hotkey:Dynamic;
+    var appearancePreset2Hotkey:Dynamic;
+    var appearancePreset3Hotkey:Dynamic;
+    var appearancePreset4Hotkey:Dynamic;
+    var appearancePreset5Hotkey:Dynamic;
     var appearancePresets:Array<Dynamic>;
     var selectedAppearancePresets:Array<Dynamic>;
-    var skillPreset1Hotkey:Int;
-    var skillPreset2Hotkey:Int;
-    var skillPreset3Hotkey:Int;
-    var skillPreset4Hotkey:Int;
-    var skillPreset5Hotkey:Int;
+    var skillPreset1Hotkey:Dynamic;
+    var skillPreset2Hotkey:Dynamic;
+    var skillPreset3Hotkey:Dynamic;
+    var skillPreset4Hotkey:Dynamic;
+    var skillPreset5Hotkey:Dynamic;
     var skillPresets:Array<Dynamic>;
     var selectedSkillPresets:Array<Dynamic>;
-    var talentPreset1Hotkey:Int;
-    var talentPreset2Hotkey:Int;
-    var talentPreset3Hotkey:Int;
-    var talentPreset4Hotkey:Int;
-    var talentPreset5Hotkey:Int;
+    var talentPreset1Hotkey:Dynamic;
+    var talentPreset2Hotkey:Dynamic;
+    var talentPreset3Hotkey:Dynamic;
+    var talentPreset4Hotkey:Dynamic;
+    var talentPreset5Hotkey:Dynamic;
     var talentPresets:Array<Dynamic>;
     var selectedTalentPresets:Array<Dynamic>;
     // Retain the original preset storage keys for existing configurations.
@@ -114,8 +116,8 @@ class ItemUtilitiesMod {
     static var showDepositMaterials:Bool = true;
     static var showLockVisuals:Bool = true;
     static var sortingIgnoresLockedItems:Bool = false;
-    static var presetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
-    static var skillPresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
+    static var presetHotkeyKeys:Array<Dynamic> = [for (_ in 0...PresetSlots.COUNT) 0];
+    static var skillPresetHotkeyKeys:Array<Dynamic> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var selectedSkillPreset:Int = 0;
     static var selectedSkillPresetCharacterId:String;
     static var skillPresetTransfer = new SkillPresetTransfer();
@@ -125,7 +127,7 @@ class ItemUtilitiesMod {
     static var skillPresetCharacterId:String;
     static var nextSkillPresetCheck:Float = 0;
     static var skillPresetStatus:String = "";
-    static var appearancePresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
+    static var appearancePresetHotkeyKeys:Array<Dynamic> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var selectedAppearancePreset:Int = 0;
     static var selectedAppearancePresetCharacterId:String;
     static var appearancePresetTransfer = new AppearancePresetTransfer();
@@ -136,7 +138,7 @@ class ItemUtilitiesMod {
     static var nextAppearancePresetCheck:Float = 0;
     static var appearancePresetStatus:String = "";
     static var activeGearAppearance:Dynamic;
-    static var talentPresetHotkeyKeys:Array<Int> = [for (_ in 0...PresetSlots.COUNT) 0];
+    static var talentPresetHotkeyKeys:Array<Dynamic> = [for (_ in 0...PresetSlots.COUNT) 0];
     static var selectedTalentPreset:Int = 0;
     static var selectedTalentPresetCharacterId:String;
     static var talentPresetTransfer = new TalentPresetTransfer();
@@ -204,8 +206,6 @@ class ItemUtilitiesMod {
     static var arrayDynGetDynMember:hlx.runtime.ResolvedMember;
     static var arrayDynGetLengthMember:hlx.runtime.ResolvedMember;
     static var gameAppType:hl.Bytes;
-    static var hxdKeyType:hl.Bytes;
-    static var isKeyPressedMember:hlx.runtime.ResolvedMember;
     static var getGameAppFn:Dynamic;
     static var eReasonType:hl.Bytes;
     static var lockedItemReason:Dynamic;
@@ -3108,7 +3108,7 @@ class ItemUtilitiesMod {
             return;
         for (preset in 0...PresetSlots.COUNT) {
             var key = presetHotkeyKeys[preset];
-            if (key > 0 && isGameKeyPressed(key)) {
+            if (NativeHotkey.isPressed(key)) {
                 selectEquipmentPreset(preset);
                 activateEquipmentPreset(preset);
                 return;
@@ -3121,7 +3121,7 @@ class ItemUtilitiesMod {
         for (preset in 0...PresetSlots.COUNT) {
             var key = talentPresetHotkeyKeys[preset];
             // BMS centrally consumes assignment input before hxd.Key sees it.
-            if (key > 0 && isGameKeyPressed(key)) {
+            if (NativeHotkey.isPressed(key)) {
                 selectTalentPreset(preset);
                 activateTalentPreset(preset);
                 return;
@@ -3134,7 +3134,7 @@ class ItemUtilitiesMod {
         for (preset in 0...PresetSlots.COUNT) {
             var key = appearancePresetHotkeyKeys[preset];
             // BMS centrally consumes assignment input before hxd.Key sees it.
-            if (key > 0 && isGameKeyPressed(key)) {
+            if (NativeHotkey.isPressed(key)) {
                 selectAppearancePreset(preset);
                 activateAppearancePreset(preset);
                 return;
@@ -3147,23 +3147,12 @@ class ItemUtilitiesMod {
         for (preset in 0...PresetSlots.COUNT) {
             var key = skillPresetHotkeyKeys[preset];
             // BMS centrally consumes assignment input before hxd.Key sees it.
-            if (key > 0 && isGameKeyPressed(key)) {
+            if (NativeHotkey.isPressed(key)) {
                 selectSkillPreset(preset);
                 activateSkillPreset(preset);
                 return;
             }
         }
-    }
-
-    static function isGameKeyPressed(keyCode:Int):Bool {
-        if (hxdKeyType == null)
-            hxdKeyType = HlxRuntime.resolveType("hxd.Key");
-        if (hxdKeyType != null && isKeyPressedMember == null)
-            isKeyPressedMember = HlxRuntime.resolveStaticMember(hxdKeyType, "isPressed");
-        if (isKeyPressedMember == null)
-            return false;
-        try return HlxRuntime.callResolved(isKeyPressedMember, [keyCode]) == true
-        catch (_:Dynamic) return false;
     }
 
     static function onBetterModSettingsChanged(_:Dynamic):Void {

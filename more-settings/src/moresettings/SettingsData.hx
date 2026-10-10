@@ -1,12 +1,14 @@
 package moresettings;
 
+import modinput.Hotkey;
+
 typedef MoreSettingsConfig = {
     var hideFriendConnectionNotifications:Bool;
     var enableMissingSlashCommands:Bool;
     var sendingMessageClosesChat:Bool;
     var enableFriendNotes:Bool;
     var rebindSocialInteract:Bool;
-    var socialInteractKey:Int;
+    var socialInteractKey:Dynamic;
     var fancyDamageNumbers:Bool;
     var disableDamageNumbers:Bool;
     var crabgantuaRockfallWarnings:Bool;
@@ -17,7 +19,7 @@ typedef MoreSettingsConfig = {
     var performanceDiagnostics:Bool;
     var waitForParty:Bool;
     var leaveDungeonButton:Bool;
-    var hideUiKey:Int;
+    var hideUiKey:Dynamic;
     var riftHideAllyAttacks:Bool;
     var riftHideAllyBuffs:Bool;
     var riftHideAllies:Bool;
@@ -54,8 +56,8 @@ class SettingsData {
     };
 
     public static function normalize(config:MoreSettingsConfig):Void {
-        // Same single-key range as Better Mod Settings; zero means unassigned.
-        if (config.hideUiKey < 0 || config.hideUiKey >= 512 || config.hideUiKey == 27) config.hideUiKey = 113;
-        if (config.socialInteractKey < 0 || config.socialInteractKey >= 512 || config.socialInteractKey == 27) config.socialInteractKey = 0;
+        // Preserve legacy keys and validate Farever-style modifier bindings.
+        config.hideUiKey = Hotkey.normalize(config.hideUiKey, 113);
+        config.socialInteractKey = Hotkey.normalize(config.socialInteractKey);
     }
 }

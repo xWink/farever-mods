@@ -1,6 +1,7 @@
 package moresettings;
 
 import moresettings.GameAccess as G;
+import modinput.Hotkey;
 
 /** Separate the player-menu hold from Interact's revive/loot/NPC press. */
 class SocialInteract {
@@ -8,15 +9,20 @@ class SocialInteract {
     public var enabled(default, null) = false;
     public var inHeroCheck(default, null) = false;
     public var inBindingCheck(default, null) = false;
-    var keyCode = 0;
+    var keyCode = -1;
+    var modifier:Null<Int> = null;
     var cached:Array<{source:Dynamic, mode:Dynamic, replacement:Dynamic}> = [];
 
     public function new() {}
 
-    public function configure(enabled:Bool, keyCode:Int, refreshExisting:Bool = true):Void {
-        if (this.enabled == enabled && this.keyCode == keyCode) return;
+    public function configure(enabled:Bool, binding:Dynamic, refreshExisting:Bool = true):Void {
+        binding = Hotkey.normalize(binding);
+        var keyCode = Hotkey.isBound(binding) ? Hotkey.code(binding) : -1;
+        var modifier = Hotkey.modifier(binding);
+        if (this.enabled == enabled && this.keyCode == keyCode && this.modifier == modifier) return;
         this.enabled = enabled;
         this.keyCode = keyCode;
+        this.modifier = modifier;
         cached = [];
         if (refreshExisting) clearPresses();
     }
@@ -69,9 +75,9 @@ class SocialInteract {
             }
             if (replacement == null) {
                 replacement = {
-                    code: (keyCode == 0 ? null : keyCode : Null<Int>),
+                    code: (keyCode < 0 ? null : keyCode : Null<Int>),
                     mode: (mode == null ? null : G.integer(mode) : Null<Int>),
-                    modifier: (null:Null<Int>),
+                    modifier: modifier,
                     padCode: null
                 };
                 if (cached.length >= 8) cached = [];

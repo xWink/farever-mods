@@ -1,71 +1,85 @@
 -cp src
+-cp ../shared/src
 -cp tests
 -main QuickLootStateTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main ItemLockStateTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main UiOverlayGeometryTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main TalentPresetTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main SkillPresetTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main AppearancePresetTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main CharacterResetTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main PresetSlotsTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main InspectMenuContextTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/inspect-stubs
 -cp tests
 -main InspectTargetsTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/native-ui-stubs
 -cp tests
 -main NativeUtilityUiTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main InspectTooltipPlacementTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -main SparkmasterPresetTest
 --interp
 --next
 -cp src
+-cp ../shared/src
 -cp tests/junk-stubs
 -cp tests
 -main ItemJunkTest

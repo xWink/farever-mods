@@ -70,6 +70,7 @@ Create `configFormats.json` beside the mod's `.hl` file and describe the titles 
     {
       "key": "actionHotkey",
       "type": "keybinding",
+      "modifiers": true,
       "label": "Action hotkey"
     },
     {
@@ -138,8 +139,26 @@ the label and setting keep their usual behavior. Text is literal (no markup).
 | `slider` | Number | `min` (default `0`), `max` (default `100`), and `step` (default `1`), all numbers | Supply sensible bounds with `min <= max` and a positive `step`. A missing value starts at `min`. |
 | `text` | String | `placeholder` (default `""`) | Native single-line text field. Saves on each edit, including clearing to `""`, and publishes the usual config-change notification. BMS preserves the text exactly: no trimming, parsing, validation, or conversion to numbers/booleans. Missing or non-string values display as empty. Long text scrolls within the field. Placeholder text is only a hint and is never saved. |
 | `dropdown` | String | `options` (required, non-empty array of strings) | Native dropdown displaying options in the supplied order. Selecting an option saves its exact string, not its index, and publishes the usual config-change notification. A missing or unrecognized value displays the first option without writing the config merely by opening settings. Invalid descriptors are skipped and logged. |
-| `keybinding` | Integer key code | None | Left-click to assign one `hxd.Key`-compatible key; right-click the assignment button to unbind it immediately. Modifier combinations and multi-key chords are not supported. `0` means **Not set**. Escape cancels capture and cannot be assigned through the UI. All hotkey activation is suppressed during assignment, including held input and release events. |
+| `keybinding` | Integer key code, or `{ "code": 49, "modifier": 0 }` | Optional `modifiers: true` | Left-click to assign a key; right-click the assignment button to unbind it. Opted-in controls also accept one Ctrl, Shift, or Alt modifier, using Farever's key eligibility and modifier priority. `0` means **Not set**. Escape cancels capture. All hotkey activation stays suppressed until the assignment keys and modifiers have been released. |
 | `button` | None | `buttonText`, `colour`, `warning` | Sends an action event. No matching settings JSON property is needed or written. See below. |
+
+Modifier support is opt-in so existing third-party mods continue receiving integer
+keys. Set `"modifiers": true` only after updating the consumer to accept both a
+legacy integer and a Farever-style `{ "code": keyCode, "modifier": modifier }`
+object. Modifier values are **0 = Ctrl**, **1 = Shift**, and **2 = Alt**. Plain keys
+retain their integer format; modified left-click uses code `0` inside an object.
+Consumers must check both the key and modifier; passing the object to
+`hxd.Key.isPressed` is not supported. The shared `modinput.Hotkey` and
+`modinput.NativeHotkey` helpers in this repository provide normalization, labels,
+and polling. Custom hotkeys use Farever's strict modifier matching, so `Ctrl+1`
+does not also activate an unmodified `1` hotkey.
+
+Hold the modifier and press the main key when assigning a combination. Tapping a
+modifier by itself binds that key. Like Farever, modifier combinations work with
+letters, number-row and numpad digits, F1–F24, Enter, Tab, arrow keys, and left/right
+mouse buttons. Other keys keep their single-key behavior. Only one modifier is
+stored; if several are held, Farever's priority is Ctrl, then Shift, then Alt.
+
 
 Key capture consumes keyboard and mouse-button events centrally, before `hxd.Key.onEvent` publishes them. BMS clears the previously published key state when the picker opens and keeps assignment input private. Native game actions and mods polling `hxd.Key.isPressed`, `isDown`, or `isReleased` (including inlined reads) therefore see no assignment input; they do not need individual capture guards. After assignment or Escape cancellation, protection remains until all keys/buttons are released and a quiet frame passes. The assigned key must be pressed again to activate its action. Closing the settings window cancels an unfinished assignment; leaving the game clears capture state. This covers Farever's key-state API, not separate operating-system or ImGui input backends.
 
@@ -200,7 +219,7 @@ import hlx.runtime.ModConfig;
 typedef ExampleConfig = {
     var enabled:Bool;
     var volume:Int;
-    var actionHotkey:Int;
+    var actionHotkey:Dynamic;
 }
 
 @:build(hlx.runtime.Mod.build())
