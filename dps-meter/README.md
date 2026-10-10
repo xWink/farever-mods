@@ -65,6 +65,36 @@ can be removed if no other mod uses it.
 - **Automatic log uploads:** Send completed boss encounters to [Farever Logs](https://fareverlogs.fr/) in the background, with no external application.
 - **Better Mod Settings integration:** Customize display options and hotkeys, with settings and window placement saved between sessions.
 
+## Healing meter
+
+Click the sword/cross button next to Fight History to switch the live meter between
+**damage/DPS** and **healing output/HPS**. The same toggle appears to the left of
+Snapshot when reviewing a fight, including rift recaps. Each window remembers its
+view until the game restarts. Both kinds of data are always collected and saved;
+switching views does not reset the encounter or change its damage statistics.
+
+Healing output includes overhealing. Click a healer to view their abilities,
+healing share, output, casts, hits, critical rate, and HPS. **Actual healing** shows
+observed restored health, with a green bar for its share of the ability's output;
+the remaining pale portion is overheal. The history header shows the selected
+player's HPS and actual healing total.
+
+The client broadcasts healing output but has no separate effective-healing field.
+Actual healing is inferred from authoritative health-property changes preceding a
+heal notification, not from the target's missing health after the heal. Ambiguous
+or missing observations are marked **Unavailable**; totals containing both known
+and unknown observations are marked **(partial)**. These are client observations,
+not a server combat-log guarantee. Only healing events received by this client can
+be counted. Combat recovery after an encounter ends does not enter that fight.
+
+New history records and uploader reports add a `healing` object per player with
+`output`, `actual`, `measuredOutput`, `overheal` (null when incomplete), hit/crit/cast
+counts, and a `skills` array. `measuredHits` identifies how many events have an actual
+measurement. Existing damage fields, damage skills, and the history version remain
+unchanged; `heal` retains the total output. Older logs still open normally and show
+healing as unavailable when they predate collection. Rift recap logs preserve both
+meters for both phases even when recap popups are disabled.
+
 ## Reviewing past fights
 
 Click the **book icon** on the left of the meter's header. Choose a category and an encounter name,

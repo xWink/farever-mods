@@ -22,6 +22,8 @@ class NativeMeterWindow {
     var chart:NativeDamageChart;
     var timer:Dynamic;
     var historyButton:Dynamic;
+    var modeButton:MeterModeButton;
+    var healing:Bool = false;
     final openHistory:Void->Void;
     var bossLabel:Dynamic;
     var bossCaption:String = "";
@@ -100,6 +102,7 @@ class NativeMeterWindow {
             lastRefresh = now;
             refresh(model, now);
         }
+        chart.setHealing(healing);
         chart.update(fight, now);
         alignControls();
     }
@@ -137,6 +140,8 @@ class NativeMeterWindow {
         absolute(G.field(toolbar, "obj"), historyButton);
         padding(historyButton, 0);
         position(historyButton, 12, 0);
+        modeButton = new MeterModeButton(toolbar, "dpsMeterMode", value -> { healing = value; chart.setHealing(value); }, healing);
+        absolute(G.field(toolbar, "obj"), modeButton.object);
         timer = label(toolbar, "0:00");
         absolute(G.field(toolbar, "obj"), timer);
         G.call("h2d.Text", "set_textAlign", timer, [left]);
@@ -197,7 +202,9 @@ class NativeMeterWindow {
         // Center the actual styled button on the same 34px toolbar as the timer.
         var buttonHeight = G.number(G.call("h2d.Flow", "get_outerHeight", historyButton), 30);
         position(historyButton, 12, (34 - buttonHeight) / 2);
-        var nameInset = 56; // Leave the book button and a gap before the name.
+        var toggleHeight = G.number(G.call("h2d.Flow", "get_outerHeight", modeButton.object), 30);
+        position(modeButton.object, 54, (34 - toggleHeight) / 2);
+        var nameInset = 98; // Leave both buttons and a gap before the boss name.
         var available = Std.int(Math.max(1, width - 32 - textWidth - 12 - nameInset));
         if (available != bossLabelWidth) {
             bossLabelWidth = available;
@@ -232,11 +239,11 @@ class NativeMeterWindow {
         size(G.field(content, "obj"), innerWidth - 16, bodyHeight - 24);
         position(G.field(content, "obj"), 8, 12);
         chart.resize(width - 32, Std.int(Math.max(20, bodyHeight - 24)));
-        // The drag surface is above the toolbar; exclude the history button
+        // The drag surface is above the toolbar; exclude both buttons
         // so it remains clickable while the meter is unlocked.
-        G.set(dragSurface, "width", (headerWidth - 68) * 1.0);
+        G.set(dragSurface, "width", (headerWidth - 110) * 1.0);
         G.set(dragSurface, "height", headerHeight * 1.0);
-        position(dragSurface, 68, 0);
+        position(dragSurface, 110, 0);
         position(resizeSurface, width - 22, height - 22);
         position(grip, width - 18, height - 18);
         lastRefresh = -1;

@@ -23,6 +23,7 @@ class NativeSkillTable {
     var width:Int = 0;
     var columns:Array<SkillColumn> = [];
     var recap:Bool;
+    var healing:Bool = false;
     public function new(parent:Dynamic, id:String, back:Void->Void, ?headerParent:Dynamic, recap:Bool = false) {
         this.id = id; this.back = back; this.recap = recap;
         root = node("flow", parent, [], id + "Table", "vertical");
@@ -32,14 +33,16 @@ class NativeSkillTable {
         show(object, false);
     }
     public function clear():Void { names = []; icons = []; }
-    public function update(player:PlayerStats, duration:Float, width:Int):Void {
-        var resized = this.width != width;
+    public function update(player:PlayerStats, duration:Float, width:Int, healing:Bool = false):Void {
+        var resized = this.width != width || this.healing != healing;
+        this.healing = healing;
         this.width = width;
-        if (resized) { columns = SkillBreakdown.columns(width, recap); size(object, width); }
+        if (resized) { columns = SkillBreakdown.columns(width, recap, healing); size(object, width); }
         show(object, true);
-        var ids = [for (id in player.skills.keys()) id];
+        var ids = healing ? [for (id in player.healingSkills.keys()) id] : [for (id in player.skills.keys()) id];
         ids.sort((a, b) -> {
-            var difference = Reflect.compare(player.skills[b].damage, player.skills[a].damage);
+            var difference = healing ? Reflect.compare(player.healingSkills[b].output, player.healingSkills[a].output)
+                : Reflect.compare(player.skills[b].damage, player.skills[a].damage);
             return difference != 0 ? difference : Reflect.compare(a, b);
         });
         while (rows.length < ids.length) rows.push(makeRow(rows.length));
@@ -56,18 +59,21 @@ class NativeSkillTable {
                     [26 / Math.max(1, Math.max(G.number(G.field(row.tile, "width")), G.number(G.field(row.tile, "height"))))]);
                 show(row.icon, row.tile != null);
             }
-            var v = SkillBreakdown.values(player.skills[key], player.damage, duration);
-            var distribution = player.skills[key].damageBreakdown.distribution(player.skills[key].damage);
+            var v = healing ? SkillBreakdown.healingValues(player.healingSkills[key], player.heal, duration)
+                : SkillBreakdown.values(player.skills[key], player.damage, duration);
+            var distribution = healing ? null : player.skills[key].damageBreakdown.distribution(player.skills[key].damage);
+            row.actualShare = healing && player.healingSkills[key].complete() && v.damage > 0
+                ? player.healingSkills[key].actual / v.damage : -1.0;
             row.physical = distribution == null ? -1.0 : distribution.physical;
             row.magical = distribution == null ? -1.0 : distribution.magical;
             row.percentages = distribution == null ? [] : [for (share in [distribution.physical, distribution.magical, distribution.raw])
                 Std.string(SkillStats.rounded(share * 100, 1)) + "%"];
             row.values = ["ability" => names[key], "percent" => Std.string(SkillStats.rounded(v.percent, 1)) + "%",
-                "distribution" => distribution == null ? "—" : "", "damage" => compact(v.damage), "casts" => Std.string(v.casts),
+                "distribution" => healing ? HealingDisplay.actual(player.healingSkills[key], compact) : distribution == null ? "—" : "", "damage" => compact(v.damage), "casts" => Std.string(v.casts),
                 "avgCast" => compact(v.avgCast), "hits" => Std.string(v.hits), "avgHit" => compact(v.avgHit),
                 "crit" => Std.string(SkillStats.rounded(v.crit, 1)) + "%", "dps" => compact(v.dps)];
             var values:Map<String, String> = row.values;
-            var signature = row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
+            var signature = healing + "|" + row.actualShare + "|" + row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
                 + "|" + [for (key in SkillBreakdown.KEYS) values[key]].join("|");
             var nameText = (cast row.texts:Map<String, Dynamic>)["ability"];
             var font = G.field(nameText, "font"); var scale = G.field(nameText, "scaleX");
@@ -117,7 +123,7 @@ class NativeSkillTable {
     function layout(row:Dynamic):Void {
         var heading:Bool = row.index < 0;
         var stacked = false;
-        for (column in columns) if (column.key == "distribution") stacked = !recap && column.width - 10 < 105;
+        for (column in columns) if (column.key == "distribution") stacked = !healing && !recap && column.width - 10 < 105;
         var height = stacked ? 60 : heading ? 30 : 40;
         if (heading) headerHeight = height;
         size(row.obj, width, height);
@@ -142,6 +148,11 @@ class NativeSkillTable {
             } else if (column.key == "distribution") {
                 if (heading)
                     fitDetail(t, stacked ? StringTools.replace(value, "/", "/\n") : value, x, 3, cellWidth, height - 6);
+                else if (healing && row.actualShare >= 0) {
+                    fitDetail(t, value, x, 3, cellWidth, 18);
+                    rect(row.graphic, x, 26, cellWidth, 8, RAW_COLOR, .95);
+                    if (row.actualShare > 0) rect(row.graphic, x, 26, cellWidth * row.actualShare, 8, 0x529b65, .95);
+                }
                 else if (row.physical < 0) fit(t, value, x, cellWidth, height, false);
                 else {
                     show(t, false);

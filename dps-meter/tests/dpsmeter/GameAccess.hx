@@ -37,6 +37,7 @@ class GameAccess {
         // The shipped client retains this server-only method as a throwing stub.
         case "ent.Unit.isAtDeathDoor": throw "!isServer";
         case "ent.Unit.get_health": field(object, "health");
+        case "ent.Unit.get_maxHealth": field(object, "maxHealth");
         case "ent.Unit.getName": field(object, "name");
         case "st.skill.DamageResult.get_source": field(object, "source");
         case "st.skill.DamageResult.get_isPhysical": field(object, "physical") == true;

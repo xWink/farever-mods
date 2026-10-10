@@ -28,6 +28,7 @@ class Collector {
         var nextLayer = G.field(nextHero, "layer");
         if (hero != nextHero || layer != nextLayer) {
             model.reset(now); hero = nextHero; layer = nextLayer;
+            healingObservation.clear();
             groupMembers = []; lastGroupSeen = -1; lastRoster = -1;
             profileRefresh = []; profileWeapons = [];
             phrixes = null;
@@ -160,7 +161,24 @@ class Collector {
         }
         if (riftWait != null && G.call("st.Objective", "isCompleted", riftWait) == true) model.startRiftGates();
     }
-    public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
+    public var healingObservation:HealingObservation = new HealingObservation();
+    public function healthChanged(attributes:Dynamic, after:Float):Void {
+        if (!config.enabled) return;
+        var host = G.field(attributes, "__host");
+        // Only replicated health is authoritative; ignore prediction and initialization.
+        if (host == null || G.integer(G.field(host, "isSyncingProperty"), -1) < 0) return;
+        healingObservation.health(G.uid(G.field(attributes, "unit")), G.number(G.field(attributes, "health")), after);
+    }
+    public function healing(target:Dynamic, result:Dynamic, now:Float):Void {
+        if (result == null || G.field(target, "simulatingServer") == true) return;
+        var actual:Null<Float> = null;
+        try actual = healingObservation.consume(G.uid(target), G.number(G.field(result, "_amount")),
+            G.number(G.call("ent.Unit", "get_health", target), Math.NaN),
+            G.number(G.call("ent.Unit", "get_maxHealth", target), Math.NaN)) catch (_:Dynamic) {}
+        damage(target, result, now, actual);
+    }
+    public function damage(target:Dynamic, damage:Dynamic, now:Float, ?actualHealing:Float):Void {
+        if (G.integer(G.field(damage, "effect")) != 1) healingObservation.invalidate(G.uid(target));
         if (!config.enabled || hero == null || damage == null) return;
         // Blocked hits retain their calculated amount even though no damage is dealt.
         var blocker = G.text(G.field(damage, "blocker"));
@@ -232,7 +250,7 @@ class Collector {
         } catch (_:Dynamic) {} // Keep counting the hit if classification is unavailable.
         model.record({time: now, source: uid, amount: G.number(G.field(damage, "_amount")),
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
-            effect: effect, skill: skillId, damageType: damageType, affinity: affinity,
+            effect: effect, skill: skillId, damageType: damageType, affinity: affinity, actualHealing: actualHealing,
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
             targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,

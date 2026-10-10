@@ -32,6 +32,9 @@ class NativeRiftRecapCharts {
         }
     }
 
+    public function setHealing(value:Bool):Void {
+        for (section in sections) (cast section.chart:NativeDamageChart).setHealing(value);
+    }
     public function update(now:Float):Void {
         for (section in sections) (cast section.chart:NativeDamageChart).update(section.fight, now);
     }

@@ -17,6 +17,8 @@ class NativeRiftRecapWindow {
     var title:Dynamic;
     var close:Dynamic;
     var snapshotButton:Dynamic;
+    var modeButton:MeterModeButton;
+    var healing:Bool = false;
     var copying:Bool = false;
     var statusUntil:Float = 0;
     var body:Dynamic;
@@ -108,6 +110,11 @@ class NativeRiftRecapWindow {
         G.call("ui.UIElement", "set_onClick", close, [() -> dispose()]);
         snapshotButton = HistoryButtons.snapshot(G.field(header, "dom"), copySnapshot, "dpsRiftRecapSnapshot");
         absolute(header, snapshotButton);
+        modeButton = new MeterModeButton(G.field(header, "dom"), "dpsRiftRecapMode", value -> {
+            healing = value; charts.setHealing(value);
+            G.call("h2d.Text", "set_text", recapInfo, [value ? HealingDisplay.recapDetail(displayedRecap) : FightHistory.recapDetail(displayedRecap)]);
+        }, healing);
+        absolute(header, modeButton.object);
 
         body = node("options-content", dom, [0], "dpsRiftRecapBody");
         var bodyObject = G.field(body, "obj");
@@ -130,6 +137,7 @@ class NativeRiftRecapWindow {
         charts = new NativeRiftRecapCharts(G.field(container, "dom"), "dpsRiftCharts");
         absolute(container, charts.object);
         charts.setRecap(result);
+        charts.setHealing(healing);
         layout();
     }
 
@@ -144,7 +152,7 @@ class NativeRiftRecapWindow {
         recapHeading = G.create("h2d.Text", [G.field(summaryStyle, "font"), container]);
         recapInfo = G.create("h2d.Text", [G.field(summaryStyle, "font"), container]);
         G.call("h2d.Text", "set_text", recapHeading, ["Rift Recap"]);
-        G.call("h2d.Text", "set_text", recapInfo, [FightHistory.recapDetail(result)]);
+        G.call("h2d.Text", "set_text", recapInfo, [healing ? HealingDisplay.recapDetail(result) : FightHistory.recapDetail(result)]);
         G.call("h2d.Text", "set_textColor", recapHeading, [0x8a5f46]);
         G.call("h2d.Text", "set_textColor", recapInfo, [0x5b4334]);
         for (text in [recapHeading, recapInfo]) {
@@ -212,8 +220,10 @@ class NativeRiftRecapWindow {
             size(close, 36, 36);
             position(close, width - 52, 12);
             size(snapshotButton, HistoryButtons.SNAPSHOT_SIZE, HistoryButtons.SNAPSHOT_SIZE);
-            position(snapshotButton, 32, 12);
-            G.call("ui.comp.FmtText", "set_maxWidthText", title, [width - 188]);
+            position(modeButton.object, 24, 12);
+            modeButton.resize(HistoryButtons.SNAPSHOT_SIZE);
+            position(snapshotButton, 66, 12);
+            G.call("ui.comp.FmtText", "set_maxWidthText", title, [width - 252]);
             var contentTop = snapshot ? 8 : 60;
             var bodyHeight = height - contentTop - 8;
             size(windowContent, width - 16, bodyHeight);

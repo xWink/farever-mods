@@ -96,9 +96,28 @@ class DpsMeterMod {
     static function onProgressSync(instance:Dynamic, context:Dynamic, result:Void):Void {
         if (kills != null) kills.synced(instance);
     }
+    @:hlx.prefix(ent.Unit.rpcDisplayHeal__impl)
+    static function collectHealing(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void> {
+        if (collector != null) try collector.healing(instance, damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
+        return Continue;
+    }
+    @:hlx.prefix(ent.UnitAttributes.set_health)
+    static function observeHealth(instance:Dynamic, value:Float):HlxPrefixResult<Float> {
+        if (collector != null) try collector.healthChanged(instance, value) catch (_:Dynamic) {}
+        return Continue;
+    }
+    @:hlx.prefix(hxbit.NetworkClient.processMessagesData)
+    static function startHealingBatch(instance:Dynamic, data:Dynamic, position:Int, length:Int):HlxPrefixResult<Void> {
+        if (collector != null) collector.healingObservation.nextBatch();
+        return Continue;
+    }
+
     @:hlx.prefix(ent.Unit.rpcReceiveDamage__impl)
     static function onDamage(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void> {
-        if (collector != null) try collector.damage(instance, damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
+        // Healing has one canonical collection route, even if a game effect
+        // sends both a generic damage notification and a heal notification.
+        if (collector != null && G.integer(G.field(damage, "effect")) != 1)
+            try collector.damage(instance, damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
         return Continue;
     }
     @:hlx.postfix(ent.Hero.onEnterCombat)

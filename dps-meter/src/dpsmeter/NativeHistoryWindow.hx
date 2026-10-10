@@ -42,6 +42,8 @@ class NativeHistoryWindow {
     var folderButton:Dynamic;
     var deleteButton:Dynamic;
     var snapshotButton:Dynamic;
+    var modeButton:MeterModeButton;
+    var healing:Bool = false;
     var actionStatus:Dynamic;
     var selectedEntry:HistoryEntry;
     var deleting:Bool = false;
@@ -115,7 +117,7 @@ class NativeHistoryWindow {
         recap = null; recapView.setRecap(null); show(recapView.object, false);
         this.mode = mode; this.group = group; this.page = page;
         selectedEntry = entry; deleting = false;
-        status(""); show(deleteButton, false); show(snapshotButton, false);
+        status(""); show(deleteButton, false); show(snapshotButton, false); show(modeButton.object, false);
         setText(title, "Fight History" + (category == "" ? "" : " · " + category));
         fight = null; pending = true; total = 0; serial++;
         if (mode == "groups") groupsPage = page;
@@ -152,7 +154,7 @@ class NativeHistoryWindow {
             deleting = false;
             if (response.error != "") {
                 status(response.error, true);
-                show(deleteButton, mode == "chart"); show(snapshotButton, mode == "chart");
+                show(deleteButton, mode == "chart"); show(snapshotButton, mode == "chart"); show(modeButton.object, mode == "chart");
                 for (row in rows) show(row.deleteButton, mode == "fights" && row.entry != null);
             } else navigate("fights", group, fightsPage);
             return;
@@ -177,7 +179,8 @@ class NativeHistoryWindow {
             }
             show(empty, false);
             width = 0;
-            show(deleteButton, true); show(snapshotButton, true);
+            show(deleteButton, true); show(snapshotButton, true); show(modeButton.object, true);
+            refreshChartDetail();
         } else {
             if (mode == "fights") options.setCharacters(response.characters);
             var names = mode == "groups" || mode == "categories";
@@ -221,7 +224,7 @@ class NativeHistoryWindow {
     function deleteEntry(entry:HistoryEntry):Void {
         if (pending || copying || entry == null) return;
         pending = true; deleting = true; serial++;
-        show(deleteButton, false); show(snapshotButton, false);
+        show(deleteButton, false); show(snapshotButton, false); show(modeButton.object, false);
         for (row in rows) show(row.deleteButton, false);
         status("Moving log to the Recycle Bin...");
         writer.requestHistory({id: serial, action: "delete", group: group, page: fightsPage, fightId: entry.id});
@@ -238,7 +241,7 @@ class NativeHistoryWindow {
             refreshSnapshotChart(true);
             if (recap != null) recapView.restoreScrolls([0, 0]); else chart.restoreScroll(0);
             NativeFightSnapshot.copyBody(window, width, height,
-                [header, back, snapshotButton, deleteButton, folderButton, previous, next, pageLabel, actionStatus]);
+                [header, back, snapshotButton, modeButton.object, deleteButton, folderButton, previous, next, pageLabel, actionStatus]);
         } catch (error:Dynamic) {
             message = Std.string(error); failed = true;
             trace("[DPS Meter] Snapshot: " + Std.string(error));
@@ -252,6 +255,12 @@ class NativeHistoryWindow {
         }
         copying = false;
         status(message, failed);
+    }
+    function refreshChartDetail():Void {
+        var value = recap != null ? (healing ? HealingDisplay.recapDetail(recap) : FightHistory.recapDetail(recap))
+            : healing ? HealingDisplay.detail(selectedEntry, fight, chart.selection()) : FightHistory.chartDetail(selectedEntry, chart.selection());
+        G.call("h2d.Text", "set_text", chartInfo, [value]);
+        lastRefresh = -1;
     }
     function refreshSnapshotChart(snapshot:Bool = false):Void {
         NativeFightSnapshot.reflow(window);
@@ -315,6 +324,10 @@ class NativeHistoryWindow {
         back = button(panel, "Back", "dpsHistoryBack", goBack);
         folderButton = HistoryButtons.folder(panel, openFolder);
         snapshotButton = HistoryButtons.snapshot(panel, copySnapshot);
+        modeButton = new MeterModeButton(panel, "dpsHistoryMode", value -> {
+            if (pending || copying) return;
+            healing = value; chart.setHealing(value); recapView.setHealing(value); refreshChartDetail();
+        }, healing);
         deleteButton = button(panel, "Delete log", "dpsHistoryDelete", deleteLog);
         HistoryButtons.red(deleteButton);
         detail = label(panel, ""); empty = label(panel, "");
@@ -338,11 +351,10 @@ class NativeHistoryWindow {
         chartPanel = node("flow", panel, [], "dpsHistoryChart", "vertical");
         padding(G.field(chartPanel, "obj"), 0);
         chart = new NativeDamageChart(chartPanel, "dpsHistoryRows", "No damage recorded");
-        chart.onSelectionChanged = player -> {
-            G.call("h2d.Text", "set_text", chartInfo, [FightHistory.chartDetail(selectedEntry, player)]);
-            lastRefresh = -1;
-        };
+        chart.setHealing(healing);
+        chart.onSelectionChanged = player -> refreshChartDetail();
         recapView = new NativeRiftRecapCharts(panel, "dpsHistoryRecap");
+        recapView.setHealing(healing);
         show(recapView.object, false);
         previous = button(panel, "Previous", "dpsHistoryPrevious", () -> navigate(mode, group, page - 1));
         next = button(panel, "Next", "dpsHistoryNext", () -> navigate(mode, group, page + 1));
@@ -354,7 +366,7 @@ class NativeHistoryWindow {
         G.call("h2d.Text", "set_lineBreak", actionStatus, [false]);
         show(actionStatus, false);
         for (object in [back, heading, detail, chartInfo, empty, G.field(list, "obj"), G.field(chartPanel, "obj"), recapView.object, previous, next, pageLabel, footer,
-            folderButton, snapshotButton, deleteButton, actionStatus])
+            folderButton, snapshotButton, modeButton.object, deleteButton, actionStatus])
             absolute(G.field(panel, "obj"), object);
         for (text in [title, detail, empty, pageLabel]) {
             var left = G.enumeration("h2d.Align", "Left");
@@ -429,6 +441,8 @@ class NativeHistoryWindow {
             size(back, 84, 34); position(back, 0, 8);
             size(snapshotButton, HistoryButtons.SNAPSHOT_SIZE, HistoryButtons.SNAPSHOT_SIZE);
             position(snapshotButton, inner - HistoryButtons.SNAPSHOT_SIZE, 7);
+            modeButton.resize(HistoryButtons.SNAPSHOT_SIZE);
+            position(modeButton.object, inner - HistoryButtons.SNAPSHOT_SIZE - 42, 7);
             size(deleteButton, 138, 34); position(deleteButton, inner - 138, bodyHeight - 50);
             G.call("h2d.Text", "set_text", heading, [headingText()]);
             position(heading, mode == "categories" ? 0 : 100, 0);
@@ -500,7 +514,7 @@ class NativeHistoryWindow {
         if (font != null && font != headingFont) { headingFont = font; G.call("h2d.Text", "set_font", heading, [font]); }
         headingBaseScale = G.number(G.field(headingStyle, "scaleX"), 1);
         var headingLeft = snapshot || mode == "categories" ? 0 : 100;
-        var headingRight = !snapshot && mode == "chart" ? HistoryButtons.SNAPSHOT_SIZE + 12 : 0;
+        var headingRight = !snapshot && mode == "chart" ? HistoryButtons.SNAPSHOT_SIZE + 54 : 0;
         fitLiteral(heading, width - 48 - headingLeft - headingRight, headingBaseScale * 1.75);
         position(heading, headingLeft, 8 + (34 - textHeight(heading)) / 2);
         G.call("ui.comp.FmtText", "updateScale", detail);

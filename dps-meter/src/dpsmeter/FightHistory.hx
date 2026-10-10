@@ -29,7 +29,7 @@ class FightHistory {
                 uid: p.info.uid, name: p.info.name, isMe: p.info.isMe || p.info.uid == fight.me,
                 className: p.info.className, damage: p.damage, heal: p.heal,
                 hits: p.hits, crits: p.crits, kills: p.kills,
-                skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage)
+                skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage), healing: p.healingJson()
             }
         }];
         return {version: 1, gameVersion: fight.gameVersion, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
@@ -84,6 +84,10 @@ class FightHistory {
                 className: text(p.className), weapon: null, classSkills: [], weaponSkills: []});
             stats.damage = number(p.damage); stats.heal = number(p.heal);
             stats.damageBreakdown = DamageBreakdown.read(p.damageBreakdown);
+            stats.healingRecorded = p.healing != null;
+            stats.healing = HealingStats.read(p.healing);
+            if (p.healing != null) for (s in array(p.healing.skills))
+                stats.healingSkills[text(s.id)] = HealingStats.read(s);
             stats.hits = Std.int(number(p.hits)); stats.crits = Std.int(number(p.crits)); stats.kills = Std.int(number(p.kills));
             for (s in array(p.skills)) {
                 var skill = new SkillStats();
@@ -119,7 +123,7 @@ class FightHistory {
                 uid: text(p.uid), name: text(p.name), isMe: p.is_me == true,
                 className: text(Reflect.field(p, "class")), damage: number(p.total_damage), heal: number(p.heal),
                 hits: number(p.hits), crits: number(p.crits), kills: number(p.kills),
-                skills: skills, damageBreakdown: p.damage_breakdown
+                skills: skills, damageBreakdown: p.damage_breakdown, healing: p.healing
             }
         }];
         return {version: 1, gameVersion: text(report.game_version), id: id, name: name, startedAt: timestamp - duration * 1000, duration: duration, players: players,

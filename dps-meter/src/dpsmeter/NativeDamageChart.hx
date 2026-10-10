@@ -7,6 +7,8 @@ import dpsmeter.NativeUi.*;
 /** The same scrollable player/skill chart in the live meter and phase recaps. */
 class NativeDamageChart {
     public var onSelectionChanged:Null<PlayerStats>->Void;
+    public var healing(default, null):Bool = false;
+    var emptyText:String;
     var root:Dynamic;
     var headerRoot:Dynamic;
     var rowsRoot:Dynamic;
@@ -24,7 +26,7 @@ class NativeDamageChart {
     var lastRefresh:Float = -1;
     var empty:Dynamic;
     public function new(parent:Dynamic, id:String, emptyText:String = "", recap:Bool = false) {
-        this.id = id;
+        this.id = id; this.emptyText = emptyText;
         root = node("flow", parent, [], id + "Chart", "vertical");
         padding(G.field(root, "obj"), 0);
         flow(root, "set_verticalSpacing", 0); style(G.field(root, "obj"), "vspacing", 0);
@@ -44,6 +46,12 @@ class NativeDamageChart {
         if (emptyText != "") empty = label(rowsRoot, emptyText);
         skillTable = new NativeSkillTable(rowsRoot, id, () -> selectPlayer(""), headerRoot, recap);
     }
+    public function setHealing(value:Bool):Void {
+        if (healing == value) return;
+        healing = value; lastRefresh = -1; skillTable.clear(); resetScroll();
+        if (onSelectionChanged != null) onSelectionChanged(selection());
+    }
+    public function selection():Null<PlayerStats> return displayed == null ? null : displayed.players[selectedPlayer];
     public function resize(width:Int, height:Int):Void {
         this.width = width; this.height = height;
         size(G.field(root, "obj"), width, height);
@@ -86,21 +94,23 @@ class NativeDamageChart {
         }
         if (now - lastRefresh < 0.20) return;
         lastRefresh = now;
-        var ranked = fight == null ? [] : fight.ranked();
+        var ranked = fight == null ? [] : fight.ranked(healing, true);
         var elapsed = fight == null ? 0 : fight.duration(now);
         // A single instant hit should not display thousands of times its damage as DPS.
         var seconds = Math.max(1, elapsed);
         var total = 0.0;
-        for (p in ranked) total += p.damage;
+        for (p in ranked) total += healing ? p.heal : p.damage;
         var selected = fight == null ? null : fight.players[selectedPlayer];
+        if (empty != null) setText(empty, healing ? (fight != null && !HealingDisplay.recorded(fight)
+            ? "Healing was not recorded in this older log" : "No healing recorded") : emptyText);
         if (skillView != (selected != null)) {
             skillView = selected != null;
             layoutViewport();
         }
         if (selected != null) {
-            show(empty, false);
+            show(empty, healing && !selected.healingSkills.iterator().hasNext());
             for (row in rows) show(row.obj, false);
-            skillTable.update(selected, seconds, availableRowWidth());
+            skillTable.update(selected, seconds, availableRowWidth(), healing);
             // Narrow layouts have a taller heading. Reserve its final height
             // after laying out the columns, including scrollbar width changes.
             layoutViewport();
@@ -114,10 +124,10 @@ class NativeDamageChart {
             var row = rows[i]; show(row.obj, i < count);
             if (i >= count) continue;
             var p = ranked[i]; row.uid = p.info.uid;
-            var amount = p.damage; var color = classColor(p.info.className);
+            var amount = healing ? p.heal : p.damage; var color = classColor(p.info.className);
             row.caption = (i + 1) + ". " + p.info.name;
-            setText(row.details, compact(p.damage) + " (" + compact(p.damage / seconds)
-                + ", " + Std.int(total > 0 ? p.damage * 100 / total : 0) + "%)");
+            setText(row.details, compact(amount) + " (" + compact(amount / seconds)
+                + ", " + Std.int(total > 0 ? amount * 100 / total : 0) + "%)");
             sizeRow(row);
             if (row.color != color) {
                 row.color = color;
