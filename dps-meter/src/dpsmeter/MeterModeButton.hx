@@ -27,7 +27,8 @@ class MeterModeButton {
         G.call("h2d.Graphics", "clear", graphic);
         if (!healing) {
             // Two double-bit battle axes, with broad blades on both sides of
-            // each haft. Native vector paths stay sharp at different UI scales.
+            // each haft. Keep the heads above the handle crossing with a clear
+            // gap between their outlines, even at the native 24px icon size.
             axe(-Math.PI / 4);
             axe(Math.PI / 4);
             return;
@@ -40,17 +41,17 @@ class MeterModeButton {
     function axe(angle:Float):Void {
         G.call("h2d.Graphics", "lineStyle", graphic, [1.1, 0x5b4334, 1.0]);
         G.call("h2d.Graphics", "beginFill", graphic, [0xb99164, 1.0]);
-        rotated([[11.,3.],[13.,3.],[13.,22.],[11.,22.],[11.,3.]], angle);
+        rotated([[11.,3.],[13.,3.],[13.,25.],[11.,25.],[11.,3.]], angle);
         G.call("h2d.Graphics", "endFill", graphic);
         G.call("h2d.Graphics", "beginFill", graphic, [0xe8d4b2, 1.0]);
-        rotated([[11.,4.],[8.,3.],[7.,2.],[6.,4.],[5.5,6.],[6.,8.],[7.,10.],[8.,9.],[11.,8.],
-            [13.,8.],[16.,9.],[17.,10.],[18.,8.],[18.5,6.],[18.,4.],[17.,2.],[16.,3.],[13.,4.],[11.,4.]], angle);
+        rotated([[11.,4.],[9.,3.5],[8.5,2.5],[8.,4.],[7.5,6.],[8.,7.5],[8.5,9.],[9.,8.],[11.,7.],
+            [13.,7.],[15.,8.],[15.5,9.],[16.,7.5],[16.5,6.],[16.,4.],[15.5,2.5],[15.,3.5],[13.,4.],[11.,4.]], angle);
         G.call("h2d.Graphics", "endFill", graphic);
     }
     function rotated(points:Array<Array<Float>>, angle:Float):Void {
         var cosine = Math.cos(angle), sine = Math.sin(angle);
-        path([for (p in points) [12 + (p[0] - 12) * cosine - (p[1] - 12) * sine,
-            12 + (p[0] - 12) * sine + (p[1] - 12) * cosine]]);
+        path([for (p in points) [12 + (p[0] - 12) * cosine - (p[1] - 14.5) * sine,
+            14.5 + (p[0] - 12) * sine + (p[1] - 14.5) * cosine]]);
     }
     function path(points:Array<Array<Float>>):Void {
         G.call("h2d.Graphics", "moveTo", graphic, [points[0][0], points[0][1]]);
