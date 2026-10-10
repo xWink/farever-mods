@@ -39,6 +39,12 @@ class GameAccess {
         case "ent.Unit.get_health": field(object, "health");
         case "ent.Unit.get_maxHealth": field(object, "maxHealth");
         case "ent.Unit.getName": field(object, "name");
+        case "ent.GameObject.resolveProxy": field(object, "proxy") == null ? object : field(object, "proxy");
+        case "st.skill.ScriptHitData.get_source": field(object.skill, "instigator") == null ? object.skill.owner : object.skill.instigator;
+        case "st.skill.BaseSkill.getSourceObject": field(object, "owner");
+        case "st.skill.Status.getSourceObject": field(object, "instigator");
+        case "st.skill.BaseSkill.getSourceSkill", "st.skill.Status.getSourceSkill": field(object, "origin") == null ? object : field(object, "origin");
+        case "st.skill.BaseSkill.checkAlignment": field(args[0], "aligned") != false;
         case "st.skill.DamageResult.get_source": field(object, "source");
         case "st.skill.DamageResult.get_isPhysical": field(object, "physical") == true;
         case "st.skill.DamageResult.get_isMagic": field(object, "magical") == true;
@@ -64,6 +70,9 @@ class GameAccess {
         default: throw "Unexpected native metadata call: " + type + "." + name;
     };
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic return switch (type + "." + name) {
+        case "HSkill.getStepEffectVal":
+            if (args[0].effect != 1) throw "Must not evaluate a damage effect / RNG";
+            args[0].estimate;
         case "Config.getVersion": "0.3.0.test";
         case "HActivity.all": [];
         case "data.CodexData.isInCodex": field(args[0], "inCodex") == true;

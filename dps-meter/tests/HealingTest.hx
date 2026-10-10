@@ -1,7 +1,6 @@
 import dpsmeter.CombatModel;
 import dpsmeter.FightHistory;
 import dpsmeter.HealingDisplay;
-import dpsmeter.HealingObservation;
 import dpsmeter.RiftRecapHistory;
 import dpsmeter.SkillBreakdown;
 import haxe.Json;
@@ -76,7 +75,7 @@ class HealingTest {
         check(old.players["me"].damage == 100 && !old.players["me"].healingRecorded && !HealingDisplay.recorded(old),
             "Old logs load without inventing healing records");
         check(HealingDisplay.detail(entry, old).indexOf("Actual healing: unavailable") >= 0, "Old logs do not claim zero actual healing");
-        observations(); boundaries(); zeroContributionIdentity();
+        boundaries(); zeroContributionIdentity();
         Sys.println('Healing meter: $checks checks passed');
     }
     static function zeroContributionIdentity():Void {
@@ -116,25 +115,6 @@ class HealingTest {
         Reflect.deleteField(record.boss, "meClass");
         check(FightHistory.entry(record).playerClass == "cleric",
             "A recap can retain the same character's known class from the gate phase");
-    }
-    static function observations():Void {
-        var o = new HealingObservation();
-        o.health("ally", 100, 250);
-        check(o.consume("ally", 500, 250, 250) == 150, "Use the pre-RPC health delta, not post-heal missing HP");
-        check(o.consume("ally", 500, 250, 250) == 0, "A full overheal restores zero, without reusing the previous healer's delta");
-        check(o.consume("ally", 500, 100, 250) == null, "A missing non-full observation stays unknown");
-        o.health("ally", 100, 160); o.health("ally", 160, 200);
-        check(o.consume("ally", 500, 200, 250) == null, "Merged health changes cannot be attributed to one skill");
-        o.health("ally", 200, 100);
-        check(o.consume("ally", 500, 100, 250) == null, "Damage deltas cannot be counted as healing");
-        o.health("ally", 100, 200);
-        check(o.consume("ally", 50, 200, 250) == null, "A larger unrelated gain is not clamped into plausible fake healing");
-        o.health("ally", 100, 200); o.clear();
-        check(o.consume("ally", 500, 200, 250) == null, "Prior network batches cannot supply stale health gains");
-        o.health("ally", 100, 200); o.invalidate("ally");
-        check(o.consume("ally", 500, 200, 250) == null, "Damage events invalidate preceding health measurements");
-        o.health("ally", 100, 250); o.nextBatch();
-        check(o.consume("ally", 500, 250, 250) == null, "Split deliveries cannot turn a missed gain into a full overheal");
     }
     static function boundaries():Void {
         var m = new CombatModel(0, "test"); m.me = "me";

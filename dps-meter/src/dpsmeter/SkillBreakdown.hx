@@ -20,7 +20,7 @@ class SkillBreakdown {
         damage: skill.output, percent: total > 0 ? skill.output * 100 / total : 0,
         casts: skill.casts, avgCast: skill.casts > 0 ? skill.output / skill.casts : 0,
         hits: skill.hits, avgHit: skill.hits > 0 ? skill.output / skill.hits : 0,
-        crit: skill.hits > 0 ? skill.crits * 100 / skill.hits : 0,
+        crit: skill.knownCritHits > 0 ? skill.crits * 100 / skill.knownCritHits : 0,
         dps: skill.output / Math.max(1, duration)
     };
     public static function columns(width:Int, recap:Bool = false, healing:Bool = false):Array<SkillColumn> {

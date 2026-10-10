@@ -117,6 +117,7 @@ class NativeDamageChart {
             return;
         }
         show(skillTable.object, false);
+        var uncertainShare = healing && Lambda.exists(ranked, p -> p.healing.estimatedHits > 0 || p.healing.unknownOutputHits > 0);
         var count = ranked.length;
         show(empty, count == 0);
         while (rows.length < count) rows.push(makeRow(rows.length));
@@ -126,8 +127,10 @@ class NativeDamageChart {
             var p = ranked[i]; row.uid = p.info.uid;
             var amount = healing ? p.heal : p.damage; var color = classColor(p.info.className);
             row.caption = (i + 1) + ". " + p.info.name;
-            setText(row.details, compact(amount) + " (" + compact(amount / seconds)
-                + ", " + Std.int(total > 0 ? amount * 100 / total : 0) + "%)");
+            var amountText = healing ? HealingDisplay.output(p.healing, amount, compact) : compact(amount);
+            var rateText = healing ? HealingDisplay.output(p.healing, amount / seconds, compact) : compact(amount / seconds);
+            setText(row.details, amountText + " (" + rateText
+                + ", " + (uncertainShare ? "~" : "") + Std.int(total > 0 ? amount * 100 / total : 0) + "%)");
             sizeRow(row);
             if (row.color != color) {
                 row.color = color;

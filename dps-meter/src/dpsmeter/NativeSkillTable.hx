@@ -50,8 +50,9 @@ class NativeSkillTable {
             var row = rows[i]; show(row.obj, i < ids.length);
             if (i >= ids.length) continue;
             var key = ids[i];
-            if (!names.exists(key)) names[key] = NativeCombatMetadata.skillName(key);
-            if (!icons.exists(key)) icons[key] = NativeCombatMetadata.skillIcon(key);
+            var synthetic = key == "Regen / unattributed" || key == "Unknown healing";
+            if (!names.exists(key)) names[key] = synthetic ? key : NativeCombatMetadata.skillName(key);
+            if (!icons.exists(key)) icons[key] = synthetic ? null : NativeCombatMetadata.skillIcon(key);
             if (row.skill != key || row.tile != icons[key]) {
                 row.skill = key; row.tile = icons[key];
                 G.call("h2d.Bitmap", "set_tile", row.icon, [row.tile]);
@@ -62,7 +63,7 @@ class NativeSkillTable {
             var v = healing ? SkillBreakdown.healingValues(player.healingSkills[key], player.heal, duration)
                 : SkillBreakdown.values(player.skills[key], player.damage, duration);
             var distribution = healing ? null : player.skills[key].damageBreakdown.distribution(player.skills[key].damage);
-            row.actualShare = healing && player.healingSkills[key].complete() && v.damage > 0
+            row.actualShare = healing && player.healingSkills[key].complete() && player.healingSkills[key].unknownOutputHits == 0 && v.damage > 0
                 ? player.healingSkills[key].actual / v.damage : -1.0;
             row.physical = distribution == null ? -1.0 : distribution.physical;
             row.magical = distribution == null ? -1.0 : distribution.magical;
@@ -73,6 +74,16 @@ class NativeSkillTable {
                 "avgCast" => compact(v.avgCast), "hits" => Std.string(v.hits), "avgHit" => compact(v.avgHit),
                 "crit" => Std.string(SkillStats.rounded(v.crit, 1)) + "%", "dps" => compact(v.dps)];
             var values:Map<String, String> = row.values;
+            if (healing) {
+                var stats = player.healingSkills[key];
+                values["damage"] = HealingDisplay.output(stats, v.damage, compact);
+                values["dps"] = HealingDisplay.output(stats, v.dps, compact);
+                values["avgCast"] = HealingDisplay.output(stats, v.avgCast, compact);
+                values["avgHit"] = HealingDisplay.output(stats, v.avgHit, compact);
+                values["crit"] = HealingDisplay.crit(stats);
+                if (player.healing.unknownOutputHits > 0) values["percent"] = "—";
+                else if (player.healing.estimatedHits > 0) values["percent"] = "~" + values["percent"];
+            }
             var signature = healing + "|" + row.actualShare + "|" + row.physical + "|" + row.magical + "|" + (cast row.percentages:Array<String>).join("|")
                 + "|" + [for (key in SkillBreakdown.KEYS) values[key]].join("|");
             var nameText = (cast row.texts:Map<String, Dynamic>)["ability"];

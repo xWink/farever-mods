@@ -138,10 +138,15 @@ class RiftTracker {
         }
     }
 
+    public function healingFight():Null<Fight> {
+        return waitingForGates() ? warmup : current;
+    }
+
     public function drain(now:Float, completed:Array<Fight>, recaps:Array<RiftRecap>, force:Bool = false,
         ?history:Array<Fight>, ?recapHistory:Array<RiftRecap>):Void {
         for (index in 0...2) {
-            if (ended[index] < 0 || exported[index] || (!force && now < ended[index] + FINAL_DAMAGE_SECONDS)) continue;
+            if (ended[index] < 0 || exported[index] || (fights[index] != null && fights[index].pendingHealing > 0)
+                || (!force && now < ended[index] + FINAL_DAMAGE_SECONDS)) continue;
             exported[index] = true;
             if (fights[index] != null) {
                 completed.push(fights[index]);
@@ -161,7 +166,7 @@ class RiftTracker {
         // Leaving an unfinished rift still preserves its chart locally, without
         // submitting an abandoned phase as a completed boss-kill report.
         if (force && history != null) for (index in 0...2) {
-            if (exported[index] || fights[index] == null) continue;
+            if (exported[index] || fights[index] == null || fights[index].pendingHealing > 0) continue;
             exported[index] = true;
             var snapshot = fights[index].copy();
             snapshot.last = Math.max(snapshot.start, now);

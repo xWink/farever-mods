@@ -10,7 +10,8 @@ typedef PlayerInfo = {
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
-    ?damageType:String, ?affinity:String, ?targetDummy:Bool, ?actualHealing:Float
+    ?damageType:String, ?affinity:String, ?targetDummy:Bool, ?actualHealing:Float,
+    ?estimatedHealing:Bool, ?unknownHealing:Bool, ?estimatedActual:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool
 };
 
 class SkillStats {
@@ -107,7 +108,7 @@ class PlayerStats {
         if (!healingRecorded) return null;
         var data = healing.json();
         var ids = [for (id in healingSkills.keys()) id]; ids.sort(Reflect.compare);
-        Reflect.setField(data, "actualMethod", "replicated-health-change");
+        Reflect.setField(data, "actualMethod", "replicated-health-correlation");
         Reflect.setField(data, "skills", [for (id in ids) {
             var skill = healingSkills[id].json(); Reflect.setField(skill, "id", id); skill;
         }]);
@@ -128,6 +129,8 @@ class Fight {
     public var gameVersion:String;
     public var last:Float;
     public var closed:Float = 0;
+    /** Transient reconciliation holds; never written into a history file. */
+    public var pendingHealing:Int = 0;
     public var defeated:Bool = false;
     public var outcome:String = "";
     public var isBoss:Bool = true;
@@ -178,7 +181,7 @@ class Fight {
         return Math.max(0.001, (closed > 0 || now == null ? last : now) - start);
     }
     public function ranked(healing:Bool = false, visibleOnly:Bool = false):Array<PlayerStats> {
-        var list = [for (p in players) if (!visibleOnly || (healing ? p.heal > 0 : p.damage > 0)) p];
+        var list = [for (p in players) if (!visibleOnly || (healing ? p.healing.hits > 0 : p.damage > 0)) p];
         list.sort((a, b) -> {
             var av = healing ? a.heal : a.damage, bv = healing ? b.heal : b.damage;
             return av > bv ? -1 : av < bv ? 1 : Reflect.compare(a.info.name, b.info.name);
@@ -438,7 +441,8 @@ class CombatModel {
     function drainHistory(now:Float, force:Bool = false):Void {
         // Death can precede its final damage RPC. Keep the same mutable fight
         // through that grace period, then hand off a detached snapshot once.
-        while (pendingHistory.length > 0 && (force || now > pendingHistory[0].closed + ENTRY_DAMAGE_SECONDS)) {
+        while (pendingHistory.length > 0 && pendingHistory[0].pendingHealing == 0
+            && (force || now > pendingHistory[0].closed + ENTRY_DAMAGE_SECONDS)) {
             var finished = pendingHistory.shift();
             finished.finishOutcome();
             history.push(finished.copy());
@@ -492,6 +496,23 @@ class CombatModel {
             pendingHistory.push(current);
         }
         current = null;
+    }
+    /** Capture destinations NOW, not after the HP-correlation grace period.
+        Delayed evidence must never leak from warm-up/gates into the next phase. */
+    public function captureHealing(source:String):Null<HealingScope> {
+        var info = profiles[source];
+        if (info == null) return null;
+        var fights:Array<Fight> = [];
+        var member = source == me || party.exists(source);
+        var intro = phrixesUid != "" && phrixesPhase < 2;
+        if (member) {
+            fights.push(session);
+            var active = intro ? phrixesIntro : rift != null ? rift.healingFight() : current != null ? current : pendingFight;
+            if (active != null && active.closed == 0) fights.push(active);
+        }
+        if (rift == null && !intro && boss != null && inCombat && (member || boss.participants.exists(source)))
+            fights.push(boss);
+        return fights.length == 0 ? null : new HealingScope(fights, info, session);
     }
     public function record(e:DamageEvent):Void {
         if (!Math.isFinite(e.amount) || e.amount <= 0 || e.source == "" || e.source == "0") return;

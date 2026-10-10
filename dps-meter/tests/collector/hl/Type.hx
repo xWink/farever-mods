@@ -1,7 +1,13 @@
 package hl;
 
-/** Collector's summon path is native-only and must not run in these tests. */
+/** Explicit interpreter stand-in for the native skill's virtual type. */
 class Type {
-    public static function getDynamic(value:Dynamic):Type throw "Unexpected native summon type lookup";
-    public function getTypeName():String throw "Unexpected native summon type lookup";
+    var name:String;
+    function new(name:String) this.name = name;
+    public static function getDynamic(value:Dynamic):Type {
+        var name = Reflect.field(value, "__type");
+        if (name == null) throw "Missing native type in test";
+        return new Type(name);
+    }
+    public function getTypeName():String return name;
 }

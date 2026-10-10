@@ -46,3 +46,9 @@
 --macro haxe.macro.Compiler.allowPackage('hl')
 -main CollectorHealingTest
 --interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main HealingCaptureTest
+--interp

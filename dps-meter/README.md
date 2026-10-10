@@ -79,28 +79,41 @@ observed restored health, with a green bar for its share of the ability's output
 the remaining pale portion is overheal. The history header shows the selected
 player's HPS and actual healing total.
 
-Healing includes self-heals, but collection is limited to notifications delivered
-to this client. The game's `rpcDisplayHeal` sends to the owning player's client,
-not every party member. In particular, another player's self-heal is not delivered
-to your meter; party healing totals are therefore incomplete. Client-side healing
-effects and HP gains alone cannot identify authoritative output, its healer, or
-its ability, so they are not substituted for missing notifications.
+Healing includes self-heals and other-player-to-other-player heals observed by this
+client. Exact owner-delivered `rpcDisplayHeal` results take priority. When those
+notifications are absent, the meter uses `playHitHealFX` for caster/ability identity
+and matches authoritative HP changes within 1.5 seconds. Status healing follows
+its original instigator; summon healing follows its owner and summoning ability.
+The game’s own healing scaling helper estimates missing output using the skill’s
+rank, attributes, stacks and tick count. Final server scripts/modifiers and remote
+critical rolls are not fully replicated, so these amounts are estimates.
 
-The notification has no separate effective-healing field. Actual healing is
-inferred from the recipient's authoritative health-property changes preceding a
-heal notification, not from the target's missing health after the heal. Ambiguous
-or missing observations are marked **Unavailable**; totals containing both known
-and unknown observations are marked **(partial)**. These are client observations,
-not a server combat-log guarantee. Only healing events received by this client can
-be counted. Combat recovery after an encounter ends does not enter that fight.
+**`~` means estimated**, **`≥` means only a lower bound is known**, and **Unavailable**
+means the amount could not be determined. An unknown critical rate displays **—**;
+a mixed critical rate uses only the known rolls and is marked **~**. Overlapping
+healers or damage can make actual healing ambiguous; those amounts stay unavailable
+(or **partial** in totals). The same heal is never counted once for its FX and again
+for its exact notification. Counts settle after a short correlation delay.
+
+An unmatched combat HP gain appears as **Regen / unattributed**, credited to the
+recipient. This is observed recovery, not proof of regeneration, a known caster,
+or a total including overheal. Spawn/revive initialization and out-of-combat
+recovery are excluded from this bucket. No method here guarantees a complete
+server combat log: effects outside client visibility and server-only scripted
+heals can still be missing or unattributed.
 
 New history records and uploader reports add a `healing` object per player with
-`output`, `actual`, `measuredOutput`, `overheal` (null when incomplete), hit/crit/cast
-counts, and a `skills` array. `measuredHits` identifies how many events have an actual
-measurement. Existing damage fields, damage skills, and the history version remain
-unchanged; `heal` retains the total output. Older logs still open normally and show
-healing as unavailable when they predate collection. Rift recap logs preserve both
-meters for both phases even when recap popups are disabled.
+`output`, `actual`, `measuredOutput`, `overheal` (null when unknown/incomplete),
+hit/crit/cast counts, and a `skills` array. Evidence counts (`knownCritHits`,
+`estimatedHits`, `unknownOutputHits`, `estimatedActualHits`, `unattributedHits`)
+preserve the distinction between exact output, estimates and recovery-only data.
+`measuredHits` identifies how many events have an actual-healing observation;
+`actualMethod` is `replicated-health-correlation`. Damage fields and history format
+version are unchanged. Older logs remain readable. Pending heals stay attached to
+the encounter/phase where observed, including through exit and recap finalization.
+
+See [healing-attribution.md](healing-attribution.md) for the client-code investigation
+and the limits of each evidence source.
 
 ## Reviewing past fights
 

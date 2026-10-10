@@ -8,7 +8,17 @@ import dpsmeter.RiftTracker.RiftRecap;
 class HealingDisplay {
     public static function actual(stats:HealingStats, format:Float->String):String {
         if (stats.hits > 0 && stats.measuredHits == 0) return "Unavailable";
-        return format(stats.actual) + (stats.complete() ? "" : " (partial)");
+        return (stats.estimatedActualHits > 0 ? "~" : "") + format(stats.actual) + (stats.complete() ? "" : " (partial)");
+    }
+    public static function output(stats:HealingStats, value:Float, format:Float->String):String {
+        if (stats.unknownOutputHits > 0) return value > 0
+            ? (stats.estimatedHits > stats.unknownOutputHits ? "~" : "≥") + format(value) : "Unavailable";
+        return (stats.estimatedHits > 0 ? "~" : "") + format(value);
+    }
+    public static function crit(stats:HealingStats):String {
+        if (stats.knownCritHits == 0) return "—";
+        return (stats.knownCritHits < stats.hits ? "~" : "")
+            + Std.string(SkillStats.rounded(stats.crits * 100 / stats.knownCritHits, 1)) + "%";
     }
     public static function number(value:Float):String {
         var label = FightHistory.dpsLabel(value, false);
@@ -31,7 +41,7 @@ class HealingDisplay {
         var name = p == null ? entry.playerName : p.info.name;
         return FightHistory.dateLabel(entry.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
-            + (known ? number(p.heal / Math.max(1, entry.duration)) : "unavailable")
+            + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
             + "  ·  Actual healing: " + (known ? actual(p.healing, number) : "unavailable");
     }
@@ -43,6 +53,7 @@ class HealingDisplay {
             if (p == null || !p.healingRecorded) { known = false; continue; }
             name = p.info.name;
             total.actual += p.healing.actual; total.hits += p.healing.hits; total.measuredHits += p.healing.measuredHits;
+            total.estimatedActualHits += p.healing.estimatedActualHits;
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)

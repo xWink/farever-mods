@@ -48,7 +48,7 @@ class DpsMeterMod {
 
     static function flushFights():Void {
         writer.archiveHistory(collector.model);
-        while (collector.model.completed.length > 0) {
+        while (collector.model.completed.length > 0 && collector.model.completed[0].pendingHealing == 0) {
             if (config.sendLogs) writer.enqueue(collector.model.completed[0]);
             collector.model.completed.shift();
         }
@@ -56,6 +56,7 @@ class DpsMeterMod {
     static function finishHistory():Void {
         try {
             if (collector != null && writer != null) {
+                collector.healingCapture.flush(haxe.Timer.stamp(), true);
                 collector.model.reset(haxe.Timer.stamp());
                 flushFights();
             }
@@ -106,9 +107,9 @@ class DpsMeterMod {
         if (collector != null) try collector.healthChanged(instance, value) catch (_:Dynamic) {}
         return Continue;
     }
-    @:hlx.prefix(hxbit.NetworkClient.processMessagesData)
-    static function startHealingBatch(instance:Dynamic, data:Dynamic, position:Int, length:Int):HlxPrefixResult<Void> {
-        if (collector != null) collector.healingObservation.nextBatch();
+    @:hlx.prefix(ent.Unit.playHitHealFX)
+    static function collectHealingFX(instance:Dynamic, hitData:Dynamic):HlxPrefixResult<Dynamic> {
+        if (collector != null) try collector.healingFX(instance, hitData, haxe.Timer.stamp()) catch (_:Dynamic) {}
         return Continue;
     }
 
@@ -160,6 +161,7 @@ class DpsMeterMod {
                 if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) historyView.toggle();
             }
             if (config.enabled) collector.update(instance, now);
+            else collector.healingCapture.flush(now, true);
             flushFights();
             writer.update(now);
         } catch (_:Dynamic) {}

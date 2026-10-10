@@ -27,13 +27,14 @@ class Collector {
         var nextHero = G.field(app, "hero");
         var nextLayer = G.field(nextHero, "layer");
         if (hero != nextHero || layer != nextLayer) {
+            healingCapture.flush(now, true);
             model.reset(now); hero = nextHero; layer = nextLayer;
-            healingObservation.clear();
             groupMembers = []; lastGroupSeen = -1; lastRoster = -1;
             profileRefresh = []; profileWeapons = [];
             phrixes = null;
             riftWait = null;
         }
+        healingCapture.flush(now);
         if (hero == null) return;
         if (now - lastRoster < 0.25) return;
         lastRoster = now;
@@ -161,29 +162,70 @@ class Collector {
         }
         if (riftWait != null && G.call("st.Objective", "isCompleted", riftWait) == true) model.startRiftGates();
     }
-    public var healingObservation:HealingObservation = new HealingObservation();
-    public function healthChanged(attributes:Dynamic, after:Float):Void {
-        if (!config.enabled) return;
+    public var healingCapture:HealingCapture = new HealingCapture();
+    public function healthChanged(attributes:Dynamic, after:Float, ?now:Float):Void {
+        if (!config.enabled || hero == null) return;
         var host = G.field(attributes, "__host");
-        // Only replicated health is authoritative; ignore prediction and initialization.
         if (host == null || G.integer(G.field(host, "isSyncingProperty"), -1) < 0) return;
-        healingObservation.health(G.uid(G.field(attributes, "unit")), G.number(G.field(attributes, "health")), after);
+        var target = G.field(attributes, "unit"), uid = G.uid(target);
+        var before = G.number(G.field(attributes, "health"));
+        if (uid == "" || before <= 0 || before == after) return;
+        if (!model.profiles.exists(uid) && G.field(target, "player") == null
+            && G.field(target, "summonOwner") == null) return;
+        // Only combat recovery on known heroes can become unattributed healing.
+        // Other units' HP may still correlate with an explicitly sourced heal.
+        var scope:Null<HealingScope> = null;
+        if (after > before && model.profiles.exists(uid)) scope = model.captureHealing(uid);
+        healingCapture.health(uid, before, after, now == null ? haxe.Timer.stamp() : now, scope);
+    }
+    function healingSource(source:Dynamic, skill:Dynamic, fallbackUid:String = ""):Null<{uid:String, skill:Dynamic}> {
+        var resolved = NativeHealing.owner(source, skill);
+        source = resolved.source;
+        var uid = G.uid(source);
+        if (uid == "" || uid == "0") uid = fallbackUid;
+        if (profile(source) == null && !model.profiles.exists(uid)) return null;
+        if (G.field(layer, "isRift") == true) {
+            model.enableRift(); refreshRiftGates();
+            if (G.field(source, "layer") == layer) model.party[uid] = true;
+        }
+        if (model.profiles[uid].className == "") model.profiles[uid].className = inferClass(G.text(G.field(resolved.skill, "kind")));
+        return {uid: uid, skill: resolved.skill};
     }
     public function healing(receiver:Dynamic, result:Dynamic, now:Float):Void {
-        if (!config.enabled || result == null || G.field(receiver, "simulatingServer") == true) return;
-        // The RPC can run on the caster. DamageResult.target identifies whose
-        // health changed, including self-heals where source and target match.
-        // A missing recipient cannot supply an effective-healing measurement.
+        if (!config.enabled || hero == null || result == null || G.field(receiver, "simulatingServer") == true) return;
+        var rawSkill = gamecompat.HitSkill.read(result, G.field);
+        var owner = healingSource(G.call("st.skill.DamageResult", "get_source", result), rawSkill, G.text(G.field(result, "weakSource")));
+        if (owner == null) return;
         var target = G.field(result, "target");
-        var actual:Null<Float> = null;
-        if (target != null) try actual = healingObservation.consume(G.uid(target), G.number(G.field(result, "_amount")),
-            G.number(G.call("ent.Unit", "get_health", target), Math.NaN),
-            G.number(G.call("ent.Unit", "get_maxHealth", target), Math.NaN)) catch (_:Dynamic) {}
-        damage(target, result, now, actual);
+        var amount = G.number(G.field(result, "_amount"));
+        if (amount <= 0) return;
+        var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), amount);
+        e.critical = G.field(result, "_critical") == true;
+        var key = NativeHealing.key(rawSkill, G.integer(G.field(result, "stepIdx")));
+        var full = NativeHealing.full(target);
+        healingCapture.heal(e, model.captureHealing(owner.uid), key, true, full);
+    }
+    public function healingFX(target:Dynamic, hit:Dynamic, now:Float):Void {
+        if (!config.enabled || hero == null || hit == null || G.field(target, "simulatingServer") == true) return;
+        var rawSkill = G.field(hit, "skill");
+        // ScriptHitData.get_source follows Status.instigator, not the recipient
+        // who owns a heal-over-time status. It also resolves source proxies.
+        var owner = healingSource(G.call("st.skill.ScriptHitData", "get_source", hit), rawSkill);
+        if (owner == null) return;
+        var estimate:Null<Float> = null;
+        try estimate = NativeHealing.estimate(hit, target) catch (_:Dynamic) {}
+        var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
+        e.unknownHealing = estimate == null;
+        var key = NativeHealing.key(rawSkill, G.integer(G.field(G.field(hit, "step"), "index")));
+        var full = NativeHealing.full(target);
+        healingCapture.heal(e, model.captureHealing(owner.uid), key, false, full);
     }
     public function damage(target:Dynamic, damage:Dynamic, now:Float, ?actualHealing:Float):Void {
-        if (G.integer(G.field(damage, "effect")) != 1) healingObservation.invalidate(G.uid(target));
         if (!config.enabled || hero == null || damage == null) return;
+        // The uploader may resume a copied boss snapshot; settle its pending
+        // heals before copying, never mutate an already exported report.
+        if (model.boss == null && model.lastBoss != null && model.lastBoss.pendingHealing > 0)
+            healingCapture.flush(now, true);
         // Blocked hits retain their calculated amount even though no damage is dealt.
         var blocker = G.text(G.field(damage, "blocker"));
         if (blocker == "InvulnerableHit" || blocker == "DamageDodge") return;
