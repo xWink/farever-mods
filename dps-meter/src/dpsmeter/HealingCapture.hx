@@ -17,9 +17,9 @@ private typedef HealingTarget = {heals:Array<HealEvidence>, health:Array<HealthE
     A replicated gain is spent once across all casters. Bounded, event-driven;
     no scanning units, polling HP, or retaining native objects. */
 class HealingCapture {
-    public static inline var WINDOW:Float = 1.5;
+    public static inline var WINDOW:Float = .12;
     // A network/render burst can contain several heals contributing to one HP
-    // update. Use the nearest burst, not every heal in the 3-second search span.
+    // update. Use the nearest burst inside the correlation window.
     static inline var BURST:Float = .12;
     static inline var LIMIT:Int = 64;
     var targets:Map<String, HealingTarget> = [];

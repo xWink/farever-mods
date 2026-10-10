@@ -7,6 +7,12 @@ class CollectorHealingTest {
     static function check(value:Bool, message:String):Void { checks++; if (!value) throw message; }
     static function main():Void {
         var config = MeterConfig.defaults(), c = new Collector(config);
+        var traceRows:Array<Dynamic> = [];
+        config.healingTrace = true;
+        c.healingTrace = new dpsmeter.HealingTrace(text -> {
+            for (line in text.split("\n")) if (line != "") traceRows.push(haxe.Json.parse(line));
+        });
+        c.healingTrace.setEnabled(true, 10);
         for (kind in ["Warrior", "Priest", "Mage", "Rogue"]) {
             var remote:Dynamic = {__uid: kind, name: kind, inf: {id: kind}, player: {isMe: false}};
             check(c.profile(remote).className == (kind == "Priest" ? "cleric" : kind.toLowerCase()),
@@ -78,6 +84,13 @@ class CollectorHealingTest {
             "Healing-only rows keep their class colour even when the healing ability does not identify a class");
         check(c.model.current.players["me"].damage == 100 && c.model.current.pendingHealing == 0,
             "All channels preserve damage and release pending archive holds");
+        attributes.health = 200.; c.healthChanged(attributes, 100, 51);
+        c.healingTrace.setEnabled(false, 52);
+        check(traceRows.filter(e -> e.kind == "rpc" && e.wouldCount == false && e.proposed == null).length > 0,
+            "Diagnostics record the rejected target filter while real healing output remains intact");
+        check(traceRows.filter(e -> e.kind == "hp" && e.before == 200 && e.after == 100).length == 1,
+            "Trace includes authoritative HP loss, which normal recovery collection ignores");
+        check(traceRows.filter(e -> e.kind == "error").length == 0, "All diagnostic native reads resolve");
         Sys.println('Healing client collector: $checks checks passed');
     }
 }

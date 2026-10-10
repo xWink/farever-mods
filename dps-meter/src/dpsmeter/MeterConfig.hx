@@ -17,6 +17,7 @@ typedef MeterSettings = {
     var unlocked:Bool;
     var sendLogs:Bool;
     var debug:Bool;
+    var healingTrace:Bool;
     var me:String;
     var group:String;
     var x:Float;
@@ -48,6 +49,7 @@ class MeterConfig {
         unlocked: false,
         sendLogs: true,
         debug: false,
+        healingTrace: false,
         me: "",
         group: "",
         x: 60,

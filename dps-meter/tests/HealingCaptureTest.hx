@@ -24,6 +24,22 @@ class HealingCaptureTest {
         c.heal(e, m.captureHealing(source), "Heal/0", exact);
     }
     static function main():Void {
+        for (delay in [.119, .121]) {
+            var m = model(), c = new HealingCapture();
+            heal(c, m, 11, "a", false, 200);
+            heal(c, m, 11 + delay, "a", true, 500);
+            c.flush(11.4);
+            check(m.current.players["a"].healing.hits == (delay < .12 ? 1 : 2),
+                "FX/results match within 120 ms, not outside the requested window");
+            check(m.current.players["a"].heal == (delay < .12 ? 500 : 700),
+                "Only notifications inside the window replace the estimate");
+        }
+        {
+            var m = model(), c = new HealingCapture();
+            heal(c, m, 11, "a", true, 500); c.flush(11.121);
+            check(m.current.players["a"].heal == 500 && m.current.pendingHealing == 0,
+                "An isolated result settles after 120 ms without the previous 1.5 second delay");
+        }
         // Both RPC/FX orders and both HP orders must produce the same result.
         for (exactFirst in [true, false]) for (hpFirst in [true, false]) {
             var m = model(), c = new HealingCapture();

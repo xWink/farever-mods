@@ -19,7 +19,7 @@ based on another meter's UI. The implementation is independent of Farever Book.
 ## Collection rules
 
 1. Take exact results when delivered. Pair one FX with one result by caster,
-   recipient, native skill identity and step within the bounded correlation window.
+   recipient, native skill identity and step within the 120 ms correlation window.
    Equal-sized repeated casts/ticks are not deduplicated against one another.
 2. Capture the meter-owned fight destinations when evidence arrives. Delay
    archiving until its pending evidence settles; do not resolve against the current
@@ -65,6 +65,16 @@ to 128 recipients and 64 heal/health entries per recipient. There is no per-fram
 roster/HP scan. Scope holds are released on merge, expiry, pressure and reset.
 Full-health snapshots and HP-loss evidence used only for effective healing have
 been removed.
+
+## Optional live timing experiment
+
+`HealingTrace` observes the proposed pre-heal-HP formula without adding its
+effective/overheal values to the meter. It captures exact RPCs even when the
+receiver differs from the target, records whether the proposed target-only guard
+would reject each event, and captures authoritative HP losses as well as gains.
+Sequence numbers and timestamps preserve ordering within one GameApp update.
+The trace is disabled by default; see the README for the controlled in-game test.
+The 120 ms window is an experimental tuning choice, not a measured timing guarantee.
 
 ## Validation
 
