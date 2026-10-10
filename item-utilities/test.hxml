@@ -61,6 +61,13 @@
 --next
 -cp src
 -cp ../shared/src
+-cp tests/inspect-tooltip-stubs
+-cp tests
+-main InspectTooltipsTest
+--interp
+--next
+-cp src
+-cp ../shared/src
 -cp tests/native-ui-stubs
 -cp tests
 -main NativeUtilityUiTest

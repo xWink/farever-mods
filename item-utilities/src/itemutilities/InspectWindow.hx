@@ -125,7 +125,8 @@ class InspectWindow {
             // Rebuild only when equipment or its displayed state changes.
             parts.push(item == null ? "empty" : [G.uid(item), G.text(G.field(item, "kind")),
                 G.text(G.field(item, "level")), G.text(G.field(item, "upgradeLevel")),
-                G.text(G.field(item, "infusion"))].join(":"));
+                G.text(G.field(item, "infusion")), G.text(G.field(item, "infusionBonusStat")),
+                G.text(G.field(G.field(item, "flags"), "value"))].join(":"));
         }
         parts.push(stylesAvailable ? "styles-ready" : "styles-unavailable");
         if (stylesAvailable) for (rule in NativeAppearance.rules()) {
@@ -255,6 +256,10 @@ class InspectWindow {
         var icon = G.field(appearanceInventory == null
             ? node("item-slot", card, [stack, G.field(item, "inf")], "itemUtilitiesInspectIcon" + index)
             : node("appearance-slot", card, [appearanceInventory, slot], "itemUtilitiesInspectIcon" + index), "obj");
+        if (appearanceInventory == null && item != null) {
+            G.call("ui.UIElement", "set_getTip", icon, [() ->
+                InspectTooltips.create(PlayerInspect.remoteHero(local, target.uid), item, slot)]);
+        }
         // Our refresh owns replacement so a native appearance-slot rebuild
         // cannot discard the fitted mask and the child button's tooltip.
         if (appearanceInventory != null) G.call("ui.UIElement", "clearBinds", icon);

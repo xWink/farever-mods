@@ -46,6 +46,9 @@ Slots using their original gear look are labelled **Equipped appearance**.
 Hover an item icon to see its details. Comparison tooltips fit both panels within
 the screen, including at smaller resolutions; style tooltips omit combat stats.
 These are their actual equipped items, independently of cosmetic appearances.
+Infusion bonuses and set highlights use the inspected equipment. Arsenal affixes
+use the game's slot multiplier (40%); the comparison panel keeps your own gear's
+context. These checks use replicated equipment without private player progress.
 The window updates when their equipped gear changes and closes with X or Escape.
 
 Inspect is read-only and uses equipment already available to your client. If a

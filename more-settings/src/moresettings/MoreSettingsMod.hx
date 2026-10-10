@@ -199,6 +199,7 @@ class MoreSettingsMod {
         PerformanceHooks.update(instance, dt);
         AppearanceEditor.update(instance);
         AllyEffects.update(instance);
+        try SelfChatBubbles.update(instance) catch (error:Dynamic) SocialHooks.report(error);
         return Continue;
     }
 

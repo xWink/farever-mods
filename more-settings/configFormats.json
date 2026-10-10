@@ -156,6 +156,15 @@
       "label": "Social interact hotkey"
     },
     {
+      "key": "showSelfChatBubbles",
+      "type": "checkbox",
+      "label": "Show self chat bubbles",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Show chat bubbles above your own character when you send a message."
+      }
+    },
+    {
       "type": "title",
       "label": "Rift Effects"
     },

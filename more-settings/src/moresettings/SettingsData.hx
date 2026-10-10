@@ -9,6 +9,7 @@ typedef MoreSettingsConfig = {
     var enableFriendNotes:Bool;
     var rebindSocialInteract:Bool;
     var socialInteractKey:Dynamic;
+    var showSelfChatBubbles:Bool;
     var fancyDamageNumbers:Bool;
     var disableDamageNumbers:Bool;
     var crabgantuaRockfallWarnings:Bool;
@@ -39,6 +40,7 @@ class SettingsData {
         enableFriendNotes: true,
         rebindSocialInteract: false,
         socialInteractKey: 0, // Unassigned until the player chooses a key.
+        showSelfChatBubbles: false,
         fancyDamageNumbers: false,
         disableDamageNumbers: false,
         crabgantuaRockfallWarnings: true,

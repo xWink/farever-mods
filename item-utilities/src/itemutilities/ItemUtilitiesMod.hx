@@ -490,12 +490,39 @@ class ItemUtilitiesMod {
     @:hlx.postfix(ui.BaseElement.onRemove)
     static function afterSlotElementRemoved(instance:Dynamic, result:Void):Void {
         // This also runs for slots inside removed windows and tooltips.
+        InspectTooltips.forget(instance);
         unregisterSlot(instance);
         if (instance == activeGearAppearance) activeGearAppearance = null;
         if (instance == activeTalentView) {
             activeTalentView = null;
             activeTalentRoot = null;
         }
+    }
+
+    @:hlx.prefix(ui.TipItem.init)
+    static function beforeInspectItemTip(instance:Dynamic):HlxPrefixResult<Void> {
+        InspectTooltips.begin(instance);
+        return Continue;
+    }
+
+    @:hlx.postfix(ui.TipItem.init)
+    static function afterInspectItemTip(instance:Dynamic, result:Void):Void InspectTooltips.end();
+
+    @:hlx.prefix(st.Equipment.isEquipped)
+    static function inspectItemEquipped(instance:Dynamic, item:Dynamic):HlxPrefixResult<Bool> {
+        return InspectTooltips.equippedSlot(item) == null ? Continue : SkipWith(true);
+    }
+
+    @:hlx.prefix(st.Equipment.getEquipSlot)
+    static function inspectItemSlot(instance:Dynamic, item:Dynamic):HlxPrefixResult<String> {
+        var slot = InspectTooltips.equippedSlot(item);
+        return slot == null ? Continue : SkipWith(slot);
+    }
+
+    @:hlx.prefix(ui.win.InfusionSkillDesc.getSkillRank)
+    static function inspectInfusionRank(instance:Dynamic):HlxPrefixResult<Int> {
+        var rank = InspectTooltips.infusionRank(instance);
+        return rank == null ? Continue : SkipWith(rank);
     }
 
     @:hlx.prefix(ui.BaseUI.setTip)

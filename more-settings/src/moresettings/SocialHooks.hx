@@ -16,10 +16,13 @@ class SocialHooks {
         hideConnections = config.hideFriendConnectionNotifications;
         SocialChat.commandsEnabled = config.enableMissingSlashCommands;
         SocialChat.closeAfterSend = config.sendingMessageClosesChat;
+        try SelfChatBubbles.configure(config.showSelfChatBubbles) catch (e:Dynamic) report(e);
         try interact.configure(config.rebindSocialInteract, config.socialInteractKey, refreshExisting) catch (e:Dynamic) report(e);
         try FriendNotes.configure(config.enableFriendNotes, refreshExisting) catch (e:Dynamic) report(e);
     }
-    public static function dispose():Void { SocialChat.clear(); FriendNotes.dispose(); interact.dispose(); }
+    public static function dispose():Void {
+        SocialChat.clear(); FriendNotes.dispose(); interact.dispose(); SelfChatBubbles.dispose();
+    }
     public static function report(error:Dynamic):Void {
         var message = Std.string(error);
         if (reported.exists(message)) return;

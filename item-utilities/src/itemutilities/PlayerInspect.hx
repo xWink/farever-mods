@@ -131,6 +131,7 @@ class PlayerInspect {
         if (popup == null) return;
         var old = popup; popup = null;
         old.dispose();
+        InspectTooltips.clear();
     }
     public static function localHero():Dynamic {
         var controller = G.current("client.PlayerController", "inst");
