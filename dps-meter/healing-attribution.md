@@ -48,33 +48,28 @@ based on another meter's UI. The implementation is independent of Farever Book.
    output; they are not effective healing. Save the split per player/ability and
    incoming totals per fight. Missing fields in older logs remain unavailable.
 
-## Why missing HP cannot reliably determine overheal
+## Why effective healing and overheal remain excluded
 
-`min(healAmount, maxHP - hpImmediatelyBeforeHeal)` would work if the client had
-that server-side pre-heal HP for each event. `DamageResult` contains the amount
-and target, but no pre-heal HP or effective/overheal result. `receiveHeal` is
-server-only; client FX and result callbacks are presentation notifications.
-The target's current HP is independently replicated and may already include the
-heal, another heal, or damage. `set_health` supplies a state update without a
-healing event ID. Pairing those values by arrival time cannot restore a reliable
-server ordering. Summing the guessed values compounded that uncertainty, so the
-actual-healing feature has been removed rather than recalculated from stale HP.
+Two live captures on 2026-10-10 supported the proposed formula for incoming
+target-side result RPCs: all 36 heals that restored local HP observed pre-heal HP
+in the callback, followed by the matching HP update within approximately
+0.12–0.25 ms. This included four partially overhealing events. The formula is
+`min(raw, max(0, maxHP - hp))`; those measured cases matched within floating-point
+rounding. Matching FX/result pairs were up to approximately 101 ms apart,
+supporting the retained 120 ms correlation window for the observed pairs.
+
+However, neither capture delivered exact result RPCs for the remote healer's
+self-heals. Visible FX and replicated HP gains do not establish their raw amount
+or overheal. The observations therefore do not establish accurate effective
+healing/overheal across the entire party. By user choice these metrics remain
+excluded, and the temporary diagnostic setting, recorder and experimental
+calculation have been removed. Ordinary output/HPS collection remains unchanged.
 
 Queues remain event-driven, processed at most ten times per second, and bounded
 to 128 recipients and 64 heal/health entries per recipient. There is no per-frame
 roster/HP scan. Scope holds are released on merge, expiry, pressure and reset.
 Full-health snapshots and HP-loss evidence used only for effective healing have
 been removed.
-
-## Optional live timing experiment
-
-`HealingTrace` observes the proposed pre-heal-HP formula without adding its
-effective/overheal values to the meter. It captures exact RPCs even when the
-receiver differs from the target, records whether the proposed target-only guard
-would reject each event, and captures authoritative HP losses as well as gains.
-Sequence numbers and timestamps preserve ordering within one GameApp update.
-The trace is disabled by default; see the README for the controlled in-game test.
-The 120 ms window is an experimental tuning choice, not a measured timing guarantee.
 
 ## Validation
 

@@ -19,8 +19,6 @@
     { "key": "showIncompleteCodexKills", "type": "checkbox", "label": "Show unmastered Codex kills" },
     { "key": "showCompletedCodexKills", "type": "checkbox", "label": "Show mastered Codex kills" },
     { "type": "title", "label": "Recaps" },
-    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" },
-    { "type": "title", "label": "Diagnostics" },
-    { "key": "healingTrace", "type": "checkbox", "label": "Record healing timing test", "tooltip": { "enabled": true, "tooltipText": "Record HP changes and experimental overheal calculations to healing-trace.jsonl in the DPS Meter folder. For short tests; does not change healing totals." } }
+    { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" }
   ]
 }

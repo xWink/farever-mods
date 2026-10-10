@@ -54,7 +54,6 @@ class DpsMeterMod {
         }
     }
     static function finishHistory():Void {
-        if (collector != null) collector.healingTrace.setEnabled(false, haxe.Timer.stamp());
         try {
             if (collector != null && writer != null) {
                 collector.healingCapture.flush(haxe.Timer.stamp(), true);
@@ -140,11 +139,6 @@ class DpsMeterMod {
         if (collector != null && config.enabled) try collector.combatExit(G.uid(instance), haxe.Timer.stamp())
         catch (_:Dynamic) {}
     }
-    @:hlx.prefix(GameApp.update)
-    static function beginUpdate(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
-        HealingTrace.updateId++;
-        return Continue;
-    }
     @:hlx.postfix(GameApp.update)
     static function update(instance:Dynamic, dt:Float, result:Void):Void {
         // HLX recovers the game's module only AFTER every mod's main() runs.
@@ -173,10 +167,7 @@ class DpsMeterMod {
                 }
             }
             if (config.enabled) collector.update(instance, now);
-            else {
-                collector.healingTrace.setEnabled(false, now);
-                collector.healingCapture.flush(now, true);
-            }
+            else collector.healingCapture.flush(now, true);
             flushFights();
             writer.update(now);
         } catch (_:Dynamic) {}

@@ -85,8 +85,8 @@ The history header shows the selected player's HPS, **Healing output**, and
 **Healing received**. Received healing includes incoming self-heals and heals from
 others, including overheal, plus observed unattributed recovery. Recap headers
 sum incoming healing across the recorded phases. The meter does not display or
-save actual/effective healing or overheal amounts: the client does not receive
-reliable pre-heal HP for each healing event.
+save actual/effective healing or overheal amounts: exact results and pre-heal HP
+are not available for every party member's healing events.
 
 Healing includes self-heals and other-player-to-other-player heals observed by this
 client. Exact owner-delivered `rpcDisplayHeal` results take priority. When those
@@ -107,31 +107,6 @@ produce an actual-healing statistic. The same heal is not counted once for its F
 and again for its exact notification. The correlation window is **120 ms**; updates
 are processed at most ten times per second, so displayed totals can settle later
 than 120 ms, especially when a later matching notification extends the wait.
-
-### Testing healing timing and overheal
-
-Enable **Diagnostics → Record healing timing test** in DPS Meter's Better Mod
-Settings, then perform a few isolated heals below full HP, a heal to full HP,
-and a heal at full HP. Also test healing another player and receiving their heal;
-finish with quick repeated heals or overlapping healers. Disable the setting
-after the test to flush the capture.
-
-Send `hlx/mods/dps-meter/healing-trace.jsonl` for analysis. It records ordered
-HP updates (both gains and losses), FX, and exact-result callbacks with millisecond
-timestamps and a `GameApp.update` counter. The counter groups callbacks between
-update boundaries; it is not a network-packet ID. Records copy values immediately;
-file writes are batched after game updates. Tracing defaults to off and stops at
-20,000 records or if more than 1,024 records accumulate before a flush. A `limit`
-record marks truncation. Each enable appends a new `start` section to the file.
-
-Each `rpc` record contains the target HP/max HP, raw amount, caster/target/receiver
-IDs, and the proposed `min(raw, max(0, maxHP - hp))` calculation. `wouldCount`
-indicates whether `receiver == target`; `proposed` is null when that guard rejects
-the event, while `candidate` shows the calculation without the guard. Neither is
-assumed correct: the HP may already include the heal. Compare callback order and
-isolated HP changes first. The diagnostic never changes meter totals or uploads
-experimental effective-healing/overheal fields. Local unit tests verify recording
-and arithmetic, not the game's live network ordering.
 
 An unmatched combat HP gain appears as **Regen / unattributed**, credited to the
 recipient. This is observed recovery, not proof of regeneration, a known caster,

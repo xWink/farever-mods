@@ -24,8 +24,6 @@ class Collector {
         model = new CombatModel(haxe.Timer.stamp(), version);
     }
     public function update(app:Dynamic, now:Float):Void {
-        healingTrace.setEnabled(config.enabled && config.healingTrace, now);
-        healingTrace.flush(now);
         var nextHero = G.field(app, "hero");
         var nextLayer = G.field(nextHero, "layer");
         if (hero != nextHero || layer != nextLayer) {
@@ -165,17 +163,15 @@ class Collector {
         if (riftWait != null && G.call("st.Objective", "isCompleted", riftWait) == true) model.startRiftGates();
     }
     public var healingCapture:HealingCapture = new HealingCapture();
-    public var healingTrace:HealingTrace = new HealingTrace();
     public function healthChanged(attributes:Dynamic, after:Float, ?now:Float):Void {
         if (!config.enabled || hero == null) return;
         var host = G.field(attributes, "__host");
         if (host == null || G.integer(G.field(host, "isSyncingProperty"), -1) < 0) return;
         var target = G.field(attributes, "unit"), uid = G.uid(target);
         var before = G.number(G.field(attributes, "health"));
+        if (uid == "" || before <= 0 || before >= after) return;
         if (!model.profiles.exists(uid) && G.field(target, "player") == null
             && G.field(target, "summonOwner") == null) return;
-        if (config.healingTrace) healingTrace.health(uid, before, after, now == null ? haxe.Timer.stamp() : now);
-        if (uid == "" || before <= 0 || before >= after) return;
         // Only combat recovery on known heroes can become unattributed healing.
         // Other units' HP may still correlate with an explicitly sourced heal.
         var scope:Null<HealingScope> = null;
@@ -197,7 +193,6 @@ class Collector {
     }
     public function healing(receiver:Dynamic, result:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || result == null || G.field(receiver, "simulatingServer") == true) return;
-        if (config.healingTrace) healingTrace.rpc(receiver, result, now);
         var rawSkill = gamecompat.HitSkill.read(result, G.field);
         var owner = healingSource(G.call("st.skill.DamageResult", "get_source", result), rawSkill, G.text(G.field(result, "weakSource")));
         if (owner == null) return;
@@ -211,7 +206,6 @@ class Collector {
     }
     public function healingFX(target:Dynamic, hit:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || hit == null || G.field(target, "simulatingServer") == true) return;
-        if (config.healingTrace) healingTrace.fx(target, hit, now);
         var rawSkill = G.field(hit, "skill");
         // ScriptHitData.get_source follows Status.instigator, not the recipient
         // who owns a heal-over-time status. It also resolves source proxies.
