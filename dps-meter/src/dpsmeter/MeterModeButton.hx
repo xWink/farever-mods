@@ -47,22 +47,19 @@ class MeterModeButton {
     function axe(mirror:Bool):Void {
         G.call("h2d.Graphics", "lineStyle", graphic, [0.9, 0x5b4334, 1.0]);
         G.call("h2d.Graphics", "beginFill", graphic, [0xb99164, 1.0]);
-        path([for (p in [[33.,43.],[42.,34.],[256.,248.],[247.,257.],[33.,43.]]) axePoint(p[0], p[1], mirror)]);
+        path([for (p in [[33.,43.],[43.,33.],[257.,247.],[247.,257.],[33.,43.]]) axePoint(p[0], p[1], mirror)]);
         G.call("h2d.Graphics", "endFill", graphic);
-        // Upper blade: convex cutting edge and deeply concave inner edge.
-        blade([46.,7.], [
+        // One canonical crescent. Reflect every control point across the
+        // haft's y=x axis so both blades have exactly the same curve and size.
+        var start = [46.,7.];
+        var curves = [
             [86.,-17.,144.,37.,126.,85.],
             [111.,66.,94.,61.,79.,72.],
             [72.,64.,64.,57.,58.,50.],
             [73.,31.,63.,19.,46.,7.]
-        ], mirror);
-        // Lower blade has the complementary broad crescent, not a pointed fan.
-        blade([7.,48.], [
-            [-13.,94.,34.,144.,83.,125.],
-            [62.,112.,59.,94.,64.,78.],
-            [61.,72.,56.,67.,51.,61.],
-            [31.,72.,15.,68.,7.,48.]
-        ], mirror);
+        ];
+        blade(start, curves, mirror);
+        blade([start[1], start[0]], [for (c in curves) [c[1], c[0], c[3], c[2], c[5], c[4]]], mirror);
     }
     static function axePoint(x:Float, y:Float, mirror:Bool):Array<Float>
         return [12 + (mirror ? 159 - x : x - 159) * .084, 1 + y * .084];
