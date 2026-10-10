@@ -33,7 +33,7 @@ class FightHistory {
             }
         }];
         return {version: 1, gameVersion: fight.gameVersion, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
-            me: fight.me, meName: fight.meName, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
+            me: fight.me, meName: fight.meName, meClass: fight.meClass, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
             activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase,
             difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
     }
@@ -48,10 +48,11 @@ class FightHistory {
         validate(record);
         var damage:Null<Float> = text(record.me) == "" ? null : 0;
         var playerName = text(record.meName);
-        var playerClass = "";
+        var playerClass = text(record.meClass).toLowerCase();
         var damageTypeSummary = "";
         for (p in array(record.players)) if (p.isMe == true || (text(record.me) != "" && text(p.uid) == text(record.me))) {
-            damage = number(p.damage); playerName = text(p.name); playerClass = text(p.className).toLowerCase();
+            damage = number(p.damage); playerName = text(p.name);
+            if (text(p.className) != "") playerClass = text(p.className).toLowerCase();
             damageTypeSummary = DamageBreakdown.read(p.damageBreakdown).summary(damage); break;
         }
         return {id: record.id, name: record.name, startedAt: record.startedAt, duration: record.duration,
@@ -70,7 +71,7 @@ class FightHistory {
         fight.last = 1 + number(record.duration);
         fight.closed = fight.last;
         fight.bossName = record.name;
-        fight.me = text(record.me); fight.meName = text(record.meName);
+        fight.me = text(record.me); fight.meName = text(record.meName); fight.meClass = text(record.meClass);
         fight.category = text(record.category); fight.activityId = text(record.activityId);
         fight.targetDummy = record.targetDummy == true;
         fight.categoryVersion = Std.int(number(record.categoryVersion));

@@ -52,6 +52,8 @@ class RiftRecapHistory {
         if (result.playerName == "" && gate != null) {
             result.playerName = gate.playerName; result.playerClass = gate.playerClass;
         }
+        if (result.playerClass == "" && gate != null && result.playerName == gate.playerName)
+            result.playerClass = gate.playerClass;
         var players:Map<String, Bool> = [];
         var damage = 0.0;
         var known = false;

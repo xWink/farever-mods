@@ -146,10 +146,15 @@ class Fight {
     public var categoryVersion:Int = HistoryCatalog.HistoryCategory.VERSION;
     public var me:String = "";
     public var meName:String = "";
+    public var meClass:String = "";
     public function new(now:Float, gameVersion:String = "") {
         start = now; last = now; startedAt = Date.now().getTime(); this.gameVersion = gameVersion;
     }
     public function add(e:DamageEvent, info:PlayerInfo):Void {
+        if (info.isMe || info.uid == me) {
+            meName = info.name;
+            if (info.className != "") meClass = info.className;
+        }
         if (!players.exists(e.source)) players[e.source] = new PlayerStats(info);
         players[e.source].add(e, info);
         if (e.effect != 1 && e.targetDummy == true) targetDummy = true;
@@ -193,7 +198,7 @@ class Fight {
         result.category = category;
         result.targetDummy = targetDummy;
         result.categoryVersion = categoryVersion;
-        result.me = me; result.meName = meName; result.participants = participants.copy(); result.targets = targets.copy();
+        result.me = me; result.meName = meName; result.meClass = meClass; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
             var next = new PlayerStats(p.info);
             next.damage = p.damage; next.heal = p.heal; next.hits = p.hits;
@@ -454,7 +459,11 @@ class CombatModel {
     }
     function addToFight(fight:Fight, e:DamageEvent, info:PlayerInfo):Void {
         fight.me = me;
-        if (profiles.exists(me)) fight.meName = profiles[me].name;
+        if (profiles.exists(me)) {
+            // A spectator/healer can finish an encounter without a damage row.
+            fight.meName = profiles[me].name;
+            if (profiles[me].className != "") fight.meClass = profiles[me].className;
+        }
         fight.difficulty = difficulty;
         fight.partySize = Std.int(Math.max(fight.partySize, Lambda.count(party)));
         fight.activityId = activityId;
@@ -516,7 +525,7 @@ class CombatModel {
                 return;
             }
             if (rift != null) {
-                rift.record(e, info, difficulty, activityId, me, profiles.exists(me) ? profiles[me].name : "", Lambda.count(party), inCombat);
+                rift.record(e, info, difficulty, activityId, me, profiles.exists(me) ? profiles[me].name : "", Lambda.count(party), inCombat, profiles.exists(me) ? profiles[me].className : "");
                 current = rift.current;
                 lastCombat = rift.last;
                 return;

@@ -64,7 +64,7 @@ class RiftTracker {
         fight.outcome = "Victory";
     }
 
-    public function record(e:DamageEvent, info:PlayerInfo, difficulty:Int, activityId:String, me:String, meName:String = "", partySize:Int = 0, active:Bool = true):Void {
+    public function record(e:DamageEvent, info:PlayerInfo, difficulty:Int, activityId:String, me:String, meName:String = "", partySize:Int = 0, active:Bool = true, meClass:String = ""):Void {
         // Clones can share the boss flag. Only the unit named by KillBoss can
         // start this phase or supply its boss identity; summons remain adds.
         var bossHit = e.effect != 1 && e.summoned != true
@@ -79,7 +79,7 @@ class RiftTracker {
                 if (e.effect == 1) return;
                 warmup = new Fight(e.time, gameVersion);
                 warmup.isBoss = false; warmup.bossName = "Rift: Before gates";
-                warmup.me = me; warmup.meName = meName;
+                warmup.me = me; warmup.meName = meName; warmup.meClass = meClass;
                 warmup.difficulty = difficulty; warmup.activityId = activityId;
                 if (!active) warmup.closed = e.time;
             }
@@ -115,9 +115,10 @@ class RiftTracker {
             fight.activityId = activityId;
             fight.category = "World Bosses";
             fight.me = me;
-            fight.meName = meName;
+            fight.meName = meName; fight.meClass = meClass;
             fights[index] = fight;
         }
+        if (meClass != "") fight.meClass = meClass;
         var end = fight.last;
         fight.partySize = Std.int(Math.max(fight.partySize, partySize));
         fight.add(e, info);

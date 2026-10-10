@@ -169,10 +169,14 @@ class Collector {
         if (host == null || G.integer(G.field(host, "isSyncingProperty"), -1) < 0) return;
         healingObservation.health(G.uid(G.field(attributes, "unit")), G.number(G.field(attributes, "health")), after);
     }
-    public function healing(target:Dynamic, result:Dynamic, now:Float):Void {
-        if (result == null || G.field(target, "simulatingServer") == true) return;
+    public function healing(receiver:Dynamic, result:Dynamic, now:Float):Void {
+        if (!config.enabled || result == null || G.field(receiver, "simulatingServer") == true) return;
+        // The RPC can run on the caster. DamageResult.target identifies whose
+        // health changed, including self-heals where source and target match.
+        // A missing recipient cannot supply an effective-healing measurement.
+        var target = G.field(result, "target");
         var actual:Null<Float> = null;
-        try actual = healingObservation.consume(G.uid(target), G.number(G.field(result, "_amount")),
+        if (target != null) try actual = healingObservation.consume(G.uid(target), G.number(G.field(result, "_amount")),
             G.number(G.call("ent.Unit", "get_health", target), Math.NaN),
             G.number(G.call("ent.Unit", "get_maxHealth", target), Math.NaN)) catch (_:Dynamic) {}
         damage(target, result, now, actual);

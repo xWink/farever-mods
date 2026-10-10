@@ -200,7 +200,7 @@ class NativeHistoryWindow {
                 setText(row.name, row.caption); setText(row.player, row.playerCaption); setText(row.suffix, row.suffixCaption);
                 setText(row.detail, row.description);
                 show(row.player, parts.player != ""); show(row.suffix, parts.after != "");
-                if (!names) colorPlayerName(row, classColor(row.entry.playerClass));
+                if (!names) colorPlayerName(row, row.entry.playerClass == "" ? 0x5b4334 : classColor(row.entry.playerClass));
                 row.width = 0; // Different name lengths change the inline positions.
             }
             show(G.field(list, "obj"), count > 0); show(empty, count == 0);

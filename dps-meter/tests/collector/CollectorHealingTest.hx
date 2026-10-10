@@ -17,7 +17,7 @@ class CollectorHealingTest {
             {source: me, skill: {kind: "Priest_Attack"}, _amount: 100., effect: 0}, 10);
         var target:Dynamic = {__uid: "me", health: 200., maxHealth: 200.};
         var attributes:Dynamic = {unit: target, health: 100., __host: {isSyncingProperty: 26}};
-        var heal:Dynamic = {source: other, weakSource: "healer", skill: {kind: "Priest_Heal"},
+        var heal:Dynamic = {source: other, weakSource: "healer", target: target, skill: {kind: "Priest_Heal"},
             _amount: 500., _critical: true, effect: 1};
         c.healthChanged(attributes, 200);
         c.healing(target, heal, 11);
@@ -35,6 +35,25 @@ class CollectorHealingTest {
         check(p.heal == 1500, "Simulated server notifications do not duplicate client heals");
         check(c.model.current.players["me"].damage == 100 && c.model.current.players["me"].heal == 0,
             "Receiving a heal does not inflate the recipient's healing output");
+        target.simulatingServer = false;
+        me.health = 200.; me.maxHealth = 200.;
+        heal.source = me; heal.weakSource = "me"; heal.target = me;
+        attributes.unit = me; attributes.health = 50.; attributes.__host.isSyncingProperty = 26;
+        c.healthChanged(attributes, 200); c.healing(me, heal, 15);
+        var local = c.model.current.players["me"];
+        check(local.heal == 500 && local.healing.actual == 150 && local.healingSkills["Priest_Heal"].hits == 1,
+            "A delivered self-heal counts once for its caster, including effective healing");
+        c.healing(me, heal, 16);
+        check(local.heal == 1000 && local.healing.actual == 150 && local.healing.measuredHits == 2,
+            "Self-healing at full health still counts output and measures zero effective healing");
+        other.health = 150.; other.maxHealth = 300.; heal.target = other;
+        attributes.unit = other; attributes.health = 60.;
+        c.healthChanged(attributes, 150); c.healing(me, heal, 17);
+        check(local.heal == 1500 && local.healing.actual == 240 && local.healing.measuredHits == 3,
+            "An outgoing heal uses the payload recipient's health instead of the full-health RPC receiver");
+        heal.target = null; c.healing(me, heal, 18);
+        check(local.heal == 2000 && local.healing.actual == 240 && local.healing.measuredHits == 3,
+            "An unresolved recipient retains output without falsely measuring overheal on the receiver");
         Sys.println('Healing client collector: $checks checks passed');
     }
 }

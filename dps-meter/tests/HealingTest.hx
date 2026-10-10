@@ -76,8 +76,46 @@ class HealingTest {
         check(old.players["me"].damage == 100 && !old.players["me"].healingRecorded && !HealingDisplay.recorded(old),
             "Old logs load without inventing healing records");
         check(HealingDisplay.detail(entry, old).indexOf("Actual healing: unavailable") >= 0, "Old logs do not claim zero actual healing");
-        observations(); boundaries();
+        observations(); boundaries(); zeroContributionIdentity();
         Sys.println('Healing meter: $checks checks passed');
+    }
+    static function zeroContributionIdentity():Void {
+        var m = new CombatModel(0, "test"); m.me = "me";
+        for (id in ["me", "healer"]) { m.profiles[id] = profile(id); m.party[id] = true; }
+        m.onCombatEnter("me", 10); m.record(event(10, "healer", false, 100));
+        check(!m.current.players.exists("me") && m.current.meName == "me" && m.current.meClass == "cleric",
+            "Local identity is recorded without inventing a damage or healing contribution");
+        m.onCombatExit("me", 20); m.update(21, false);
+        var record = Json.parse(Json.stringify(FightHistory.encode(m.history[0], "zero")));
+        var entry = FightHistory.entry(record);
+        check(entry.playerName == "me" && entry.playerClass == "cleric" && entry.personalDps == 0,
+            "A zero-contribution player's name and class survive archive copying and JSON storage");
+        var reopened = FightHistory.encode(FightHistory.decode(record), "reopened");
+        check(reopened.meClass == "cleric" && FightHistory.entry(reopened).playerClass == "cleric",
+            "Reopening a zero-contribution fight preserves the independent character class");
+        Reflect.deleteField(record, "meClass");
+        check(FightHistory.entry(record).playerClass == "" && FightHistory.decode(record).meClass == "",
+            "Older records without local class remain readable without borrowing an ally's class");
+
+        m = new CombatModel(0, "test"); m.me = "me";
+        for (id in ["me", "healer"]) { m.profiles[id] = profile(id); m.party[id] = true; }
+        m.enableRift(); m.updateRiftState(1, false, false, "Boss"); m.startRiftGates();
+        m.onCombatEnter("me", 10);
+        var gateHit = event(10, "healer", false, 100); gateHit.bossFlags = 0; gateHit.bossKind = "";
+        m.record(gateHit);
+        check(m.current.meClass == "cleric" && !m.current.players.exists("me"),
+            "Rift gates store local class even when only another player contributes");
+        m.updateRiftState(20, true, false, "Boss"); m.record(event(21, "healer", false, 100));
+        m.updateRiftState(30, true, true, "Boss"); m.update(31, false);
+        check(m.recapHistory.length == 1 && m.recapHistory[0].boss.meClass == "cleric",
+            "The rift boss and its detached recap retain the zero-contribution local class");
+        record = Json.parse(Json.stringify(RiftRecapHistory.encode(m.recapHistory[0], "zero_recap")));
+        entry = FightHistory.entry(record);
+        check(entry.playerName == "me" && entry.playerClass == "cleric" && entry.personalDps == 0,
+            "The recap log list retains a class colour when local damage is zero in both phases");
+        Reflect.deleteField(record.boss, "meClass");
+        check(FightHistory.entry(record).playerClass == "cleric",
+            "A recap can retain the same character's known class from the gate phase");
     }
     static function observations():Void {
         var o = new HealingObservation();

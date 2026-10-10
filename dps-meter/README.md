@@ -79,8 +79,15 @@ observed restored health, with a green bar for its share of the ability's output
 the remaining pale portion is overheal. The history header shows the selected
 player's HPS and actual healing total.
 
-The client broadcasts healing output but has no separate effective-healing field.
-Actual healing is inferred from authoritative health-property changes preceding a
+Healing includes self-heals, but collection is limited to notifications delivered
+to this client. The game's `rpcDisplayHeal` sends to the owning player's client,
+not every party member. In particular, another player's self-heal is not delivered
+to your meter; party healing totals are therefore incomplete. Client-side healing
+effects and HP gains alone cannot identify authoritative output, its healer, or
+its ability, so they are not substituted for missing notifications.
+
+The notification has no separate effective-healing field. Actual healing is
+inferred from the recipient's authoritative health-property changes preceding a
 heal notification, not from the target's missing health after the heal. Ambiguous
 or missing observations are marked **Unavailable**; totals containing both known
 and unknown observations are marked **(partial)**. These are client observations,
