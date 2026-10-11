@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.17.0",
-  "commit": "99642dc285815dfdd62baeb276b62c429b80b4af",
-  "notes": "- Added a new option in the Social category to enable your own character's chat bubbles.\n- Added support for hotkey modifiers (e.g. \"ctrl\", \"shift\", \"alt\").\n",
+  "project": "dps-meter",
+  "version": "1.9.0",
+  "commit": "76d023885e57bff93e5bd2b16cf4c92be6671ab4",
+  "notes": "- Added a new Ready Check feature\n- Party leader sends \"rc\" in chat, resulting in a popup appearing for all party members that have the feature enabled\n- Members can either press the \"ready\" or \"not ready\" button to signal that they are ready or not ready\n- People who don't have the feature/mod can send \"r\" or \"nr\" in chat instead\n- Once all members are ready, the popups close and the leader automatically sends a countdown in chat with sound effects (SFX can be disabled in settings)\n- DPS Meter no longer uploads defeats to fareverlogs.fr\n",
   "dry_run": false
 }
