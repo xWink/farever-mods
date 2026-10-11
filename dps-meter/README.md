@@ -31,7 +31,8 @@ The mod and its data are contained in `hlx/mods/dps-meter/`. Upload settings
 also live in this folder. Local fight charts live in `history/<encounter>/`. An external
 uploader is not required. The included Windows x64 desktop plugin,
 `hlx/plugins/dps-meter/dps_meter_desktop.hdll`, supports folder opening, Recycle Bin
-deletion, and image clipboard access. Install this folder too when updating manually.
+deletion, image clipboard access, and Ready Check GO audio. Install this folder too
+when updating manually, and restart Farever so it loads the updated plugin.
 
 Use DPS Meter in place of the original Group DPS `dinput8.dll` collector to avoid
 running two collectors that export the same encounters. Keep DLLs belonging to
@@ -89,7 +90,9 @@ Once everyone is ready, the popup closes immediately and every enabled client
 plays the quest-completed sound once as the countdown starts, followed by a boom
 when the leader's **GO** arrives. Enable **Disable countdown audio** in the Ready
 Check settings to mute both sounds for yourself (off by default). The boom is
-included in the mod and follows the game's master/UI volume and focus mute.
+included in the mod and follows the game's master/UI volume and focus mute. Its
+Windows playback uses the default audio output device through the included desktop
+plugin (Farever's compiled Heaps sound output is inactive).
 The leader's mod sends
 **5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
 change what you are typing, or take away movement control.

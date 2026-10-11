@@ -14,6 +14,9 @@ public static class DesktopTest {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate IntPtr Primitive(out IntPtr signature);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int PathAction(byte[] path, int length);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int CopyImage(byte[] bytes, int length, int width, int height);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int AudioAction();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int PlayAudio(byte[] bytes, int length, int rate, int channels, double volume);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int UpdateAudio(double volume);
     public static Delegate Bind(IntPtr module, string name, string expected, Type type) {
         IntPtr address = GetProcAddress(module, name);
         if (address == IntPtr.Zero) throw new Exception("Missing export: " + name);
@@ -46,6 +49,40 @@ if ($module -eq [IntPtr]::Zero) { throw "Could not load desktop plugin: $([Runti
 $copy = [DesktopTest]::Bind($module, 'hlp_copy_image', 'PBiii_i', [DesktopTest+CopyImage])
 $recycle = [DesktopTest]::Bind($module, 'hlp_recycle_file', 'PBi_i', [DesktopTest+PathAction])
 $open = [DesktopTest]::Bind($module, 'hlp_open_folder', 'PBi_i', [DesktopTest+PathAction])
+$prepareAudio = [DesktopTest]::Bind($module, 'hlp_prepare_audio', 'P_i', [DesktopTest+AudioAction])
+$playAudio = [DesktopTest]::Bind($module, 'hlp_play_audio', 'PBiiid_i', [DesktopTest+PlayAudio])
+$updateAudio = [DesktopTest]::Bind($module, 'hlp_update_audio', 'Pd_i', [DesktopTest+UpdateAudio])
+$stopAudio = [DesktopTest]::Bind($module, 'hlp_stop_audio', 'P_i', [DesktopTest+AudioAction])
+$disposeAudio = [DesktopTest]::Bind($module, 'hlp_dispose_audio', 'P_i', [DesktopTest+AudioAction])
+# Hosted runners may have no endpoint; never mistake a no-op backend for success.
+[byte[]]$pcm = New-Object byte[] 96000 # 0.5 seconds, stereo PCM16 at 48 kHz
+if ($playAudio.Invoke($pcm, 95999, 48000, 2, 0.5) -eq 0) { throw 'Unaligned PCM buffer was accepted' }
+if ($playAudio.Invoke($pcm, 0, 48000, 2, 0.5) -eq 0) { throw 'Empty PCM buffer was accepted' }
+if ($playAudio.Invoke($pcm, $pcm.Length, 48000, 3, 0.5) -eq 0) { throw 'Unsupported channel count was accepted' }
+if ($playAudio.Invoke($pcm, $pcm.Length, 48000, 2, [double]::NaN) -eq 0) { throw 'Invalid audio gain was accepted' }
+$audioResult = $prepareAudio.Invoke()
+try {
+    if ($audioResult -eq 0) {
+        if ($playAudio.Invoke($pcm, $pcm.Length, 48000, 2, 0.5) -ne 0) { throw 'Could not submit PCM to native audio device' }
+        if ($updateAudio.Invoke(0.2) -ne 1) { throw 'Native voice did not start asynchronously' }
+        if ($updateAudio.Invoke(0.0) -ne 1) { throw 'Live audio mute failed' }
+        $deadline = [DateTime]::UtcNow.AddSeconds(5)
+        do {
+            Start-Sleep -Milliseconds 50
+            $playing = $updateAudio.Invoke(0.5)
+            if ($playing -lt 0) { throw "Native audio update failed: $playing" }
+        } while ($playing -eq 1 -and [DateTime]::UtcNow -lt $deadline)
+        if ($playing -ne 0) { throw 'Native audio never consumed its samples' }
+        if ($playAudio.Invoke($pcm, $pcm.Length, 48000, 2, 0.5) -ne 0) { throw 'Native audio replay failed' }
+        if ($stopAudio.Invoke() -ne 0 -or $updateAudio.Invoke(1.0) -ne 0) { throw 'Native audio stop did not clear playback' }
+        Write-Output 'Windows audio: PCM submission, consumption, live volume, replay, and stop passed'
+    } elseif ($audioResult -eq -2147023728 -or $audioResult -eq -2004287484 -or $audioResult -eq -2003435516) {
+        # ERROR_NOT_FOUND, AUDCLNT_E_DEVICE_INVALIDATED, XAUDIO2_E_DEVICE_INVALIDATED.
+        Write-Output "Windows audio: no usable endpoint on this runner ($audioResult); ABI and input validation passed, playback not tested"
+    } else { throw "Unexpected native audio initialization failure: $audioResult" }
+} finally {
+    if ($disposeAudio.Invoke() -ne 0 -or $disposeAudio.Invoke() -ne 0) { throw 'Native audio disposal failed' }
+}
 [byte[]]$pixels = 0,0,255,255, 0,255,0,255, 255,0,0,255, 255,255,255,255
 if ($copy.Invoke($pixels, 16, 2, 2) -ne 0) { throw 'Could not write native clipboard image' }
 [DesktopTest]::CheckClipboard()

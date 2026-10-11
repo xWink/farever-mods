@@ -94,7 +94,7 @@ jobs:
         with:
           name: farever-dps-meter
           path: package
-      - name: Verify Windows clipboard and recoverable deletion
+      - name: Verify Windows audio, clipboard, and recoverable deletion
         shell: pwsh
         run: ./dps-meter/tests/desktop_windows_test.ps1 -Plugin ./package/hlx/plugins/dps-meter/dps_meter_desktop.hdll
 

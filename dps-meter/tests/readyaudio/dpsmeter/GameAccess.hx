@@ -1,54 +1,39 @@
 package dpsmeter;
 
-/** Native boundary model: catches unexpected calls or foreign resource objects. */
+enum TestSampleFormat { I16; }
+
+/** Ogg decoder boundary only. Any call to the inactive Heaps player fails. */
 class GameAccess {
     public static var master = 0.5;
     public static var ui = 0.4;
-    public static var manager:Dynamic = {driver:{}};
-    public static var sounds:Array<Dynamic> = [];
-    public static var channels:Array<Dynamic> = [];
+    public static var decodes = 0;
     public static function field(object:Dynamic, name:String):Dynamic return object == null ? null : Reflect.field(object, name);
     public static function number(value:Dynamic, fallback:Float = 0):Float return value == null ? fallback : value;
+    public static function integer(value:Dynamic, fallback:Int = 0):Int return value == null ? fallback : value;
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
-        return switch (type + "." + name) {
-            case "hxd.snd.Manager.get": manager;
-            case "fmod.Api.getVcaVolume":
-                switch (args[0]) {
-                    case "vca:/MASTER": master;
-                    case "vca:/UI": ui;
-                    default: throw "Unexpected volume control";
-                };
-            default: throw 'Unexpected static call $type.$name';
+        if (type != "fmod.Api" || name != "getVcaVolume") throw 'Unexpected static call $type.$name';
+        return switch (args[0]) {
+            case "vca:/MASTER": master;
+            case "vca:/UI": ui;
+            default: throw "Unexpected volume control";
         };
     }
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
         return switch (type) {
             case "haxe.io.Bytes": {buffer:args[0], length:args[1], nativeBytes:true};
-            case "hxd.fs.BytesFileEntry":
-                if (args[1].nativeBytes != true || args[1].length <= 0) throw "Invalid native bytes";
-                {path:args[0], bytes:args[1]};
-            case "hxd.res.Sound":
-                var sound:Dynamic = {entry:args[0], decoded:false, channel:null, disposed:false};
-                sounds.push(sound); sound;
+            case "hxd.snd.OggData":
+                if (args[0].nativeBytes != true || args[0].length <= 0) throw "Invalid native bytes";
+                {samples:960, channels:2, samplingRate:48000, sampleFormat:I16};
             default: throw 'Unexpected construction $type';
         };
     }
     public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
-        return switch (type + "." + name) {
-            case "hxd.res.Sound.getData": object.decoded = true; {};
-            case "hxd.res.Sound.play":
-                if (!object.decoded || object.disposed) throw "Sound unavailable";
-                if (args[0] != false || args[2] != null || args[3] != null) throw "GO must be a local one-shot";
-                var channel:Dynamic = {volume:args[1], stopped:false};
-                object.channel = channel; channels.push(channel); channel;
-            case "hxd.snd.Channel.isReleased": object.stopped;
-            case "hxd.snd.Channel.stop": object.stopped = true; null;
-            case "hxd.snd.ChannelBase.set_volume": object.volume = args[0]; null;
-            case "hxd.res.Sound.dispose":
-                object.disposed = true;
-                if (object.channel != null) object.channel.stopped = true;
-                null;
-            default: throw 'Unexpected call $type.$name';
-        };
+        if (type != "hxd.snd.Data" || name != "decode") throw 'Unexpected call $type.$name';
+        var out = args[0];
+        if (out.nativeBytes != true || out.length != object.samples * 4 || args[1] != 0 || args[2] != 0 || args[3] != object.samples)
+            throw "Invalid PCM decode buffer";
+        haxe.io.Bytes.ofData(out.buffer).setUInt16(0, 1234);
+        decodes++;
+        return null;
     }
 }

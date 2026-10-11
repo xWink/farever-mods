@@ -13,6 +13,7 @@
 #include <cstring>
 #include <string>
 #include "image_buffer.h"
+#include "ready_audio.h"
 
 #ifndef _WIN64
 #error DPS Meter requires Windows x64
@@ -138,3 +139,8 @@ static int copy_image(const uint8_t *pixels, int length, int width, int height) 
 EXPORT void *hlp_open_folder(const char **signature) { *signature = "PBi_i"; return reinterpret_cast<void *>(&open_folder); }
 EXPORT void *hlp_recycle_file(const char **signature) { *signature = "PBi_i"; return reinterpret_cast<void *>(&recycle_file); }
 EXPORT void *hlp_copy_image(const char **signature) { *signature = "PBiii_i"; return reinterpret_cast<void *>(&copy_image); }
+EXPORT void *hlp_prepare_audio(const char **signature) { *signature = "P_i"; return reinterpret_cast<void *>(&prepare_audio); }
+EXPORT void *hlp_play_audio(const char **signature) { *signature = "PBiiid_i"; return reinterpret_cast<void *>(&play_audio); }
+EXPORT void *hlp_update_audio(const char **signature) { *signature = "Pd_i"; return reinterpret_cast<void *>(&update_audio); }
+EXPORT void *hlp_stop_audio(const char **signature) { *signature = "P_i"; return reinterpret_cast<void *>(&stop_audio); }
+EXPORT void *hlp_dispose_audio(const char **signature) { *signature = "P_i"; return reinterpret_cast<void *>(&dispose_audio); }

@@ -2,41 +2,54 @@ package dpsmeter;
 
 import dpsmeter.GameAccess as G;
 
-/** Embedded GO clip played by the game's existing sound backend. */
+/** Game Ogg decoder plus actual Windows output; Heaps' output is a no-op in Farever. */
 class ReadyCheckAudio {
-    var sound:Dynamic;
-    var channel:Dynamic;
+    var pcm:haxe.io.Bytes;
+    var rate = 0;
+    var channels = 0;
+    var prepared = false;
+    var playing = false;
 
     public function new() {}
 
     public function prepare():Void {
-        if (sound != null) return;
+        if (prepared) return;
+        if (pcm == null) decode();
+        DesktopAudio.prepare();
+        prepared = true;
+    }
+
+    function decode():Void {
         var bytes = haxe.Resource.getBytes("dps-meter/ready-check-go.ogg");
         if (bytes == null) throw "Embedded Ready Check GO sound is missing";
         // Bytes objects belong to their HL module. Only the underlying byte
-        // buffer crosses the boundary; all audio objects use native game types.
+        // buffer crosses the boundary. The Ogg decoder works even though the
+        // compiled Heaps NativeChannel constructor has no output implementation.
         var nativeBytes = G.create("haxe.io.Bytes", [bytes.getData(), bytes.length]);
-        var entry = G.create("hxd.fs.BytesFileEntry", ["dps-meter/ready-check-go.ogg", nativeBytes]);
-        var loaded = G.create("hxd.res.Sound", [entry]);
-        G.call("hxd.res.Sound", "getData", loaded);
-        var manager = G.staticCall("hxd.snd.Manager", "get", []);
-        if (G.field(manager, "driver") == null) throw "Ready Check sound backend is unavailable";
-        sound = loaded;
+        var data = G.create("hxd.snd.OggData", [nativeBytes]);
+        rate = G.integer(G.field(data, "samplingRate"));
+        channels = G.integer(G.field(data, "channels"));
+        var samples = G.integer(G.field(data, "samples"));
+        if (rate < 8000 || rate > 192000 || channels < 1 || channels > 2 || samples <= 0 || samples > rate * 10
+            || Type.enumConstructor(G.field(data, "sampleFormat")) != "I16") throw "Unexpected GO sound format";
+        var output = haxe.io.Bytes.alloc(samples * channels * 2);
+        var nativeOutput = G.create("haxe.io.Bytes", [output.getData(), output.length]);
+        G.call("hxd.snd.Data", "decode", data, [nativeOutput, 0, 0, samples]);
+        pcm = output;
     }
 
     public function playGo():Void {
         var volume = gameVolume();
         if (volume <= 0) return;
         prepare();
-        if (channel != null) G.call("hxd.snd.Channel", "stop", channel);
-        channel = G.call("hxd.res.Sound", "play", sound, [false, volume, null, null]);
+        DesktopAudio.play(pcm, rate, channels, volume);
+        playing = true;
     }
 
     public function update(muted:Bool):Void {
-        if (channel == null) return;
-        if (G.call("hxd.snd.Channel", "isReleased", channel) == true) { channel = null; return; }
-        if (muted) { G.call("hxd.snd.Channel", "stop", channel); channel = null; return; }
-        G.call("hxd.snd.ChannelBase", "set_volume", channel, [gameVolume()]);
+        if (!playing) return;
+        if (muted) { DesktopAudio.stop(); playing = false; return; }
+        playing = DesktopAudio.update(gameVolume());
     }
 
     function gameVolume():Float {
@@ -48,7 +61,7 @@ class ReadyCheckAudio {
     }
 
     public function dispose():Void {
-        if (sound != null) G.call("hxd.res.Sound", "dispose", sound);
-        channel = null; sound = null;
+        if (prepared) DesktopAudio.dispose();
+        playing = false; prepared = false; pcm = null;
     }
 }
