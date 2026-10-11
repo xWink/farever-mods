@@ -13,6 +13,7 @@ typedef MeterSettings = {
     var hideDelay:Int;
     var showRiftRecaps:Bool;
     var readyCheckEnabled:Bool;
+    var disableCountdownAudio:Bool;
     var readyCheckX:Null<Float>;
     var readyCheckY:Null<Float>;
     var showBossKills:Bool;
@@ -48,6 +49,7 @@ class MeterConfig {
         hideDelay: 3,
         showRiftRecaps: true,
         readyCheckEnabled: true,
+        disableCountdownAudio: false,
         readyCheckX: null,
         readyCheckY: null,
         showBossKills: true,

@@ -92,19 +92,19 @@ class ReadyCheckControllerTest {
         update(now + 2); eq(G.sounds.length, 0, "incomplete and cancelled checks stay silent");
         deliver(message(players[2], "r", Group), now + 3);
         update(now + 3);
-        eq(G.sounds.length, 3, "first bell plays on leader and both followers");
-        update(now + 3.1); eq(G.sounds.length, 3, "double ding has an audible gap");
-        update(now + 3.21); eq(G.sounds.length, 6, "each client plays the second bell");
+        eq(G.sounds.length, 3, "completion sound plays once on leader and both followers");
+        update(now + 3.1); eq(G.sounds.length, 3, "next frame does not repeat sound");
+        update(now + 3.21); eq(G.sounds.length, 3, "old second-bell timer does not repeat sound");
         for (sound in G.sounds) {
-            eq(sound.event, "Window_Close", "uses native window close event");
-            eq(sound.window, "Merchant", "uses merchant bell parameter");
-            eq(sound.source, null, "bell is local UI audio");
+            eq(sound.event, "UI_Notify_Quest_Completed", "uses chosen quest-completed sound");
+            eq(sound.params, null, "quest-completed event needs no parameters");
+            eq(sound.source, null, "completion sound is local UI audio");
         }
         for (view in NativeReadyCheckWindow.views) eq(view.visible, false, "everyone ready closes every popup");
         eq(G.sent.length, 1, "one leader sends first countdown step");
         for (i in 1...6) update(now + 3 + i);
         eq([for (sent in G.sent) sent.message.text].join(","), "5,4,3,2,1,GO", "native send receives complete ordered countdown");
-        eq(G.sounds.length, 6, "countdown steps do not repeat the bell");
+        eq(G.sounds.length, 3, "countdown steps do not repeat the sound");
         for (sent in G.sent) {
             eq(sent.client, players[0].chatClient, "countdown originates only from leader");
             eq(sent.message.channel, Group, "countdown always uses group chat");
@@ -135,10 +135,34 @@ class ReadyCheckControllerTest {
         deliver(message(players[2], "r", Group), now + 62);
         G.failAudio = true; update(now + 62); G.failAudio = false;
         eq(G.sent[0].message.text, "5", "audio failure cannot stop countdown");
-        controllers[0].dispose(); configs[1].readyCheckEnabled = false;
         update(now + 62.21);
-        eq(G.sounds.length, 1, "dispose and follower disable cancel pending second bells");
-        eq(controllers[1].state.bellsRemaining, 0, "idle follower still refreshes settings before second bell");
+        eq(G.sounds.length, 0, "failed sound is not retried during the countdown");
+        deliver(message(players[0], "rc", Group), now + 70);
+        deliver(message(players[1], "r", Group), now + 71);
+        deliver(message(players[2], "r", Group), now + 72);
+        controllers[0].dispose(); configs[1].readyCheckEnabled = false;
+        update(now + 72);
+        eq(G.sounds.length, 1, "dispose and follower disable cancel pending sounds");
+        eq(controllers[1].state.completionSoundPending, false, "idle follower still refreshes settings before sound");
+        for (config in configs) config.readyCheckEnabled = true;
+        G.sounds = []; G.sent = [];
+        deliver(message(players[0], "rc", Group), now + 80);
+        deliver(message(players[1], "r", Group), now + 81);
+        deliver(message(players[2], "r", Group), now + 82);
+        configs[0].disableCountdownAudio = true;
+        configs[1].disableCountdownAudio = true;
+        update(now + 82);
+        eq(G.sounds.length, 1, "leader and follower mute their own audio without muting another member");
+        eq(G.sent[0].message.text, "5", "muting audio preserves countdown chat");
+        configs[0].disableCountdownAudio = false;
+        configs[1].disableCountdownAudio = false;
+        update(now + 83);
+        eq(G.sounds.length, 1, "unmuting mid-countdown does not play a delayed sound");
+        eq(G.sent[1].message.text, "4", "countdown continues while audio preference changes");
+        deliver(message(players[0], "rc", Group), now + 90);
+        deliver(message(players[1], "r", Group), now + 91);
+        deliver(message(players[2], "r", Group), now + 92); update(now + 92);
+        eq(G.sounds.length, 4, "unmuting restores one sound per client for the next check");
         Sys.println('Ready Check chat integration: $checks checks passed.');
     }
 }

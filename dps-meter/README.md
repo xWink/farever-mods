@@ -84,7 +84,9 @@ move it; its position is saved independently of the meter's lock setting.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client
-plays the merchant's closing bell twice. The leader's mod sends
+plays the quest-completed sound once as the countdown starts. Enable **Disable
+countdown audio** in the Ready Check settings to mute it for yourself (off by
+default). The leader's mod sends
 **5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
 change what you are typing, or take away movement control.
 

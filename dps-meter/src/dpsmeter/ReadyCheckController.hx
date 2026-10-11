@@ -57,22 +57,18 @@ class ReadyCheckController {
     public function update(app:Dynamic, now:Float):Void {
         // Chat events refresh before starting a check. Avoid scanning/naming
         // the native party every frame while this feature is idle.
-        if (state.active || state.countingDown || state.bellsRemaining > 0) refresh(G.field(app, "me"));
-        if (state.takeBell(now)) playBell();
+        if (state.active || state.countingDown || state.completionSoundPending) refresh(G.field(app, "me"));
+        if (state.takeCompletionSound() && !config.disableCountdownAudio) playCompletionSound();
         var text = state.tick(now);
         if (text != null) send(text);
         view.update(now, G.field(app, "hero") != null);
     }
-    function playBell():Void {
+    function playCompletionSound():Void {
         try {
-            // MerchantUI is a TitleWindow with iconId="Merchant". Match its
-            // native closeWindow sound and parameters without opening any UI.
-            var params = G.create("haxe.ds.StringMap", []);
-            G.call("haxe.ds.StringMap", "set", params, ["WindowID", "Merchant"]);
-            G.staticCall("client.Audio", "play", ["Window_Close", null, params]);
+            G.staticCall("client.Audio", "play", ["UI_Notify_Quest_Completed", null, null]);
         } catch (error:Dynamic) {
             // An unavailable audio backend must not interrupt the countdown.
-            var text = "bell: " + Std.string(error);
+            var text = "sound: " + Std.string(error);
             if (!reported.exists(text)) { reported[text] = true; trace("[DPS Meter] Ready Check " + text); }
         }
     }
