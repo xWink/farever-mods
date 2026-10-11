@@ -20,7 +20,16 @@ class GameAccess {
     }
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
         return switch (type) {
-            case "haxe.io.Bytes": {buffer:args[0], length:args[1], nativeBytes:true};
+            case "haxe.io.Bytes":
+                #if hl
+                // Enforce the actual game constructor's raw-byte argument type.
+                // An interpreter-only test accepts BytesDataImpl here and hides
+                // the cast failure that prevents the GO clip from decoding.
+                var buffer:hl.Bytes = args[0];
+                #else
+                var buffer = args[0];
+                #end
+                {buffer:buffer, length:args[1], nativeBytes:true};
             case "hxd.snd.OggData":
                 if (args[0].nativeBytes != true || args[0].length <= 0) throw "Invalid native bytes";
                 {samples:960, channels:2, samplingRate:48000, sampleFormat:I16};
@@ -32,7 +41,13 @@ class GameAccess {
         var out = args[0];
         if (out.nativeBytes != true || out.length != object.samples * 4 || args[1] != 0 || args[2] != 0 || args[3] != object.samples)
             throw "Invalid PCM decode buffer";
+        #if hl
+        var buffer:hl.Bytes = out.buffer;
+        var length = Std.int(out.length);
+        buffer.toBytes(length).setUInt16(0, 1234);
+        #else
         haxe.io.Bytes.ofData(out.buffer).setUInt16(0, 1234);
+        #end
         decodes++;
         return null;
     }

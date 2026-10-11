@@ -1,0 +1,7 @@
+# Run from dps-meter, then execute: hl build/ready-audio-test.hl
+-D hl-ver=1.16.0
+-cp src
+-cp tests/readyaudio
+-resource assets/ready-check-go.ogg@dps-meter/ready-check-go.ogg
+-main ReadyCheckAudioTest
+-hl build/ready-audio-test.hl

@@ -64,6 +64,19 @@ jobs:
         run: haxe compile.hxml
       - name: Test fight history and combat boundaries
         run: haxe test.hxml
+      - uses: actions/checkout@v4
+        with:
+          repository: HaxeFoundation/hashlink
+          ref: 04a207d73816132b9f742867e8643f58b02a5afa
+          path: .audio-hashlink
+          persist-credentials: false
+      - name: Test GO audio byte buffers on HashLink
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.audio-hashlink
+        run: |
+          make -C ../.audio-hashlink -j2 hl
+          haxe test-ready-audio-hl.hxml
+          ../.audio-hashlink/hl build/ready-audio-test.hl
       - name: Build desktop plugin
         run: |
           sudo apt-get update -qq

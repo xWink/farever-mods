@@ -19,13 +19,24 @@ class ReadyCheckAudio {
         prepared = true;
     }
 
+    static function decoderBytes(bytes:haxe.io.Bytes):Dynamic {
+        #if hl
+        // getData() is a BytesDataImpl wrapper on HashLink. Convert before
+        // boxing into Dynamic so the game's constructor receives raw bytes.
+        var raw:hl.Bytes = hl.Bytes.fromBytes(bytes);
+        #else
+        var raw = bytes.getData();
+        #end
+        return G.create("haxe.io.Bytes", [raw, bytes.length]);
+    }
+
     function decode():Void {
         var bytes = haxe.Resource.getBytes("dps-meter/ready-check-go.ogg");
         if (bytes == null) throw "Embedded Ready Check GO sound is missing";
         // Bytes objects belong to their HL module. Only the underlying byte
         // buffer crosses the boundary. The Ogg decoder works even though the
         // compiled Heaps NativeChannel constructor has no output implementation.
-        var nativeBytes = G.create("haxe.io.Bytes", [bytes.getData(), bytes.length]);
+        var nativeBytes = decoderBytes(bytes);
         var data = G.create("hxd.snd.OggData", [nativeBytes]);
         rate = G.integer(G.field(data, "samplingRate"));
         channels = G.integer(G.field(data, "channels"));
@@ -33,7 +44,7 @@ class ReadyCheckAudio {
         if (rate < 8000 || rate > 192000 || channels < 1 || channels > 2 || samples <= 0 || samples > rate * 10
             || Type.enumConstructor(G.field(data, "sampleFormat")) != "I16") throw "Unexpected GO sound format";
         var output = haxe.io.Bytes.alloc(samples * channels * 2);
-        var nativeOutput = G.create("haxe.io.Bytes", [output.getData(), output.length]);
+        var nativeOutput = decoderBytes(output);
         G.call("hxd.snd.Data", "decode", data, [nativeOutput, 0, 0, samples]);
         pcm = output;
     }

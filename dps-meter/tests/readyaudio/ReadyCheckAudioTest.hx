@@ -19,7 +19,8 @@ class ReadyCheckAudioTest {
         eq(D.channels.length, 0, "preparation stays silent");
         audio.playGo();
         eq(D.channels.length, 1, "GO starts once");
-        eq(D.channels[0].pcm.getUInt16(0), 1234, "actual decoded samples reach the output plugin");
+        var decoded:haxe.io.Bytes = D.channels[0].pcm;
+        eq(decoded.getUInt16(0), 1234, "actual decoded samples reach the output plugin");
         eq(D.channels[0].rate, 48000, "sample rate preserved");
         eq(D.channels[0].channels, 2, "stereo preserved");
         eq(D.channels[0].volume, 0.2, "master and UI volume both apply");
