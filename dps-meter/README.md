@@ -81,6 +81,8 @@ must be the entire message (case and surrounding whitespace are ignored).
 
 The popup starts in the center of the screen. Drag its header at any time to
 move it; its position is saved independently of the meter's lock setting.
+It respects your normal cursor toggle: show the mouse to use its buttons or
+drag it, and hide the mouse to control the camera while the check stays open.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client

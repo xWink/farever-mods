@@ -66,15 +66,14 @@ class NativeReadyCheckWindow {
         try window = G.create("ui.win.TitleWindow", ["Options", null])
         catch (error:Dynamic) { constructing = false; throw error; }
         constructing = false;
-        var freeCursor = G.enumeration("ui.win.WindowFlags", "FreeCursor");
-        if (freeCursor == null) throw "Ready Check cursor flag is unavailable";
-        // Register only for cursor availability. No BlockInputs/BlockSkills,
-        // automatic controller layer, focus request, or chat-box interaction.
-        G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192 | (1 << Type.enumIndex(freeCursor))]);
+        // Passive HUD, like the meter: the player's cursor toggle controls
+        // mouse visibility and camera capture even while a check is open.
+        G.call("ui.win.BaseWindow", "set_windowFlags", window, [8192]);
         MeterControllerFocus.track(window);
         root = G.field(ui, "root");
         G.call("h2d.Flow", "addChildAt", root, [window, G.call("h2d.Object", "get_numChildren", root)]);
-        G.call("ui.BaseUI", "displayWindow", ui, [window, null]);
+        // Keep it out of BaseUI.windows so it cannot force cursor mode or
+        // participate in native menu closing/focus management.
         absolute(root, window);
         var dom = G.field(window, "dom");
         content = G.field(dom, "contentRoot");
@@ -220,8 +219,7 @@ class NativeReadyCheckWindow {
         if (window != null) {
             var old = window; window = null;
             MeterControllerFocus.forget(old);
-            if (owner != null) G.call("ui.BaseUI", "removeWindow", owner, [old]);
-            else G.call("h2d.Object", "remove", old);
+            G.call("h2d.Object", "remove", old);
         }
         owner = null; root = null; rows = []; wrappers = []; frame = null;
         content = null; header = null; title = null; timer = null; body = null; container = null;
