@@ -68,7 +68,7 @@ class ReadyCheckController {
             if (!config.disableCountdownAudio) playCompletionSound();
             // Prepare either enabled category during the pause, even when the
             // other category is muted or its ready sound failed to play.
-            try audio.prepare(!config.disableCountdownVoiceover, !config.disableCountdownAudio)
+            try audio.prepareCheck(!config.disableCountdownVoiceover, !config.disableCountdownAudio)
             catch (error:Dynamic) reportSound(error);
         }
         var number = state.takeCountdownSound();

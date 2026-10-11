@@ -5,8 +5,8 @@ typedef ReadyMember = { var uid:String; var name:String; }
 /** Chat protocol and clock, independent of native UI and combat collection. */
 class ReadyCheck {
     public static inline var DURATION = 30.0;
-    // Let UI_Notify_Quest_Completed (4.48 seconds) finish before "5".
-    public static inline var COUNTDOWN_DELAY = 4.5;
+    // The audible ready cue ends around 1.76 s; its 4.48 s asset includes a quiet tail.
+    public static inline var COUNTDOWN_DELAY = 1.8;
     public var active(default, null) = false;
     public var members(default, null):Array<ReadyMember> = [];
     public var self(default, null) = "";

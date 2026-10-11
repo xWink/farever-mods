@@ -5,6 +5,7 @@ class ReadyCheckAudio {
     public static var voices:Array<Int> = [];
     public function new() {}
     public function prepare(voiceover:Bool = true, effects:Bool = true):Void {}
+    public function prepareCheck(voiceover:Bool, effects:Bool):Void {}
     public function update(muteVoice:Bool, muteEffects:Bool):Void {}
     public function dispose():Void {}
     public function playCountdown(index:Int):Void {

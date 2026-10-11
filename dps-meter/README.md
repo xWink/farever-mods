@@ -87,10 +87,10 @@ drag it, and hide the mouse to control the camera while the check stays open.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client
-plays the quest-completed sound once. After a **4.5-second pause** for that cue,
-the leader sends **5, 4, 3, 2, 1, GO** in Group chat, one second apart. Each
-number's server echo plays the matching spoken number from the included countdown
-recording; **GO** plays the boom at 80% of its original volume.
+plays the quest-completed sound once. After a **1.8-second pause** for its audible cue,
+the leader sends **5, 4, 3, 2, 1, GO** in Group chat, one second apart. The **5**
+echo starts the supplied voice recording as one continuous clip; subsequent
+numbers do not restart playback. **GO** plays the boom at 80% of its original volume.
 **Disable countdown voiceover** mutes just the spoken numbers, while
 **Disable countdown sound effects** mutes the ready cue and GO boom. Both options
 are off by default and affect only your client. The existing mute preference is
@@ -402,8 +402,11 @@ identify boss victories. Outcomes also appear in clipboard snapshots.
 
 Fight history and sent reports are kept indefinitely unless you explicitly remove
 them. They survive game restarts and character changes. The former uploader `keep_days` option is ignored; no
-age-based cleanup runs. Local history works even with log uploads disabled,
-and ordinary or abandoned fights are never submitted as completed boss reports.
+age-based cleanup runs. Local history works even with log uploads disabled.
+Only confirmed victories can be submitted to fareverlogs.fr. Defeats and unknown
+outcomes are blocked both when queued and before HTTP, including saved retries
+and recovered drafts. Older queued reports without a confirmed outcome stay
+local. Defeated fights remain available in combat history.
 The first launch imports surviving reports from `logs/`, `logs/sent/`, and
 `logs/rejected/` without submitting them again. Previously deleted reports
 cannot be recovered. Older reports use their original encounter names and an

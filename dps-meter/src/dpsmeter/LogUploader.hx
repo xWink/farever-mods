@@ -88,6 +88,7 @@ class LogUploader {
     }
 
     public function enqueue(name:String, report:Dynamic):Void {
+        if (!confirmedVictory(report)) return;
         incoming.add({name: name, report: report});
         wake.release();
     }
@@ -202,13 +203,17 @@ class LogUploader {
         saveMutex.release();
     }
 
-    function saveReport(name:String, report:Dynamic):Void {
+    static function confirmedVictory(report:Dynamic):Bool
+        return report != null && Reflect.field(report, "outcome") == "Victory";
+
+    function saveReport(name:String, report:Dynamic):Bool {
+        if (!confirmedVictory(report)) return false;
         // Stable names also make recovery safe if shutdown occurs between
         // committing the JSON and removing its old .pending draft.
         for (folder in [logs, logs + "/sent", logs + "/rejected"]) {
             var existing = folder + "/" + name;
             if (FileSystem.exists(existing)) {
-                if (Json.parse(File.getContent(existing)).session_id == report.session_id) return;
+                if (Json.parse(File.getContent(existing)).session_id == report.session_id) return true;
                 throw "A different report already uses " + name;
             }
         }
@@ -216,6 +221,7 @@ class LogUploader {
         var temp = path.substr(0, path.length - 5) + ".tmp";
         File.saveContent(temp, Json.stringify(report, null, "  "));
         FileSystem.rename(temp, path);
+        return true;
     }
 
     function recoverDrafts():Void {
@@ -228,11 +234,12 @@ class LogUploader {
                 if (draft.report == null || draft.timestamp == null || draft.boss == null) continue;
                 var id = haxe.crypto.Md5.encode(contents).substr(0, 7);
                 draft.report.session_id = draft.boss + "-" + draft.timestamp + "-" + Std.parseInt("0x" + id);
+                var saved = false;
                 saveMutex.acquire();
-                try saveReport(Path.withoutExtension(name) + "_recovered_" + id + ".json", draft.report)
+                try saved = saveReport(Path.withoutExtension(name) + "_recovered_" + id + ".json", draft.report)
                 catch (e:Dynamic) { saveMutex.release(); throw e; }
                 saveMutex.release();
-                FileSystem.deleteFile(path);
+                if (saved) FileSystem.deleteFile(path);
             } catch (e:Dynamic) log("Could not recover " + name + ": " + Std.string(e));
         }
     }
@@ -249,6 +256,19 @@ class LogUploader {
         }
     }
 
+    function uploadBytes(name:String):Null<haxe.io.Bytes> {
+        var report:Dynamic = Json.parse(File.getContent(logs + "/" + name));
+        if (!confirmedVictory(report)) {
+            // Old queued reports did not store an outcome. Preserve them for
+            // local history, but never guess victory from damage/skill kills.
+            retryAt[name] = Math.POSITIVE_INFINITY;
+            log(name + " skipped: no confirmed victory (kept locally)");
+            return null;
+        }
+        Reflect.deleteField(report, "outcome");
+        return haxe.io.Bytes.ofString(Json.stringify(report));
+    }
+
     function upload(name:String):Void {
         var path = logs + "/" + name;
         var status = 0;
@@ -256,13 +276,17 @@ class LogUploader {
         var socket:UploadSocket = null;
         try {
             progress();
+            // Check retries from disk as well as fresh queue entries, before
+            // constructing an HTTP request or opening a network socket.
+            var bytes = uploadBytes(name);
+            if (bytes == null) return;
             var request = new sys.Http(apiUrl);
             request.cnxTimeout = 30;
             request.noShutdown = true;
             request.setHeader("Content-Type", "application/json");
             request.setHeader("User-Agent", "farever-group-dps-uploader/1.0");
             if (token != "") request.setHeader("Authorization", "Bearer " + token);
-            request.setPostBytes(File.getBytes(path));
+            request.setPostBytes(bytes);
             request.onStatus = value -> status = value;
             request.onError = message -> error = message;
             socket = new UploadSocket(StringTools.startsWith(apiUrl, "https://"), progress);

@@ -56,7 +56,7 @@ class HistoryTest {
         return {id: 17, action: action, group: group, page: page, fightId: fightId};
     static function main():Void {
         clientSkillCompatibility(); archivePolicy(); targetDummies();
-        lifecycle(); partyCombat(); chakram(); riftCountdown(); gameVersions(); outcomes(); recapSummary(); snapshots(); storage(); encounterFolders(); uploader(); categories(); metadata(); breakdown(); encounterDetails(); historyActions(); snapshotLayouts(); snapshotTextures(); snapshotViewports(); historyOptions(); literalLabels(); bossRecords();
+        lifecycle(); partyCombat(); chakram(); riftCountdown(); gameVersions(); outcomes(); recapSummary(); snapshots(); storage(); encounterFolders(); uploader(); victoryUploads(); categories(); metadata(); breakdown(); encounterDetails(); historyActions(); snapshotLayouts(); snapshotTextures(); snapshotViewports(); historyOptions(); literalLabels(); bossRecords();
         Sys.println('Fight history: $checks checks passed');
     }
     static function archivePolicy():Void {
@@ -940,6 +940,59 @@ class HistoryTest {
         check(second.history.query(request("fights", "Rift - OldGuardian")).total == 1, "Restart does not duplicate legacy migration");
         second.archive(FightHistory.encode(sample(), "shutdown")); second.stop();
         check(FileSystem.exists(archivePath(root, "shutdown")), "Normal shutdown persists pending histories");
+        remove(root);
+    }
+    static function victoryUploads():Void {
+        var writer = new RunWriter();
+        var loss = sample(); loss.outcome = "Defeat"; loss.defeated = true;
+        writer.enqueue(loss);
+        check(writer.uploader == null, "An explicit defeat cannot enter the uploader even with a stale killed flag");
+        var unknown = sample(); writer.enqueue(unknown);
+        check(writer.uploader == null, "Damage and skill kills without a confirmed victory cannot enter the uploader");
+        var won = sample(); won.outcome = "Victory";
+        writer.enqueue(won);
+        var queued = writer.uploader.incoming.pop(false);
+        check(queued != null && queued.report.outcome == "Victory", "Victory outcome survives the worker handoff");
+        var bossKill = sample(); bossKill.defeated = true;
+        writer.enqueue(bossKill);
+        check(writer.uploader.incoming.pop(false).report.outcome == "Victory", "Native boss-kill confirmation still uploads before archive outcome is assigned");
+
+        var root = temp("victory-uploads");
+        var uploader = new LogUploader(root);
+        var defeatReport = loss.json("20261011-160000", 1); defeatReport.outcome = "Defeat";
+        var unknownReport = unknown.json("20261011-160000", 2);
+        uploader.enqueue("run_defeat.json", defeatReport);
+        uploader.enqueue("run_unknown.json", unknownReport);
+        check(uploader.incoming.pop(false) == null, "Worker independently rejects defeat and unknown queue entries");
+        uploader.enqueue("run_victory.json", queued.report);
+        loss.defeated = false;
+        uploader.archive(FightHistory.encode(loss, "local_defeat"));
+        uploader.flush();
+        check(FileSystem.exists(archivePath(root, "local_defeat")), "Defeats are still retained in local combat history");
+        check(FileSystem.exists(root + "/logs/run_victory.json"), "Confirmed victory persists for restart and retry");
+        var outbound = Json.parse(uploader.uploadBytes("run_victory.json").toString());
+        check(!Reflect.hasField(outbound, "outcome") && outbound.session_id == queued.report.session_id
+            && outbound.players.length == queued.report.players.length, "Queue outcome is removed while the existing HTTP payload stays intact");
+        check(Json.parse(File.getContent(root + "/logs/run_victory.json")).outcome == "Victory", "Preparing an HTTP body does not erase retry eligibility on disk");
+
+        // Exercise the actual upload entry point without ever permitting a
+        // network target, including persisted jobs created by older versions.
+        uploader.apiUrl = "invalid://must-not-open";
+        for (entry in [{name:"run_defeat.json", report:defeatReport}, {name:"run_unknown.json", report:unknownReport}]) {
+            var contents = Json.stringify(entry.report);
+            File.saveContent(root + "/logs/" + entry.name, contents);
+            uploader.upload(entry.name);
+            check(uploader.retryAt[entry.name] == Math.POSITIVE_INFINITY, "Non-victory retry is skipped before HTTP rather than retried as a network failure");
+            check(File.getContent(root + "/logs/" + entry.name) == contents, "Skipped report remains intact locally");
+        }
+        check(File.getContent(root + "/uploader.log").indexOf("upload failed") < 0, "Skipped reports never attempt the invalid HTTP target");
+        for (entry in [{name:"loss", report:defeatReport}, {name:"unknown", report:unknownReport}, {name:"win", report:queued.report}])
+            File.saveContent(root + "/logs/run_" + entry.name + ".pending", Json.stringify({report:entry.report, timestamp:"20261011-160000", boss:"BossKind"}));
+        uploader.recoverDrafts();
+        check(FileSystem.exists(root + "/logs/run_loss.pending") && FileSystem.exists(root + "/logs/run_unknown.pending"), "Unconfirmed crash drafts remain local without entering the upload queue");
+        check(!FileSystem.exists(root + "/logs/run_win.pending"), "Confirmed victory crash draft can still recover");
+        var recovered = FileSystem.readDirectory(root + "/logs").filter(name -> name.indexOf("_recovered_") >= 0);
+        check(recovered.length == 1 && Json.parse(File.getContent(root + "/logs/" + recovered[0])).outcome == "Victory", "Only the confirmed victory draft becomes a retryable report");
         remove(root);
     }
     static function categories():Void {

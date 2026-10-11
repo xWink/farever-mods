@@ -49,12 +49,17 @@ class RunWriter {
     public function receiveBossRecord():Null<BossRecordResponse> return uploader == null ? null : uploader.receiveBossRecord();
 
     public function enqueue(fight:Fight):Void {
-        if (stopped) return;
+        // The older boss collector records a confirmed boss kill in defeated;
+        // history/Rift snapshots also have an explicit outcome. A defeat or an
+        // unknown result must never become an upload, even if queued by mistake.
+        if (stopped || (fight.outcome != "" ? fight.outcome != "Victory" : !fight.defeated)) return;
         prepare();
         var timestamp = DateTools.format(Date.now(), "%Y%m%d-%H%M%S");
         reportSequence = (reportSequence + 1) & 0x3fffffff;
         var report = fight.json(timestamp, reportSequence);
         if (report.players.length == 0) return;
+        // Queue-only metadata survives restarts; LogUploader removes it before POST.
+        Reflect.setField(report, "outcome", "Victory");
         uploader.enqueue("run_" + timestamp + "_" + reportSequence + ".json", report);
     }
 
