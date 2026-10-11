@@ -54,6 +54,10 @@ class ReadyCheckControllerTest {
         controllers[0].received(remote.chatClient, message(players[1], "r", Group), now);
         eq(controllers[0].state.isReady("p1"), false, "unowned chat clients ignored");
 
+        NativeReadyCheckWindow.views[0].send("r");
+        NativeReadyCheckWindow.views[1].send("nr");
+        eq(G.sent.length, 0, "buttons cannot resend the initial leader/member status");
+        NativeReadyCheckWindow.views[1].send("r");
         NativeReadyCheckWindow.views[1].send("r");
         eq(G.sent.length, 1, "Ready button sends one message");
         eq(G.sent[0].message.text, "r", "Ready button text");
@@ -61,10 +65,23 @@ class ReadyCheckControllerTest {
         eq(G.sent[0].message.sender.uid, "p1", "Ready button uses local player identity");
         eq(controllers[1].state.isReady("p1"), false, "button waits for server echo");
         deliver(G.sent.shift().message, now + 0.1);
+        NativeReadyCheckWindow.views[1].send("r");
+        eq(G.sent.length, 0, "already ready cannot send Ready again");
         NativeReadyCheckWindow.views[1].send("nr");
+        NativeReadyCheckWindow.views[1].send("nr");
+        eq(G.sent.length, 1, "double-click Not Ready sends only once before echo");
         eq(G.sent[0].message.text, "nr", "Not Ready button text");
         deliver(G.sent.shift().message, now + 0.2);
         eq(controllers[0].state.isReady("p1"), false, "Not Ready updates every client");
+        NativeReadyCheckWindow.views[1].send("nr");
+        eq(G.sent.length, 0, "already not ready cannot send Not Ready again");
+        for (text in ["r", "r", "nr", "nr", "r", "r"]) NativeReadyCheckWindow.views[1].send(text);
+        eq([for (sent in G.sent) sent.message.text].join(","), "r,nr,r", "rapid status changes send each change once");
+        deliver(G.sent.shift().message, now + 0.21);
+        deliver(G.sent.shift().message, now + 0.22);
+        NativeReadyCheckWindow.views[1].send("r");
+        eq(G.sent.length, 1, "earlier replies cannot clear the latest pending status");
+        deliver(G.sent.shift().message, now + 0.23);
         NativeReadyCheckWindow.views[1].send("cancelrc"); eq(G.sent.length, 0, "nonleader cannot send cancel through button callback");
         NativeReadyCheckWindow.views[0].send("cancelrc"); eq(G.sent[0].message.text, "cancelrc", "leader Cancel sends command");
         deliver(G.sent.shift().message, now + 0.3); update(now + 0.3);

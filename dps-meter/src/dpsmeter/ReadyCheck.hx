@@ -14,6 +14,7 @@ class ReadyCheck {
     var party = "";
     var roster = "";
     var ready:Map<String, Bool> = [];
+    var pendingResponses:Array<Bool> = [];
     var nextCountAt = 0.0;
     var countIndex = 0;
     static final COUNTDOWN = ["5", "4", "3", "2", "1", "GO"];
@@ -52,6 +53,11 @@ class ReadyCheck {
     }
     public function isLeader():Bool return self != "" && self == leader;
     public function isReady(uid:String):Bool return ready[uid] == true;
+    public function canRespond(value:Bool):Bool {
+        var current = pendingResponses.length == 0 ? isReady(self) : pendingResponses[pendingResponses.length - 1];
+        return active && current != value;
+    }
+    public function responseSent(value:Bool):Void pendingResponses.push(value);
     public function secondsLeft(now:Float):Int return active ? Std.int(Math.max(0, Math.ceil(deadline - now))) : 0;
     public function expire(now:Float):Void { if (active && now >= deadline) reset(); }
 
@@ -75,6 +81,9 @@ class ReadyCheck {
             case "cancelrc": reset();
             case "r", "nr":
                 ready[sender] = command(text) == "r";
+                // Replies arrive in order. Keep the latest queued choice while
+                // earlier replies arrive, so double-clicks cannot repeat chat.
+                if (sender == self && pendingResponses.length > 0 && pendingResponses[0] == ready[sender]) pendingResponses.shift();
                 for (member in members) if (!isReady(member.uid)) return;
                 active = false;
                 // Every client closes its popup; only the initiating leader speaks.
@@ -92,7 +101,7 @@ class ReadyCheck {
         return text;
     }
     public function reset():Void {
-        active = false; countingDown = false; ready = []; deadline = 0; countIndex = 0; nextCountAt = 0;
+        active = false; countingDown = false; ready = []; pendingResponses = []; deadline = 0; countIndex = 0; nextCountAt = 0;
     }
     function hasMember(uid:String):Bool {
         for (member in members) if (member.uid == uid) return true;

@@ -65,7 +65,13 @@ class ReadyCheckController {
     function sendCommand(text:String):Void {
         try {
             refresh(player);
-            if (state.accepts(state.self, text, "Group", haxe.Timer.stamp())) send(text);
+            if (!state.accepts(state.self, text, "Group", haxe.Timer.stamp())) return;
+            if (text == "r" || text == "nr") {
+                var ready = text == "r";
+                if (!state.canRespond(ready)) return;
+                state.responseSent(ready);
+            }
+            send(text);
         } catch (error:Dynamic) report(error);
     }
     function send(text:String):Void {
