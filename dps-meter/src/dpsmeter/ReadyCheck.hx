@@ -4,7 +4,7 @@ typedef ReadyMember = { var uid:String; var name:String; }
 
 /** Chat protocol and clock, independent of native UI and combat collection. */
 class ReadyCheck {
-    public static inline var DURATION = 30.0;
+    public static inline var DURATION = 60.0;
     // The audible ready cue ends around 1.76 s; its 4.48 s asset includes a quiet tail.
     public static inline var COUNTDOWN_DELAY = 1.8;
     public var active(default, null) = false;
@@ -90,7 +90,7 @@ class ReadyCheck {
         if (!accepts(sender, text, channel, now)) return;
         switch (command(text)) {
             case "rc":
-                // Duplicate start messages cannot extend the 30-second deadline.
+                // Duplicate start messages cannot extend the 60-second deadline.
                 if (active) return;
                 reset(); active = true; deadline = now + DURATION; ready[leader] = true;
             case "cancelrc": reset();

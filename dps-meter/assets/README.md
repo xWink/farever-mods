@@ -17,8 +17,9 @@ ffmpeg -i BoomSound.m4a -map_metadata -1 -c:a libvorbis -q:a 6 ready-check-go.og
 
 # Countdown voiceover
 
-`ready-check-countdown.ogg` is the user's `CountDown.m4a` (provided October 11,
-2026), converted at its original 48 kHz stereo rate without changing gain.
+`ready-check-countdown.ogg` is the user's corrected `CountDown(1).m4a` (provided
+October 11, 2026), replacing the recording with the clipped "two". It is converted
+at its original 48 kHz stereo rate without changing gain.
 It is embedded alongside the boom. Each spoken number occupies one second of
 the recording (5 at 0–1 s, 4 at 1–2 s, down to 1 at 4 s through the end).
 The runtime decodes once and plays the complete recording when the leader's
@@ -28,5 +29,5 @@ through, it joins at that number's one-second offset and plays the remaining
 recording continuously. Cancellation and GO stop any remaining voice.
 
 ```sh
-ffmpeg -i CountDown.m4a -map 0:a:0 -c:a libvorbis -q:a 6 -map_metadata -1 ready-check-countdown.ogg
+ffmpeg -i 'CountDown(1).m4a' -map 0:a:0 -c:a libvorbis -q:a 6 -map_metadata -1 ready-check-countdown.ogg
 ```

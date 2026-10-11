@@ -50,12 +50,12 @@ class ReadyCheckTest {
             state.receive("outsider", "rc", channel, 0); eq(state.active, false, "outsider cannot initiate");
             state.receive("leader", " Rc \n", channel, 10);
             eq(state.active, true, "leader starts on supported channel");
-            eq(state.secondsLeft(10), 30, "30 second timer");
-            eq(state.secondsLeft(10.2), 30, "timer rounds up");
-            eq(state.secondsLeft(11), 29, "timer advances");
+            eq(state.secondsLeft(10), 60, "60 second timer");
+            eq(state.secondsLeft(10.2), 60, "timer rounds up");
+            eq(state.secondsLeft(11), 59, "timer advances");
             eq(state.isReady("leader"), true, "initiator ready by default");
             eq(state.isReady("two"), false, "same display name does not share ready status");
-            state.receive("leader", "rc", channel, 11); eq(state.deadline, 40, "duplicate rc cannot extend timer");
+            state.receive("leader", "rc", channel, 11); eq(state.deadline, 70, "duplicate rc cannot extend timer");
             state.receive("two", "r", channel, 12); eq(state.isReady("two"), true, "ready message");
             state.receive("two", "nr", channel, 13); eq(state.isReady("two"), false, "not ready reverses readiness");
             state.receive("leader", "nr", channel, 14); eq(state.isReady("leader"), false, "leader can mark not ready");
@@ -107,14 +107,19 @@ class ReadyCheckTest {
         var state = client();
         state.receive("two", "r", "Group", 0); state.receive("leader", "rc", "Group", 1);
         eq(state.isReady("two"), false, "pre-check response cannot mark a future check ready");
-        state.receive("two", "r", "Group", 30.99);
-        state.receive("three", "r", "Group", 31);
+        state.tick(31);
+        eq(state.active, true, "check remains open beyond the former 30-second timeout");
+        eq(state.secondsLeft(31), 30, "another 30 seconds remain at the former deadline");
+        state.receive("two", "r", "Group", 60.99);
+        state.receive("three", "r", "Group", 61);
         eq(state.active, false, "deadline cancels even if update has not run");
-        eq(state.tick(31), null, "last response at deadline cannot trigger GO");
+        eq(state.tick(61), null, "last response at deadline cannot trigger GO");
         eq(state.takeCompletionSound(), false, "last response at deadline cannot play sound");
-        state.receive("leader", "rc", "Group", 40); state.tick(70);
+        state.receive("leader", "rc", "Group", 70); state.tick(129.99);
+        eq(state.active, true, "check stays open until the full minute elapses");
+        state.tick(130);
         eq(state.active, false, "timer cancels without any incoming message");
-        eq(state.secondsLeft(70), 0, "timer ends at zero");
+        eq(state.secondsLeft(130), 0, "timer ends at zero");
 
         for (duringCountdown in [false, true]) for (change in ["disable", "solo", "leave", "party", "leader", "join", "replace", "self"]) {
             state = client();
@@ -185,11 +190,11 @@ class ReadyCheckTest {
                 for (text in ["5", "4", "3", "2", "1"]) state.receive("leader", text, "Group", 33);
                 switch (stop) {
                     case "cancel": state.receive("leader", "cancelrc", "Group", 34);
-                    case "timeout": state.expire(63);
+                    case "timeout": state.expire(93);
                     case "restart": state.receive("leader", "rc", "Group", 34);
                     case "dispose": state.reset();
                 }
-                state.receive("leader", "GO", "Group", 64);
+                state.receive("leader", "GO", "Group", 94);
                 eq(state.takeGoSound(), false, stop + " prevents late GO");
                 eq(state.takeCountdownSound(), -1, stop + " clears queued voice");
             }

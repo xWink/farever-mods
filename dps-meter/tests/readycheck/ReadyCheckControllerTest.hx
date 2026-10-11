@@ -138,6 +138,9 @@ class ReadyCheckControllerTest {
         eq(controllers[0].state.active, false, "disconnect resets protocol");
         eq(NativeReadyCheckWindow.views[0].visible, false, "disconnect closes view");
         update(now + 51);
+        eq(NativeReadyCheckWindow.views[2].visible, true, "follower popup remains open after 30 seconds");
+        now += 30;
+        update(now + 51);
         eq(G.sent.length, 0, "timeout never sends a countdown");
         for (view in NativeReadyCheckWindow.views) eq(view.visible, false, "timeout closes remaining views");
         for (config in configs) config.readyCheckEnabled = true;
