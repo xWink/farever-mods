@@ -1,6 +1,7 @@
 import fixtargetlock.QuickCast;
 import fixtargetlock.TargetLockCamera;
 import fixtargetlock.LockedTargeting;
+import fixtargetlock.LockLifecycle;
 import fixtargetlock.GameAccess as G;
 
 class CombatTest {
@@ -180,6 +181,77 @@ class CombatTest {
         targeting.reset();
         eq(player.autoTarget, other, "Interrupted skill scope restores the prior target next frame");
         eq(targeting.target(player), null, "Interrupted scope cannot affect later skills");
+        lockTransitions();
         Sys.println('Combat tests passed ($checks checks)');
+    }
+
+    // Reproduce native updateInputs: an orphaned inLock immediately reacquires
+    // autoTarget before the mod's existing postfix can notice the missing lock.
+    static function nativeLockUpdate(controller:Dynamic):Void {
+        if (controller.inLock && controller.unit.lockedTarget == null) {
+            controller.unit.lockedTarget = controller.autoTarget;
+            controller.inLock = controller.autoTarget != null;
+        }
+    }
+
+    static function lockTransitions():Void {
+        var dungeon = {name:"dungeon"}, overworld = {name:"overworld"};
+        var foe = {name:"dungeon foe"}, replacement = {name:"overworld foe"};
+        var hero:Dynamic = {layer:dungeon, lockedTarget:foe};
+        var controller:Dynamic = {unit:hero, inLock:true, autoTarget:foe};
+        var lifecycle = new LockLifecycle();
+        eq(lifecycle.observe(controller, true), false, "First observation preserves a valid lock");
+        eq(hero.lockedTarget, foe, "Initial target remains selected");
+
+        var unguarded:Dynamic = {unit:{layer:overworld, lockedTarget:null}, inLock:true, autoTarget:replacement};
+        nativeLockUpdate(unguarded);
+        eq(unguarded.unit.lockedTarget, replacement, "Reproduce unwanted native reacquisition without another keypress");
+
+        controller.unit = {layer:overworld, lockedTarget:null};
+        controller.autoTarget = replacement;
+        eq(lifecycle.observe(controller, true), true, "Reused controller detects the replacement hero");
+        nativeLockUpdate(controller);
+        eq(controller.unit.lockedTarget, null, "Transition cleanup prevents the unwanted overworld lock");
+        eq(controller.inLock, false, "Native lock mode is off after leaving the dungeon");
+        eq(controller.autoTarget, null, "Previous area's auto-target is discarded");
+
+        controller.unit.lockedTarget = replacement; controller.inLock = true; controller.autoTarget = replacement;
+        eq(lifecycle.observe(controller, true), false, "A deliberate lock in the new area survives later frames");
+        eq(controller.unit.lockedTarget, replacement, "Valid same-area lock stays intact");
+        controller.unit.layer = dungeon;
+        eq(lifecycle.observe(controller, true), true, "Map change is detected even when the hero is reused");
+        eq(controller.unit.lockedTarget, null, "Old nonzero target is cleared through native leaveLock");
+
+        controller.inLock = true; controller.autoTarget = foe; controller.unit = null;
+        var unlocks = G.unlocks;
+        lifecycle.observe(controller, true);
+        eq(controller.inLock, false, "Temporary missing hero clears controller lock intent");
+        eq(G.unlocks, unlocks, "No native leaveLock call dereferences a missing hero");
+        controller.unit = hero;
+        lifecycle.observe(controller, true);
+        eq(hero.lockedTarget, null, "Returning hero cannot restore the previous target");
+
+        var other:Dynamic = {unit:hero, inLock:true, autoTarget:foe};
+        eq(lifecycle.observe(other, true), true, "Controller replacement resets the old lock context");
+        eq(other.inLock, false, "Replacement controller does not inherit lock intent");
+
+        hero.layer = overworld; hero.lockedTarget = replacement; other.inLock = true; other.autoTarget = replacement;
+        unlocks = G.unlocks;
+        eq(lifecycle.observe(other, false), false, "Disabled mod observes changes without touching native state");
+        eq(G.unlocks, unlocks, "Disabled mod makes no unlock call");
+        eq(other.inLock, true, "Disabled mod leaves the native lock alone");
+        eq(lifecycle.observe(other, true), false, "Re-enabling does not replay transitions from while disabled");
+
+        hero.layer = dungeon; G.failUnlock = true;
+        var failed = false;
+        try lifecycle.observe(other, true) catch (_:Dynamic) failed = true;
+        eq(failed, true, "Native cleanup failures reach the hook's error handler");
+        G.failUnlock = false;
+        eq(lifecycle.observe(other, true), true, "Interrupted transition cleanup retries next update");
+        eq(other.inLock, false, "Retry clears the lock");
+        lifecycle.reset();
+        other.inLock = true; hero.lockedTarget = foe;
+        eq(lifecycle.observe(other, true), false, "Disposal releases the previous session's context");
+        eq(hero.lockedTarget, foe, "A fresh session's initial valid lock is preserved");
     }
 }

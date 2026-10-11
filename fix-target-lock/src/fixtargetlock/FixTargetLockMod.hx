@@ -44,6 +44,7 @@ class FixTargetLockMod {
     static var lastController:Dynamic;
     static var originalTargetLock:Null<Bool>;
     static var targeting = new LockedTargeting();
+    static var lockLifecycle = new LockLifecycle();
     static var lastStatus:String = "Waiting for Farever";
 
     static function main():Void {
@@ -56,10 +57,21 @@ class FixTargetLockMod {
         );
     }
 
+    @:hlx.prefix(client.PlayerController.update)
+    static function beforeControllerUpdate(instance:Dynamic, dt:Float):HlxPrefixControl {
+        lastController = instance;
+        try {
+            if (lockLifecycle.observe(instance, config.enabled))
+                lastStatus = "Unlocked (area or character changed)";
+        } catch (error:Dynamic) {
+            lastStatus = "Error clearing previous area lock: " + Std.string(error);
+            trace("[FixTargetLock] " + lastStatus);
+        }
+        return Continue;
+    }
+
     @:hlx.postfix(client.PlayerController.updateInputs)
     static function afterUpdateInputs(instance:Dynamic, dt:Float, result:Void):Void {
-        lastController = instance;
-
         try {
             applyFeatureFlag();
             if (!config.enabled) {
@@ -179,6 +191,7 @@ class FixTargetLockMod {
     static function beforeDispose(instance:Dynamic):HlxPrefixControl {
         CombatHooks.dispose();
         targeting.reset();
+        lockLifecycle.reset();
         lastController = null;
         return Continue;
     }

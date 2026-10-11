@@ -10,6 +10,8 @@ The mod uses Farever's existing `lockedTarget`, `SkillTarget`, and `hard-lock` H
 
 The mod pins the locked enemy only while Farever resolves a skill's target. Native skill replacement and manual ground/point aiming continue normally; the crosshair target is restored when that skill-aim call ends.
 
+Changing areas or replacing the controlled hero clears the target lock before Farever can automatically acquire another enemy. This also applies when **Auto-unlock when target dies** is off. Normal locks within the same area remain active.
+
 ## Installation
 
 **Required:** HLX Core, [Better Mod Settings](https://www.nexusmods.com/farever/mods/10), and [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17). A missing dependency shows a desktop error naming what to install and closes Farever before this mod starts.
@@ -48,6 +50,8 @@ Farever contains a nearly complete target-lock implementation, but `PlayerContro
 - unlocked + Lock Target: refreshes Farever's auto-target for the current view, then calls its `lockAutoTarget()`;
 - locked + Lock Target: calls Farever's `leaveLock()`;
 - enabled: keeps Farever's `Const.Camera.TargetLock` feature flag active.
+
+Before the player controller updates, the mod checks whether its controller, hero or map changed. It clears the previous auto-target and uses native `leaveLock()` to reset lock state on a transition, including while input is blocked. Without this cleanup, Farever reuses the controller's `inLock` flag after replacing the hero and can acquire a new target before the existing dead-target check runs.
 
 Farever already stores the target on `Hero.lockedTarget`, feeds target-based skills through `SkillTarget.Target`, leaves `SkillTarget.Point` behavior intact, and marks the corresponding enemy widget with the native `hard-lock` style.
 

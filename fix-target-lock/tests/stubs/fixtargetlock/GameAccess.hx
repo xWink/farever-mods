@@ -9,6 +9,8 @@ class GameAccess {
     public static var heldInputs:Map<String, Bool> = ["Skill1" => true, "Skill2" => true];
     public static var bindingsAvailable = true;
     public static var usePad = false;
+    public static var unlocks = 0;
+    public static var failUnlock = false;
     static var sampledInput:String;
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, value:Dynamic):Void Reflect.setField(o, name, value);
@@ -17,6 +19,15 @@ class GameAccess {
     public static function number(v:Dynamic, fallback:Float):Float {
         var n = Std.parseFloat(Std.string(v));
         return Math.isFinite(n) ? n : fallback;
+    }
+    public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
+        if (type != "client.PlayerController" || name != "leaveLock") throw "Unexpected native call";
+        if (failUnlock) throw "Unlock failure";
+        if (object.unit == null) throw "Cannot call native leaveLock without a hero";
+        unlocks++;
+        object.unit.lockedTarget = null;
+        object.inLock = false;
+        return null;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
         if (type == "hxd.Key" || type == "gamepad.Pad") {

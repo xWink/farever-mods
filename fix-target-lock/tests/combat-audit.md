@@ -90,3 +90,28 @@ Regression coverage includes queued taps released before aiming, missed release
 edges, held aiming, keyboard/gamepad paths, first-frame latching, focus and
 blocked-binding recovery, cancellation/job changes, and nested controllers.
 Automated tests simulate input states; physical gameplay still needs validation.
+
+## October 10 area-transition lock fix
+
+Audited `hlboot(20261007-191837).dat`, HashLink bytecode 6.
+`GameApp.syncPlayer` (f12903) reuses `PlayerController.inst` and replaces its
+`unit` without resetting `inLock` or `autoTarget`. Native
+`PlayerController.updateInputs` (f13256) immediately calls `lockAutoTarget`
+when `inLock` is true and the current hero's `lockedTarget` is zero. The mod's
+existing postfix dead-target check runs after this reacquisition and can see
+a valid replacement target, missing the stale lock intent.
+
+A prefix on `PlayerController.update` (f13247, receiver + Float -> Void)
+now observes controller, hero and layer identity before native input processing,
+even when input is blocked. On a transition, it clears `autoTarget` and calls
+native `leaveLock` (f13259), which resets `Hero.lockedTarget` through its native
+setter and clears `inLock`. A temporarily missing hero clears only controller
+state until a hero returns. The guard is independent of auto-unlock-on-death,
+does not mutate native state while the mod is disabled, and releases its
+references on disposal.
+
+Combat regressions reproduce automatic reacquisition without the guard and
+verify that hero/map changes prevent it, while deliberate same-area locks
+survive. They also cover controller replacement, a missing hero, disabled
+handling, interrupted cleanup and session reset. These are simulated transitions;
+the actual dungeon-exit path still needs in-game confirmation.
