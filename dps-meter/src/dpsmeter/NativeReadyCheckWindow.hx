@@ -10,6 +10,7 @@ class NativeReadyCheckWindow {
     static inline var WIDTH = 440;
     static inline var HEADER = 58;
     static inline var ROW = 34;
+    static var styledData:Dynamic;
     var config:MeterSettings;
     var state:ReadyCheck;
     var send:String->Void;
@@ -118,8 +119,14 @@ class NativeReadyCheckWindow {
         notReadyButton = button(parent, "Not Ready", "dpsReadyCheckNotReady", () -> send("nr"));
         leaderButtons = state.isLeader();
         if (leaderButtons) cancelButton = button(parent, "Cancel", "dpsReadyCheckCancel", () -> send("cancelrc"));
+        styleButtons(ui);
         for (control in [readyButton, notReadyButton, cancelButton]) if (control != null) {
-            absolute(container, control); size(control, 116, 36);
+            // Native buttons reserve substantial horizontal padding. At this
+            // compact width it wraps "Not Ready" into a second, clipped line.
+            absolute(container, control); padding(control, 0); size(control, 116, 36);
+            var text = G.field(control, "btnText");
+            G.call("h2d.Text", "set_lineBreak", text, [false]);
+            style(text, "line-break", false);
         }
         height = HEADER + rows.length * ROW + 76;
         size(window, WIDTH, height);
@@ -128,6 +135,26 @@ class NativeReadyCheckWindow {
         size(content, WIDTH - 16, height - HEADER - 8); position(content, 8, HEADER);
         for (object in wrappers) { size(object, WIDTH - 16, height - HEADER - 8); position(object, 0, 0); }
         layout();
+    }
+    function styleButtons(ui:Dynamic):Void {
+        var sheet = G.field(ui, "style"), data = G.field(sheet, "data");
+        if (data != styledData) {
+            var css = "";
+            for (theme in [{name:"ready", color:"#527F40", text:"#FFFFFF"},
+                {name:"not-ready", color:"#E8BB4D", text:"#433523"},
+                {name:"cancel", color:"#B8443A", text:"#FFFFFF"}]) {
+                var selector = "button.dps-ready-check-" + theme.name;
+                css += selector + " > #background { background: " + theme.color + "; }"
+                    + selector + ":hover > #background { background: darken(" + theme.color + ", 8%); }"
+                    + selector + ":active > #background { background: darken(" + theme.color + ", 15%); }"
+                    + selector + " > #btnText { color: " + theme.text + "; }";
+            }
+            var rules = G.call("domkit.CssParser", "parseSheet", G.field(sheet, "cssParser"), [css, "dps-ready-check-actions"]);
+            G.call("domkit.CssStyle", "add", sheet, [rules]); styledData = data;
+        }
+        for (entry in [{button:readyButton, name:"ready"}, {button:notReadyButton, name:"not-ready"},
+            {button:cancelButton, name:"cancel"}]) if (entry.button != null)
+            G.call("domkit.Properties", "addClass", G.field(entry.button, "dom"), ["dps-ready-check-" + entry.name]);
     }
     function layout():Void {
         align(title, 20, HEADER); align(timer, WIDTH - 66, HEADER);

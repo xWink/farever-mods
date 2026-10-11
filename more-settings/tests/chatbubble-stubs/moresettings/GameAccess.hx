@@ -3,11 +3,14 @@ package moresettings;
 class GameAccess {
     public static var ui:Dynamic;
     public static var bubbles:Array<Dynamic> = [];
+    public static var opened:Array<Dynamic> = [];
+    public static var historyIndex = 37;
     public static var fail = false;
     public static function field(object:Dynamic, name:String):Dynamic
         return object == null ? null : Reflect.field(object, name);
     public static function set(object:Dynamic, name:String, value:Dynamic):Void Reflect.setField(object, name, value);
     public static function number(value:Dynamic):Float return value == null ? 0.0 : value;
+    public static function text(value:Dynamic):String return value == null ? "" : Std.string(value);
     public static function isA(object:Dynamic, type:String):Bool return field(object, "type") == type;
     public static function current(type:String, name:String):Dynamic
         return type == "Const" ? {WidgetHeightOffset: 0.25} : ui;
@@ -26,15 +29,22 @@ class GameAccess {
         if (type == "ui.hud.UnitWidget") {
             if (args[1] != null) throw "Native unit widget must finish construction before attachment";
             if (fail) throw "Native chat bubble failed";
-            var component:Dynamic = {type: type, parent: null};
+            var component:Dynamic = {type: type, parent: null, children:[]};
             // UnitWidget.init builds its ChatBubble child through native DomKit.
-            var bubble:Dynamic = {unit: args[0], parent: component};
+            var bubble:Dynamic = {type:"ui.hud.ChatBubble", unit: args[0], parent: component};
+            component.children.push(bubble);
             bubbles.push(bubble);
             return component;
         }
         throw 'Unexpected constructor: $type';
     }
     public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
+        if (type == "st.player.ChatClient" && name == "poll") return {index:historyIndex};
+        if (type == "h2d.Object" && name == "get_numChildren") return object.children.length;
+        if (type == "h2d.Object" && name == "getChildAt") return object.children[args[0]];
+        if (type == "ui.hud.ChatBubble" && name == "open") {
+            opened.push({bubble:object, message:args[0]}); return null;
+        }
         if (type == "h2d.Object" && name == "addChild") {
             args[0].parent = object;
             return null;

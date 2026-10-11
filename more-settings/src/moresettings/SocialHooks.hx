@@ -107,7 +107,10 @@ class SocialHooks {
     @:hlx.postfix(st.player.ChatClient.sendMessage)
     static function sent(instance:Dynamic, message:Dynamic, result:Void):Void SocialChat.sent(instance, message);
     @:hlx.postfix(st.player.ChatClient.localReceiveMessage)
-    static function whisperEcho(instance:Dynamic, message:Dynamic, result:Void):Void SocialChat.sent(instance, message);
+    static function chatReceived(instance:Dynamic, message:Dynamic, result:Void):Void {
+        SocialChat.sent(instance, message);
+        try SelfChatBubbles.received(instance, message) catch (e:Dynamic) report(e);
+    }
 
     @:hlx.postfix(ui.hud.ChatBox.receiveMessage)
     static function received(instance:Dynamic, message:Dynamic, result:Void):Void {
