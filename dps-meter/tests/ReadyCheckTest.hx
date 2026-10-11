@@ -126,6 +126,8 @@ class ReadyCheckTest {
             eq(state.active, false, change + " cancels popup");
             eq(state.tick(5), null, change + " cancels queued countdown");
             eq(state.takeCompletionSound(), false, change + " cancels queued sound");
+            for (text in ["5", "4", "3", "2", "1", "GO"]) state.receive("leader", text, "Group", 6);
+            eq(state.takeGoSound(), false, change + " cancels GO listening");
         }
         state = client(); state.receive("leader", "rc", "Group", 0); state.receive("two", "r", "Group", 1);
         state.sync(true, "leader", "party", "leader", [members[2], {uid:"two", name:"Renamed"}, members[0]]);
@@ -141,6 +143,45 @@ class ReadyCheckTest {
         complete(state, 10);
         state.receive("leader", "rc", "Group", 12.1);
         eq(state.takeCompletionSound(), false, "new check clears old pending sound");
+
+        for (self in ["leader", "two"]) {
+            state = client(self);
+            for (text in ["5", "4", "3", "2", "1", "GO"]) state.receive("leader", text, "Group", 0);
+            eq(state.takeGoSound(), false, "ordinary countdown without a completed check is silent");
+            complete(state, 10);
+            state.takeCompletionSound();
+            state.receive("leader", "GO", "Group", 12.1);
+            eq(state.takeGoSound(), false, "GO before the ordered countdown is ignored");
+            for (text in ["5", "4", "3", "2", "1", "GO"]) {
+                for (sender in ["two", "outsider"]) state.receive(sender, text, "Group", 13);
+                for (channel in ["Local", "All", "Player", "System"]) state.receive("leader", text, channel, 13);
+            }
+            eq(state.takeGoSound(), false, "other speakers and other channels cannot trigger GO");
+            for (text in ["5", "4", "3", "2", "1"]) {
+                state.receive("leader", text, "Group", 14);
+                state.receive("leader", text, "Group", 14); // duplicate delivery
+                eq(state.takeGoSound(), false, "numbered steps are silent");
+            }
+            state.receive("leader", " Go ", "Group", 19);
+            eq(state.takeGoSound(), true, "GO echoes play on leader and followers");
+            eq(state.takeGoSound(), false, "GO cue consumed once");
+            state.receive("leader", "GO", "Group", 19.1);
+            eq(state.takeGoSound(), false, "duplicate GO is silent");
+            eq(state.awaitingGo, false, "finished countdown no longer watches chat");
+
+            for (stop in ["cancel", "timeout", "restart", "dispose"]) {
+                complete(state, 30);
+                for (text in ["5", "4", "3", "2", "1"]) state.receive("leader", text, "Group", 33);
+                switch (stop) {
+                    case "cancel": state.receive("leader", "cancelrc", "Group", 34);
+                    case "timeout": state.expire(63);
+                    case "restart": state.receive("leader", "rc", "Group", 34);
+                    case "dispose": state.reset();
+                }
+                state.receive("leader", "GO", "Group", 64);
+                eq(state.takeGoSound(), false, stop + " prevents late GO");
+            }
+        }
         Sys.println('Ready Check: $checks checks passed.');
     }
 }

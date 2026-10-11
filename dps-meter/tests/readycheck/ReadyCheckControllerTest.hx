@@ -109,6 +109,13 @@ class ReadyCheckControllerTest {
             eq(sent.client, players[0].chatClient, "countdown originates only from leader");
             eq(sent.message.channel, Group, "countdown always uses group chat");
         }
+        eq(G.sounds.length, 3, "sending GO alone does not play before the server echo");
+        for (sent in G.sent) deliver(sent.message, now + 8.1);
+        update(now + 8.1);
+        eq(G.sounds.length, 6, "GO echo plays once for the leader and every follower");
+        for (sound in G.sounds.slice(3)) eq(sound.event, "ready-check-go", "GO uses the supplied boom");
+        deliver(message(players[0], "GO", Group), now + 8.2); update(now + 8.2);
+        eq(G.sounds.length, 6, "duplicate GO cannot repeat the boom");
         G.sent = [];
         deliver(message(players[0], "rc", Group), now + 10); update(now + 10);
         configs[1].readyCheckEnabled = false; update(now + 11);
@@ -163,6 +170,32 @@ class ReadyCheckControllerTest {
         deliver(message(players[1], "r", Group), now + 91);
         deliver(message(players[2], "r", Group), now + 92); update(now + 92);
         eq(G.sounds.length, 4, "unmuting restores one sound per client for the next check");
+
+        configs[0].disableCountdownAudio = true;
+        configs[1].disableCountdownAudio = true;
+        for (text in ["5", "4", "3", "2", "1", "GO"]) deliver(message(players[0], text, Group), now + 97);
+        update(now + 97);
+        eq(G.sounds.length, 5, "GO respects each client's countdown audio mute");
+        eq(G.sounds[4].event, "ready-check-go", "unmuted follower hears boom");
+        configs[0].disableCountdownAudio = false;
+        configs[1].disableCountdownAudio = false; update(now + 98);
+        eq(G.sounds.length, 5, "unmuting after GO cannot play a delayed boom");
+
+        for (scenario in ["disable", "party", "audio failure"]) {
+            deliver(message(players[0], "rc", Group), now + 100);
+            deliver(message(players[1], "r", Group), now + 101);
+            deliver(message(players[2], "r", Group), now + 102); update(now + 102);
+            for (text in ["5", "4", "3", "2", "1", "GO"]) deliver(message(players[0], text, Group), now + 107);
+            var before = G.sounds.length;
+            if (scenario == "disable") for (config in configs) config.readyCheckEnabled = false;
+            if (scenario == "party") group.groupId = "other-party";
+            if (scenario == "audio failure") G.failAudio = true;
+            update(now + 107);
+            eq(G.sounds.length, before, scenario + " prevents queued boom without disrupting update");
+            for (config in configs) config.readyCheckEnabled = true;
+            G.failAudio = false; update(now + 108);
+            eq(G.sounds.length, before, scenario + " cannot replay a stale boom");
+        }
         Sys.println('Ready Check chat integration: $checks checks passed.');
     }
 }

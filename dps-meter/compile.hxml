@@ -2,6 +2,7 @@
 -D hl-ver=1.16.0
 -cp src
 -cp ../shared/src
+-resource assets/ready-check-go.ogg@dps-meter/ready-check-go.ogg
 -main dpsmeter.DpsMeterMod
 -dce full
 -hl build/dps-meter/implementation/dps-meter.hl

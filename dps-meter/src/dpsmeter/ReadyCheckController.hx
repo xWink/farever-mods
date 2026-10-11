@@ -10,6 +10,7 @@ class ReadyCheckController {
     var view:NativeReadyCheckWindow;
     var player:Dynamic;
     var reported:Map<String, Bool> = [];
+    var audio = new ReadyCheckAudio();
 
     public function new(config:MeterSettings) {
         this.config = config;
@@ -50,15 +51,21 @@ class ReadyCheckController {
     public function received(client:Dynamic, message:Dynamic, now:Float):Void {
         if (!ownClient(client) || G.field(message, "notify") != null) return;
         var text = G.text(G.field(message, "text"));
-        if (ReadyCheck.command(text) == "") return;
+        if (ReadyCheck.command(text) == "" && !(state.awaitingGo && ReadyCheck.countdownIndex(text) >= 0)) return;
         refresh(G.field(client, "player"));
         state.receive(G.text(G.field(G.field(message, "sender"), "uid")), text, channel(message), now);
     }
     public function update(app:Dynamic, now:Float):Void {
         // Chat events refresh before starting a check. Avoid scanning/naming
         // the native party every frame while this feature is idle.
-        if (state.active || state.countingDown || state.completionSoundPending) refresh(G.field(app, "me"));
+        if (state.active || state.countingDown || state.completionSoundPending || state.awaitingGo || state.goSoundPending)
+            refresh(G.field(app, "me"));
+        try audio.update(config.disableCountdownAudio || !config.enabled || !config.readyCheckEnabled)
+        catch (error:Dynamic) reportSound(error);
         if (state.takeCompletionSound() && !config.disableCountdownAudio) playCompletionSound();
+        if (state.takeGoSound() && !config.disableCountdownAudio) {
+            try audio.playGo() catch (error:Dynamic) reportSound(error);
+        }
         var text = state.tick(now);
         if (text != null) send(text);
         view.update(now, G.field(app, "hero") != null);
@@ -66,11 +73,16 @@ class ReadyCheckController {
     function playCompletionSound():Void {
         try {
             G.staticCall("client.Audio", "play", ["UI_Notify_Quest_Completed", null, null]);
-        } catch (error:Dynamic) {
-            // An unavailable audio backend must not interrupt the countdown.
-            var text = "sound: " + Std.string(error);
-            if (!reported.exists(text)) { reported[text] = true; trace("[DPS Meter] Ready Check " + text); }
-        }
+            audio.prepare(); // Prepare during the countdown, before GO arrives.
+        } catch (error:Dynamic) reportSound(error);
+    }
+    function reportSound(error:Dynamic):Void {
+        // An unavailable audio backend must not interrupt chat or the countdown.
+        var text = "sound: " + Std.string(error);
+        if (!reported.exists(text)) { reported[text] = true; trace("[DPS Meter] Ready Check " + text); }
+    }
+    function disposeAudio():Void {
+        try audio.dispose() catch (error:Dynamic) reportSound(error);
     }
     function sendCommand(text:String):Void {
         try {
@@ -99,9 +111,10 @@ class ReadyCheckController {
     }
     public function report(error:Dynamic):Void {
         state.reset();
+        disposeAudio();
         view.dispose();
         var text = Std.string(error);
         if (!reported.exists(text)) { reported[text] = true; trace("[DPS Meter] Ready Check: " + text); }
     }
-    public function dispose():Void { state.reset(); player = null; view.dispose(); }
+    public function dispose():Void { state.reset(); player = null; disposeAudio(); view.dispose(); }
 }

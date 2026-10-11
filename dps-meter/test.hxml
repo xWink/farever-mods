@@ -73,3 +73,9 @@
 -cp tests/readycheck
 -main ReadyCheckControllerTest
 --interp
+--next
+-cp src
+-cp tests/readyaudio
+-resource assets/ready-check-go.ogg@dps-meter/ready-check-go.ogg
+-main ReadyCheckAudioTest
+--interp

@@ -86,9 +86,11 @@ drag it, and hide the mouse to control the camera while the check stays open.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client
-plays the quest-completed sound once as the countdown starts. Enable **Disable
-countdown audio** in the Ready Check settings to mute it for yourself (off by
-default). The leader's mod sends
+plays the quest-completed sound once as the countdown starts, followed by a boom
+when the leader's **GO** arrives. Enable **Disable countdown audio** in the Ready
+Check settings to mute both sounds for yourself (off by default). The boom is
+included in the mod and follows the game's master/UI volume and focus mute.
+The leader's mod sends
 **5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
 change what you are typing, or take away movement control.
 

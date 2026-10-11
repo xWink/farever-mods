@@ -12,12 +12,16 @@ class ReadyCheck {
     public var deadline(default, null) = 0.0;
     public var countingDown(default, null) = false;
     public var completionSoundPending(default, null) = false;
+    public var awaitingGo(default, null) = false;
+    public var goSoundPending(default, null) = false;
     var party = "";
     var roster = "";
     var ready:Map<String, Bool> = [];
     var pendingResponses:Array<Bool> = [];
     var nextCountAt = 0.0;
     var countIndex = 0;
+    var receivedCount = 0;
+    var goDeadline = 0.0;
     static final COUNTDOWN = ["5", "4", "3", "2", "1", "GO"];
 
     public function new() {}
@@ -34,6 +38,9 @@ class ReadyCheck {
     }
     public static function channelAllowed(channel:String):Bool
         return channel == "Local" || channel == "Group" || channel == "All";
+
+    public static function countdownIndex(text:String):Int
+        return text == null ? -1 : COUNTDOWN.indexOf(StringTools.trim(text).toUpperCase());
 
     /** A membership/leader change invalidates the whole check, including its countdown. */
     public function sync(enabled:Bool, self:String, party:String, leader:String, members:Array<ReadyMember>):Void {
@@ -60,16 +67,20 @@ class ReadyCheck {
     }
     public function responseSent(value:Bool):Void pendingResponses.push(value);
     public function secondsLeft(now:Float):Int return active ? Std.int(Math.max(0, Math.ceil(deadline - now))) : 0;
-    public function expire(now:Float):Void { if (active && now >= deadline) reset(); }
+    public function expire(now:Float):Void {
+        if ((active && now >= deadline) || (awaitingGo && now >= goDeadline)) reset();
+    }
 
     public function accepts(sender:String, text:String, channel:String, now:Float):Bool {
         expire(now);
         if (members.length < 2 || !channelAllowed(channel) || !hasMember(sender)) return false;
         return switch (command(text)) {
             case "rc": sender == leader;
-            case "cancelrc": sender == leader && (active || countingDown || completionSoundPending);
+            case "cancelrc": sender == leader && (active || countingDown || completionSoundPending || awaitingGo || goSoundPending);
             case "r", "nr": active;
-            default: false;
+            // Only a completed check's ordered leader countdown can trigger GO.
+            // Ordinary chat, duplicate echoes, and other senders remain silent.
+            default: awaitingGo && sender == leader && channel == "Group" && countdownIndex(text) == receivedCount;
         };
     }
     public function receive(sender:String, text:String, channel:String, now:Float):Void {
@@ -88,9 +99,17 @@ class ReadyCheck {
                 for (member in members) if (!isReady(member.uid)) return;
                 active = false;
                 completionSoundPending = true;
+                awaitingGo = true; receivedCount = 0; goDeadline = now + DURATION;
                 // Every client closes its popup; only the initiating leader speaks.
                 if (isLeader()) { countingDown = true; countIndex = 0; nextCountAt = now; }
             default:
+                receivedCount++;
+                goDeadline = now + DURATION;
+                if (receivedCount == COUNTDOWN.length) {
+                    awaitingGo = false; countingDown = false;
+                    completionSoundPending = false;
+                    goSoundPending = true;
+                }
         }
     }
     /** At most one message per update; a stalled frame never bursts chat messages. */
@@ -108,9 +127,16 @@ class ReadyCheck {
         completionSoundPending = false;
         return true;
     }
+    /** Use the server echo on every client, including the leader. */
+    public function takeGoSound():Bool {
+        if (!goSoundPending) return false;
+        goSoundPending = false;
+        return true;
+    }
     public function reset():Void {
         active = false; countingDown = false; ready = []; pendingResponses = []; deadline = 0; countIndex = 0; nextCountAt = 0;
         completionSoundPending = false;
+        awaitingGo = false; goSoundPending = false; receivedCount = 0; goDeadline = 0;
     }
     function hasMember(uid:String):Bool {
         for (member in members) if (member.uid == uid) return true;
