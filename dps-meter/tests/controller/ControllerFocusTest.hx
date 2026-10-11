@@ -53,6 +53,17 @@ class ControllerFocusTest {
         for (node in [meter, book, later]) G.applyControllerStyles(node);
         eq(G.layers.length, 1, "hover/controller styles cannot re-register meter layers");
         eq(G.focused, null, "styles cannot restore automatic focus");
+        var readyCheck = element(null, true); G.attach(readyCheck);
+        MeterControllerFocus.track(readyCheck);
+        var readyButton = element(readyCheck); G.attach(readyButton);
+        MeterControllerFocus.configureNode(readyButton); assertPassive(readyButton);
+        var concurrentMeterRow = element(meter); G.attach(concurrentMeterRow);
+        MeterControllerFocus.configureNode(concurrentMeterRow); assertPassive(concurrentMeterRow);
+        eq(G.layers.length, 1, "ready check and live meter coexist without controller layers");
+        MeterControllerFocus.forget(readyCheck);
+        var afterPopup = element(meter); G.attach(afterPopup);
+        MeterControllerFocus.configureNode(afterPopup); assertPassive(afterPopup);
+        eq(G.layers.length, 1, "closing ready check preserves meter focus guard");
         meter.visible = false; meter.visible = true; G.attach(meter);
         eq(G.layers.length, 1, "hide/show/reattach keeps meter passive");
 

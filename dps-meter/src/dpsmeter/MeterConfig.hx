@@ -12,6 +12,9 @@ typedef MeterSettings = {
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
     var showRiftRecaps:Bool;
+    var readyCheckEnabled:Bool;
+    var readyCheckX:Null<Float>;
+    var readyCheckY:Null<Float>;
     var showBossKills:Bool;
     // Keep persisted keys so existing choices carry over to the mastery filters.
     var showIncompleteCodexKills:Bool;
@@ -44,6 +47,9 @@ class MeterConfig {
         hideOutOfCombat: false,
         hideDelay: 3,
         showRiftRecaps: true,
+        readyCheckEnabled: true,
+        readyCheckX: null,
+        readyCheckY: null,
         showBossKills: true,
         showIncompleteCodexKills: true,
         showCompletedCodexKills: false,
@@ -71,6 +77,8 @@ class MeterConfig {
         config.modeHotkey = Hotkey.normalize(config.modeHotkey, 119);
         if (config.historyX != null && !Math.isFinite(config.historyX)) config.historyX = null;
         if (config.historyY != null && !Math.isFinite(config.historyY)) config.historyY = null;
+        if (config.readyCheckX != null && !Math.isFinite(config.readyCheckX)) config.readyCheckX = null;
+        if (config.readyCheckY != null && !Math.isFinite(config.readyCheckY)) config.readyCheckY = null;
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
         config.width = Std.int(Math.max(360, Math.min(1200, config.width)));
         config.height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, config.height)));

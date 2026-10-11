@@ -62,8 +62,35 @@ can be removed if no other mod uses it.
 - **Rift tracking and recaps:** Separate gate and boss phases covering all players present, with both charts in one post-rift recap.
 - **Fight history:** Save Boss Dungeons, Classic Dungeons, World Bosses, and **Target Dummies**; choose an attempt by date, character, party size, duration, and your DPS, then reopen its player and skill charts. Other unclassified combat is not saved; existing Other history remains available.
 - **Kill notifications:** Optional boss kill totals with the previous fastest kill time. **Show unmastered Codex kills** displays progress through each enemy's final mastery requirement, including the finishing kill. **Show mastered Codex kills** displays subsequent kill totals. The target comes from the game's enemy-specific Codex thresholds, rather than the earlier XP reward milestone. Existing settings are preserved; unmastered notifications default to on and mastered notifications to off.
+- **Party ready checks:** A movable party status popup, chat/button responses, a 30-second timeout, and an automatic leader countdown when everyone is ready.
 - **Automatic log uploads:** Send completed boss encounters to [Farever Logs](https://fareverlogs.fr/) in the background, with no external application.
 - **Better Mod Settings integration:** Customize display options and hotkeys, with settings and window placement saved between sessions.
+
+## Ready Check
+
+Enabled by default under **DPS Meter > Ready Check > Enabled**. In a party, the
+leader types **`rc`** in Local, All, or Group chat to open a ready check. Members
+with this feature enabled see every party member's **READY / NOT READY** status;
+the leader starts ready. Type **`r`** or **`nr`**, or click **Ready / Not Ready**,
+to respond. Party members without the mod can still respond by typing in chat.
+
+Recognized outgoing commands use **Group** chat so Local's distance limit cannot
+hide them from distant party members. Incoming Local, All, and Group commands
+are accepted; whispers, system messages, and outsiders are ignored. Commands
+must be the entire message (case and surrounding whitespace are ignored).
+
+The popup starts in the center of the screen. Drag its header at any time to
+move it; its position is saved independently of the meter's lock setting.
+The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
+The top-right timer cancels the check after **30 seconds** if anyone is not ready.
+Once everyone is ready, the popup closes immediately and the leader's mod sends
+**5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
+change what you are typing, or take away movement control.
+
+Leaving/changing parties, changing leader or membership, disabling the feature,
+or disconnecting cancels the local check and any pending countdown. No combat
+data is changed. A leader without the feature can start a check by typing `rc`,
+but needs the feature enabled to send the automatic countdown.
 
 ## Healing meter
 

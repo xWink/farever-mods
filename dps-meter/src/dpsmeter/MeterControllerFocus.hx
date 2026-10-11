@@ -2,24 +2,24 @@ package dpsmeter;
 
 import dpsmeter.GameAccess as G;
 
-/** Keep the persistent live meter out of the game's controller focus stack. */
+/** Keep mouse-operated HUD windows out of the game's controller focus stack. */
 class MeterControllerFocus {
-    static var root:Dynamic;
+    static var roots:Array<Dynamic> = [];
 
     public static function track(window:Dynamic):Void {
-        root = window;
+        if (roots.indexOf(window) < 0) roots.push(window);
         configureNode(window);
     }
 
     public static function forget(window:Dynamic):Void {
-        if (root == window) root = null;
+        roots.remove(window);
     }
 
     public static function configureNode(object:Dynamic):Void {
-        if (root == null || object == null) return;
+        if (object == null) return;
         var ancestor = object;
-        while (ancestor != null && ancestor != root) ancestor = G.field(ancestor, "parent");
-        if (ancestor == root) releaseTree(object);
+        while (ancestor != null && roots.indexOf(ancestor) < 0) ancestor = G.field(ancestor, "parent");
+        if (ancestor != null) releaseTree(object);
     }
 
     static function releaseTree(object:Dynamic):Void {

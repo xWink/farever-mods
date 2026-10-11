@@ -18,6 +18,7 @@ class DpsMeterMod {
     static var recapView:NativeRiftRecapWindow;
     static var historyView:NativeHistoryWindow;
     static var kills:KillNotifications;
+    static var readyCheck:ReadyCheckController;
     static var writer:RunWriter;
     static function main():Void {
         if (ConfigMigration.importLegacy()) reloadConfig();
@@ -28,6 +29,7 @@ class DpsMeterMod {
         view = new NativeMeterWindow(config, () -> historyView.open());
         recapView = new NativeRiftRecapWindow();
         kills = new KillNotifications(config);
+        readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
@@ -70,6 +72,7 @@ class DpsMeterMod {
     static function stopUploads(instance:Dynamic):HlxPrefixResult<Void> {
         finishHistory();
         if (historyView != null) historyView.dispose();
+        if (readyCheck != null) readyCheck.dispose();
         // A later GameApp (for example after reconnecting) starts a new worker.
         writer = new RunWriter();
         return Continue;
@@ -77,7 +80,21 @@ class DpsMeterMod {
 
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressMeterAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
-        return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing || NativeHistoryWindow.constructing ? Skip : Continue;
+        return NativeMeterWindow.constructing || NativeRiftRecapWindow.constructing || NativeHistoryWindow.constructing
+            || NativeReadyCheckWindow.constructing ? Skip : Continue;
+    }
+    @:hlx.prefix(st.player.ChatClient.sendMessage)
+    static function routeReadyCheck(instance:Dynamic, message:Dynamic):HlxPrefixResult<Void> {
+        if (readyCheck != null) try readyCheck.outgoing(instance, message, haxe.Timer.stamp())
+        catch (error:Dynamic) readyCheck.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(st.player.ChatClient.localReceiveMessage)
+    static function receiveReadyCheck(instance:Dynamic, message:Dynamic, result:Void):Void {
+        // Both remote RPCs and the sender's server echo enter here exactly once.
+        // Do not poll ChatBox history: rebuilding chat would replay old commands.
+        if (readyCheck != null) try readyCheck.received(instance, message, haxe.Timer.stamp())
+        catch (error:Dynamic) readyCheck.report(error);
     }
     @:hlx.prefix(ui.BaseUI.closeFirstClosableUI)
     static function closeHistoryOnEscape(instance:Dynamic, onlyEscapeClosable:Null<Bool>):HlxPrefixResult<Bool> {
@@ -179,5 +196,6 @@ class DpsMeterMod {
         try historyView.update(writer, config.enabled && G.field(instance, "hero") != null, now)
         catch (e:Dynamic) { historyView.dispose(); trace("[DPS Meter] Could not display history: " + Std.string(e)); }
         try kills.update(instance, collector.model, writer, now) catch (_:Dynamic) {}
+        try readyCheck.update(instance, now) catch (error:Dynamic) readyCheck.report(error);
     }
 }

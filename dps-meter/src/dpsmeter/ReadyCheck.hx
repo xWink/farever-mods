@@ -1,0 +1,101 @@
+package dpsmeter;
+
+typedef ReadyMember = { var uid:String; var name:String; }
+
+/** Chat protocol and clock, independent of native UI and combat collection. */
+class ReadyCheck {
+    public static inline var DURATION = 30.0;
+    public var active(default, null) = false;
+    public var members(default, null):Array<ReadyMember> = [];
+    public var self(default, null) = "";
+    public var leader(default, null) = "";
+    public var deadline(default, null) = 0.0;
+    public var countingDown(default, null) = false;
+    var party = "";
+    var roster = "";
+    var ready:Map<String, Bool> = [];
+    var nextCountAt = 0.0;
+    var countIndex = 0;
+    static final COUNTDOWN = ["5", "4", "3", "2", "1", "GO"];
+
+    public function new() {}
+
+    public static function command(text:String):String {
+        if (text == null) return "";
+        return switch (StringTools.trim(text).toLowerCase()) {
+            case "rc": "rc";
+            case "r": "r";
+            case "nr": "nr";
+            case "cancelrc": "cancelrc";
+            default: "";
+        };
+    }
+    public static function channelAllowed(channel:String):Bool
+        return channel == "Local" || channel == "Group" || channel == "All";
+
+    /** A membership/leader change invalidates the whole check, including its countdown. */
+    public function sync(enabled:Bool, self:String, party:String, leader:String, members:Array<ReadyMember>):Void {
+        var ids = [for (member in members) member.uid];
+        var unique:Map<String, Bool> = [];
+        var valid = enabled && self != "" && party != "" && members.length > 1
+            && ids.indexOf(self) >= 0 && ids.indexOf(leader) >= 0;
+        for (id in ids) {
+            if (id == "" || unique.exists(id)) valid = false;
+            unique[id] = true;
+        }
+        if (!valid) { reset(); this.members = []; this.self = ""; this.leader = ""; this.party = ""; roster = ""; return; }
+        ids.sort(Reflect.compare);
+        var roster = haxe.Json.stringify(ids);
+        if (this.self != self || this.party != party || this.leader != leader || this.roster != roster) reset();
+        this.self = self; this.party = party; this.leader = leader; this.roster = roster;
+        this.members = [for (member in members) {uid:member.uid, name:member.name}];
+    }
+    public function isLeader():Bool return self != "" && self == leader;
+    public function isReady(uid:String):Bool return ready[uid] == true;
+    public function secondsLeft(now:Float):Int return active ? Std.int(Math.max(0, Math.ceil(deadline - now))) : 0;
+    public function expire(now:Float):Void { if (active && now >= deadline) reset(); }
+
+    public function accepts(sender:String, text:String, channel:String, now:Float):Bool {
+        expire(now);
+        if (members.length < 2 || !channelAllowed(channel) || !hasMember(sender)) return false;
+        return switch (command(text)) {
+            case "rc": sender == leader;
+            case "cancelrc": sender == leader && (active || countingDown);
+            case "r", "nr": active;
+            default: false;
+        };
+    }
+    public function receive(sender:String, text:String, channel:String, now:Float):Void {
+        if (!accepts(sender, text, channel, now)) return;
+        switch (command(text)) {
+            case "rc":
+                // Duplicate start messages cannot extend the 30-second deadline.
+                if (active) return;
+                reset(); active = true; deadline = now + DURATION; ready[leader] = true;
+            case "cancelrc": reset();
+            case "r", "nr":
+                ready[sender] = command(text) == "r";
+                for (member in members) if (!isReady(member.uid)) return;
+                active = false;
+                // Every client closes its popup; only the initiating leader speaks.
+                if (isLeader()) { countingDown = true; countIndex = 0; nextCountAt = now; }
+            default:
+        }
+    }
+    /** At most one message per update; a stalled frame never bursts chat messages. */
+    public function tick(now:Float):Null<String> {
+        expire(now);
+        if (!countingDown || now < nextCountAt) return null;
+        var text = COUNTDOWN[countIndex++];
+        nextCountAt = now + 1;
+        if (countIndex == COUNTDOWN.length) countingDown = false;
+        return text;
+    }
+    public function reset():Void {
+        active = false; countingDown = false; ready = []; deadline = 0; countIndex = 0; nextCountAt = 0;
+    }
+    function hasMember(uid:String):Bool {
+        for (member in members) if (member.uid == uid) return true;
+        return false;
+    }
+}
