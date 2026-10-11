@@ -11,6 +11,8 @@ class SocialChat {
     public static var closeAfterSend = false;
     static var sendBox:Dynamic;
     static var submitted = false;
+    static var closingInput:Dynamic;
+    static var submitFrame = -1;
     static var seen:Array<KnownPlayer> = [];
     static inline var MAX_SEEN = 256;
 
@@ -18,7 +20,27 @@ class SocialChat {
     public static function finish(box:Dynamic):Void {
         var close = sendBox == box && submitted && closeAfterSend;
         sendBox = null; submitted = false;
-        if (close) G.call("ui.hud.ChatBox", "unfocus", box);
+        if (!close) return;
+        submitFrame = G.integer(G.staticCall("hxd.Key", "getFrame", []));
+        closingInput = G.field(G.field(box, "messageInput"), "input");
+        try G.call("ui.hud.ChatBox", "unfocus", box) catch (error:Dynamic) {
+            closingInput = null;
+            throw error;
+        }
+        closingInput = null;
+    }
+    public static function focusLost(input:Dynamic, event:Dynamic):Void {
+        // Chat normally vetoes blur while the mouse is over its contents.
+        // TextInput.blur already hid the cursor; accepting this explicit close
+        // lets both FmtTextInput and SceneEvents finish releasing keyboard focus.
+        if (input != null && input == closingInput) G.set(event, "cancel", false);
+    }
+    public static function chatPressed(key:String, result:Bool):Bool {
+        if (key != "OpenChat" || !result || submitFrame < 0) return result;
+        // Native input can poll the same Enter on the following frame as well.
+        if (G.integer(G.staticCall("hxd.Key", "getFrame", [])) <= submitFrame + 1) return false;
+        submitFrame = -1;
+        return result;
     }
     public static function sent(client:Dynamic, message:Dynamic):Void {
         // Covers native sends and the local whisper echo. Incoming messages
@@ -26,7 +48,7 @@ class SocialChat {
         if (sendBox != null && G.field(sendBox, "chatClient") == client
             && G.text(G.field(message, "text")) != "") submitted = true;
     }
-    public static function clear():Void { sendBox = null; submitted = false; seen = []; }
+    public static function clear():Void { sendBox = null; submitted = false; closingInput = null; submitFrame = -1; seen = []; }
     public static function remember(message:Dynamic):Void {
         var sender = G.field(message, "sender");
         var uid = G.text(G.field(sender, "uid"));
@@ -82,7 +104,9 @@ class SocialChat {
         // by processMessage, preserving filtering, limits and native errors.
         var channel = G.enumValue("st.Channel", "Player", [target.uid, target.name]);
         G.call("ui.hud.ChatBox", "setChannel", box, [channel]);
-        G.call("ui.hud.ChatBox", "focus", box);
+        // focus() queues a TextInput.focus for the next frame. Only a bare /w
+        // needs it; queuing it for a sent whisper would undo close-after-send.
+        if (command.message == "") G.call("ui.hud.ChatBox", "focus", box);
         return command.message == "" ? null : command.message;
     }
 

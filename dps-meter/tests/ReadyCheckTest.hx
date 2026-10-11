@@ -55,6 +55,7 @@ class ReadyCheckTest {
             state.receive("two", "cancelrc", channel, 16); eq(state.active, true, "member cannot cancel");
             state.receive("leader", "cancelrc", channel, 17); eq(state.active, false, "leader cancels");
             eq(state.tick(20), null, "cancellation produces no countdown");
+            eq(state.takeBell(20), false, "cancellation produces no bell");
         }
         for (channel in ["Player", "System", "AllSystem", "", "Guild"]) {
             var state = client(); state.receive("leader", "rc", channel, 0);
@@ -70,6 +71,12 @@ class ReadyCheckTest {
         for (state in clients) {
             complete(state, 100); eq(state.active, false, "every client closes immediately when ready");
             state.receive("three", "r", "Group", 102); // repeated echo must not restart countdown
+            eq(state.takeBell(102), true, "leader and followers each ring immediately on completion");
+            eq(state.takeBell(102), false, "two bells cannot play in one frame");
+            eq(state.takeBell(102.19), false, "second bell waits for gap");
+            eq(state.takeBell(102.2), true, "second bell after 200 ms");
+            state.receive("three", "r", "Group", 103);
+            eq(state.takeBell(103), false, "duplicate response cannot ring again");
         }
         for (state in clients.slice(1)) eq(state.tick(102), null, "followers never send countdown");
         var leader = clients[0];
@@ -80,6 +87,9 @@ class ReadyCheckTest {
         eq(leader.tick(120), null, "countdown finishes once");
         complete(leader, 130); eq(leader.tick(150), "5", "stalled frame sends one step");
         eq(leader.tick(150), null, "no burst after frame stall");
+        eq(leader.takeBell(150), true, "late first bell still plays");
+        eq(leader.takeBell(150), false, "stall never merges two dings");
+        eq(leader.takeBell(150.2), true, "late second bell retains gap");
         eq(leader.tick(151), "4", "stalled countdown retains spacing");
         leader.receive("leader", "cancelrc", "Group", 151.5); eq(leader.tick(152), null, "leader can stop countdown");
         complete(leader, 160); leader.receive("leader", "rc", "Group", 163);
@@ -94,6 +104,7 @@ class ReadyCheckTest {
         state.receive("three", "r", "Group", 31);
         eq(state.active, false, "deadline cancels even if update has not run");
         eq(state.tick(31), null, "last response at deadline cannot trigger GO");
+        eq(state.takeBell(31), false, "last response at deadline cannot ring");
         state.receive("leader", "rc", "Group", 40); state.tick(70);
         eq(state.active, false, "timer cancels without any incoming message");
         eq(state.secondsLeft(70), 0, "timer ends at zero");
@@ -113,6 +124,7 @@ class ReadyCheckTest {
             }
             eq(state.active, false, change + " cancels popup");
             eq(state.tick(5), null, change + " cancels queued countdown");
+            eq(state.takeBell(5), false, change + " cancels queued bells");
         }
         state = client(); state.receive("leader", "rc", "Group", 0); state.receive("two", "r", "Group", 1);
         state.sync(true, "leader", "party", "leader", [members[2], {uid:"two", name:"Renamed"}, members[0]]);
@@ -121,6 +133,14 @@ class ReadyCheckTest {
         state.sync(true, "leader", "party", "leader", [members[0], members[0]]);
         state.receive("leader", "rc", "Group", 2); eq(state.active, false, "incomplete/duplicate roster rejected");
         state = client(); complete(state); state.reset(); eq(state.tick(5), null, "dispose clears queued countdown");
+        eq(state.takeBell(5), false, "dispose clears queued bells");
+        state = client("two"); complete(state);
+        eq(state.takeBell(2), true, "follower rings first bell");
+        state.receive("leader", "cancelrc", "Group", 2.1);
+        eq(state.takeBell(2.2), false, "leader cancellation clears follower's second bell");
+        complete(state, 10); state.takeBell(12);
+        state.receive("leader", "rc", "Group", 12.1);
+        eq(state.takeBell(12.2), false, "new check clears old second bell");
         Sys.println('Ready Check: $checks checks passed.');
     }
 }

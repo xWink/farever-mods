@@ -5,12 +5,15 @@ typedef ReadyMember = { var uid:String; var name:String; }
 /** Chat protocol and clock, independent of native UI and combat collection. */
 class ReadyCheck {
     public static inline var DURATION = 30.0;
+    public static inline var BELL_INTERVAL = 0.2;
     public var active(default, null) = false;
     public var members(default, null):Array<ReadyMember> = [];
     public var self(default, null) = "";
     public var leader(default, null) = "";
     public var deadline(default, null) = 0.0;
     public var countingDown(default, null) = false;
+    public var bellsRemaining(default, null) = 0;
+    var nextBellAt = 0.0;
     var party = "";
     var roster = "";
     var ready:Map<String, Bool> = [];
@@ -66,7 +69,7 @@ class ReadyCheck {
         if (members.length < 2 || !channelAllowed(channel) || !hasMember(sender)) return false;
         return switch (command(text)) {
             case "rc": sender == leader;
-            case "cancelrc": sender == leader && (active || countingDown);
+            case "cancelrc": sender == leader && (active || countingDown || bellsRemaining > 0);
             case "r", "nr": active;
             default: false;
         };
@@ -86,6 +89,7 @@ class ReadyCheck {
                 if (sender == self && pendingResponses.length > 0 && pendingResponses[0] == ready[sender]) pendingResponses.shift();
                 for (member in members) if (!isReady(member.uid)) return;
                 active = false;
+                bellsRemaining = 2; nextBellAt = now;
                 // Every client closes its popup; only the initiating leader speaks.
                 if (isLeader()) { countingDown = true; countIndex = 0; nextCountAt = now; }
             default:
@@ -100,8 +104,16 @@ class ReadyCheck {
         if (countIndex == COUNTDOWN.length) countingDown = false;
         return text;
     }
+    /** Every client rings twice, preserving the gap even after a stalled frame. */
+    public function takeBell(now:Float):Bool {
+        if (bellsRemaining == 0 || now < nextBellAt) return false;
+        bellsRemaining--;
+        nextBellAt = now + BELL_INTERVAL;
+        return true;
+    }
     public function reset():Void {
         active = false; countingDown = false; ready = []; pendingResponses = []; deadline = 0; countIndex = 0; nextCountAt = 0;
+        bellsRemaining = 0; nextBellAt = 0;
     }
     function hasMember(uid:String):Bool {
         for (member in members) if (member.uid == uid) return true;

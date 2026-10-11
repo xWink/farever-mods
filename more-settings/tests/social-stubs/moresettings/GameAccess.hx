@@ -8,6 +8,7 @@ class GameAccess {
     public static var cancel:Dynamic;
     public static var dialog:Dynamic;
     public static var keyFrame = 100;
+    public static var failChatBlur = false;
     public static var reason = "Ok";
     public static var padActive = false;
     public static var longPresses:Map<String, Dynamic> = [];
@@ -93,6 +94,16 @@ class GameAccess {
             case "sendInviteGroup", "initStyle": null;
             case "chatError": object.errors.push(args[0]); null;
             case "focus": object.focused = true; null;
+            case "unfocus" if (type == "ui.hud.ChatBox"):
+                // Native TextInput.blur hides its cursor before the chat's
+                // mouse-over guard can veto SceneEvents releasing focus.
+                object.cursorVisible = false;
+                var event:Dynamic = {cancel:field(object, "mouseOverChat") == true};
+                @:privateAccess SocialHooks.chatFocusLost(field(field(object, "messageInput"), "input"), event);
+                if (failChatBlur) throw "Simulated blur failure";
+                if (!event.cancel) object.focused = false;
+                object.inspectFocused = false;
+                null;
             case "unfocus": object.focused = false; null;
             case "setChannel": object.channel = args[0]; null;
             case "get" if (type == "haxe.ds.StringMap"): {name:"Send message"};

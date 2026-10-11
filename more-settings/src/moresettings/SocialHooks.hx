@@ -69,8 +69,14 @@ class SocialHooks {
 
     @:hlx.postfix(lib.Input.isPressed)
     static function noteChatPressed(key:String, result:Bool):Bool {
-        try return FriendNotes.chatPressed(key, result) catch (e:Dynamic) report(e);
+        try return SocialChat.chatPressed(key, FriendNotes.chatPressed(key, result)) catch (e:Dynamic) report(e);
         return result;
+    }
+
+    @:hlx.prefix(ui.comp.FmtTextInput.handleFocusLost)
+    static function chatFocusLost(instance:Dynamic, event:Dynamic):HlxPrefixResult<Void> {
+        try SocialChat.focusLost(instance, event) catch (e:Dynamic) report(e);
+        return Continue;
     }
 
     @:hlx.prefix(ui.hud.ChatBox.receiveMessage)

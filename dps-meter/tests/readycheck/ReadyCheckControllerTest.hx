@@ -89,12 +89,22 @@ class ReadyCheckControllerTest {
 
         deliver(message(players[0], "rc", All), now + 1);
         deliver(message(players[1], "r", Local({x:0, y:0, z:0})), now + 2);
+        update(now + 2); eq(G.sounds.length, 0, "incomplete and cancelled checks stay silent");
         deliver(message(players[2], "r", Group), now + 3);
         update(now + 3);
+        eq(G.sounds.length, 3, "first bell plays on leader and both followers");
+        update(now + 3.1); eq(G.sounds.length, 3, "double ding has an audible gap");
+        update(now + 3.21); eq(G.sounds.length, 6, "each client plays the second bell");
+        for (sound in G.sounds) {
+            eq(sound.event, "Window_Close", "uses native window close event");
+            eq(sound.window, "Merchant", "uses merchant bell parameter");
+            eq(sound.source, null, "bell is local UI audio");
+        }
         for (view in NativeReadyCheckWindow.views) eq(view.visible, false, "everyone ready closes every popup");
         eq(G.sent.length, 1, "one leader sends first countdown step");
         for (i in 1...6) update(now + 3 + i);
         eq([for (sent in G.sent) sent.message.text].join(","), "5,4,3,2,1,GO", "native send receives complete ordered countdown");
+        eq(G.sounds.length, 6, "countdown steps do not repeat the bell");
         for (sent in G.sent) {
             eq(sent.client, players[0].chatClient, "countdown originates only from leader");
             eq(sent.message.channel, Group, "countdown always uses group chat");
@@ -118,6 +128,17 @@ class ReadyCheckControllerTest {
         update(now + 51);
         eq(G.sent.length, 0, "timeout never sends a countdown");
         for (view in NativeReadyCheckWindow.views) eq(view.visible, false, "timeout closes remaining views");
+        for (config in configs) config.readyCheckEnabled = true;
+        G.sounds = [];
+        deliver(message(players[0], "rc", Group), now + 60);
+        deliver(message(players[1], "r", Group), now + 61);
+        deliver(message(players[2], "r", Group), now + 62);
+        G.failAudio = true; update(now + 62); G.failAudio = false;
+        eq(G.sent[0].message.text, "5", "audio failure cannot stop countdown");
+        controllers[0].dispose(); configs[1].readyCheckEnabled = false;
+        update(now + 62.21);
+        eq(G.sounds.length, 1, "dispose and follower disable cancel pending second bells");
+        eq(controllers[1].state.bellsRemaining, 0, "idle follower still refreshes settings before second bell");
         Sys.println('Ready Check chat integration: $checks checks passed.');
     }
 }

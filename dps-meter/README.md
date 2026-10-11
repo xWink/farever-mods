@@ -83,7 +83,8 @@ The popup starts in the center of the screen. Drag its header at any time to
 move it; its position is saved independently of the meter's lock setting.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
-Once everyone is ready, the popup closes immediately and the leader's mod sends
+Once everyone is ready, the popup closes immediately and every enabled client
+plays the merchant's closing bell twice. The leader's mod sends
 **5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
 change what you are typing, or take away movement control.
 
