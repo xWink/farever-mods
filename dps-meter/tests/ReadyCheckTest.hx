@@ -23,14 +23,17 @@ class ReadyCheckTest {
         var config = MeterConfig.defaults();
         eq(config.readyCheckEnabled, true, "ready checks default on");
         eq(config.disableCountdownAudio, false, "countdown sound plays by default");
+        eq(config.disableCountdownVoiceover, false, "voiceover plays by default");
         eq(config.readyCheckX, null, "first popup centered horizontally");
         eq(config.readyCheckY, null, "first popup centered vertically");
         config.readyCheckX = 123.5; config.readyCheckY = 246.5;
         config.disableCountdownAudio = true;
+        config.disableCountdownVoiceover = true;
         config = haxe.Json.parse(haxe.Json.stringify(config)); MeterConfig.normalize(config);
         eq(config.readyCheckX, 123.5, "saved horizontal position survives reload");
         eq(config.readyCheckY, 246.5, "saved vertical position survives reload");
         eq(config.disableCountdownAudio, true, "audio preference survives reload");
+        eq(config.disableCountdownVoiceover, true, "voiceover preference survives reload");
         config.readyCheckX = Math.NaN; config.readyCheckY = Math.POSITIVE_INFINITY;
         MeterConfig.normalize(config);
         eq(config.readyCheckX, null, "invalid position returns to center");
@@ -38,7 +41,8 @@ class ReadyCheckTest {
         var formats:Array<Dynamic> = haxe.Json.parse(sys.io.File.getContent("configFormats.json")).configs;
         eq(formats.filter(d -> d.type == "title" && d.label == "Ready Check").length, 1, "settings category exists");
         eq(formats.filter(d -> d.key == "readyCheckEnabled" && d.label == "Enabled").length, 1, "settings toggle exists");
-        eq(formats.filter(d -> d.key == "disableCountdownAudio" && d.label == "Disable countdown audio" && d.type == "checkbox").length, 1, "audio toggle exists");
+        eq(formats.filter(d -> d.key == "disableCountdownAudio" && d.label == "Disable countdown sound effects" && d.type == "checkbox").length, 1, "effects toggle retains existing saved preference");
+        eq(formats.filter(d -> d.key == "disableCountdownVoiceover" && d.label == "Disable countdown voiceover" && d.type == "checkbox").length, 1, "independent voiceover toggle exists");
 
         for (channel in ["Local", "All", "Group"]) {
             var state = client();
@@ -82,9 +86,11 @@ class ReadyCheckTest {
         }
         for (state in clients.slice(1)) eq(state.tick(102), null, "followers never send countdown");
         var leader = clients[0];
+        eq(leader.tick(102), null, "everyone ready leaves time for completion audio");
+        eq(leader.tick(102 + ReadyCheck.COUNTDOWN_DELAY - 0.01), null, "countdown waits for full ready cue");
         for (i in 0...6) {
-            eq(leader.tick(102 + i), ["5", "4", "3", "2", "1", "GO"][i], "leader countdown order");
-            eq(leader.tick(102.9 + i), null, "countdown waits one second");
+            eq(leader.tick(102 + ReadyCheck.COUNTDOWN_DELAY + i), ["5", "4", "3", "2", "1", "GO"][i], "leader countdown order");
+            eq(leader.tick(102.9 + ReadyCheck.COUNTDOWN_DELAY + i), null, "countdown waits one second");
         }
         eq(leader.tick(120), null, "countdown finishes once");
         complete(leader, 130); eq(leader.tick(150), "5", "stalled frame sends one step");
@@ -148,6 +154,7 @@ class ReadyCheckTest {
             state = client(self);
             for (text in ["5", "4", "3", "2", "1", "GO"]) state.receive("leader", text, "Group", 0);
             eq(state.takeGoSound(), false, "ordinary countdown without a completed check is silent");
+            eq(state.takeCountdownSound(), -1, "ordinary countdown cannot trigger voice");
             complete(state, 10);
             state.takeCompletionSound();
             state.receive("leader", "GO", "Group", 12.1);
@@ -157,10 +164,13 @@ class ReadyCheckTest {
                 for (channel in ["Local", "All", "Player", "System"]) state.receive("leader", text, channel, 13);
             }
             eq(state.takeGoSound(), false, "other speakers and other channels cannot trigger GO");
+            eq(state.takeCountdownSound(), -1, "other speakers and channels cannot trigger voice");
             for (text in ["5", "4", "3", "2", "1"]) {
                 state.receive("leader", text, "Group", 14);
                 state.receive("leader", text, "Group", 14); // duplicate delivery
-                eq(state.takeGoSound(), false, "numbered steps are silent");
+                eq(state.takeGoSound(), false, "numbered steps do not trigger GO");
+                eq(state.takeCountdownSound(), ReadyCheck.countdownIndex(text), "number echo selects its matching voice");
+                eq(state.takeCountdownSound(), -1, "duplicate echo cannot repeat a number");
             }
             state.receive("leader", " Go ", "Group", 19);
             eq(state.takeGoSound(), true, "GO echoes play on leader and followers");
@@ -168,6 +178,7 @@ class ReadyCheckTest {
             state.receive("leader", "GO", "Group", 19.1);
             eq(state.takeGoSound(), false, "duplicate GO is silent");
             eq(state.awaitingGo, false, "finished countdown no longer watches chat");
+            eq(state.takeCountdownSound(), -1, "GO clears queued voice");
 
             for (stop in ["cancel", "timeout", "restart", "dispose"]) {
                 complete(state, 30);
@@ -180,8 +191,13 @@ class ReadyCheckTest {
                 }
                 state.receive("leader", "GO", "Group", 64);
                 eq(state.takeGoSound(), false, stop + " prevents late GO");
+                eq(state.takeCountdownSound(), -1, stop + " clears queued voice");
             }
         }
+        state = client(); complete(state);
+        for (text in ["5", "4", "3"]) state.receive("leader", text, "Group", 10);
+        eq(state.takeCountdownSound(), 2, "batched echoes play only newest spoken number");
+        eq(state.takeCountdownSound(), -1, "batched echoes do not queue stale voice");
         Sys.println('Ready Check: $checks checks passed.');
     }
 }

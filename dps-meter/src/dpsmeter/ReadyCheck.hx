@@ -5,6 +5,8 @@ typedef ReadyMember = { var uid:String; var name:String; }
 /** Chat protocol and clock, independent of native UI and combat collection. */
 class ReadyCheck {
     public static inline var DURATION = 30.0;
+    // Let UI_Notify_Quest_Completed (4.48 seconds) finish before "5".
+    public static inline var COUNTDOWN_DELAY = 4.5;
     public var active(default, null) = false;
     public var members(default, null):Array<ReadyMember> = [];
     public var self(default, null) = "";
@@ -14,6 +16,7 @@ class ReadyCheck {
     public var completionSoundPending(default, null) = false;
     public var awaitingGo(default, null) = false;
     public var goSoundPending(default, null) = false;
+    public var countdownSoundPending(default, null) = -1;
     var party = "";
     var roster = "";
     var ready:Map<String, Bool> = [];
@@ -101,13 +104,17 @@ class ReadyCheck {
                 completionSoundPending = true;
                 awaitingGo = true; receivedCount = 0; goDeadline = now + DURATION;
                 // Every client closes its popup; only the initiating leader speaks.
-                if (isLeader()) { countingDown = true; countIndex = 0; nextCountAt = now; }
+                if (isLeader()) { countingDown = true; countIndex = 0; nextCountAt = now + COUNTDOWN_DELAY; }
             default:
+                // If multiple messages arrive in one frame, play only the
+                // newest number instead of bursting stale voice clips.
+                countdownSoundPending = receivedCount;
                 receivedCount++;
                 goDeadline = now + DURATION;
                 if (receivedCount == COUNTDOWN.length) {
                     awaitingGo = false; countingDown = false;
                     completionSoundPending = false;
+                    countdownSoundPending = -1;
                     goSoundPending = true;
                 }
         }
@@ -121,7 +128,7 @@ class ReadyCheck {
         if (countIndex == COUNTDOWN.length) countingDown = false;
         return text;
     }
-    /** Every client plays the completion cue once when the countdown starts. */
+    /** Every client plays the completion cue once when everyone is ready. */
     public function takeCompletionSound():Bool {
         if (!completionSoundPending) return false;
         completionSoundPending = false;
@@ -133,10 +140,16 @@ class ReadyCheck {
         goSoundPending = false;
         return true;
     }
+    public function takeCountdownSound():Int {
+        var index = countdownSoundPending;
+        countdownSoundPending = -1;
+        return index;
+    }
     public function reset():Void {
         active = false; countingDown = false; ready = []; pendingResponses = []; deadline = 0; countIndex = 0; nextCountAt = 0;
         completionSoundPending = false;
         awaitingGo = false; goSoundPending = false; receivedCount = 0; goDeadline = 0;
+        countdownSoundPending = -1;
     }
     function hasMember(uid:String):Bool {
         for (member in members) if (member.uid == uid) return true;

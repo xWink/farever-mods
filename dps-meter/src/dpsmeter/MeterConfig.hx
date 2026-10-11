@@ -13,7 +13,9 @@ typedef MeterSettings = {
     var hideDelay:Int;
     var showRiftRecaps:Bool;
     var readyCheckEnabled:Bool;
+    // Retain the persisted key for the two existing sound effects.
     var disableCountdownAudio:Bool;
+    var disableCountdownVoiceover:Bool;
     var readyCheckX:Null<Float>;
     var readyCheckY:Null<Float>;
     var showBossKills:Bool;
@@ -50,6 +52,7 @@ class MeterConfig {
         showRiftRecaps: true,
         readyCheckEnabled: true,
         disableCountdownAudio: false,
+        disableCountdownVoiceover: false,
         readyCheckX: null,
         readyCheckY: null,
         showBossKills: true,

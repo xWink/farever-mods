@@ -1,4 +1,6 @@
 import dpsmeter.ReadyCheckController;
+import dpsmeter.ReadyCheck;
+import dpsmeter.ReadyCheckAudio;
 import dpsmeter.NativeReadyCheckWindow;
 import dpsmeter.MeterConfig;
 import dpsmeter.GameAccess as G;
@@ -101,8 +103,11 @@ class ReadyCheckControllerTest {
             eq(sound.source, null, "completion sound is local UI audio");
         }
         for (view in NativeReadyCheckWindow.views) eq(view.visible, false, "everyone ready closes every popup");
-        eq(G.sent.length, 1, "one leader sends first countdown step");
-        for (i in 1...6) update(now + 3 + i);
+        eq(G.sent.length, 0, "ready cue plays before countdown starts");
+        update(now + 3 + ReadyCheck.COUNTDOWN_DELAY - 0.01);
+        eq(G.sent.length, 0, "full ready cue delay is respected");
+        now += ReadyCheck.COUNTDOWN_DELAY;
+        for (i in 0...6) update(now + 3 + i);
         eq([for (sent in G.sent) sent.message.text].join(","), "5,4,3,2,1,GO", "native send receives complete ordered countdown");
         eq(G.sounds.length, 3, "countdown steps do not repeat the sound");
         for (sent in G.sent) {
@@ -141,8 +146,9 @@ class ReadyCheckControllerTest {
         deliver(message(players[1], "r", Group), now + 61);
         deliver(message(players[2], "r", Group), now + 62);
         G.failAudio = true; update(now + 62); G.failAudio = false;
+        update(now + 62 + ReadyCheck.COUNTDOWN_DELAY);
         eq(G.sent[0].message.text, "5", "audio failure cannot stop countdown");
-        update(now + 62.21);
+        update(now + 62.21 + ReadyCheck.COUNTDOWN_DELAY);
         eq(G.sounds.length, 0, "failed sound is not retried during the countdown");
         deliver(message(players[0], "rc", Group), now + 70);
         deliver(message(players[1], "r", Group), now + 71);
@@ -160,10 +166,11 @@ class ReadyCheckControllerTest {
         configs[1].disableCountdownAudio = true;
         update(now + 82);
         eq(G.sounds.length, 1, "leader and follower mute their own audio without muting another member");
+        update(now + 82 + ReadyCheck.COUNTDOWN_DELAY);
         eq(G.sent[0].message.text, "5", "muting audio preserves countdown chat");
         configs[0].disableCountdownAudio = false;
         configs[1].disableCountdownAudio = false;
-        update(now + 83);
+        update(now + 83 + ReadyCheck.COUNTDOWN_DELAY);
         eq(G.sounds.length, 1, "unmuting mid-countdown does not play a delayed sound");
         eq(G.sent[1].message.text, "4", "countdown continues while audio preference changes");
         deliver(message(players[0], "rc", Group), now + 90);
@@ -195,6 +202,32 @@ class ReadyCheckControllerTest {
             for (config in configs) config.readyCheckEnabled = true;
             G.failAudio = false; update(now + 108);
             eq(G.sounds.length, before, scenario + " cannot replay a stale boom");
+        }
+        var start = now + 200;
+        for (muteVoice in [false, true]) for (muteEffects in [false, true]) {
+            for (config in configs) {
+                config.disableCountdownVoiceover = muteVoice;
+                config.disableCountdownAudio = muteEffects;
+            }
+            G.sounds = []; G.sent = []; ReadyCheckAudio.voices = [];
+            deliver(message(players[0], "rc", Group), start);
+            deliver(message(players[1], "r", Group), start + 1);
+            deliver(message(players[2], "r", Group), start + 2); update(start + 2);
+            eq(G.sounds.length, muteEffects ? 0 : 3, "ready effect follows only effects preference");
+            eq(ReadyCheckAudio.voices.length, 0, "voice waits for countdown echo");
+            for (i in 0...5) {
+                var time = start + 2 + ReadyCheck.COUNTDOWN_DELAY + i;
+                update(time); // Leader sends, but voice waits for delivery.
+                eq(ReadyCheckAudio.voices.length, muteVoice ? 0 : i * 3, "sending a number alone does not speak it");
+                deliver(message(players[0], Std.string(5 - i), Group), time + 0.1); update(time + 0.1);
+                eq(ReadyCheckAudio.voices.length, muteVoice ? 0 : (i + 1) * 3, "each echo speaks on enabled clients only");
+                if (!muteVoice) eq(ReadyCheckAudio.voices[i * 3], i, "voice number matches delivered chat number");
+                deliver(message(players[0], Std.string(5 - i), Group), time + 0.2); update(time + 0.2);
+                eq(ReadyCheckAudio.voices.length, muteVoice ? 0 : (i + 1) * 3, "duplicate number echo is silent");
+            }
+            deliver(message(players[0], "GO", Group), start + 12); update(start + 12);
+            eq(G.sounds.length, muteEffects ? 0 : 6, "GO follows only effects preference");
+            start += 20;
         }
         Sys.println('Ready Check chat integration: $checks checks passed.');
     }

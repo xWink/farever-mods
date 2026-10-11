@@ -31,7 +31,7 @@ The mod and its data are contained in `hlx/mods/dps-meter/`. Upload settings
 also live in this folder. Local fight charts live in `history/<encounter>/`. An external
 uploader is not required. The included Windows x64 desktop plugin,
 `hlx/plugins/dps-meter/dps_meter_desktop.hdll`, supports folder opening, Recycle Bin
-deletion, image clipboard access, and Ready Check GO audio. Install this folder too
+deletion, image clipboard access, and Ready Check audio. Install this folder too
 when updating manually, and restart Farever so it loads the updated plugin.
 
 Use DPS Meter in place of the original Group DPS `dinput8.dll` collector to avoid
@@ -87,14 +87,18 @@ drag it, and hide the mouse to control the camera while the check stays open.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **30 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client
-plays the quest-completed sound once as the countdown starts, followed by a boom
-when the leader's **GO** arrives. Enable **Disable countdown audio** in the Ready
-Check settings to mute both sounds for yourself (off by default). The boom is
-included in the mod and follows the game's master/UI volume and focus mute. Its
+plays the quest-completed sound once. After a **4.5-second pause** for that cue,
+the leader sends **5, 4, 3, 2, 1, GO** in Group chat, one second apart. Each
+number's server echo plays the matching spoken number from the included countdown
+recording; **GO** plays the boom at 80% of its original volume.
+**Disable countdown voiceover** mutes just the spoken numbers, while
+**Disable countdown sound effects** mutes the ready cue and GO boom. Both options
+are off by default and affect only your client. The existing mute preference is
+retained for sound effects. The recordings are embedded in the mod and follow
+the game's master/UI volume and focus mute. Their
 Windows playback uses the default audio output device through the included desktop
 plugin (Farever's compiled Heaps sound output is inactive).
-The leader's mod sends
-**5, 4, 3, 2, 1, GO** in Group chat, one second apart. This does not open chat,
+This does not open chat,
 change what you are typing, or take away movement control.
 
 Leaving/changing parties, changing leader or membership, disabling the feature,

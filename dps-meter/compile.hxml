@@ -3,6 +3,7 @@
 -cp src
 -cp ../shared/src
 -resource assets/ready-check-go.ogg@dps-meter/ready-check-go.ogg
+-resource assets/ready-check-countdown.ogg@dps-meter/ready-check-countdown.ogg
 -main dpsmeter.DpsMeterMod
 -dce full
 -hl build/dps-meter/implementation/dps-meter.hl

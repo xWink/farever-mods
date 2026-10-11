@@ -77,5 +77,6 @@
 -cp src
 -cp tests/readyaudio
 -resource assets/ready-check-go.ogg@dps-meter/ready-check-go.ogg
+-resource assets/ready-check-countdown.ogg@dps-meter/ready-check-countdown.ogg
 -main ReadyCheckAudioTest
 --interp

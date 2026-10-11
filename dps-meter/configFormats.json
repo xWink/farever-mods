@@ -22,6 +22,7 @@
     { "key": "showRiftRecaps", "type": "checkbox", "label": "Show Rift recaps" },
     { "type": "title", "label": "Ready Check" },
     { "key": "readyCheckEnabled", "type": "checkbox", "label": "Enabled", "tooltip": { "enabled": true, "tooltipText": "Party leader: type rc to start. Type r or nr to respond. Accepts Local, All, or Group chat; commands are delivered through Group chat." } },
-    { "key": "disableCountdownAudio", "type": "checkbox", "label": "Disable countdown audio", "tooltip": { "enabled": true, "tooltipText": "Mute the sound that plays when everyone is ready and the countdown begins." } }
+    { "key": "disableCountdownVoiceover", "type": "checkbox", "label": "Disable countdown voiceover", "tooltip": { "enabled": true, "tooltipText": "Mute the spoken 5, 4, 3, 2, 1 countdown for yourself." } },
+    { "key": "disableCountdownAudio", "type": "checkbox", "label": "Disable countdown sound effects", "tooltip": { "enabled": true, "tooltipText": "Mute the everyone-ready sound and the GO boom for yourself." } }
   ]
 }

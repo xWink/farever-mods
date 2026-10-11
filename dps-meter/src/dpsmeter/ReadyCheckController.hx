@@ -60,9 +60,21 @@ class ReadyCheckController {
         // the native party every frame while this feature is idle.
         if (state.active || state.countingDown || state.completionSoundPending || state.awaitingGo || state.goSoundPending)
             refresh(G.field(app, "me"));
-        try audio.update(config.disableCountdownAudio || !config.enabled || !config.readyCheckEnabled)
+        state.expire(now);
+        var disabled = !config.enabled || !config.readyCheckEnabled;
+        try audio.update(config.disableCountdownVoiceover || disabled || !state.awaitingGo, config.disableCountdownAudio || disabled)
         catch (error:Dynamic) reportSound(error);
-        if (state.takeCompletionSound() && !config.disableCountdownAudio) playCompletionSound();
+        if (state.takeCompletionSound()) {
+            if (!config.disableCountdownAudio) playCompletionSound();
+            // Prepare either enabled category during the pause, even when the
+            // other category is muted or its ready sound failed to play.
+            try audio.prepare(!config.disableCountdownVoiceover, !config.disableCountdownAudio)
+            catch (error:Dynamic) reportSound(error);
+        }
+        var number = state.takeCountdownSound();
+        if (number >= 0 && !config.disableCountdownVoiceover) {
+            try audio.playCountdown(number) catch (error:Dynamic) reportSound(error);
+        }
         if (state.takeGoSound() && !config.disableCountdownAudio) {
             try audio.playGo() catch (error:Dynamic) reportSound(error);
         }
@@ -73,7 +85,6 @@ class ReadyCheckController {
     function playCompletionSound():Void {
         try {
             G.staticCall("client.Audio", "play", ["UI_Notify_Quest_Completed", null, null]);
-            audio.prepare(); // Prepare during the countdown, before GO arrives.
         } catch (error:Dynamic) reportSound(error);
     }
     function reportSound(error:Dynamic):Void {

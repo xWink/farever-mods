@@ -32,7 +32,10 @@ class GameAccess {
                 {buffer:buffer, length:args[1], nativeBytes:true};
             case "hxd.snd.OggData":
                 if (args[0].nativeBytes != true || args[0].length <= 0) throw "Invalid native bytes";
-                {samples:960, channels:2, samplingRate:48000, sampleFormat:I16};
+                // Distinguish the real embedded recordings; decoding itself is
+                // mocked, while the HL raw-byte boundary remains enforced.
+                var voice = args[0].length == haxe.Resource.getBytes("dps-meter/ready-check-countdown.ogg").length;
+                {samples:voice ? 232448 : 960, channels:2, samplingRate:48000, sampleFormat:I16};
             default: throw 'Unexpected construction $type';
         };
     }
@@ -44,10 +47,12 @@ class GameAccess {
         #if hl
         var buffer:hl.Bytes = out.buffer;
         var length = Std.int(out.length);
-        buffer.toBytes(length).setUInt16(0, 1234);
+        var decoded = buffer.toBytes(length);
         #else
-        haxe.io.Bytes.ofData(out.buffer).setUInt16(0, 1234);
+        var decoded = haxe.io.Bytes.ofData(out.buffer);
         #end
+        decoded.setUInt16(0, 1234);
+        for (i in 1...5) if (i * 48000 * 4 < decoded.length) decoded.setUInt16(i * 48000 * 4, 1234 + i);
         decodes++;
         return null;
     }
