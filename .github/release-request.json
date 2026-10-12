@@ -1,7 +1,7 @@
 {
-  "project": "fix-target-lock",
-  "version": "1.4.6",
-  "commit": "a3064b669f1fb7da8a8306f2cb0d8894dc75bc7e",
-  "notes": "Fixed an issue where the player would sometimes be locked onto a non-existent target after leaving a dungeon\n",
+  "project": "item-utilities",
+  "version": "1.13.0",
+  "commit": "1489586aebb8eb15c75f1a66262cc283d9d967f6",
+  "notes": "- Added item affinities to bank tabs\n  - Edit a bank tab's item affinities by clicking on the currently open tab\n  - Depositing an item to the bank via right click or using an auto-deposit button will put the item into the tab with the corresponding affinity\n- Added `/inspect <name>` chat command. Has the same functionality as the inspect buttons.\n",
   "dry_run": false
 }
