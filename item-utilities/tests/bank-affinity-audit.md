@@ -17,8 +17,10 @@ Audited `hlboot(20261007-191837).dat`, HashLink bytecode 6.
 - The title follows `BaseDialog.init` (f16536):
   `TitleWindow.setHeader(null, headline)` rebuilds the native `WindowHeader`
   and its `#headerTitle`, retaining the same font/colour styling as Rename.
-  Checkbox rows keep their native 30-pixel height with a 6-pixel gap; panel
-  height includes the gaps and 8-pixel top/bottom padding around the list.
+  Checkbox rows keep their native 30-pixel height with a 6-pixel gap; a bounded
+  native vertical scrolling Flow holds normal (non-absolute) rows so its content
+  height includes all categories. The panel shows up to 13 rows at once with
+  8-pixel top/bottom padding, without shrinking the font for the longer list.
 - `BankWindow.getInventory` (f26527) resolves `hero.loadout.banks[bankId]`.
   `initTabs` (f26529) uses the account's bank-tab index. Rename (f9960) validates
   that index against `loadout.owner.player.accountProgress.bankTabs`.
@@ -34,9 +36,17 @@ Audited `hlboot(20261007-191837).dat`, HashLink bytecode 6.
   affinity inventory. Full or unavailable affinity tabs cannot fall back to the
   selected tab. No bank selection, inventory content or server state is written
   directly. Existing locked/junk item guards remain in place.
-- Disjoint affinity categories use native `Item.isType` inheritance: food is
-  separate from consumables; demon enchantments from other augments; crafting
-  and upgrade components share Components. Remaining kinds use Miscellaneous.
+- Disjoint affinity categories use native `Item.isType` inheritance. The 29
+  families cover the extracted `itemType` hierarchy: in particular,
+  `LootableContainer -> Consumable -> Usable`, and
+  `Mount/GearGlider/Emote -> Collection -> Consumable -> Usable`, must match
+  their specific family before the broad fallback. Recipe, InfusionPattern,
+  Mastery (Rune), SkillPointBook, Potion, Elixir and Scroll are separate too.
+  CraftSlot, Currency, Prospecting and LoreBook no longer fall into Miscellaneous.
+  Weapons, armour and tools retain their family grouping; crafting and upgrade
+  components share Components. Unknown future kinds still use Miscellaneous.
+  Old unversioned broad assignments migrate into the new categories once;
+  version-2 records preserve explicitly unchecked or reassigned categories.
 - Inspect header dragging uses native `Interactive.startDrag`, root-local mouse
   coordinates, viewport clamping and config persistence on release/disposal,
   following the existing Ready Check drag path. Its close button and model

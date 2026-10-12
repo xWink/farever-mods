@@ -10,6 +10,7 @@ class BankAffinityWindow {
     static inline var HEADER = 52;
     static inline var ROW = 30;
     static inline var ROW_GAP = 6;
+    static inline var VISIBLE_ROWS = 13;
     var bank:Dynamic;
     var dialog:Dynamic;
     var panel:Dynamic;
@@ -35,7 +36,7 @@ class BankAffinityWindow {
         dialogOverflow = G.field(dialog, "overflow");
         var overflow = G.enumeration("h2d.FlowOverflow", "Limit");
         G.call("h2d.Flow", "set_overflow", dialog, [overflow]); style(dialog, "overflow", overflow);
-        var count = BankAffinityState.CATEGORIES.length;
+        var count = Std.int(Math.min(VISIBLE_ROWS, BankAffinityState.CATEGORIES.length));
         height = HEADER + count * ROW + (count - 1) * ROW_GAP + 24;
         // It belongs to the existing dialog, not a second modal window that
         // would steal the rename input's focus or dismiss its parent.
@@ -75,10 +76,31 @@ class BankAffinityWindow {
             absolute(G.field(entry, "parent"), entry); padding(entry, 0);
             size(entry, WIDTH - 16, height - HEADER - 8); position(entry, 0, 0);
         }
+        // Keep the approved row/font sizes as the category list grows. A
+        // vertical Flow with normal children lets native scrolling measure
+        // all rows; absolute children would not contribute to contentHeight.
+        var listDom = node("flow", G.field(container, "dom"), [], "bankAffinityList", "vertical");
+        var list = G.field(listDom, "obj");
+        absolute(container, list); padding(list, 8);
+        size(list, WIDTH - 16, height - HEADER - 8); position(list, 0, 0);
+        G.call("h2d.Flow", "set_verticalSpacing", list, [ROW_GAP]); style(list, "vspacing", ROW_GAP);
+        var top = G.enumeration("h2d.FlowAlign", "Top");
+        G.call("h2d.Flow", "set_verticalAlign", list, [top]); style(list, "content-valign", top);
+        var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
+        G.call("h2d.Flow", "set_overflow", list, [scroll]); style(list, "overflow", scroll);
+        // Keep the native scrollbar inside the panel's right gutter.
+        var bar = G.field(list, "scrollBar"), cursor = G.field(list, "scrollBarCursor");
+        absolute(list, bar); padding(bar, 0); size(bar, 10); size(cursor, 10);
+        var barLayout = G.call("h2d.Flow", "getProperties", list, [bar]);
+        var right = G.enumeration("h2d.FlowAlign", "Right");
+        G.set(barLayout, "horizontalAlign", right); G.set(barLayout, "verticalAlign", top);
+        style(bar, "halign", right); style(bar, "valign", top);
         for (i in 0...BankAffinityState.CATEGORIES.length) {
             var category = BankAffinityState.CATEGORIES[i];
-            var box = G.field(node("check-box", G.field(container, "dom"), [category.label], "bankAffinity" + category.id), "obj");
-            absolute(container, box); size(box, WIDTH - 32, ROW); position(box, 8, i * (ROW + ROW_GAP) + 8);
+            var box = G.field(node("check-box", listDom, [category.label], "bankAffinity" + category.id), "obj");
+            var layout = G.call("h2d.Flow", "getProperties", list, [box]);
+            G.call("h2d.FlowProperties", "set_isAbsolute", layout, [false]); style(box, "position", false);
+            size(box, WIDTH - 44, ROW);
             checks.push({id:category.id, box:box});
             var id = category.id;
             G.set(box, "onValueChange", (value:Bool) -> {

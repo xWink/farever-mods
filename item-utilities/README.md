@@ -111,10 +111,18 @@ can belong to only one tab; categories assigned elsewhere are greyed out until
 you uncheck them on their current tab. Changes save immediately for the account
 and apply to all its characters.
 
-Affinities cover weapons, armour, accessories, tools, food, consumables, demon
-enchantments, other enchantments, components (including upgrade components),
-soulstones, bags, packages, and miscellaneous items. Food and demon enchantments
-have separate destinations from other consumables/enchantments.
+The scrollable list has 29 item families: weapons, armour, tools, accessories,
+food, potions, elixirs, scrolls, recipes, infusion patterns, runes, skill point
+books, containers, mounts, gliders, emotes, other collectibles, other consumables,
+demon enchantments, other enchantments, components (including upgrade components),
+finishing materials, soulstones, bags, packages, currency, prospecting, lore books,
+and miscellaneous items. Weapon, armour and tool subtypes stay in their respective
+families. Each item has one affinity category; for example, a mount uses Mounts,
+not Other collectibles or Other consumables.
+
+Existing broad Consumables/Miscellaneous assignments are expanded once into the
+new categories they previously covered, preserving their deposit destinations.
+You can then uncheck or move each new affinity independently.
 
 Right-click deposits and all six bank deposit buttons use the assigned tab,
 including while another tab is open. A full or unavailable assigned tab does not

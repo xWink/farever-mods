@@ -33,12 +33,45 @@ class BankAffinityTest {
         for (sample in [
             {types:["Weapon","Gear"], id:"weapons"}, {types:["Armor","Gear"], id:"armor"},
             {types:["GearTool","Gear"], id:"tools"}, {types:["GearFinger","Gear"], id:"accessories"},
-            {types:["Food","Consumable","Usable"], id:"food"}, {types:["Recipe","Consumable"], id:"consumables"},
+            {types:["Food","Consumable","Usable"], id:"food"}, {types:["Recipe","Consumable","Usable"], id:"recipes"},
             {types:["AugmentDemon","Augment"], id:"demon"}, {types:["AugmentDemonSigil","Augment"], id:"demon"},
             {types:["AugmentBlacksmith","Augment"], id:"enchants"}, {types:["CraftingComponent"], id:"components"},
             {types:["UpgradeComponent"], id:"components"}, {types:["Soulstone"], id:"soulstones"},
-            {types:["Bag"], id:"bags"}, {types:["CompletedPackage"], id:"packages"}, {types:["LoreBook"], id:"misc"}
+            {types:["Bag"], id:"bags"}, {types:["CompletedPackage"], id:"packages"}, {types:["LoreBook"], id:"lore"},
+            {types:["HealthPotion","Potion","Consumable","Usable"], id:"potions"},
+            {types:["Elixir","Consumable","Usable"], id:"elixirs"},
+            {types:["Scroll","Consumable","Usable"], id:"scrolls"},
+            {types:["InfusionPattern","Consumable","Usable"], id:"patterns"},
+            {types:["Mastery","Consumable","Usable"], id:"runes"},
+            {types:["SkillPointBook","Consumable","Usable"], id:"skillbooks"},
+            {types:["LootableContainer","Consumable","Usable"], id:"containers"},
+            {types:["Mount","Collection","Consumable","Usable"], id:"mounts"},
+            {types:["GearGlider","Collection","Consumable","Usable"], id:"gliders"},
+            {types:["Emote","Collection","Consumable","Usable"], id:"emotes"},
+            {types:["Collection","Consumable","Usable"], id:"collections"},
+            {types:["Consumable","Usable"], id:"consumables"},
+            {types:["StackableUsable","Usable"], id:"consumables"},
+            {types:["CraftSlot"], id:"finishing"}, {types:["Currency"], id:"currency"},
+            {types:["Prospecting"], id:"prospecting"}, {types:["Misc"], id:"misc"},
+            {types:["UnknownFutureType"], id:"misc"}
         ]) eq(BankAffinityState.category(type -> sample.types.indexOf(type) >= 0), sample.id, "inherited types have one unambiguous category");
+
+        var migrated = new BankAffinityState();
+        migrated.load([{account:"account",category:"consumables",tab:1}, {account:"account",category:"misc",tab:0},
+            {account:"other",category:"consumables",tab:2}, {account:"account",category:"mounts",tab:3,version:2}]);
+        for (id in ["potions","elixirs","scrolls","recipes","patterns","runes","skillbooks","containers","gliders","emotes","collections"])
+            eq(migrated.owner("account",id),1,"new category preserves its old consumables destination: " + id);
+        for (id in ["currency","prospecting","lore","finishing"])
+            eq(migrated.owner("account",id),0,"new category preserves its old miscellaneous destination: " + id);
+        eq(migrated.owner("account","mounts"),3,"explicit assignment wins over migration");
+        eq(migrated.owner("other","mounts"),2,"migration remains scoped to account");
+        eq(migrated.set("account","containers",1,false),true,"can release migrated affinity");
+        eq(migrated.set("account","gliders",1,false),true,"can release gliders from their old broad group");
+        eq(migrated.set("account","gliders",4,true),true,"can assign gliders independently");
+        migrated.load(Json.parse(Json.stringify(migrated.saved())));
+        eq(migrated.owner("account","containers"),-1,"reload does not restore an unchecked migrated affinity");
+        eq(migrated.owner("account","gliders"),4,"independent destination survives reload");
+        eq(migrated.set("account","mounts",1,true),false,"specific categories retain cross-tab conflict protection");
 
         BankAffinities.state = state;
         var first:Dynamic = {full:false}, second:Dynamic = {full:true}, backpack:Dynamic = {};
@@ -57,6 +90,12 @@ class BankAffinityTest {
         eq(BankAffinities.destination(loadout,backpack,component,first),first,"account switch cannot reuse another bank's affinity");
         player.uid = "account"; loadout.banks.array = [first];
         eq(BankAffinities.destination(loadout,backpack,component,first),null,"unavailable affinity tab never falls back to selected tab");
+        loadout.banks.array = [first,second];
+        state.set("account","mounts",1,true); state.set("account","consumables",0,true);
+        var mount:Dynamic = {kind:"testMount",types:["Mount","Collection","Consumable","Usable"]};
+        eq(BankAffinities.destination(loadout,backpack,mount,first),second,"mount's own affinity overrides broad consumable type");
+        state.set("account","mounts",1,false);
+        eq(BankAffinities.destination(loadout,backpack,mount,second),second,"unassigned mount uses open tab even when other consumables are assigned");
 
         var bank:Dynamic = {currentTab:Bank(1)}, dialog:Dynamic = {};
         BankAffinities.openedDialog(dialog); BankAffinities.update(true);
