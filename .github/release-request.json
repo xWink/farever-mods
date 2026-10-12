@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.17.1",
-  "commit": "76d023885e57bff93e5bd2b16cf4c92be6671ab4",
-  "notes": "- Added compatibility for self chat bubbles from messages sent by mods\n- Fixed an issue where chat would sometimes fail to release focus after sending a message\n",
+  "project": "fix-target-lock",
+  "version": "1.4.6",
+  "commit": "a3064b669f1fb7da8a8306f2cb0d8894dc75bc7e",
+  "notes": "Fixed an issue where the player would sometimes be locked onto a non-existent target after leaving a dungeon\n",
   "dry_run": false
 }
