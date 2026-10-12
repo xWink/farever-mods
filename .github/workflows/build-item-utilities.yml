@@ -63,6 +63,8 @@ jobs:
           ../.preset-hashlink/hl build/appearance-serialization-host.hl
           haxe test-skill-serialization.hxml
           ../.preset-hashlink/hl build/skill-serialization-host.hl
+          haxe -cp src -cp tests/bank-stubs -cp tests -main BankAffinityTest -hl build/bank-affinity-test.hl
+          ../.preset-hashlink/hl build/bank-affinity-test.hl
 
   build:
     needs: test

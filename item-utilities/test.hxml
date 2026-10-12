@@ -91,3 +91,9 @@
 -cp tests
 -main ItemJunkTest
 --interp
+--next
+-cp src
+-cp tests/bank-stubs
+-cp tests
+-main BankAffinityTest
+--interp

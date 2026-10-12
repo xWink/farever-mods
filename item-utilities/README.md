@@ -55,6 +55,8 @@ Infusion bonuses and set highlights use the inspected equipment. Arsenal affixes
 use the game's slot multiplier (40%); the comparison panel keeps your own gear's
 context. These checks use replicated equipment without private player progress.
 The window updates when their equipped gear changes and closes with X or Escape.
+Drag its title bar to move it. The position is saved between openings and game
+sessions, and kept within the screen when the resolution or UI scale changes.
 
 Inspect is read-only and uses equipment already available to your client. If a
 player cannot be inspected, a local chat error explains that their character or
@@ -100,6 +102,25 @@ Adds six deposit buttons beside the bank's Sort button:
 Deposits skip items that do not fit and continue checking the remaining items
 for room in existing bank stacks, even when the bank has no empty slots.
 The deposit buttons can be hidden from the mod settings.
+
+### Bank tab affinities
+
+Click the selected bank tab again to open its rename dialog and the **Affinities**
+panel beside it. Check the categories that should go to that tab. Each category
+can belong to only one tab; categories assigned elsewhere are greyed out until
+you uncheck them on their current tab. Changes save immediately for the account
+and apply to all its characters.
+
+Affinities cover weapons, armour, accessories, tools, food, consumables, demon
+enchantments, other enchantments, components (including upgrade components),
+soulstones, bags, packages, and miscellaneous items. Food and demon enchantments
+have separate destinations from other consumables/enchantments.
+
+Right-click deposits and all six bank deposit buttons use the assigned tab,
+including while another tab is open. A full or unavailable assigned tab does not
+redirect items into another tab. Unassigned categories use the open tab. Locked
+and junk items remain protected; withdrawals and explicit drag-and-drop moves
+keep their normal behavior. The affinity panel closes with the rename dialog.
 
 ### Recycler deposit shortcut
 

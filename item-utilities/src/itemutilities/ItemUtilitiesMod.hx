@@ -51,6 +51,9 @@ typedef ItemUtilitiesConfig = {
     var selectedWeaponPresets:Array<Dynamic>;
     var lockedItems:Array<Dynamic>;
     var junkRules:Array<Dynamic>;
+    var inspectX:Null<Float>;
+    var inspectY:Null<Float>;
+    var bankAffinities:Array<Dynamic>;
 }
 
 private enum abstract PresetKind(Int) {
@@ -106,7 +109,10 @@ class ItemUtilitiesMod {
         weaponPresets: [],
         selectedWeaponPresets: [],
         lockedItems: [],
-        junkRules: []
+        junkRules: [],
+        inspectX: null,
+        inspectY: null,
+        bankAffinities: []
     };
     static inline var SETTINGS_CHANGED_TOPIC_PREFIX =
         "better-mod-settings/config-changed/";
@@ -389,6 +395,22 @@ class ItemUtilitiesMod {
         refreshInventories();
     }
 
+    @:hlx.prefix(ui.win.BankWindow.setTabInfo)
+    static function beforeBankTab(instance:Dynamic, tab:Dynamic):HlxPrefixResult<Void> {
+        BankAffinities.beginTab(instance, tab, enabled);
+        return Continue;
+    }
+
+    @:hlx.postfix(ui.win.BankWindow.setTabInfo)
+    static function afterBankTab(instance:Dynamic, tab:Dynamic, result:Void):Void BankAffinities.endTab();
+
+    @:hlx.postfix(ui.BaseUI.displayTextInputDialog)
+    static function bankRenameDialog(instance:Dynamic, title:String, description:String, text:String,
+        confirm:Dynamic, cancel:Dynamic, result:Dynamic):Dynamic {
+        BankAffinities.openedDialog(result);
+        return result;
+    }
+
     @:hlx.postfix(ui.win.Scrap.init)
     static function afterScrapInit(instance:Dynamic, result:Void):Void {
         activeScrapWindow = instance;
@@ -640,8 +662,13 @@ class ItemUtilitiesMod {
     static function preventLockedRightClickTransferCheck(instance:Dynamic,
         source:Dynamic, sourceIndex:Int, destination:Dynamic):HlxPrefixResult<Dynamic> {
         var item = itemAt(source, sourceIndex);
-        var reason = transferRestriction(item, destination);
-        return reason == null ? Continue : SkipWith(reason);
+        var routed = enabled ? BankAffinities.destination(instance, source, item, destination) : destination;
+        if (destination != null && routed == null) return SkipWith(bankAffinityUnavailable());
+        var reason = transferRestriction(item, routed);
+        if (reason != null) return SkipWith(reason);
+        if (routed != destination)
+            return SkipWith(G.call("st.Loadout", "checkRequestTransfer", instance, [source, sourceIndex, routed]));
+        return Continue;
     }
 
     @:hlx.prefix(st.Loadout.requestTransfer)
@@ -649,10 +676,19 @@ class ItemUtilitiesMod {
         source:Dynamic, sourceIndex:Int, destination:Dynamic,
         callback:Dynamic):HlxPrefixResult<Dynamic> {
         var item = itemAt(source, sourceIndex);
-        var reason = transferRestriction(item, destination);
-        if (reason == null) return Continue;
+        var routed = enabled ? BankAffinities.destination(instance, source, item, destination) : destination;
+        var reason = destination != null && routed == null ? bankAffinityUnavailable() : transferRestriction(item, routed);
+        if (reason == null) {
+            if (routed != destination)
+                return SkipWith(G.call("st.Loadout", "requestTransfer", instance, [source, sourceIndex, routed, callback]));
+            return Continue;
+        }
         rejectActionCallback(callback);
         return SkipWith(reason);
+    }
+
+    static function bankAffinityUnavailable():Dynamic {
+        return HlxRuntime.constructEnum(HlxRuntime.resolveType("EReason"), "Custom", ["The assigned bank tab is unavailable."]);
     }
 
     static function isProtectedTransferDestination(inventory:Dynamic):Bool {
@@ -823,6 +859,7 @@ class ItemUtilitiesMod {
         }
         if (instance == activeBankWindow) {
             cancelDeposit();
+            BankAffinities.dispose();
             activeBankWindow = null;
             bankInventory = null;
         }
@@ -839,6 +876,7 @@ class ItemUtilitiesMod {
         NativeUiLayout.beginFrame();
         NativeUtilityUi.beginFrame();
         PlayerInspect.update();
+        BankAffinities.update(enabled);
         // Badges may trail a replicated upgrade by at most 200ms. Requests and
         // clicks always check live identity; no fingerprint scans when UI is closed.
         var badgeTime = haxe.Timer.stamp();
@@ -2101,7 +2139,9 @@ class ItemUtilitiesMod {
                 continue;
             }
 
-            var destination = findDestination(item);
+            var targetBank = enabled ? BankAffinities.destination(fieldOrNull(resolveHero(), "loadout"), sourceInventory, item, bankInventory) : bankInventory;
+            if (targetBank == null) { transferPosition++; continue; }
+            var destination = findDestination(item, targetBank);
             if (destination.index < 0) {
                 // Later items may still fit into existing bank stacks.
                 transferPosition++;
@@ -2133,7 +2173,7 @@ class ItemUtilitiesMod {
                 HlxRuntime.callResolved(requestTransferMember, [
                     sourceInventory,
                     sourceIndex,
-                    bankInventory,
+                    targetBank,
                     destination.index,
                     null,
                     count,
@@ -2393,8 +2433,8 @@ class ItemUtilitiesMod {
             try Reflect.callMethod(null, callback, [success]) catch (_:Dynamic) {}
     }
 
-    static function findDestination(item:Dynamic):{ index:Int, count:Dynamic } {
-        var bankContent = getContent(bankInventory);
+    static function findDestination(item:Dynamic, targetBank:Dynamic):{ index:Int, count:Dynamic } {
+        var bankContent = getContent(targetBank);
         if (bankContent != null) {
             for (index in 0...arrayLength(bankContent)) {
                 var stack:Dynamic = arrayGet(bankContent, index);
@@ -2406,18 +2446,18 @@ class ItemUtilitiesMod {
                 var same:Dynamic = HlxRuntime.callResolved(equalsMember, [item, other]);
                 if (same != true)
                     continue;
-                var full:Dynamic = HlxRuntime.callResolved(isMaxStackMember, [bankInventory, index]);
+                var full:Dynamic = HlxRuntime.callResolved(isMaxStackMember, [targetBank, index]);
                 if (full == true)
                     continue;
 
-                var capacity:Dynamic = HlxRuntime.callResolved(getSlotStackSizeMember, [bankInventory, index]);
+                var capacity:Dynamic = HlxRuntime.callResolved(getSlotStackSizeMember, [targetBank, index]);
                 var current:Dynamic = HlxRuntime.resolveField(stack, "count");
                 var space:Int = cast capacity - cast current;
                 return { index: index, count: space };
             }
         }
 
-        var free:Dynamic = HlxRuntime.callResolved(getNextFreeIndexMember, [bankInventory, item]);
+        var free:Dynamic = HlxRuntime.callResolved(getNextFreeIndexMember, [targetBank, item]);
         return { index: cast free, count: null };
     }
 
@@ -3197,6 +3237,7 @@ class ItemUtilitiesMod {
                 sortingIgnoresLockedItems = Reflect.field(data, "sortingIgnoresLockedItems");
             loadPresetHotkeyConfig(data);
             junkState.load(Reflect.field(data, "junkRules"));
+            BankAffinities.state.load(config.bankAffinities);
             if ((!enabled && wasEnabled) || !showDepositMaterials) {
                 cancelDeposit();
                 cancelRecyclerDeposit();
@@ -3220,6 +3261,7 @@ class ItemUtilitiesMod {
                 sortingIgnoresLockedItems = Reflect.field(data, "sortingIgnoresLockedItems");
             loadPresetHotkeyConfig(data);
             junkState.load(Reflect.field(data, "junkRules"));
+            BankAffinities.state.load(config.bankAffinities);
             if (Reflect.hasField(data, "selectedWeaponPresets")) {
                 var savedSelections:Array<Dynamic> =
                     cast Reflect.field(data, "selectedWeaponPresets");
@@ -3292,6 +3334,20 @@ class ItemUtilitiesMod {
         talentPresetHotkeyKeys = PresetSlots.hotkeys(data, "talentPreset");
         skillPresetHotkeyKeys = PresetSlots.hotkeys(data, "skillPreset");
         appearancePresetHotkeyKeys = PresetSlots.hotkeys(data, "appearancePreset");
+    }
+
+    public static function inspectPosition():{x:Null<Float>, y:Null<Float>} {
+        return {x:config.inspectX, y:config.inspectY};
+    }
+
+    public static function saveInspectPosition(x:Float, y:Float):Void {
+        config.inspectX = x; config.inspectY = y;
+        saveConfig();
+    }
+
+    public static function saveBankAffinities():Void {
+        config.bankAffinities = BankAffinities.state.saved();
+        saveConfig();
     }
 
     static function saveConfig():Void {

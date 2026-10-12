@@ -23,6 +23,14 @@ class InspectWindow {
     var previewError:Dynamic;
     var previewFailed = false;
     var tooltipFailed = false;
+    var dragSurface:Dynamic;
+    var dragging = false;
+    var savedX:Null<Float>;
+    var savedY:Null<Float>;
+    var startX = 0.;
+    var startY = 0.;
+    var startMouseX = 0.;
+    var startMouseY = 0.;
     // Match the character sheet's two equipment columns. Weapons are separate
     // slots, not display category 3 (the unused Defense category).
     static final LEFT_SLOTS = ["Slot_Head", "Slot_Neck", "Slot_Shoulders", "Slot_Chest", "Slot_Back", "Slot_FingerLeft"];
@@ -39,6 +47,8 @@ class InspectWindow {
     public function open(target:InspectTarget, local:Dynamic):Void {
         this.target = target;
         this.local = local;
+        var saved = ItemUtilitiesMod.inspectPosition();
+        savedX = saved.x; savedY = saved.y;
         window = G.create("ui.win.TitleWindow", ["Options", null]);
         var flags = 0;
         for (name in ["PreventCloseOther", "FreeCursor", "AutoRegisterLayer", "BlockInputs", "BlockSkills", "NeedLayer"])
@@ -62,6 +72,10 @@ class InspectWindow {
         var close = G.field(header, "closeBtn");
         show(close, true); absolute(header, close); size(close, 36, 36); position(close, WIDTH - 52, 12);
         G.call("ui.UIElement", "set_onClick", close, [dispose]);
+        dragSurface = G.create("h2d.Interactive", [(WIDTH - 78) * 1.0, 60.0, header, null]);
+        absolute(header, dragSurface);
+        G.set(dragSurface, "onPush", (event:Dynamic) -> beginDrag(event));
+        G.set(dragSurface, "cursor", G.enumeration("hxd.Cursor", "Move"));
         padding(content, 0); absolute(window, content); size(content, WIDTH - 16, HEIGHT - 68); position(content, 8, 60);
 
         body = node("options-content", dom, [0], "itemUtilitiesInspectBody");
@@ -317,7 +331,11 @@ class InspectWindow {
         var top = point(0, 0), bottom = point(G.number(G.field(scene, "width")), G.number(G.field(scene, "height")));
         var scale = Math.max(0.25, Math.min(1, Math.min((bottom.x - top.x - 32) / WIDTH, (bottom.y - top.y - 32) / HEIGHT)));
         G.call("h2d.Object", "setScale", window, [scale]);
-        position(window, top.x + (bottom.x - top.x - WIDTH * scale) / 2, top.y + (bottom.y - top.y - HEIGHT * scale) / 2);
+        updateDrag();
+        var x = savedX == null || !Math.isFinite(savedX) ? top.x + (bottom.x - top.x - WIDTH * scale) / 2 : savedX;
+        var y = savedY == null || !Math.isFinite(savedY) ? top.y + (bottom.y - top.y - HEIGHT * scale) / 2 : savedY;
+        position(window, Math.max(top.x, Math.min(x, Math.max(top.x, bottom.x - WIDTH * scale))),
+            Math.max(top.y, Math.min(y, Math.max(top.y, bottom.y - HEIGHT * scale))));
         G.call("ui.comp.FmtText", "updateScale", headingStyle);
         var font = G.field(headingStyle, "font");
         var baseScale = G.number(G.field(headingStyle, "scaleX"), 1);
@@ -331,6 +349,34 @@ class InspectWindow {
         G.call("h2d.Object", "setScale", title, [titleScale]);
         position(title, 24, (60 - G.number(G.call("h2d.Text", "get_textHeight", title)) * titleScale) / 2);
         return true;
+    }
+    function beginDrag(event:Dynamic):Void {
+        if (G.integer(G.field(event, "button")) != 0) return;
+        G.set(event, "propagate", false);
+        var p = mouse(); startMouseX = p.x; startMouseY = p.y;
+        startX = G.number(G.field(window, "x")); startY = G.number(G.field(window, "y"));
+        dragging = true;
+        G.call("h2d.Interactive", "startDrag", dragSurface, [(event:Dynamic) -> {
+            G.set(event, "propagate", false);
+            var kind = Type.enumConstructor(G.field(event, "kind"));
+            if (kind == "ERelease" || kind == "EReleaseOutside") finishDrag();
+        }, () -> finishDrag()]);
+    }
+    function updateDrag():Void {
+        if (!dragging) return;
+        if (G.staticCall("hxd.Key", "isDown", [0]) != true) { finishDrag(); return; }
+        var p = mouse(); savedX = startX + p.x - startMouseX; savedY = startY + p.y - startMouseY;
+    }
+    function finishDrag():Void {
+        if (!dragging) return;
+        dragging = false;
+        savedX = G.number(G.field(window, "x")); savedY = G.number(G.field(window, "y"));
+        if (dragSurface != null) G.call("h2d.Interactive", "stopDrag", dragSurface);
+        ItemUtilitiesMod.saveInspectPosition(savedX, savedY);
+    }
+    function mouse():{x:Float, y:Float} {
+        var scene = G.field(target.ui, "s2d");
+        return point(G.number(G.call("h2d.Scene", "get_mouseX", scene)), G.number(G.call("h2d.Scene", "get_mouseY", scene)));
     }
     function ownsTooltip(tip:Dynamic):Bool {
         if (window == null || tip == null) return false;
@@ -381,6 +427,7 @@ class InspectWindow {
         return {x: G.number(G.field(result, "x")), y: G.number(G.field(result, "y"))};
     }
     public function dispose():Void {
+        finishDrag();
         clearTooltip();
         if (preview != null) preview.dispose();
         preview = null;
@@ -388,6 +435,6 @@ class InspectWindow {
         if (old != null && target != null) G.call("ui.BaseUI", "removeWindow", target.ui, [old]);
         target = null; local = null; root = null; body = null; container = null;
         headingStyle = null; title = null; boldLabels = []; list = null; status = null; slots = [];
-        modeButton = null; previewError = null;
+        modeButton = null; previewError = null; dragSurface = null;
     }
 }
