@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.18.0",
-  "commit": "c2aa1b83fd1fdce3ecec7eea01a62869c40a9cbd",
-  "notes": "- Added a new option in Combat category to show skill proc alerts\n- Added a new option in the Combat category to show skill icons next to damage/healing numbers\n- Added a new option in the Combat category to outline buff/debuff numbers (on by default)\n",
+  "project": "dps-meter",
+  "version": "1.9.1",
+  "commit": "28983e7cb8c60abcc2d5d78a72f90d9adcd64927",
+  "notes": "- Added account id and character id to logs for account-based uniqueness in leaderboards\n",
   "dry_run": false
 }
