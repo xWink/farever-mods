@@ -5,12 +5,13 @@ import hlx.runtime.PatchTargetKey;
 import itemutilities.InspectAccess as G;
 import itemutilities.InspectMenuContext.InspectTarget;
 
-/** Add Inspect to player interaction and Social window gear menus. */
+/** Open Inspect from player menus or a local chat command. */
 class PlayerInspect {
     static final menuKey = new PatchTargetKey("ui.GameUI", "openPlayerInteractionMenu");
     static final contextKey = new PatchTargetKey("ui.BaseUI", "displayContextMenu");
     static final actionsKey = new PatchTargetKey("ui.UIElement", "onActionsMenu");
     static final tooltipKey = new PatchTargetKey("ui.Tooltip", "sync");
+    static final commandKey = new PatchTargetKey("ui.hud.ChatBox", "handleCommand");
     static var context = new InspectMenuContext();
     static var isEnabled:Void->Bool;
     static var requested:InspectTarget;
@@ -28,6 +29,7 @@ class PlayerInspect {
             HlxRuntime.registerPostfix(actionsKey, endActionsMenu, receiveActions);
             HlxRuntime.registerPrefix(contextKey, extendMenu, receiveContext);
             HlxRuntime.registerPostfix(tooltipKey, fitInspectTooltip, receiveTooltip);
+            HlxRuntime.registerPrefix(commandKey, inspectCommand, receiveCommand);
             active = true;
         } catch (error:Dynamic) trace("[Item Utilities] Inspect unavailable: " + error);
     }
@@ -39,6 +41,28 @@ class PlayerInspect {
         return HlxRuntime.dispatch(actionsKey, [button]);
     static function receiveTooltip(tip:Dynamic, context:Dynamic):Dynamic
         return HlxRuntime.dispatch(tooltipKey, [tip, context]);
+    static function receiveCommand(box:Dynamic, command:String, args:Dynamic):Dynamic
+        return HlxRuntime.dispatch(commandKey, [box, command, args]);
+    static function inspectCommand(box:Dynamic, command:String, args:Dynamic):HlxPrefixResult<String> {
+        if (!isEnabled() || command == null || command.toLowerCase() != "inspect") return Continue;
+        try {
+            var ui = G.call("ui.BaseElement", "get_baseUI", box);
+            var me = G.call("ui.BaseElement", "get_myPlayer", box);
+            var result = InspectCommand.resolve(ui, me, [for (arg in G.array(args)) G.text(arg)].join(" "));
+            if (result.target != null) request(result.target);
+            else G.call("ui.hud.ChatBox", "chatError", box, [InspectUi.escape(result.error)]);
+        } catch (error:Dynamic) {
+            trace("[Item Utilities] Inspect command: " + error);
+            try G.call("ui.hud.ChatBox", "chatError", box, ["Could not inspect this player. Please try again."])
+                catch (_:Dynamic) {}
+        }
+        // Native processMessage stops here for a null result, without sending
+        // chat or changing its channel. Open after the input callback finishes.
+        return SkipWith(null);
+    }
+    static function request(target:InspectTarget):Void {
+        if (isEnabled()) requested = target;
+    }
     static function fitInspectTooltip(tip:Dynamic, context:Dynamic, result:Dynamic):Dynamic {
         if (popup != null) popup.fitTooltip(tip);
         return result;
@@ -82,7 +106,7 @@ class PlayerInspect {
             if (index >= 0) {
                 var entry:Dynamic = {label: "Inspect", onClick: function():Void {
                     // Open on the next UI frame, after the context menu finishes closing.
-                    if (isEnabled()) requested = target;
+                    request(target);
                 }};
                 G.call("hl.types.ArrayObj", "insertDyn", items, [index, entry]);
             } else reportMenuIssue("The social menu did not contain the expected Send message label");

@@ -18,7 +18,8 @@ class InspectAccess {
             case "st.Player.getName": object.name;
             case "st.GameLayer.getPlayerById":
                 var found:Dynamic = null;
-                for (p in array(object.players)) if (p.uid == args[0]) found = p;
+                var list = field(object.players, "array");
+                for (p in array(list == null ? object.players : list)) if (p.uid == args[0]) found = p;
                 found;
             default: throw "Unexpected native/network call: " + type + "." + name;
         }

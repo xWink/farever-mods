@@ -5,6 +5,28 @@ import itemutilities.InspectMenuContext.InspectTarget;
 
 /** Resolve identities and equipment already replicated to this client. */
 class InspectTargets {
+    public static function byName(ui:Dynamic, me:Dynamic, name:String):Array<InspectTarget> {
+        var known:Map<String, InspectTarget> = [];
+        // Social metadata provides names for unavailable friends too, so the
+        // normal Inspect flow can explain why their gear cannot be displayed.
+        for (friend in G.array(G.field(G.field(me, "friendList"), "friends"))) {
+            var uid = G.text(G.field(friend, "uid"));
+            if (uid != "") known[uid] = {ui:ui, uid:uid, name:G.text(G.field(G.field(friend, "metadata"), "heroName"))};
+        }
+        function add(player:Dynamic):Void {
+            if (player == null || G.field(player, "removed") == true) return;
+            var uid = G.text(G.field(player, "uid"));
+            if (uid != "") known[uid] = {ui:ui, uid:uid, name:G.text(G.call("st.Player", "getName", player))};
+        }
+        // Live names override cached friend names; account UID deduplicates a
+        // party member who is also nearby. Never pick the first partial match.
+        for (list in [G.field(G.field(me, "group"), "players"), G.field(G.field(me, "layer"), "players")])
+            for (player in G.array(list, true)) add(player);
+        add(me);
+        var wanted = name.toLowerCase();
+        return [for (target in known) if (target.name.toLowerCase() == wanted) target];
+    }
+
     public static function fromSocialButton(button:Dynamic):InspectTarget {
         var card = G.field(button, "parent");
         while (card != null && !G.isA(card, "ui.win.PlayerCard")) card = G.field(card, "parent");

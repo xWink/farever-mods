@@ -1,4 +1,5 @@
 import itemutilities.InspectTargets as Targets;
+import itemutilities.InspectCommand;
 
 class InspectTargetsTest {
     static var checks = 0;
@@ -58,6 +59,49 @@ class InspectTargetsTest {
         check(!Targets.available({removed:false}), "Missing loadouts fail cleanly");
         check(Targets.remoteHero(null, "friend") == null, "Logging out before clicking is safe");
         check(Targets.remoteHero(local, "") == null, "Empty target UID is rejected");
+        commandTargets();
         trace('Inspect targets: $checks checks passed');
+    }
+
+    static function commandTargets():Void {
+        var ui:Dynamic = {};
+        var ally:Dynamic = {uid:"ally", name:"Player Name", hero:hero(), removed:false};
+        var me:Dynamic = {uid:"me", name:"My Hero", group:{players:{array:[ally]}},
+            layer:{players:{array:[ally]}}, friendList:{friends:[
+                {uid:"ally", metadata:{heroName:"Old Name"}},
+                {uid:"offline", metadata:{heroName:"Offline Friend"}}
+            ]}};
+        for (name in ["Player Name", "  pLaYeR nAmE  ", '"Player Name"']) {
+            var result = InspectCommand.resolve(ui, me, name);
+            check(result.error == "" && result.target.uid == "ally", "Full case-insensitive names resolve with optional quotes");
+            check(result.target.ui == ui && result.target.name == "Player Name", "Preserve native UI and live display name");
+            check(Targets.remoteHero({player:me}, result.target.uid) == ally.hero, "Command target reaches the existing inspect equipment lookup");
+        }
+        check(Targets.byName(ui, me, "Player Name").length == 1, "Friend, party and area records deduplicate by account UID");
+        check(InspectCommand.resolve(ui, me, "Old Name").target == null, "Cached friend names cannot override live character names");
+        check(InspectCommand.resolve(ui, me, "Player").target == null, "Partial names cannot inspect the wrong player");
+        check(InspectCommand.resolve(ui, me, "Missing Player").error.indexOf("Player not found") == 0, "Unknown names explain lookup limits");
+        for (name in ["", "  ", '""', '"Player Name', '"Player Name" extra'])
+            check(InspectCommand.resolve(ui, me, name).error.indexOf("Usage:") == 0, "Missing or malformed arguments show usage");
+        check(InspectCommand.resolve(ui, me, "my hero").target == null, "Command follows menu's other-player restriction");
+        check(InspectCommand.resolve(null, me, "Player Name").target == null, "Absent UI cannot queue a window");
+        check(InspectCommand.resolve(ui, null, "Player Name").target == null, "Absent local player fails cleanly");
+
+        var duplicate:Dynamic = {uid:"other", name:"PLAYER NAME", hero:hero()};
+        me.layer.players.array.push(duplicate);
+        var ambiguous = InspectCommand.resolve(ui, me, "Player Name");
+        check(ambiguous.target == null && ambiguous.error.indexOf("More than one") == 0, "Different accounts with the same name are never guessed");
+        duplicate.removed = true;
+        check(InspectCommand.resolve(ui, me, "Player Name").target.uid == "ally", "Removed players cannot create false ambiguity");
+
+        var offline = InspectCommand.resolve(ui, me, "Offline Friend");
+        check(offline.target.uid == "offline", "Known unavailable friends use the same target as their Social menu");
+        check(!Targets.available(Targets.remoteHero({player:me}, offline.target.uid)), "Known identity does not imply equipment is loaded");
+        me.layer.players.array = []; me.group.players.array = [];
+        check(InspectCommand.resolve(ui, me, "Player Name").target == null, "Previous area names are not retained across commands");
+        me.group.players.array = [ally];
+        check(InspectCommand.resolve(ui, me, "Player Name").target.uid == "ally", "Party lookup works without a nearby-player record");
+        me.group = null; me.layer.players.array = [ally];
+        check(InspectCommand.resolve(ui, me, "Player Name").target.uid == "ally", "Nearby-player lookup works without a party");
     }
 }

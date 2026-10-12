@@ -38,6 +38,11 @@ accessories, with item icons, rarity colours, and the game's item-detail tooltip
 You can also choose **Inspect** from a player's gear menu in the Social window,
 including friends, party members, and nearby players. It appears directly below
 **Send message**, or first when that action is unavailable.
+Type `/inspect <name>` in chat to open the same window. Names are matched in
+full, ignoring case; names containing spaces also work, with or without quotes.
+The command looks up nearby players, party members, and friends. Duplicate names
+produce a local error so you can choose the correct player's Inspect menu.
+This command is included in Item Utilities and does not require More Settings.
 The taller **Inspecting: <name>** window follows the character page's equipment
 column order, with Main Hand, Off Hand, and Arsenal in a separate weapons section.
 The inspected hero's model appears between the equipment columns. **Appearance**
