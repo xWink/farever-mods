@@ -14,6 +14,11 @@ Audited `hlboot(20261007-191837).dat`, HashLink bytecode 6.
   Failed panel initialization removes partially built UI and restores the
   rename dialog's overflow. Checkbox opacity writes the native `alpha` field;
   `h2d.Object` has no `set_alpha` member.
+- The title follows `BaseDialog.init` (f16536):
+  `TitleWindow.setHeader(null, headline)` rebuilds the native `WindowHeader`
+  and its `#headerTitle`, retaining the same font/colour styling as Rename.
+  Checkbox rows keep their native 30-pixel height with a 6-pixel gap; panel
+  height includes the gaps and 8-pixel top/bottom padding around the list.
 - `BankWindow.getInventory` (f26527) resolves `hero.loadout.banks[bankId]`.
   `initTabs` (f26529) uses the account's bank-tab index. Rename (f9960) validates
   that index against `loadout.owner.player.accountProgress.bankTabs`.

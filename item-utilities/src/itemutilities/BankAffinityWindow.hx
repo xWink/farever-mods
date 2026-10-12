@@ -9,6 +9,7 @@ class BankAffinityWindow {
     static inline var WIDTH = 300;
     static inline var HEADER = 52;
     static inline var ROW = 30;
+    static inline var ROW_GAP = 6;
     var bank:Dynamic;
     var dialog:Dynamic;
     var panel:Dynamic;
@@ -34,7 +35,8 @@ class BankAffinityWindow {
         dialogOverflow = G.field(dialog, "overflow");
         var overflow = G.enumeration("h2d.FlowOverflow", "Limit");
         G.call("h2d.Flow", "set_overflow", dialog, [overflow]); style(dialog, "overflow", overflow);
-        height = HEADER + BankAffinityState.CATEGORIES.length * ROW + 24;
+        var count = BankAffinityState.CATEGORIES.length;
+        height = HEADER + count * ROW + (count - 1) * ROW_GAP + 24;
         // It belongs to the existing dialog, not a second modal window that
         // would steal the rename input's focus or dismiss its parent.
         // BaseWindow's constructor calls autoDisplay before create returns.
@@ -55,11 +57,15 @@ class BankAffinityWindow {
         var dom = G.field(panel, "dom");
         G.set(dom, "component", G.staticCall("domkit.Component", "get", ["options-window", null]));
         var content = G.field(dom, "contentRoot");
+        // BaseDialog.init (including Rename) uses this same header path.
+        // Preserve native #headerTitle styling instead of a custom body label.
+        G.call("ui.win.TitleWindow", "setHeader", panel, [null, "Affinities"]);
         var header = G.field(panel, "header");
         padding(header, 0); absolute(panel, header); size(header, WIDTH - 2, HEADER); position(header, 0, 0);
-        show(G.field(header, "headerTitle"), false); show(G.field(header, "closeBtn"), false);
-        title = label(G.field(header, "dom"), "Affinities");
-        G.call("domkit.Properties", "addClass", G.field(title, "dom"), ["bold-14"]);
+        show(G.field(header, "closeBtn"), false);
+        title = G.field(header, "headerTitle");
+        var left = G.enumeration("h2d.Align", "Left");
+        G.call("h2d.Text", "set_textAlign", title, [left]); style(title, "text-align", left);
         absolute(header, title);
         absolute(panel, content); padding(content, 0); size(content, WIDTH - 16, height - HEADER - 8); position(content, 8, HEADER);
         body = node("options-content", dom, [0], "itemUtilitiesBankAffinities");
@@ -72,7 +78,7 @@ class BankAffinityWindow {
         for (i in 0...BankAffinityState.CATEGORIES.length) {
             var category = BankAffinityState.CATEGORIES[i];
             var box = G.field(node("check-box", G.field(container, "dom"), [category.label], "bankAffinity" + category.id), "obj");
-            absolute(container, box); size(box, WIDTH - 32, ROW); position(box, 8, i * ROW + 2);
+            absolute(container, box); size(box, WIDTH - 32, ROW); position(box, 8, i * (ROW + ROW_GAP) + 8);
             checks.push({id:category.id, box:box});
             var id = category.id;
             G.set(box, "onValueChange", (value:Bool) -> {
