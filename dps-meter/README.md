@@ -67,6 +67,35 @@ can be removed if no other mod uses it.
 - **Automatic log uploads:** Send completed boss encounters to [Farever Logs](https://fareverlogs.fr/) in the background, with no external application.
 - **Better Mod Settings integration:** Customize display options and hotkeys, with settings and window placement saved between sessions.
 
+## Player identity in logs
+
+Each uploaded report's `players[]` entry includes `account_id` and `character_id`
+as strings, or `null` when unavailable. Local history and rift recap phase records
+preserve the same fields as `accountId` and `characterId`. Existing logs without
+these fields still open; their identities remain unknown.
+
+`account_id` comes from the replicated `st.Player.uid`, which the game initializes
+from `HeroData.accountID`. It is available for observed party members. The existing
+`uid` remains the spawned hero's network entity ID, used for combat attribution;
+it must not be treated as a permanent account or character ID.
+
+`character_id` comes from `GameApp.connectionInfo.heroID`, only for the actual local
+hero. In the inspected client, `st.Player` does not serialize `heroData`, and
+`st.FriendList.setFriendMeta` explicitly sets the friend's `heroId` to zero.
+Remote character IDs therefore remain `null`; names, account IDs, and entity IDs
+are never used as substitutes. A party member's own recording can provide that
+member's persistent character ID. Consumers must not merge unknown characters
+under a shared null ID or infer a character solely from its account/name.
+
+To verify in game, have two party members install the same build and record the
+same boss fight. Compare the JSON files in `hlx/mods/dps-meter/logs/` (including
+`sent/` or `rejected/`), or the local files under `history/`. Each player should
+have the same account ID in both recordings; their own recording should include
+their character ID, while the other client's entry currently has a null character
+ID. Repeat after reconnecting: the character ID should remain the same even if
+`uid` changes. Switching to an alt should retain the account ID and change the
+character ID. This check uses the normal saved logs and sends no extra chat messages.
+
 ## Ready Check
 
 Enabled by default under **DPS Meter > Ready Check > Enabled**. In a party, the

@@ -334,6 +334,7 @@ class Collector {
                 level: G.integer(G.field(weapon, "level")), upgrade: G.integer(G.field(weapon, "upgradeLevel"))};
         }
         var info:PlayerInfo = {uid: id, name: name,
+            accountId: NativePlayerIdentity.accountId(h), characterId: NativePlayerIdentity.characterId(h),
             isMe: G.field(player, "isMe") == true || (config.me != "" && config.me.toLowerCase() == name.toLowerCase()),
             className: className, weapon: w, classSkills: classSkills, weaponSkills: weaponSkills};
         model.profiles[id] = info;

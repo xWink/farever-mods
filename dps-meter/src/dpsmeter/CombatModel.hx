@@ -5,7 +5,8 @@ import dpsmeter.RiftTracker.RiftRecap;
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
-    weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>
+    weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
+    ?accountId:String, ?characterId:String
 };
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
@@ -87,6 +88,7 @@ class PlayerStats {
         var skillIds = [for (id in skills.keys()) id];
         skillIds.sort((a, b) -> skills[a].damage > skills[b].damage ? -1 : skills[a].damage < skills[b].damage ? 1 : Reflect.compare(a, b));
         var result:Dynamic = {uid: info.uid, name: info.name, is_me: info.isMe,
+            account_id: info.accountId, character_id: info.characterId,
             total_damage: SkillStats.rounded(damage, 0), dps: SkillStats.rounded(damage / duration, 1),
             heal: SkillStats.rounded(heal, 0), hits: hits, crits: crits, kills: kills,
             damage_breakdown: damageBreakdown.json(damage)};

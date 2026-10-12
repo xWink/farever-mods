@@ -70,6 +70,7 @@ class GameAccess {
         default: throw "Unexpected native metadata call: " + type + "." + name;
     };
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic return switch (type + "." + name) {
+        case "GameApp.get": globals["GameApp"];
         case "HSkill.getStepEffectVal":
             if (args[0].effect != 1) throw "Must not evaluate a damage effect / RNG";
             args[0].estimate;

@@ -27,6 +27,7 @@ class FightHistory {
                 crits: s.crits, kills: s.kills, casts: s.casts, damageBreakdown: s.damageBreakdown.json(s.damage)}];
             {
                 uid: p.info.uid, name: p.info.name, isMe: p.info.isMe || p.info.uid == fight.me,
+                accountId: p.info.accountId, characterId: p.info.characterId,
                 className: p.info.className, damage: p.damage, heal: p.heal,
                 hits: p.hits, crits: p.crits, kills: p.kills,
                 skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage), healing: p.healingJson()
@@ -84,6 +85,7 @@ class FightHistory {
             var uid = text(p.uid);
             if (uid == "") throw "A history player has no ID.";
             var stats = new PlayerStats({uid: uid, name: text(p.name), isMe: p.isMe == true,
+                accountId: optionalId(p.accountId), characterId: optionalId(p.characterId),
                 className: text(p.className), weapon: null, classSkills: [], weaponSkills: []});
             stats.damage = number(p.damage); stats.heal = number(p.heal);
             stats.damageBreakdown = DamageBreakdown.read(p.damageBreakdown);
@@ -124,6 +126,7 @@ class FightHistory {
                 crits: number(s.crits), kills: number(s.kills), casts: number(s.casts), damageBreakdown: s.damage_breakdown}];
             {
                 uid: text(p.uid), name: text(p.name), isMe: p.is_me == true,
+                accountId: optionalId(p.account_id), characterId: optionalId(p.character_id),
                 className: text(Reflect.field(p, "class")), damage: number(p.total_damage), heal: number(p.heal),
                 hits: number(p.hits), crits: number(p.crits), kills: number(p.kills),
                 skills: skills, damageBreakdown: p.damage_breakdown, healing: HealingStats.outputRecord(p.healing)
@@ -224,6 +227,10 @@ class FightHistory {
     }
     public static function array(value:Dynamic):Array<Dynamic> return Std.isOfType(value, Array) ? cast value : [];
     public static function text(value:Dynamic):String return Std.isOfType(value, String) ? cast value : "";
+    static function optionalId(value:Dynamic):Null<String> {
+        var id = text(value);
+        return id == "" || id == "0" ? null : id;
+    }
     public static function number(value:Dynamic):Float {
         if (value == null) return 0;
         if ((!Std.isOfType(value, Float) && !Std.isOfType(value, Int)) || !Math.isFinite(value))
