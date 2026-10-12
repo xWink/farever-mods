@@ -395,6 +395,11 @@ class ItemUtilitiesMod {
         refreshInventories();
     }
 
+    @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
+    static function suppressBankAffinityAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> {
+        return BankAffinityWindow.constructing ? Skip : Continue;
+    }
+
     @:hlx.prefix(ui.win.BankWindow.setTabInfo)
     static function beforeBankTab(instance:Dynamic, tab:Dynamic):HlxPrefixResult<Void> {
         BankAffinities.beginTab(instance, tab, enabled);

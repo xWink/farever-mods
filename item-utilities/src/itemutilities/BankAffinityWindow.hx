@@ -5,6 +5,7 @@ import itemutilities.InspectUi.*;
 
 /** A child of the rename dialog, sharing its modal layer and lifetime. */
 class BankAffinityWindow {
+    public static var constructing = false;
     static inline var WIDTH = 300;
     static inline var HEADER = 52;
     static inline var ROW = 30;
@@ -24,6 +25,9 @@ class BankAffinityWindow {
 
     public function new(bank:Dynamic, dialog:Dynamic, state:BankAffinityState, changed:Void->Void) {
         this.bank = bank; this.dialog = dialog; this.state = state; this.changed = changed;
+        try build() catch (error:Dynamic) { dispose(); throw error; }
+    }
+    function build():Void {
         var me = G.call("ui.BaseElement", "get_myPlayer", bank);
         account = G.text(G.field(me, "uid")); tab = G.integer(G.field(bank, "bankId"), -1);
         if (account == "" || tab < 0) throw "Bank identity is unavailable";
@@ -33,8 +37,15 @@ class BankAffinityWindow {
         height = HEADER + BankAffinityState.CATEGORIES.length * ROW + 24;
         // It belongs to the existing dialog, not a second modal window that
         // would steal the rename input's focus or dismiss its parent.
-        panel = G.create("ui.win.TitleWindow", ["Options", null]);
+        // BaseWindow's constructor calls autoDisplay before create returns.
+        // Suppress it there: changing flags afterwards is too late to stop
+        // the native displayWindow path from closing the bank/rename dialog.
+        constructing = true;
+        try panel = G.create("ui.win.TitleWindow", ["Options", null])
+        catch (error:Dynamic) { constructing = false; throw error; }
+        constructing = false;
         G.call("ui.win.BaseWindow", "set_windowFlags", panel, [0]);
+        G.call("ui.UIElement", "set_isBindLayer", panel, [false]);
         G.call("ui.win.BaseWindow", "rebuild", panel);
         G.call("h2d.Object", "addChild", dialog, [panel]);
         absolute(dialog, panel); padding(panel, 0); size(panel, WIDTH, height);
@@ -82,7 +93,7 @@ class BankAffinityWindow {
             var owner = state.owner(account, entry.id);
             G.call("ui.comp.CheckBox", "set_selected", entry.box, [owner == tab]);
             G.call("ui.UIElement", "set_enable", entry.box, [owner < 0 || owner == tab]);
-            G.call("h2d.Object", "set_alpha", entry.box, [owner >= 0 && owner != tab ? 0.4 : 1.0]);
+            G.set(entry.box, "alpha", owner >= 0 && owner != tab ? 0.4 : 1.0);
         }
     }
     public function update():Bool {

@@ -7,6 +7,13 @@ Audited `hlboot(20261007-191837).dat`, HashLink bytecode 6.
   captures that returned dialog; ordinary text dialogs and tab switches do not
   create the companion. The panel is an absolute child of that same dialog, so
   it shares its input/modal ancestry and disappears when the dialog is removed.
+  `BaseWindow.__constructor__` (f4149) calls `autoDisplay` before returning;
+  the companion suppresses that call during its own construction, then clears
+  window flags and its independent binding layer before attachment. Otherwise
+  `BaseUI.displayWindow` closes the bank before later flag changes can help.
+  Failed panel initialization removes partially built UI and restores the
+  rename dialog's overflow. Checkbox opacity writes the native `alpha` field;
+  `h2d.Object` has no `set_alpha` member.
 - `BankWindow.getInventory` (f26527) resolves `hero.loadout.banks[bankId]`.
   `initTabs` (f26529) uses the account's bank-tab index. Rename (f9960) validates
   that index against `loadout.owner.player.accountProgress.bankTabs`.
