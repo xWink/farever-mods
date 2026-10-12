@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.13.0",
-  "commit": "1489586aebb8eb15c75f1a66262cc283d9d967f6",
-  "notes": "- Added item affinities to bank tabs\n  - Edit a bank tab's item affinities by clicking on the currently open tab\n  - Depositing an item to the bank via right click or using an auto-deposit button will put the item into the tab with the corresponding affinity\n- Added `/inspect <name>` chat command. Has the same functionality as the inspect buttons.\n",
+  "project": "more-settings",
+  "version": "1.18.0",
+  "commit": "c2aa1b83fd1fdce3ecec7eea01a62869c40a9cbd",
+  "notes": "- Added a new option in Combat category to show skill proc alerts\n- Added a new option in the Combat category to show skill icons next to damage/healing numbers\n- Added a new option in the Combat category to outline buff/debuff numbers (on by default)\n",
   "dry_run": false
 }
