@@ -11,6 +11,11 @@ typedef MoreSettingsConfig = {
     var socialInteractKey:Dynamic;
     var showSelfChatBubbles:Bool;
     var fancyDamageNumbers:Bool;
+    var showSkillIconNextToDamageNumber:Bool;
+    var obviousSkillProcs:Bool;
+    var skillProcAlertSize:Int;
+    var skillProcAlertPosition:String;
+    var buffStackNumberOutline:Bool;
     var disableDamageNumbers:Bool;
     var crabgantuaRockfallWarnings:Bool;
     var hideAlliedMinionHealthBars:Bool;
@@ -42,6 +47,11 @@ class SettingsData {
         socialInteractKey: 0, // Unassigned until the player chooses a key.
         showSelfChatBubbles: false,
         fancyDamageNumbers: false,
+        showSkillIconNextToDamageNumber: false,
+        obviousSkillProcs: false,
+        skillProcAlertSize: 100,
+        skillProcAlertPosition: "Right",
+        buffStackNumberOutline: true,
         disableDamageNumbers: false,
         crabgantuaRockfallWarnings: true,
         hideAlliedMinionHealthBars: false,
@@ -61,5 +71,8 @@ class SettingsData {
         // Preserve legacy keys and validate Farever-style modifier bindings.
         config.hideUiKey = Hotkey.normalize(config.hideUiKey, 113);
         config.socialInteractKey = Hotkey.normalize(config.socialInteractKey);
+        config.skillProcAlertSize = Std.int(Math.max(50, Math.min(200, config.skillProcAlertSize)));
+        if (["Left", "Right", "Below"].indexOf(config.skillProcAlertPosition) < 0)
+            config.skillProcAlertPosition = "Right";
     }
 }

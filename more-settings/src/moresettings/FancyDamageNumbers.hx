@@ -29,21 +29,8 @@ class FancyDamageNumbers {
         // HLX runs postfixes even when the hiding prefix skipped the native row.
         // Do not restyle the previous heal when no new row was added.
         if (config.disableDamageNumbers || !config.fancyDamageNumbers || damage == null) return;
-        // Native displayHeal returns without adding a row below this threshold.
-        // Match that gate so a suppressed heal cannot recolour an older row.
-        var amount = G.number(G.call("st.skill.DamageResult", "get_amount", damage));
-        var scale = G.number(G.call("st.skill.DamageResult", "getDynamicScalingFactor", damage));
-        if (amount * scale < 1) return;
-        // The native method appends exactly one row and adds its heal class.
-        // Read only that new row, after displayHeal finishes; backlog trimming
-        // may have removed older rows, so never rely on a pre-call array index.
-        var lines = G.field(feed, "activeLines");
-        var count = G.integer(G.field(lines, "length"));
-        if (count == 0) return;
-        var line = G.call("hl.types.ArrayObj", "getDyn", lines, [count - 1]);
-        var element = G.field(line, "elt");
-        var dom = G.field(element, "dom");
-        if (dom == null || G.call("domkit.Properties", "hasClass", dom, ["heal"]) != true) return;
+        var element = HealingFeed.lastAddedRow(feed, damage);
+        if (element == null) return;
         var children = G.integer(G.call("h2d.Object", "get_numChildren", element));
         for (i in 0...children) {
             var counter = G.call("h2d.Object", "getChildAt", element, [i]);

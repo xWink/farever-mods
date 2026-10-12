@@ -158,7 +158,8 @@ class CombatUiTest {
         var descriptor:Dynamic = haxe.Json.parse(sys.io.File.getContent("configFormats.json"));
         var rows:Array<Dynamic> = descriptor.configs;
         var keys = [for (row in rows) Std.string(row.key)];
-        eq(keys.indexOf("disableDamageNumbers"), keys.indexOf("fancyDamageNumbers") + 1, "damage toggle follows fancy numbers");
+        eq(keys.indexOf("showSkillIconNextToDamageNumber"), keys.indexOf("fancyDamageNumbers") + 1, "skill icons follow fancy numbers");
+        eq(keys.indexOf("disableDamageNumbers"), keys.indexOf("showSkillIconNextToDamageNumber") + 1, "damage toggle follows skill icons");
         var social = [for (row in rows) Std.string(row.label)].indexOf("Social");
         eq(keys[social - 1], "hideAlliedMinionHealthBars", "minion bars last in Combat");
         for (row in rows) {

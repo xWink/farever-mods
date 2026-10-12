@@ -35,6 +35,8 @@ class MoreSettingsMod {
         DungeonLeaveButton.enabled = config.leaveDungeonButton;
         CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
         MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
+        ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);
+        BuffStackOutlines.configure(config.buffStackNumberOutline);
         SocialHooks.configure(config, false);
         hideUi.configure(config.hideUiKey);
         config.save();
@@ -49,6 +51,8 @@ class MoreSettingsMod {
             DungeonLeaveButton.enabled = config.leaveDungeonButton;
             CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
             MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
+            ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);
+            BuffStackOutlines.configure(config.buffStackNumberOutline);
             SocialHooks.configure(config);
             hideUi.configure(config.hideUiKey);
             AllyEffects.configure(config);
@@ -72,8 +76,9 @@ class MoreSettingsMod {
     }
 
     @:hlx.prefix(ui.comp.DamageDisplay.display)
-    static function beforeDamageNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic>
+    static function beforeDamageNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic> {
         return config.disableDamageNumbers ? SkipWith(null) : Continue;
+    }
 
     @:hlx.prefix(ui.comp.HealDisplay.display)
     static function beforeHealingNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic>
@@ -96,6 +101,29 @@ class MoreSettingsMod {
     static function afterElementRemoved(instance:Dynamic, result:Void):Void {
         MinionHealthBars.forget(instance);
         BarbershopButton.forget(instance);
+        ObviousSkillProcs.forget(instance);
+        BuffStackOutlines.forget(instance);
+    }
+
+    @:hlx.postfix(ui.hud.StatusDisplay.init)
+    static function afterStatusDisplayInit(instance:Dynamic, result:Void):Void {
+        try BuffStackOutlines.attach(instance) catch (error:Dynamic) BuffStackOutlines.report(error);
+    }
+
+    @:hlx.postfix(h2d.Object.set_filter)
+    static function afterStackLabelFilter(instance:Dynamic, filter:Dynamic, result:Dynamic):Dynamic {
+        try BuffStackOutlines.afterFilter(instance) catch (error:Dynamic) BuffStackOutlines.report(error);
+        return result;
+    }
+
+    @:hlx.postfix(ui.hud.SkillButton.init)
+    static function afterSkillButtonInit(instance:Dynamic, result:Void):Void {
+        ObviousSkillProcs.attach(instance);
+    }
+
+    @:hlx.postfix(ent.Hero.onSkillUse)
+    static function afterHeroSkillUse(instance:Dynamic, skill:Dynamic, result:Void):Void {
+        try ObviousSkillProcs.onUse(instance, skill) catch (error:Dynamic) ObviousSkillProcs.report(error);
     }
 
     @:hlx.postfix(ui.comp.DamageDisplay.init)
@@ -103,16 +131,19 @@ class MoreSettingsMod {
         // HealDisplay calls this base initializer, then changes its component.
         // Style healing once, after the complete subclass initialization.
         if (G.isA(instance, "ui.comp.HealDisplay")) return;
+        try DamageSkillIcons.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
     }
 
     @:hlx.postfix(ui.comp.HealDisplay.init)
     static function afterHealDisplayInit(instance:Dynamic, result:Void):Void {
+        try DamageSkillIcons.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
     }
 
     @:hlx.postfix(ui.hud.EffectsFeed.displayHeal)
     static function afterReceivedHeal(instance:Dynamic, damage:Dynamic, result:Void):Void {
+        try DamageSkillIcons.applyHealingFeed(instance, damage, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.applyHealingFeed(instance, damage, config) catch (error:Dynamic) damageNumberError(error);
     }
 
@@ -135,7 +166,7 @@ class MoreSettingsMod {
     static function damageNumberError(error:Dynamic):Void {
         if (!reportedDamageNumberError) {
             reportedDamageNumberError = true;
-            trace("[More Settings] Fancy damage numbers: " + Std.string(error));
+            trace("[More Settings] Damage numbers: " + Std.string(error));
         }
     }
 
@@ -209,6 +240,9 @@ class MoreSettingsMod {
         PerformanceHooks.dispose();
         DungeonLeaveButton.clear();
         try FancyDamageNumbers.dispose() catch (error:Dynamic) damageNumberError(error);
+        DamageSkillIcons.clear();
+        ObviousSkillProcs.clear();
+        BuffStackOutlines.clear();
         AppearanceEditor.close();
         BarbershopButton.clear();
         MinionHealthBars.clear();
@@ -216,6 +250,11 @@ class MoreSettingsMod {
         CrabgantuaWarnings.dispose();
         SocialHooks.dispose();
         return Continue;
+    }
+
+    @:hlx.postfix(GameApp.update)
+    static function afterUpdate(instance:Dynamic, dt:Float, result:Void):Void {
+        try ObviousSkillProcs.update(instance, dt) catch (error:Dynamic) ObviousSkillProcs.report(error);
     }
 
     static function previousProfanityPreference():Bool {

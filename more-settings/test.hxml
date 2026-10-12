@@ -49,6 +49,34 @@
 --next
 -cp src
 -cp ../shared/src
+-cp tests/damage-stubs
+-cp tests
+-main DamageSkillIconsTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/proc-stubs
+-cp tests
+-main ObviousSkillProcsTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/proc-stubs
+-cp tests
+-main ProcTimingTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/proc-stubs
+-cp tests
+-main BuffStackOutlinesTest
+--interp
+--next
+-cp src
+-cp ../shared/src
 -cp tests/warning-stubs
 -cp tests
 -main CrabgantuaWarningsTest
