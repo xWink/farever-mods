@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.14.0",
-  "commit": "26dc8b4a2b0c0be981a4182a9084e2f1cbb52788",
-  "notes": "- Right clicking a preset's name in the dropdown now lets you change its name\n",
+  "project": "dps-meter",
+  "version": "1.10.0",
+  "commit": "269605453351b69ca1319a7050303cc1013c917b",
+  "notes": "- Added 3 most recent reports to the home page of Fight History\n- Added Detailed Reports to all fights, allowing ultra-detailed analysis of any fight\n",
   "dry_run": false
 }
