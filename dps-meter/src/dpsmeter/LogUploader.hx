@@ -29,6 +29,10 @@ class LogUploader {
     final bossRequests = new Deque<BossRecordRequest>();
     final bossResponses = new Deque<BossRecordResponse>();
     final history:FightHistoryStore;
+    final timelineIncoming = new Deque<CombatTimeline.TimelineBatch>();
+    final timelinePending:Array<CombatTimeline.TimelineBatch> = [];
+    final timelineFinished = new Deque<String>();
+    final timelineFinishedPending:Array<String> = [];
     final retryAt:Map<String, Float> = [];
     var apiUrl:String = DEFAULT_URL;
     var token:String = "";
@@ -43,6 +47,8 @@ class LogUploader {
     }
 
     public function archive(record:Dynamic):Void { historyIncoming.add(record); wake.release(); }
+    public function recordTimeline(batch:CombatTimeline.TimelineBatch):Void { timelineIncoming.add(batch); wake.release(); }
+    public function finishTimeline(stream:String):Void { timelineFinished.add(stream); wake.release(); }
     public function requestHistory(request:HistoryRequest):Void { historyRequests.add(request); wake.release(); }
     public function receiveHistory():Null<HistoryResponse> return historyResponses.pop(false);
     public function requestBossRecord(request:BossRecordRequest):Void { bossRequests.add(request); wake.release(); }
@@ -181,11 +187,29 @@ class LogUploader {
         try {
             try {
                 history.initialize();
+                // Snapshot dependents before prerequisites. The producer queues
+                // chunks, then archives, then completion. Reading separate
+                // queues in the opposite order can save an archive before its
+                // final chunk, or clean a stream with an archive still queued.
+                var finished = timelineFinished.pop(false);
+                while (finished != null) { timelineFinishedPending.push(finished); finished = timelineFinished.pop(false); }
                 var record = historyIncoming.pop(false);
                 while (record != null) { historyPending.push(record); record = historyIncoming.pop(false); }
+                var batch = timelineIncoming.pop(false);
+                while (batch != null) { timelinePending.push(batch); batch = timelineIncoming.pop(false); }
+                while (timelinePending.length > 0) {
+                    history.timeline.append(timelinePending[0]); timelinePending.shift();
+                }
                 while (historyPending.length > 0) {
                     history.save(historyPending[0]);
                     historyPending.shift();
+                }
+                // Only retire a closed stream after all its archive handoffs
+                // succeeded. Failed saves retain their recoverable chunks.
+                while (timelineFinishedPending.length > 0) {
+                    var finished = timelineFinishedPending[0];
+                    try history.timeline.finish(finished) catch (e:Dynamic) log("Timeline cleanup: " + Std.string(e));
+                    timelineFinishedPending.shift();
                 }
             } catch (e:Dynamic) log("History save will retry: " + Std.string(e));
             var item = incoming.pop(false);

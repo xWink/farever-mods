@@ -12,7 +12,8 @@ typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
     ?damageType:String, ?affinity:String, ?targetDummy:Bool,
-    ?estimatedHealing:Bool, ?unknownHealing:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool
+    ?estimatedHealing:Bool, ?unknownHealing:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool,
+    ?timeline:CombatTimeline.TimelineEvent
 };
 
 class SkillStats {

@@ -41,9 +41,14 @@ class GameAccess {
         case "ent.Unit.getName": field(object, "name");
         case "ent.GameObject.resolveProxy": field(object, "proxy") == null ? object : field(object, "proxy");
         case "st.skill.ScriptHitData.get_source": field(object.skill, "instigator") == null ? object.skill.owner : object.skill.instigator;
-        case "st.skill.BaseSkill.getSourceObject": field(object, "owner");
+        case "st.skill.BaseSkill.getSourceObject", "st.skill.Skill.getSourceObject": field(object, "owner");
         case "st.skill.Status.getSourceObject": field(object, "instigator");
-        case "st.skill.BaseSkill.getSourceSkill", "st.skill.Status.getSourceSkill": field(object, "origin") == null ? object : field(object, "origin");
+        case "st.skill.BaseSkill.getSourceSkill", "st.skill.Skill.getSourceSkill", "st.skill.Status.getSourceSkill": field(object, "origin") == null ? object : field(object, "origin");
+        case "st.skill.BaseSkill.getSourceItem": field(object, "originItem") != null ? field(object, "originItem") : field(field(object, "origin"), "originItem");
+        case "st.skill.BaseSkill.isBlock": field(object, "isBlock") == true;
+        case "st.skill.Skill.shouldHighlight": field(object, "highlight") == true;
+        case "st.skill.Status.isInfinite": field(object, "infinite") == true;
+        case "st.skill.BaseSkill.getDurationLeft": field(object, "duration");
         case "st.skill.BaseSkill.checkAlignment": field(args[0], "aligned") != false;
         case "st.skill.DamageResult.get_source": field(object, "source");
         case "st.skill.DamageResult.get_isPhysical": field(object, "physical") == true;

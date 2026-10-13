@@ -97,6 +97,12 @@ class NativeCombatMetadata {
         // SkillSpec (with typed mastery arrays) just to read a display string:
         // a bridge/type failure there used to discard even simple valid names.
         return SkillNames.resolve(id, key -> {
+            if (key == "ConsumeFlask") {
+                // This unnamed consumable references Pilgrim's Stride for its
+                // rank tooltip. The reference names a bonus buff, not the heal.
+                var name = G.text(G.field(G.field(skillItem(key), "texts"), "name"));
+                return {name:name == "" ? "Hess'tuss Flask" : name, nameRef:"", source:""};
+            }
             var inf = skillDefinition(key);
             var texts = G.field(inf, "texts");
             var name = G.text(G.field(texts, "name"));
@@ -119,11 +125,51 @@ class NativeCombatMetadata {
         try return G.call("haxe.ds.StringMap", "get", G.field(G.current("Data", "skill"), "byId"), [id])
         catch (e:Dynamic) { warn(e); return null; }
     }
+    static function skillItem(id:String):Dynamic {
+        if (id != "ConsumeFlask") return null;
+        return itemDefinition("RefillableFlask");
+    }
+    static function itemDefinition(id:String):Dynamic {
+        var items = G.field(G.current("Data", "item"), "byId");
+        if (items == null) return null;
+        try return G.call("haxe.ds.StringMap", "get", items, [id])
+        catch (e:Dynamic) { warn(e); return null; }
+    }
+    public static function itemName(id:String):String {
+        var name = G.text(G.field(G.field(itemDefinition(id), "texts"), "name"));
+        return name != "" ? name : StringTools.replace(id, "_", " ");
+    }
+    public static function itemIcon(id:String):Dynamic {
+        var gfx = G.field(itemDefinition(id), "gfx");
+        if (gfx == null) return null;
+        try return G.staticCall("ui.BaseUI", "getTile", [gfx, null, null])
+        catch (e:Dynamic) { warn(e); return null; }
+    }
+    /** Same Debuff tag used by HSkill.isDebuff; all other statuses are buffs. */
+    public static function statusMetadata(id:String):Null<{kind:String, hidden:Bool}> {
+        var inf = skillDefinition(id);
+        return inf == null ? null : statusInfo(inf);
+    }
+    static function statusInfo(inf:Dynamic):{kind:String, hidden:Bool} {
+        var debuff = false;
+        for (tag in G.array(G.field(G.field(G.field(inf, "props"), "status"), "types")))
+            if (G.text(G.field(tag, "type")) == "Debuff") debuff = true;
+        return {kind:debuff ? "debuff" : "buff", hidden:(G.integer(G.field(inf, "flags")) & 4096) != 0};
+    }
+    /** Detached fallback for older recordings that predate status classification. */
+    public static function statusCatalog():Map<String, {kind:String, hidden:Bool}> {
+        var result:Map<String, {kind:String, hidden:Bool}> = [];
+        for (inf in G.array(G.field(G.current("Data", "skill"), "all"))) {
+            var id = G.text(G.field(inf, "id"));
+            if (id != "") result[id] = statusInfo(inf);
+        }
+        return result;
+    }
     public static function skillIcon(id:String):Dynamic {
         try {
             var inf = skillDefinition(id);
-            var gfx = G.field(inf, "gfx");
-            if (gfx == null) gfx = G.field(G.staticCall("HSkill", "getSkillRef", [id]), "gfx");
+            var gfx = id == "ConsumeFlask" ? G.field(skillItem(id), "gfx") : G.field(inf, "gfx");
+            if (gfx == null && id != "ConsumeFlask") gfx = G.field(G.staticCall("HSkill", "getSkillRef", [id]), "gfx");
             return gfx == null ? null : G.staticCall("ui.BaseUI", "getTile", [gfx, null, null]);
         } catch (e:Dynamic) { warn(e); return null; }
     }

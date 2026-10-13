@@ -57,6 +57,7 @@ class HistoryTest {
     static function main():Void {
         clientSkillCompatibility(); archivePolicy(); targetDummies();
         lifecycle(); partyCombat(); chakram(); riftCountdown(); gameVersions(); outcomes(); recapSummary(); snapshots(); storage(); encounterFolders(); uploader(); victoryUploads(); categories(); metadata(); breakdown(); encounterDetails(); historyActions(); snapshotLayouts(); snapshotTextures(); snapshotViewports(); historyOptions(); literalLabels(); bossRecords();
+        recentFights();
         Sys.println('Fight history: $checks checks passed');
     }
     static function archivePolicy():Void {
@@ -812,6 +813,53 @@ class HistoryTest {
         check(recovered.query(request("chart", "", 0, "draft")).record.id == "draft", "Completed draft recovered after interrupted rename");
         remove(root);
     }
+    static function recentFights():Void {
+        var root = temp("recent-fights");
+        var errors:Array<String> = [];
+        var store = new FightHistoryStore(root, e -> errors.push(e), path -> FileSystem.deleteFile(path));
+        check(store.query(request("categories")).recent.length == 0, "An empty archive has no recent entries");
+        var ids = ["old", "second", "tie_a", "tie_b"];
+        var kinds = [HistoryCategory.WORLD, HistoryCategory.DUMMY, HistoryCategory.DUNGEON, HistoryCategory.BOSS];
+        for (i in 0...ids.length) {
+            var fight = sample(); fight.startedAt += Math.min(i, 2) * 1000;
+            fight.category = kinds[i]; fight.categoryVersion = HistoryCategory.VERSION;
+            fight.bossName = "Encounter " + i; fight.bossKind = "Kind" + i;
+            if (i == 3) fight.bossName = fight.bossKind; // Older logs can store an untranslated ID.
+            fight.difficulty = i == 3 ? 2 : -1;
+            fight.outcome = i == 2 ? "Defeat" : "Victory";
+            if (i == 2) fight.players["me"].info.name = "Other character";
+            store.save(FightHistory.encode(fight, ids[i]));
+            if (i < 2) check(store.query(request("categories")).recent.length == i + 1,
+                "A short archive shows only the existing recent entries");
+        }
+        var req = request("categories");
+        // Folder controls must not change the three shortcuts on the home page.
+        req.category = HistoryCategory.OTHER; req.character = "No matching character";
+        req.outcome = "Victory"; req.sortBy = "duration"; req.ascending = true;
+        req.catalog = {activities: [], names: ["Kind3" => "Localized boss"], bosses: []};
+        var home = store.query(req);
+        check([for (recent in home.recent) recent.entry.id].join(",") == "tie_b,tie_a,second",
+            "Recent fights are newest first across categories and characters, with deterministic ties and no folder filters");
+        check(home.recent[0].category == HistoryCategory.BOSS && home.recent[0].group == "Localized boss - Heroic",
+            "Recent report navigation uses the same resolved category, encounter and difficulty as folders");
+        check(home.groups.length == HistoryCategory.all().length && home.total == home.groups.length,
+            "Recent entries do not change the category menu or counts");
+        for (recent in home.recent) {
+            var folder = request("fights", recent.group); folder.category = recent.category;
+            var entry = store.query(folder).entries[0];
+            check(Json.stringify(entry) == Json.stringify(recent.entry), "Recent rows reuse the original folder summary: " + entry.id);
+            check(store.query(request("chart", "", 0, entry.id)).record.id == entry.id,
+                "A recent shortcut opens its existing report: " + entry.id);
+        }
+        store.query(request("delete", "", 0, "tie_b"));
+        check([for (recent in store.query(req).recent) recent.entry.id].join(",") == "tie_a,second,old",
+            "Deleting a recent fight promotes the next newest entry");
+        var reopened = new FightHistoryStore(root, e -> errors.push(e));
+        check([for (recent in reopened.query(req).recent) recent.entry.id].join(",") == "tie_a,second,old",
+            "The recent list survives reopening and keeps deleted reports out");
+        check(errors.length == 0, "Recent report queries leave valid archives readable");
+        remove(root);
+    }
     static function encounterFolders():Void {
         var root = temp("encounter-folders");
         var errors:Array<String> = [];
@@ -1129,6 +1177,24 @@ class HistoryTest {
             check(NativeCombatMetadata.skillName(id) == expected, "Native display-name metadata: " + id);
         check(NativeCombatMetadata.skillName("CycleA") == "CycleA", "Cyclic name references terminate safely");
         check(NativeCombatMetadata.skillName("Removed_Skill") == "Removed Skill", "Removed skills keep a readable fallback");
+        // The flask has no name/gfx of its own. Its tooltip points at a bonus
+        // movement buff, while its display identity belongs to the item.
+        var flaskGfx:Dynamic = {file:"flask.png", size:256, x:0, y:0};
+        var strideGfx:Dynamic = {file:"speed-potion.png", size:256, x:0, y:0};
+        definitions["ConsumeFlask"] = {texts:{refs:{ref:"Pilgrims_FlaskSpeed_Status"}}};
+        definitions["Pilgrims_FlaskSpeed_Status"] = {texts:{name:"Pilgrim's Stride"}, gfx:strideGfx};
+        var refs:Map<String, Dynamic> = GameAccess.globals["skillRefs"];
+        refs["ConsumeFlask"] = {id:"Pilgrims_FlaskSpeed_Status", gfx:strideGfx};
+        GameAccess.globals["Data.item"] = {byId:["RefillableFlask" => {texts:{name:"Hess'tuss Flask"}, gfx:flaskGfx}]};
+        check(NativeCombatMetadata.skillName("ConsumeFlask") == "Hess'tuss Flask"
+            && NativeCombatMetadata.skillIcon("ConsumeFlask") == flaskGfx, "Flask use and healing show the item name and icon");
+        check(NativeCombatMetadata.skillName("Pilgrims_FlaskSpeed_Status") == "Pilgrim's Stride"
+            && NativeCombatMetadata.skillIcon("Pilgrims_FlaskSpeed_Status") == strideGfx, "The actual movement buff keeps its own identity");
+        GameAccess.globals["Data.item"] = {byId:["RefillableFlask" => {texts:{name:"Localized flask"}, gfx:flaskGfx}]};
+        check(NativeCombatMetadata.skillName("ConsumeFlask") == "Localized flask", "Flask labels use current game text rather than a fixed English name");
+        GameAccess.globals.remove("Data.item");
+        check(NativeCombatMetadata.skillName("ConsumeFlask") == "Hess'tuss Flask" && NativeCombatMetadata.skillIcon("ConsumeFlask") == null,
+            "Missing item metadata never reintroduces the movement buff name or icon");
         GameAccess.globals["activities"] = ["TestArena" => {types: ["Dungeon"]}, "TestClassic" => {types: ["Boss", "Dungeon"]}];
         var activity:Dynamic = {};
         var player:Dynamic = {context: {objectives: {array: []}}};

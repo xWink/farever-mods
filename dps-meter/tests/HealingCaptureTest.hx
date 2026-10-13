@@ -24,6 +24,20 @@ class HealingCaptureTest {
         c.heal(e, m.captureHealing(source), "Heal/0", exact);
     }
     static function main():Void {
+        {
+            var capture = new HealingCapture();
+            var observed:Array<DamageEvent> = [];
+            capture.onRecorded = e -> observed.push(e);
+            var fx = HealingCapture.event(11, "outsider", "me", "Heal", 50);
+            fx.timeline = {seq:1, time:1, kind:"heal", source:"outsider", target:"me", skill:"Heal"};
+            var exact = HealingCapture.event(11.05, "outsider", "me", "Heal", 80);
+            exact.timeline = {seq:3, time:1.05, kind:"heal", source:"outsider", target:"me", skill:"Heal"};
+            capture.heal(fx, null, "Heal/1", false); capture.heal(exact, null, "Heal/1", true); capture.flush(12);
+            check(observed.length == 1 && observed[0].amount == 80 && observed[0].timeline.seq == 1 && observed[0].timeline.time == 1,
+                "Incoming outsider healing reconciles without a summary scope and preserves first observation order");
+            capture.heal(HealingCapture.event(12, "outsider", "me", "Heal", 80), null, "Heal/1", true); capture.flush(13);
+            check(observed.length == 1, "No-scope heals still stay excluded when detailed recording is disabled");
+        }
         for (delay in [.119, .121]) {
             var m = model(), c = new HealingCapture();
             heal(c, m, 11, "a", false, 200);

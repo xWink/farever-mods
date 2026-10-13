@@ -12,6 +12,7 @@ typedef MeterSettings = {
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
     var showRiftRecaps:Bool;
+    var detailedCombatLogs:Bool;
     var readyCheckEnabled:Bool;
     // Retain the persisted key for the two existing sound effects.
     var disableCountdownAudio:Bool;
@@ -50,6 +51,7 @@ class MeterConfig {
         hideOutOfCombat: false,
         hideDelay: 3,
         showRiftRecaps: true,
+        detailedCombatLogs: true,
         readyCheckEnabled: true,
         disableCountdownAudio: false,
         disableCountdownVoiceover: false,
@@ -58,7 +60,7 @@ class MeterConfig {
         showBossKills: true,
         showIncompleteCodexKills: true,
         showCompletedCodexKills: false,
-        unlocked: false,
+        unlocked: true,
         sendLogs: true,
         debug: false,
         me: "",

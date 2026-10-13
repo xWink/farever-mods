@@ -6,6 +6,20 @@ import dpsmeter.NativeUi.*;
 class HistoryButtons {
     public static inline var SNAPSHOT_SIZE:Int = 36;
     static var styledData:Dynamic;
+    /** Native buttons otherwise reserve enough horizontal padding to wrap short labels. */
+    public static function singleLine(button:Dynamic, width:Int, height:Int = 34):Void {
+        padding(button, 0);
+        style(button, "padding-left", 12); style(button, "padding-right", 12);
+        size(button, width, height);
+        var text = G.field(button, "btnText");
+        if (text != null) {
+            G.call("ui.comp.FmtText", "set_textMultiline", text, [false]);
+            G.call("h2d.Text", "set_lineBreak", text, [false]);
+            G.call("ui.comp.FmtText", "set_useEllipsis", text, [false]);
+            G.call("ui.comp.FmtText", "set_maxWidthText", text, [Std.int(Math.max(1, width - 24))]);
+            G.call("ui.comp.FmtText", "updateScale", text);
+        }
+    }
     public static function folder(parent:Dynamic, click:Void->Void):Dynamic {
         var button = NativeUi.button(parent, "", "dpsHistoryFolder", click);
         padding(button, 0); size(button, 34, 30);

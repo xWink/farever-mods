@@ -30,6 +30,10 @@ class NativeHistoryWindow {
     var chartInfo:Dynamic;
     var options:NativeHistoryOptions;
     var list:Dynamic;
+    var categoryHeadingRow:Dynamic;
+    var categoryHeading:Dynamic;
+    var recentEmptyRow:Dynamic;
+    var recentEmpty:Dynamic;
     var chartPanel:Dynamic;
     var chart:NativeDamageChart;
     var recapView:NativeRiftRecapCharts;
@@ -43,12 +47,16 @@ class NativeHistoryWindow {
     var deleteButton:Dynamic;
     var snapshotButton:Dynamic;
     var modeButton:MeterModeButton;
+    var detailedButton:Dynamic;
+    var detailed:NativeDetailedReport;
     var healing:Bool = false;
     var actionStatus:Dynamic;
     var selectedEntry:HistoryEntry;
     var deleting:Bool = false;
     var copying:Bool = false;
     var rows:Array<Dynamic> = [];
+    var recentRows:Array<Dynamic> = [];
+    var openedFromRecent:Bool = false;
     var writer:RunWriter;
     var serial:Int = 0;
     var pending:Bool = false;
@@ -97,6 +105,7 @@ class NativeHistoryWindow {
         }
         if (window == null) return;
         if (mode == "fights") options.update();
+        if (mode == "detailed") detailed.update(now);
         var response = writer.receiveHistory();
         while (response != null) {
             if (response.id == serial) display(response);
@@ -115,7 +124,11 @@ class NativeHistoryWindow {
     }
     function navigate(mode:String, group:String, page:Int, ?entry:HistoryEntry):Void {
         recap = null; recapView.setRecap(null); show(recapView.object, false);
+        detailed.visible(false); show(detailedButton, false);
+        if (mode == "detailed") detailed.reset();
         this.mode = mode; this.group = group; this.page = page;
+        if (mode != "chart" && mode != "detailed") openedFromRecent = false;
+        if (mode == "categories") category = "";
         selectedEntry = entry; deleting = false;
         status(""); show(deleteButton, false); show(snapshotButton, false); show(modeButton.object, false);
         setText(title, "Fight History" + (category == "" ? "" : " · " + category));
@@ -123,6 +136,8 @@ class NativeHistoryWindow {
         if (mode == "groups") groupsPage = page;
         if (mode == "fights") fightsPage = page;
         for (row in rows) show(row.obj, false);
+        for (row in recentRows) show(row.obj, false);
+        show(categoryHeadingRow, false); show(recentEmptyRow, false);
         show(G.field(list, "obj"), false); show(G.field(chartPanel, "obj"), false);
         setText(empty, "Loading fight history..."); show(empty, true);
         G.call("h2d.Text", "set_text", heading, [headingText()]);
@@ -136,18 +151,24 @@ class NativeHistoryWindow {
         // Literal text keeps Windows paths containing brackets or other markup
         // characters intact. The whole path scales to fit instead of ellipsizing.
         G.call("h2d.Text", "set_text", footer, [logsPath]);
-        writer.requestHistory({id: serial, action: mode, group: group, page: page, fightId: entry == null ? "" : entry.id,
+        var request:HistoryRequest = {id: serial, action: mode, group: group, page: page, fightId: entry == null ? "" : entry.id,
             category: category, catalog: mode == "categories" ? catalog : null,
-            sortBy: options.sortBy, ascending: options.ascending, character: options.characterKey, outcome: options.outcomeKey});
+            sortBy: options.sortBy, ascending: options.ascending, character: options.characterKey, outcome: options.outcomeKey};
+        if (mode == "detailed") detailed.configureRequest(request);
+        writer.requestHistory(request);
         width = 0; // Navigation changes the amount of space above the list.
         lastRefresh = -1;
     }
     function goBack():Void {
-        if (mode == "chart") navigate("fights", group, fightsPage);
+        if (mode == "detailed") navigate("chart", group, 0, selectedEntry);
+        else if (mode == "chart") {
+            if (openedFromRecent) navigate("categories", "", 0);
+            else navigate("fights", group, fightsPage);
+        }
         else if (mode == "fights") navigate("groups", "", groupsPage);
         else { category = ""; navigate("categories", "", 0); }
     }
-    function headingText():String return mode == "categories" ? "Choose a category" : mode == "groups" ? "Choose an encounter" : group;
+    function headingText():String return mode == "categories" ? "Recent Fights" : mode == "groups" ? "Choose an encounter" : group;
     function display(response:HistoryResponse):Void {
         pending = false; total = response.total; page = response.page;
         if (deleting) {
@@ -155,11 +176,18 @@ class NativeHistoryWindow {
             if (response.error != "") {
                 status(response.error, true);
                 show(deleteButton, mode == "chart"); show(snapshotButton, mode == "chart"); show(modeButton.object, mode == "chart");
+                show(detailedButton, mode == "chart");
                 for (row in rows) show(row.deleteButton, mode == "fights" && row.entry != null);
-            } else navigate("fights", group, fightsPage);
+                for (row in recentRows) show(row.deleteButton, mode == "categories" && row.entry != null);
+            } else if (mode == "categories" || openedFromRecent) navigate("categories", "", 0);
+            else navigate("fights", group, fightsPage);
             return;
         }
-        if (response.error != "") { setText(empty, response.error); show(empty, true); return; }
+        if (response.error != "") { detailed.visible(false); setText(empty, response.error); show(empty, true); return; }
+        if (mode == "detailed") {
+            show(empty, false); detailed.display(response.record); detailed.visible(true);
+            return;
+        }
         if (mode == "chart") {
             try {
                 if (RiftRecapHistory.isRecap(response.record)) {
@@ -180,6 +208,7 @@ class NativeHistoryWindow {
             show(empty, false);
             width = 0;
             show(deleteButton, true); show(snapshotButton, true); show(modeButton.object, true);
+            show(detailedButton, true);
             refreshChartDetail();
         } else {
             if (mode == "fights") options.setCharacters(response.characters);
@@ -192,16 +221,21 @@ class NativeHistoryWindow {
                 row.entry = mode == "fights" ? response.entries[i] : null;
                 show(row.deleteButton, row.entry != null);
                 row.group = names ? response.groups[i].name : "";
-                var parts = names ? {before: response.groups[i].name, player: "", after: ""}
-                    : FightHistory.attemptHeadingParts(row.entry);
-                row.caption = parts.before; row.playerCaption = parts.player; row.suffixCaption = parts.after;
-                row.description = names ? response.groups[i].count + (response.groups[i].count == 1 ? " fight" : " fights")
-                    : FightHistory.attemptDetail(row.entry);
-                setText(row.name, row.caption); setText(row.player, row.playerCaption); setText(row.suffix, row.suffixCaption);
-                setText(row.detail, row.description);
-                show(row.player, parts.player != ""); show(row.suffix, parts.after != "");
-                if (!names) colorPlayerName(row, row.entry.playerClass == "" ? 0x5b4334 : classColor(row.entry.playerClass));
-                row.width = 0; // Different name lengths change the inline positions.
+                if (names) setRowText(row, {before: response.groups[i].name, player: "", after: ""},
+                    response.groups[i].count + (response.groups[i].count == 1 ? " fight" : " fights"));
+                else setFightRow(row, row.entry);
+            }
+            if (mode == "categories") {
+                var recent = response.recent == null ? [] : response.recent;
+                for (i in 0...recentRows.length) {
+                    var row = recentRows[i];
+                    show(row.obj, i < recent.length);
+                    row.entry = i < recent.length ? recent[i].entry : null;
+                    if (row.entry == null) continue;
+                    row.category = recent[i].category; row.group = recent[i].group;
+                    setFightRow(row, row.entry);
+                }
+                show(categoryHeadingRow, true); show(recentEmptyRow, recent.length == 0);
             }
             show(G.field(list, "obj"), count > 0); show(empty, count == 0);
             setText(empty, mode == "fights" && (options.characterKey != "" || options.outcomeKey != "")
@@ -218,6 +252,12 @@ class NativeHistoryWindow {
         try { DesktopActions.openFolder(logsPath); status(""); }
         catch (error:Dynamic) status(Std.string(error), true);
     }
+    function requestDetailed(page:Int, jump:Null<Float>):Void {
+        if (mode != "detailed" || selectedEntry == null) return;
+        serial++; pending = true; detailed.loading();
+        var request:HistoryRequest = {id:serial, action:"detailed", group:group, page:page, fightId:selectedEntry.id, jumpTime:jump};
+        detailed.configureRequest(request); writer.requestHistory(request);
+    }
     function deleteLog():Void {
         if (fight != null || recap != null) deleteEntry(selectedEntry);
     }
@@ -225,7 +265,9 @@ class NativeHistoryWindow {
         if (pending || copying || entry == null) return;
         pending = true; deleting = true; serial++;
         show(deleteButton, false); show(snapshotButton, false); show(modeButton.object, false);
+        show(detailedButton, false);
         for (row in rows) show(row.deleteButton, false);
+        for (row in recentRows) show(row.deleteButton, false);
         status("Moving log to the Recycle Bin...");
         writer.requestHistory({id: serial, action: "delete", group: group, page: fightsPage, fightId: entry.id});
     }
@@ -241,7 +283,7 @@ class NativeHistoryWindow {
             refreshSnapshotChart(true);
             if (recap != null) recapView.restoreScrolls([0, 0]); else chart.restoreScroll(0);
             NativeFightSnapshot.copyBody(window, width, height,
-                [header, back, snapshotButton, modeButton.object, deleteButton, folderButton, previous, next, pageLabel, actionStatus]);
+                [header, back, snapshotButton, modeButton.object, deleteButton, detailedButton, folderButton, previous, next, pageLabel, actionStatus]);
         } catch (error:Dynamic) {
             message = Std.string(error); failed = true;
             trace("[DPS Meter] Snapshot: " + Std.string(error));
@@ -283,6 +325,7 @@ class NativeHistoryWindow {
         G.call("h2d.Text", "set_text", actionStatus, [message]);
         G.call("h2d.Text", "set_textColor", actionStatus, [error ? 0x982c24 : 0x526b31]);
         show(actionStatus, message != ""); lastRefresh = -1;
+        if (mode == "categories") width = 0; // Make room below the folder row for status messages.
     }
     function build(ui:Dynamic):Void {
         owner = ui;
@@ -335,6 +378,10 @@ class NativeHistoryWindow {
         snapshotButton = HistoryButtons.snapshot(panel, copySnapshot);
         modeButton = new MeterModeButton(panel, "dpsHistoryMode", setHealing, healing);
         deleteButton = button(panel, "Delete log", "dpsHistoryDelete", deleteLog);
+        detailedButton = button(panel, "Detailed report", "dpsHistoryDetailed", () -> {
+            if (!pending && selectedEntry != null) navigate("detailed", group, 0, selectedEntry);
+        });
+        detailed = new NativeDetailedReport(panel, requestDetailed);
         HistoryButtons.red(deleteButton);
         detail = label(panel, ""); empty = label(panel, "");
         this.options = new NativeHistoryOptions(panel, () -> {
@@ -353,7 +400,18 @@ class NativeHistoryWindow {
         padding(G.field(list, "obj"), 0); flow(list, "set_verticalSpacing", 8); style(G.field(list, "obj"), "vspacing", 8);
         var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
         flow(list, "set_overflow", scroll); style(G.field(list, "obj"), "overflow", scroll);
-        for (i in 0...FightHistory.PAGE_SIZE) makeRow(i);
+        for (i in 0...FightHistory.RECENT_COUNT) recentRows.push(makeRow("Recent" + i, true));
+        var emptyRow = node("flow", list, [], "dpsHistoryRecentEmpty");
+        recentEmptyRow = G.field(emptyRow, "obj"); padding(recentEmptyRow, 0);
+        recentEmpty = label(emptyRow, "No recent fights yet."); absolute(recentEmptyRow, recentEmpty);
+        var section = node("flow", list, [], "dpsHistoryCategoryHeading");
+        categoryHeadingRow = G.field(section, "obj"); padding(categoryHeadingRow, 0);
+        categoryHeading = G.create("h2d.Text", [G.field(detail, "font"), categoryHeadingRow]);
+        G.call("h2d.Text", "set_text", categoryHeading, ["Choose a category"]);
+        G.call("h2d.Text", "set_textColor", categoryHeading, [0x8A5F46]);
+        G.call("h2d.Text", "set_lineBreak", categoryHeading, [false]);
+        absolute(categoryHeadingRow, categoryHeading);
+        for (i in 0...FightHistory.PAGE_SIZE) rows.push(makeRow(Std.string(i)));
         chartPanel = node("flow", panel, [], "dpsHistoryChart", "vertical");
         padding(G.field(chartPanel, "obj"), 0);
         chart = new NativeDamageChart(chartPanel, "dpsHistoryRows", "No damage recorded");
@@ -372,7 +430,7 @@ class NativeHistoryWindow {
         G.call("h2d.Text", "set_lineBreak", actionStatus, [false]);
         show(actionStatus, false);
         for (object in [back, heading, detail, chartInfo, empty, G.field(list, "obj"), G.field(chartPanel, "obj"), recapView.object, previous, next, pageLabel, footer,
-            folderButton, snapshotButton, modeButton.object, deleteButton, actionStatus])
+            folderButton, snapshotButton, modeButton.object, deleteButton, detailedButton, detailed.object, actionStatus])
             absolute(G.field(panel, "obj"), object);
         for (text in [title, detail, empty, pageLabel]) {
             var left = G.enumeration("h2d.Align", "Left");
@@ -381,12 +439,16 @@ class NativeHistoryWindow {
         }
         width = 0; height = 0; layout();
     }
-    function makeRow(i:Int):Void {
-        var row:Dynamic = {obj: null, name: null, player: null, suffix: null, detail: null, deleteButton: null, entry: null, group: "",
+    function makeRow(i:String, recent:Bool = false):Dynamic {
+        var row:Dynamic = {obj: null, name: null, player: null, suffix: null, detail: null, deleteButton: null, entry: null, group: "", category: "",
             caption: "", playerCaption: "", suffixCaption: "", playerColor: -1, description: "", width: 0};
         row.obj = button(list, "", "dpsHistoryEntry" + i, () -> {
             if (pending) return;
-            if (mode == "categories") { category = row.group; navigate("groups", "", 0); }
+            if (recent && row.entry != null) {
+                openedFromRecent = true; category = row.category;
+                navigate("chart", row.group, 0, row.entry);
+            }
+            else if (mode == "categories") { category = row.group; navigate("groups", "", 0); }
             else if (row.entry != null) navigate("chart", group, page, row.entry);
             else navigate("fights", row.group, 0);
         });
@@ -409,7 +471,21 @@ class NativeHistoryWindow {
         style(row.deleteButton, "propagate-over", true);
         absolute(row.obj, row.deleteButton);
         show(row.deleteButton, false);
-        rows.push(row);
+        return row;
+    }
+    static function setFightRow(row:Dynamic, entry:HistoryEntry):Void {
+        row.entry = entry;
+        show(row.deleteButton, true);
+        setRowText(row, FightHistory.attemptHeadingParts(entry), FightHistory.attemptDetail(entry));
+        colorPlayerName(row, entry.playerClass == "" ? 0x5b4334 : classColor(entry.playerClass));
+    }
+    static function setRowText(row:Dynamic, parts:HistoryHeading, description:String):Void {
+        row.caption = parts.before; row.playerCaption = parts.player; row.suffixCaption = parts.after;
+        row.description = description;
+        setText(row.name, row.caption); setText(row.player, row.playerCaption); setText(row.suffix, row.suffixCaption);
+        setText(row.detail, row.description);
+        show(row.player, parts.player != ""); show(row.suffix, parts.after != "");
+        row.width = 0; // Different name lengths change the inline positions.
     }
     static function colorPlayerName(row:Dynamic, value:Int):Void {
         if (row.playerColor == value) return;
@@ -450,16 +526,23 @@ class NativeHistoryWindow {
             modeButton.resize(HistoryButtons.SNAPSHOT_SIZE);
             position(modeButton.object, inner - HistoryButtons.SNAPSHOT_SIZE - 42, 7);
             size(deleteButton, 138, 34); position(deleteButton, inner - 138, bodyHeight - 50);
+            HistoryButtons.singleLine(detailedButton, Std.int(Math.min(194, inner - 150)));
+            position(detailedButton, 0, bodyHeight - 50);
+            // Keep room for a three-row event expansion even on small screens.
+            var detailScale = Math.min(1, Math.min(inner / 620, (bodyHeight - 60) / 512));
+            position(detailed.object, 0, 54); G.call("h2d.Object", "setScale", detailed.object, [detailScale]);
+            detailed.resize(Std.int(inner / detailScale), Std.int((bodyHeight - 60) / detailScale));
             G.call("h2d.Text", "set_text", heading, [headingText()]);
             position(heading, mode == "categories" ? 0 : 100, 0);
             G.call("ui.comp.FmtText", "set_maxWidthText", detail, [inner]); position(detail, 0, 60);
             position(chartInfo, 0, 60);
             var optionsBottom = this.options.layout(inner);
-            var topInset = mode == "categories" || mode == "groups" ? 66 : mode == "fights" ? optionsBottom : 100;
+            var topInset = mode == "categories" ? 54 : mode == "groups" ? 66 : mode == "fights" ? optionsBottom : 100;
             G.call("ui.comp.FmtText", "set_maxWidthText", empty, [inner]); position(empty, 0, topInset);
             // Only the category page reserves a folder row. Other pages need
             // room for their existing Delete or pagination controls alone.
-            var footerSpace = snapshot ? 0 : mode == "chart" ? 68 : mode == "categories" ? 96 : 88;
+            var footerSpace = snapshot ? 0 : mode == "chart" ? 68 : mode == "categories"
+                ? (G.field(actionStatus, "visible") == true ? 84 : 60) : 88;
             var chartHeight = Std.int(Math.max(30, bodyHeight - topInset - footerSpace));
             for (object in [G.field(list, "obj"), G.field(chartPanel, "obj")]) { size(object, inner, chartHeight); position(object, 0, topInset); }
             chart.resize(inner, chartHeight);
@@ -517,7 +600,10 @@ class NativeHistoryWindow {
         if (recap != null) recapView.alignLabels();
         G.call("ui.comp.FmtText", "updateScale", headingStyle);
         var font = G.field(headingStyle, "font");
-        if (font != null && font != headingFont) { headingFont = font; G.call("h2d.Text", "set_font", heading, [font]); }
+        if (font != null && font != headingFont) {
+            headingFont = font;
+            for (text in [heading, categoryHeading]) G.call("h2d.Text", "set_font", text, [font]);
+        }
         headingBaseScale = G.number(G.field(headingStyle, "scaleX"), 1);
         var headingLeft = snapshot || mode == "categories" ? 0 : 100;
         var headingRight = !snapshot && mode == "chart" ? HistoryButtons.SNAPSHOT_SIZE + 54 : 0;
@@ -531,19 +617,27 @@ class NativeHistoryWindow {
         fitLiteral(chartInfo, width - 48, bodyScale);
         if (mode == "categories") {
             fitLiteral(footer, width - 48 - 44, bodyScale);
-            var folderY = height - 76 - 50;
+            var folderY = height - 76 - 50 - (G.field(actionStatus, "visible") == true ? 24 : 0);
             size(folderButton, 34, 30); position(folderButton, 0, folderY);
             position(footer, 44, folderY + (30 - textHeight(footer)) / 2);
         }
         fitLiteral(actionStatus, width - 48 - (mode == "chart" ? 152 : 0), bodyScale);
-        position(actionStatus, 0, height - 76 - (mode == "chart" ? 33 : mode == "categories" ? 70 : 17) - textHeight(actionStatus) / 2);
+        position(actionStatus, 0, height - 76 - (mode == "chart" ? 6 : mode == "categories" ? 25 : 17) - textHeight(actionStatus) / 2);
         position(title, (width - textWidth(title)) / 2, (60 - textHeight(title)) / 2);
         position(pageLabel, (width - 48 - textWidth(pageLabel)) / 2, height - 76 - 53 - textHeight(pageLabel) / 2);
         var inner = G.integer(G.call("h2d.Flow", "get_innerWidth", G.field(list, "obj")), width - 48);
         var scrollbar = G.field(G.field(list, "obj"), "scrollBar");
         if (scrollbar != null && G.field(scrollbar, "visible") == true)
             inner -= G.integer(G.call("h2d.Flow", "get_outerWidth", scrollbar)) + 4;
-        for (row in rows) {
+        if (mode == "categories") {
+            size(categoryHeadingRow, inner, 36);
+            fitLiteral(categoryHeading, inner, headingBaseScale * 1.75);
+            position(categoryHeading, 0, (36 - textHeight(categoryHeading)) / 2);
+            size(recentEmptyRow, inner, 38);
+            G.call("ui.comp.FmtText", "set_maxWidthText", recentEmpty, [inner]);
+            position(recentEmpty, 0, (38 - textHeight(recentEmpty)) / 2);
+        }
+        for (row in rows.concat(recentRows)) {
             if (row.width == inner) continue;
             row.width = inner;
             size(row.obj, Std.int(Math.max(1, inner)), 66);
@@ -587,6 +681,7 @@ class NativeHistoryWindow {
     public function closeFromEscape(ui:Dynamic):Bool {
         if (window == null || owner != ui || G.field(window, "removed") == true || G.field(window, "parent") == null) return false;
         if (options != null && options.closeOpen()) return true;
+        if (detailed != null && detailed.closeOpen()) return true;
         dispose();
         return true;
     }
@@ -594,6 +689,7 @@ class NativeHistoryWindow {
         finishDrag();
         dragSurface = null;
         if (options != null) { options.close(); options = null; }
+        if (detailed != null) { detailed.close(); detailed = null; }
         requested = false; serial++;
         selectedEntry = null; deleting = false; copying = false;
         if (window != null) {
@@ -604,6 +700,8 @@ class NativeHistoryWindow {
             else G.call("h2d.Object", "remove", old);
         }
         owner = null; rows = []; wrappers = []; frame = null; body = null; container = null;
+        recentRows = []; openedFromRecent = false;
+        categoryHeadingRow = null; categoryHeading = null; recentEmptyRow = null; recentEmpty = null;
         chart = null; fight = null; recapView = null; recap = null; modeButton = null; width = 0; height = 0;
         mode = "categories"; category = ""; group = ""; page = 0; groupsPage = 0; fightsPage = 0;
         headingFont = null; catalog = null;

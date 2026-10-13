@@ -6,6 +6,7 @@ import dpsmeter.GameAccess as G;
 
 class Collector {
     public var model:CombatModel;
+    public var timeline:NativeTimeline;
     var config:MeterSettings;
     var hero:Dynamic;
     var layer:Dynamic;
@@ -16,8 +17,12 @@ class Collector {
     var profileWeapons:Map<String, Dynamic> = [];
     var phrixes:Dynamic;
     var riftWait:Dynamic;
-    public function new(config:MeterSettings) {
+    public function new(config:MeterSettings, ?timeline:NativeTimeline) {
         this.config = config;
+        this.timeline = timeline;
+        if (timeline != null) healingCapture.onRecorded = e -> {
+            try timeline.healed(e) catch (error:Dynamic) timeline.report(error);
+        };
         var version = "";
         try version = G.text(G.staticCall("Config", "getVersion", []))
         catch (error:Dynamic) trace("[DPS Meter] Could not read game version: " + Std.string(error));
@@ -35,6 +40,7 @@ class Collector {
             riftWait = null;
         }
         healingCapture.flush(now);
+        if (timeline != null) timeline.update(hero, now);
         if (hero == null) return;
         if (now - lastRoster < 0.25) return;
         lastRoster = now;
@@ -195,14 +201,17 @@ class Collector {
         if (!config.enabled || hero == null || result == null || G.field(receiver, "simulatingServer") == true) return;
         var rawSkill = gamecompat.HitSkill.read(result, G.field);
         var owner = healingSource(G.call("st.skill.DamageResult", "get_source", result), rawSkill, G.text(G.field(result, "weakSource")));
-        if (owner == null) return;
         var target = G.field(result, "target");
+        var observation = healingTrace(G.call("st.skill.DamageResult", "get_source", result), target, rawSkill, now);
+        if (owner == null && observation == null) return;
         var amount = G.number(G.field(result, "_amount"));
         if (amount <= 0) return;
-        var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), amount);
+        var e = HealingCapture.event(now, owner == null ? observation.source : owner.uid, G.uid(target),
+            owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), amount);
         e.critical = G.field(result, "_critical") == true;
+        e.timeline = observation;
         var key = NativeHealing.key(rawSkill, G.integer(G.field(result, "stepIdx")));
-        healingCapture.heal(e, model.captureHealing(owner.uid), key, true);
+        healingCapture.heal(e, owner == null ? null : model.captureHealing(owner.uid), key, true);
     }
     public function healingFX(target:Dynamic, hit:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || hit == null || G.field(target, "simulatingServer") == true) return;
@@ -210,13 +219,21 @@ class Collector {
         // ScriptHitData.get_source follows Status.instigator, not the recipient
         // who owns a heal-over-time status. It also resolves source proxies.
         var owner = healingSource(G.call("st.skill.ScriptHitData", "get_source", hit), rawSkill);
-        if (owner == null) return;
+        var observation = healingTrace(G.call("st.skill.ScriptHitData", "get_source", hit), target, rawSkill, now);
+        if (owner == null && observation == null) return;
         var estimate:Null<Float> = null;
         try estimate = NativeHealing.estimate(hit, target) catch (_:Dynamic) {}
-        var e = HealingCapture.event(now, owner.uid, G.uid(target), G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
+        var e = HealingCapture.event(now, owner == null ? observation.source : owner.uid, G.uid(target),
+            owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
         e.unknownHealing = estimate == null;
+        e.timeline = observation;
         var key = NativeHealing.key(rawSkill, G.integer(G.field(G.field(hit, "step"), "index")));
-        healingCapture.heal(e, model.captureHealing(owner.uid), key, false);
+        healingCapture.heal(e, owner == null ? null : model.captureHealing(owner.uid), key, false);
+    }
+    function healingTrace(source:Dynamic, target:Dynamic, skill:Dynamic, now:Float):Null<CombatTimeline.TimelineEvent> {
+        if (timeline != null) try return timeline.prepareHeal(source, target, skill, now)
+            catch (error:Dynamic) timeline.report(error);
+        return null;
     }
     public function damage(target:Dynamic, damage:Dynamic, now:Float):Void {
         if (!config.enabled || hero == null || damage == null) return;

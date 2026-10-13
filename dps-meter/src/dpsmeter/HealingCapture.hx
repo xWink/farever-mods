@@ -3,7 +3,7 @@ package dpsmeter;
 import dpsmeter.CombatModel;
 
 private typedef HealEvidence = {
-    event:DamageEvent, scope:HealingScope, key:String, exact:Bool, fx:Bool,
+    event:DamageEvent, scope:Null<HealingScope>, key:String, exact:Bool, fx:Bool,
     time:Float, lastTime:Float, resultTime:Null<Float>, outputFloor:Float
 };
 private typedef HealthEvidence = {
@@ -17,6 +17,7 @@ private typedef HealingTarget = {heals:Array<HealEvidence>, health:Array<HealthE
     A replicated gain is spent once across all casters. Bounded, event-driven;
     no scanning units, polling HP, or retaining native objects. */
 class HealingCapture {
+    public var onRecorded:Null<DamageEvent->Void>;
     public static inline var WINDOW:Float = .12;
     // A network/render burst can contain several heals contributing to one HP
     // update. Use the nearest burst inside the correlation window.
@@ -37,16 +38,22 @@ class HealingCapture {
         return t;
     }
     public function heal(e:DamageEvent, scope:Null<HealingScope>, key:String, exact:Bool):Void {
-        if (scope == null) return;
+        if (scope == null && e.timeline == null) return;
         var t = target(e.target, e.time);
         // Pair only complementary notifications, one-to-one. Repeated ticks,
         // self-heals and equal-sized casts remain separate healing events.
         for (h in t.heals) if (h.event.source == e.source && h.key == key
             && Math.abs(h.time - e.time) <= WINDOW && (exact ? !h.exact : !h.fx)) {
-            if (exact) { h.event = e; h.exact = true; h.resultTime = e.time; }
+            if (exact) {
+                // Keep first observation order even when the authoritative amount arrives later.
+                if (e.timeline != null && h.event.timeline != null) {
+                    e.timeline.seq = h.event.timeline.seq; e.timeline.time = h.event.timeline.time;
+                }
+                h.event = e; h.exact = true; h.resultTime = e.time;
+            }
             else h.fx = true;
             h.lastTime = Math.max(h.lastTime, e.time);
-            scope.finish();
+            if (scope != null) scope.finish();
             return;
         }
         t.heals.push({event: e, scope: scope, key: key, exact: exact, fx: !exact,
@@ -166,7 +173,8 @@ class HealingCapture {
             // made the heal larger than the client-side base calculation.
             e.amount = Math.max(e.amount, h.outputFloor);
         }
-        h.scope.finish(e);
+        if (h.scope != null) h.scope.finish(e);
+        if (onRecorded != null) onRecorded(e);
     }
     public static function event(time:Float, source:String, target:String, skill:String, amount:Float):DamageEvent {
         return {time: time, source: source, target: target, skill: skill, amount: Math.max(0, amount),

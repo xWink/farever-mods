@@ -96,6 +96,87 @@ ID. Repeat after reconnecting: the character ID should remain the same even if
 `uid` changes. Switching to an alt should retain the account ID and change the
 character ID. This check uses the normal saved logs and sends no extra chat messages.
 
+## Detailed combat reports
+
+**Record detailed combat history** is enabled by default under **Combat History**.
+Open a saved fight, then choose **Detailed report**. The existing party, damage,
+healing, and skill summaries remain available through **Back**. Older histories
+still open, but cannot reconstruct events that were never recorded.
+
+The detailed report records client-observed activity involving your character:
+
+- Skill use and endings, direct hits, individual observed DoT ticks, critical and
+  lethal results, incoming attacks, successful dodges/blocks, and deaths.
+- Dodge and block **use**, even when no attack is avoided or blocked.
+- Native skill proc availability, use, disappearance, and server charge increases.
+- Sourced healing, including potions and skill healing, with the existing RPC/FX
+  reconciliation. Ordinary passive/unattributed HP recovery is excluded from this
+  timeline. Healing is output, including overhealing; estimated amounts are
+  marked and missing amounts are left blank. No actual/effective-healing
+  statistic is introduced.
+- Shields applied to or by you, shield amount changes, buffs/debuffs applied,
+  refreshed, stacked, extended, consumed, expired, or removed.
+- Replicated HP losses, including losses without an attack notification. HP loss
+  is a separate observation, never counted again as incoming attack damage.
+
+Rows use game skill icons and names. Filter by event type and search
+skills/targets/outcomes. Each page fits complete rows without scrolling. Clicking
+a row expands its details into the next two rows' space. The second-last row uses
+one row above and one below; the last row uses two above. Other events stay
+visible; click the expanded row again to collapse it.
+Skill-used rows include their resolved target and completed use duration when
+recorded; animation endings are folded into the use rather than shown as extra
+actions. Empty values are left blank, and empty columns are hidden. Internal
+**HP observed** snapshots are omitted from the event table; actual HP losses and
+deaths remain visible. Flask use/healing shows **Hess'tuss Flask** and the flask
+icon; **Pilgrim's Stride** identifies only its separate movement-speed buff.
+New item-use events capture the consumed item's name and icon, including
+**Spark Cube**, while preserving the underlying skill ID. Older generic item-use
+events cannot recover an item identity that was not recorded.
+
+Graphs offer **Damage dealt**, **Damage taken**, **Healing given**, **Shields given**,
+**Buff uptime**, and **Debuff uptime**. Numeric graphs show per-second rates within
+their time buckets, including that unit in the hover readout. Buffs and
+debuffs use the game's Debuff tag and have separate event filters. Hidden internal
+status trackers remain recorded but are excluded from these two views. Uptime has
+its own previous/next pages with skill icons and readable labels. Click a graph
+to jump to the corresponding event page. Recording gaps break uptime intervals.
+The graph sits above the event filter/search controls. Event paging, filtering,
+and searching update only the table; the graph is retained until its metric,
+fight, size, or font changes. Buff/debuff names, targets, and time labels use
+larger text with stronger contrast.
+
+Other players' effects are included when they involve you, including incoming
+heals, shields, and buffs. This is a personal timeline: it does not record other
+players' attacks on other targets or their skill-use/proc history. The existing
+party summary reports remain available alongside it.
+
+Timestamps are elapsed **client observation time**, displayed to milliseconds,
+with sequence numbers to preserve ordering at equal times. A two-second lead-in
+appears with negative timestamps to include initiating casts; it is excluded from
+rate graphs. Delayed healing retains its first observation time. Each damage row
+uses the amount on that native notification. `Hit #` is the game's hit counter,
+not a multiplier or a count of damage amounts combined in the row. Incoming
+damage and HP losses display as negative amounts. This does not reconstruct a
+server simulation, infer a miss from silence, or guess which attack caused a
+separate HP update. Charge increases can be recharges, resets, or corrections;
+the report labels them simply **Charge increase**. Shield reductions likewise
+do not claim confirmed absorption. Unavailable causes are omitted.
+
+Recording appends primitive data to batches of at most 256 events. Disk writes,
+JSON serialization, filtering, and graph calculations run on the background
+worker; the UI creates only one page of event rows. Timestamping and recording
+have a cost, so this is not a promise of zero overhead. There is no per-hit console
+logging. Disable detailed recording without disabling the existing summaries.
+
+Detailed data stays local in `history/<encounter>/<fight>.json.timeline`, paired
+with the existing summary JSON. It is newline-delimited JSON: a versioned header
+with initial state, then one event per line. These files are not added to Farever
+Logs uploads. Deleting a fight recycles both files, with recovery backups if either
+operation fails. Temporary `timeline-spool/` chunks are removed after a normal
+session shutdown and successful archive saves; interrupted/failed sessions retain
+their chunks. Detailed reports follow the existing encounter-saving policy.
+
 ## Ready Check
 
 Enabled by default under **DPS Meter > Ready Check > Enabled**. In a party, the
@@ -221,6 +302,13 @@ The selected
 sort and filter stay in place when opening a chart, going Back, or deleting a log;
 a new history window starts with the defaults. Sorting/filtering covers every log
 before pagination, and unavailable DPS stays last in either direction.
+The home page shows **Recent Fights** above **Choose a category**: the three newest
+saved reports across all categories and characters, independent of folder filters.
+These use the same attempt rows and **Delete log** buttons as the encounter folders.
+Opening a recent fight gives access to its normal chart and detailed report;
+**Back** from its chart returns to the home page. Deleting one refreshes the list
+with the next newest report. Short archives show only the reports available.
+
 Each attempt shows local date and time,
 character name, party size, and **Victory** or **Defeat** on the first row, then duration and your DPS on the
 second. Only the character name uses its class colour; the other text keeps its
@@ -322,7 +410,8 @@ toward the player's split, and summons retain their actual damage type when cred
 to their owner. Existing overall damage/DPS values use the same calculation as before.
 
 The red **Delete log** button at the bottom right moves that fight's local chart
-to the Windows Recycle Bin, then returns to the attempt list. If recycling is
+to the Windows Recycle Bin, then returns to the attempt list (or the home page
+for a report opened from **Recent Fights**). If recycling is
 unavailable, the action reports an error and retains the log. There is no
 permanent-delete fallback. Uploader reports, other fights, and configuration are
 unaffected. You can restore the chart from the Recycle Bin; restart Farever to
@@ -408,6 +497,9 @@ Remaining gate cleanup after the wave timer expires is still included. In the
 recap's ability breakdown, each ability name sits above three columns:
 **Damage %**, **Phys/Magic/Raw**, and **Damage**. The full history breakdown keeps
 its additional statistics, and table headers stay fixed while the rows scroll.
+
+The meter starts unlocked on first launch so you can immediately move and resize
+it. Existing saved lock settings are preserved.
 
 **Lock or unlock window hotkey** controls movement of both the DPS Meter and
 Fight History. Drag the Fight History title bar when unlocked; its position is

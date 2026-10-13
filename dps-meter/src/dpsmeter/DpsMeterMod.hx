@@ -20,6 +20,7 @@ class DpsMeterMod {
     static var kills:KillNotifications;
     static var readyCheck:ReadyCheckController;
     static var writer:RunWriter;
+    static var timeline:NativeTimeline;
     static function main():Void {
         if (ConfigMigration.importLegacy()) reloadConfig();
         else if (!ConfigMigration.hasNative()) MeterConfig.importLegacy(config);
@@ -75,6 +76,7 @@ class DpsMeterMod {
         if (readyCheck != null) readyCheck.dispose();
         // A later GameApp (for example after reconnecting) starts a new worker.
         writer = new RunWriter();
+        collector = null; timeline = null;
         return Continue;
     }
 
@@ -123,6 +125,7 @@ class DpsMeterMod {
     }
     @:hlx.prefix(ent.UnitAttributes.set_health)
     static function observeHealth(instance:Dynamic, value:Float):HlxPrefixResult<Float> {
+        if (timeline != null) try timeline.health(instance, value) catch (error:Dynamic) timeline.report(error);
         if (collector != null) try collector.healthChanged(instance, value) catch (_:Dynamic) {}
         return Continue;
     }
@@ -136,8 +139,86 @@ class DpsMeterMod {
     static function onDamage(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void> {
         // Healing has one canonical collection route, even if a game effect
         // sends both a generic damage notification and a heal notification.
-        if (collector != null && G.integer(G.field(damage, "effect")) != 1)
-            try collector.damage(instance, damage, haxe.Timer.stamp()) catch (_:Dynamic) {}
+        if (G.integer(G.field(damage, "effect")) != 1) {
+            var now = haxe.Timer.stamp();
+            if (timeline != null) try timeline.damage(instance, damage, now) catch (error:Dynamic) timeline.report(error);
+            if (collector != null) try collector.damage(instance, damage, now) catch (_:Dynamic) {}
+        }
+        return Continue;
+    }
+    @:hlx.prefix(st.skill.Skill.start)
+    static function recordSkillUse(instance:Dynamic, duration:Dynamic, target:Dynamic, sourceContext:Dynamic,
+        startConfig:Dynamic):HlxPrefixResult<Dynamic> {
+        // The accepted start boundary also covers automatically started skills,
+        // and precedes instant effects that run before Hero.onSkillUse.
+        if (timeline != null) try timeline.use(G.field(instance, "owner"), instance, target) catch (error:Dynamic) timeline.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(st.skill.Skill.start)
+    static function recordSkillStarted(instance:Dynamic, duration:Dynamic, target:Dynamic, sourceContext:Dynamic,
+        startConfig:Dynamic, result:Dynamic):Dynamic {
+        if (timeline != null) try timeline.started(instance, result) catch (error:Dynamic) timeline.report(error);
+        return result;
+    }
+    @:hlx.prefix(st.skill.Skill.doStop)
+    static function recordSkillStop(instance:Dynamic, reason:Dynamic):HlxPrefixResult<Void> {
+        if (timeline != null) try timeline.stopped(instance, reason) catch (error:Dynamic) timeline.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(st.skill.Block.onBlock__impl)
+    static function recordBlock(instance:Dynamic, wellTimed:Bool, result:Void):Void {
+        if (timeline != null) try timeline.block(instance, wellTimed) catch (error:Dynamic) timeline.report(error);
+    }
+    @:hlx.postfix(st.skill.Skill.shouldHighlight)
+    static function recordHighlight(instance:Dynamic, result:Bool):Bool {
+        if (timeline != null) try timeline.highlight(instance, result) catch (error:Dynamic) timeline.report(error);
+        return result;
+    }
+    @:hlx.prefix(st.skill.Skill.doUpdateCharges__impl)
+    static function recordChargeChange(instance:Dynamic, value:Float):HlxPrefixResult<Void> {
+        if (timeline != null) try timeline.charges(instance, value) catch (error:Dynamic) timeline.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(st.skill.Status.postInit)
+    static function recordStatusInit(instance:Dynamic, result:Bool):Bool {
+        if (result && timeline != null) try timeline.statusChanged(instance, "status_applied") catch (error:Dynamic) timeline.report(error);
+        return result;
+    }
+    @:hlx.postfix(st.skill.Status.clientRefresh__impl)
+    static function recordStatusRefresh(instance:Dynamic, result:Void):Void {
+        if (timeline != null) try timeline.statusChanged(instance, "status_refreshed") catch (error:Dynamic) timeline.report(error);
+    }
+    @:hlx.postfix(st.skill.Status.setDuration__impl)
+    static function recordStatusDuration(instance:Dynamic, duration:Float, result:Void):Void {
+        if (timeline != null) try timeline.statusChanged(instance, "status_duration") catch (error:Dynamic) timeline.report(error);
+    }
+    @:hlx.postfix(st.skill.Status.networkRPC)
+    static function recordStatusRpc(instance:Dynamic, serializer:Dynamic, rpcId:Int, client:Dynamic, result:Bool):Bool {
+        // rpcExtendDuration__impl is only an add/store/return; its JIT body is
+        // too short for MinHook on the shipped client. Observe the completed
+        // dispatch instead, without depending on version-specific RPC numbers.
+        if (result && timeline != null) try timeline.statusRpc(instance) catch (error:Dynamic) timeline.report(error);
+        return result;
+    }
+    @:hlx.postfix(st.skill.Status.set_stacks)
+    static function recordStatusStacks(instance:Dynamic, value:Int, result:Int):Int {
+        if (timeline != null) try timeline.statusChanged(instance, "status_stacks") catch (error:Dynamic) timeline.report(error);
+        return result;
+    }
+    @:hlx.prefix(st.skill.Status.doStop)
+    static function recordStatusStop(instance:Dynamic, reason:Dynamic):HlxPrefixResult<Void> {
+        if (timeline != null) try timeline.statusRemoved(instance, reason) catch (error:Dynamic) timeline.report(error);
+        return Continue;
+    }
+    @:hlx.prefix(st.skill.Status.onRemove)
+    static function recordStatusRemove(instance:Dynamic):HlxPrefixResult<Void> {
+        if (timeline != null) try timeline.statusRemoved(instance) catch (error:Dynamic) timeline.report(error);
+        return Continue;
+    }
+    @:hlx.prefix(st.skill.Status.set_shieldAmount)
+    static function recordShield(instance:Dynamic, value:Float):HlxPrefixResult<Float> {
+        if (timeline != null) try timeline.shieldChanged(instance, G.number(G.field(instance, "shieldAmount")), value)
+            catch (error:Dynamic) timeline.report(error);
         return Continue;
     }
     @:hlx.postfix(ent.Hero.onEnterCombat)
@@ -147,6 +228,7 @@ class DpsMeterMod {
     }
     @:hlx.postfix(ent.GameObject.rpcDie__impl)
     static function onTargetDeath(instance:Dynamic, result:Void):Void {
+        if (timeline != null) try timeline.death(instance) catch (error:Dynamic) timeline.report(error);
         if (collector != null && config.enabled) try collector.model.onTargetDeath(G.uid(instance), haxe.Timer.stamp())
         catch (_:Dynamic) {}
     }
@@ -163,7 +245,12 @@ class DpsMeterMod {
         // HLX recovers the game's module only AFTER every mod's main() runs.
         // Collector reads Config.getVersion(), so construct it here once the
         // native functions and game statics are available, before any fights.
-        if (collector == null) collector = new Collector(config);
+        if (collector == null) {
+            var epoch = haxe.Timer.stamp();
+            writer.timeline = new CombatTimeline("trace_" + DateTools.format(Date.now(), "%Y%m%d_%H%M%S") + "_" + Std.random(0x3fffffff), epoch, writer.recordTimeline);
+            timeline = new NativeTimeline(config, writer.timeline);
+            collector = new Collector(config, timeline);
+        }
         var now = haxe.Timer.stamp();
         try {
             if (NativeHotkey.isPressed(config.toggleHotkey)) {
@@ -186,7 +273,7 @@ class DpsMeterMod {
                 }
             }
             if (config.enabled) collector.update(instance, now);
-            else collector.healingCapture.flush(now, true);
+            else { collector.healingCapture.flush(now, true); timeline.update(G.field(instance, "hero"), now); }
             flushFights();
             writer.update(now);
         } catch (_:Dynamic) {}

@@ -13,6 +13,7 @@
     { "key": "toggleHotkey", "type": "keybinding", "modifiers": true, "label": "Show or hide meter hotkey" },
     { "key": "unlockHotkey", "type": "keybinding", "modifiers": true, "label": "Lock or unlock window hotkey", "tooltip": { "enabled": true, "tooltipText": "Enable or disable movement of DPS Meter and Fight History window" } },
     { "type": "title", "label": "Combat History" },
+    { "key": "detailedCombatLogs", "type": "checkbox", "label": "Record detailed combat history", "tooltip": { "enabled": true, "tooltipText": "Records your skills, hits, defensive actions, procs, healing, shields and status changes in a timestamped timeline. Adds local detailed report files. Ordinary passive health regeneration is excluded." } },
     { "key": "historyHotkey", "type": "keybinding", "modifiers": true, "label": "Open or close history hotkey" },
     { "type": "title", "label": "Kill Counter" },
     { "key": "showBossKills", "type": "checkbox", "label": "Show boss kills" },

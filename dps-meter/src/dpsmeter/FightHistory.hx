@@ -9,18 +9,22 @@ typedef HistoryEntry = {
     ?damageTypeSummary:String, ?targetDummy:Bool, ?kind:String, ?recapBossName:String
 };
 typedef HistoryGroup = {name:String, count:Int};
+typedef HistoryRecentEntry = {entry:HistoryEntry, category:String, group:String};
 typedef HistoryHeading = {before:String, player:String, after:String};
 typedef HistoryCharacter = {key:String, name:String, className:String};
 typedef HistoryRequest = {id:Int, action:String, group:String, page:Int, fightId:String,
-    ?category:String, ?catalog:HistoryCatalog, ?sortBy:String, ?ascending:Bool, ?character:String, ?outcome:String};
+    ?category:String, ?catalog:HistoryCatalog, ?sortBy:String, ?ascending:Bool, ?character:String, ?outcome:String,
+    ?eventFilter:String, ?eventSkill:String, ?eventSearch:String, ?graphMetric:String, ?jumpTime:Float,
+    ?eventPageSize:Int, ?statusMetadata:Map<String, {kind:String, hidden:Bool}>, ?skillNames:Map<String, String>, ?includeGraph:Bool};
 typedef HistoryResponse = {
     id:Int, page:Int, total:Int, groups:Array<HistoryGroup>, entries:Array<HistoryEntry>, record:Dynamic, error:String,
-    ?characters:Array<HistoryCharacter>
+    ?characters:Array<HistoryCharacter>, ?recent:Array<HistoryRecentEntry>
 };
 
 /** Detached, versioned chart snapshots. No game types or monotonic clocks on disk. */
 class FightHistory {
     public static inline var PAGE_SIZE = 7;
+    public static inline var RECENT_COUNT = 3;
     public static function encode(fight:Fight, id:String):Dynamic {
         var players:Array<Dynamic> = [for (p in fight.ranked()) {
             var skills:Array<Dynamic> = [for (id => s in p.skills) {id: id, damage: s.damage, hits: s.hits,

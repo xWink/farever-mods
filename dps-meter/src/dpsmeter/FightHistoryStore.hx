@@ -9,6 +9,7 @@ import sys.io.File;
 
 /** Worker-owned archive. Only compact summaries stay in memory; charts load on demand. */
 class FightHistoryStore {
+    public var timeline:TimelineStore;
     final root:String;
     final folder:String;
     final log:String->Void;
@@ -22,8 +23,11 @@ class FightHistoryStore {
     final learned:Map<String, HistoryEntry> = [];
     final learnedBosses:Map<String, String> = [];
     var legacyMetadata:Map<String, Dynamic>;
+    var detailedId:String = "";
+    var detailedData:Dynamic;
     public function new(root:String, log:String->Void, ?recycle:String->Void) {
         this.root = root; this.folder = root + "/history"; this.log = log;
+        timeline = new TimelineStore(root);
         this.recycle = recycle == null ? DesktopActions.recycle : recycle;
     }
     public function initialize():Void {
@@ -67,6 +71,8 @@ class FightHistoryStore {
         FileSystem.createDirectory(Path.directory(path));
         if (FileSystem.exists(path)) throw "A file already exists at " + path;
         var temp = path + ".tmp";
+        timeline.archive(record, path);
+        Reflect.deleteField(record, "_timeline");
         File.saveContent(temp, Json.stringify(record));
         FileSystem.rename(temp, path);
         paths[summary.id] = path;
@@ -90,6 +96,14 @@ class FightHistoryStore {
     function indexFiles():Void {
         if (indexed) return;
         FileSystem.createDirectory(folder);
+        for (path in archiveFiles()) if (StringTools.endsWith(path, ".json.timeline.tmp")) {
+            try {
+                TimelineStore.readFile(path); // Validate before recovering a partial write or deletion backup.
+                var committed = path.substr(0, path.length - 4);
+                if (!FileSystem.exists(committed)) FileSystem.rename(path, committed);
+                else if (File.getContent(path) == File.getContent(committed)) FileSystem.deleteFile(path);
+            } catch (e:Dynamic) log("Could not recover " + path + ": " + Std.string(e));
+        }
         // Both interrupted saves and deletion backups recover beside their
         // original file before indexing, including the old flat layout.
         for (path in archiveFiles()) if (StringTools.endsWith(path, ".json.tmp")) {
@@ -144,17 +158,37 @@ class FightHistoryStore {
             // Even an unexpected OS permanent-delete fallback cannot lose the log.
             var backup = path + ".tmp";
             File.copy(path, backup);
+            var sidecar = path + ".timeline";
+            var hasDetail = FileSystem.exists(sidecar);
+            if (hasDetail) File.copy(sidecar, sidecar + ".tmp");
             try {
                 recycle(FileSystem.fullPath(path));
                 if (FileSystem.exists(path)) throw "The log is still in the history folder; it was not removed from the list.";
+                if (hasDetail) {
+                    recycle(FileSystem.fullPath(sidecar));
+                    if (FileSystem.exists(sidecar)) throw "The detailed report was not recycled; the fight was restored.";
+                    FileSystem.deleteFile(sidecar + ".tmp");
+                }
                 FileSystem.deleteFile(backup); // Only the confirmed-recycled backup.
             } catch (error:Dynamic) {
                 if (!FileSystem.exists(path)) FileSystem.rename(backup, path);
                 else if (FileSystem.exists(backup)) FileSystem.deleteFile(backup);
+                if (hasDetail && FileSystem.exists(sidecar + ".tmp")) {
+                    if (!FileSystem.exists(sidecar)) FileSystem.rename(sidecar + ".tmp", sidecar);
+                    else FileSystem.deleteFile(sidecar + ".tmp");
+                }
                 throw error;
             }
+            if (detailedId == request.fightId) { detailedId = ""; detailedData = null; }
             entries.remove(request.fightId);
             paths.remove(request.fightId);
+        } else if (request.action == "detailed") {
+            if (!entries.exists(request.fightId)) throw "This fight log could not be found.";
+            if (detailedId != request.fightId) {
+                detailedData = TimelineStore.read(paths[request.fightId]); detailedId = request.fightId;
+            }
+            if (detailedData == null) response.error = "Detailed recording is unavailable for this fight.";
+            else response.record = DetailedReport.query(detailedData, request);
         } else if (request.action == "chart") {
             if (!entries.exists(request.fightId)) throw "This fight log could not be found.";
             response.record = Json.parse(File.getContent(paths[request.fightId]));
@@ -174,6 +208,13 @@ class FightHistoryStore {
             }
             response.groups = [for (name in HistoryCategory.all()) {name: name, count: counts.exists(name) ? counts[name] : 0}];
             response.total = response.groups.length;
+            // Use the existing summary index: opening the home page never
+            // reads full reports or inherits filters from an encounter folder.
+            var recent = [for (entry in entries) entry];
+            recent.sort((a, b) -> HistoryOptions.compare(a, b, "date", false));
+            response.recent = [for (entry in recent.slice(0, FightHistory.RECENT_COUNT)) {
+                entry: entry, category: HistoryCategory.resolve(entry, catalog), group: HistoryCategory.encounterName(entry, catalog)
+            }];
         } else if (request.action == "groups") {
             var counts:Map<String, Int> = [];
             for (entry in entries) if (matches(entry, request.category)) {
@@ -273,7 +314,15 @@ class FightHistoryStore {
             if (FileSystem.exists(target)) throw "Destination already exists.";
             // Rename preserves the original bytes and is restart-safe. Failed
             // moves remain browsable at their old path and retry next launch.
-            FileSystem.rename(path, target);
+            var movedDetail = false;
+            if (FileSystem.exists(path + ".timeline")) {
+                if (FileSystem.exists(target + ".timeline")) throw "Detailed report destination already exists.";
+                FileSystem.rename(path + ".timeline", target + ".timeline"); movedDetail = true;
+            }
+            try FileSystem.rename(path, target) catch (e:Dynamic) {
+                if (movedDetail) FileSystem.rename(target + ".timeline", path + ".timeline");
+                throw e;
+            }
             return target;
         } catch (e:Dynamic) log("Could not organize " + path + ": " + Std.string(e));
         return path;
