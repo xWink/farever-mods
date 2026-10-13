@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.9.1",
-  "commit": "28983e7cb8c60abcc2d5d78a72f90d9adcd64927",
-  "notes": "- Added account id and character id to logs for account-based uniqueness in leaderboards\n",
+  "project": "item-utilities",
+  "version": "1.14.0",
+  "commit": "26dc8b4a2b0c0be981a4182a9084e2f1cbb52788",
+  "notes": "- Right clicking a preset's name in the dropdown now lets you change its name\n",
   "dry_run": false
 }
