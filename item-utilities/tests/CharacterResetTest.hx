@@ -21,10 +21,10 @@ class CharacterResetTest {
     static function main():Void {
         var cases:Array<{kind:CharacterResetKind, keys:Array<String>, section:String}> = [
             {kind: Locks, keys: ["lockedItems"], section: "Locking"},
-            {kind: Equipment, keys: ["weaponPresets", "selectedWeaponPresets"], section: "Equipment Presets"},
-            {kind: Talent, keys: ["talentPresets", "selectedTalentPresets"], section: "Talent Presets"},
-            {kind: Skill, keys: ["skillPresets", "selectedSkillPresets"], section: "Skill Presets"},
-            {kind: Appearance, keys: ["appearancePresets", "selectedAppearancePresets"], section: "Appearance Presets"}
+            {kind: Equipment, keys: ["weaponPresets", "selectedWeaponPresets", "weaponPresetNames"], section: "Equipment Presets"},
+            {kind: Talent, keys: ["talentPresets", "selectedTalentPresets", "talentPresetNames"], section: "Talent Presets"},
+            {kind: Skill, keys: ["skillPresets", "selectedSkillPresets", "skillPresetNames"], section: "Skill Presets"},
+            {kind: Appearance, keys: ["appearancePresets", "selectedAppearancePresets", "appearancePresetNames"], section: "Appearance Presets"}
         ];
         var values:Dynamic = {
             enabled: false, preset1Hotkey: 49, talentPreset1Hotkey: 50,

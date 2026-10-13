@@ -14,10 +14,10 @@ class CharacterResetStore {
         return switch kind {
             case Locks: ["lockedItems"];
             // Equipment keeps its original storage names for compatibility.
-            case Equipment: ["weaponPresets", "selectedWeaponPresets"];
-            case Talent: ["talentPresets", "selectedTalentPresets"];
-            case Skill: ["skillPresets", "selectedSkillPresets"];
-            case Appearance: ["appearancePresets", "selectedAppearancePresets"];
+            case Equipment: ["weaponPresets", "selectedWeaponPresets", "weaponPresetNames"];
+            case Talent: ["talentPresets", "selectedTalentPresets", "talentPresetNames"];
+            case Skill: ["skillPresets", "selectedSkillPresets", "skillPresetNames"];
+            case Appearance: ["appearancePresets", "selectedAppearancePresets", "appearancePresetNames"];
         };
     }
 

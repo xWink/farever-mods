@@ -31,6 +31,7 @@ typedef ItemUtilitiesConfig = {
     var appearancePreset5Hotkey:Dynamic;
     var appearancePresets:Array<Dynamic>;
     var selectedAppearancePresets:Array<Dynamic>;
+    var appearancePresetNames:Array<Dynamic>;
     var skillPreset1Hotkey:Dynamic;
     var skillPreset2Hotkey:Dynamic;
     var skillPreset3Hotkey:Dynamic;
@@ -38,6 +39,7 @@ typedef ItemUtilitiesConfig = {
     var skillPreset5Hotkey:Dynamic;
     var skillPresets:Array<Dynamic>;
     var selectedSkillPresets:Array<Dynamic>;
+    var skillPresetNames:Array<Dynamic>;
     var talentPreset1Hotkey:Dynamic;
     var talentPreset2Hotkey:Dynamic;
     var talentPreset3Hotkey:Dynamic;
@@ -45,10 +47,12 @@ typedef ItemUtilitiesConfig = {
     var talentPreset5Hotkey:Dynamic;
     var talentPresets:Array<Dynamic>;
     var selectedTalentPresets:Array<Dynamic>;
+    var talentPresetNames:Array<Dynamic>;
     // Retain the original preset storage keys for existing configurations.
     // Each preset's `weapons` array now also stores armor and accessories.
     var weaponPresets:Array<Dynamic>;
     var selectedWeaponPresets:Array<Dynamic>;
+    var weaponPresetNames:Array<Dynamic>;
     var lockedItems:Array<Dynamic>;
     var junkRules:Array<Dynamic>;
     var inspectX:Null<Float>;
@@ -92,6 +96,7 @@ class ItemUtilitiesMod {
         appearancePreset5Hotkey: 0,
         appearancePresets: [],
         selectedAppearancePresets: [],
+        appearancePresetNames: [],
         skillPreset1Hotkey: 0,
         skillPreset2Hotkey: 0,
         skillPreset3Hotkey: 0,
@@ -99,6 +104,7 @@ class ItemUtilitiesMod {
         skillPreset5Hotkey: 0,
         skillPresets: [],
         selectedSkillPresets: [],
+        skillPresetNames: [],
         talentPreset1Hotkey: 0,
         talentPreset2Hotkey: 0,
         talentPreset3Hotkey: 0,
@@ -106,8 +112,10 @@ class ItemUtilitiesMod {
         talentPreset5Hotkey: 0,
         talentPresets: [],
         selectedTalentPresets: [],
+        talentPresetNames: [],
         weaponPresets: [],
         selectedWeaponPresets: [],
+        weaponPresetNames: [],
         lockedItems: [],
         junkRules: [],
         inspectX: null,
@@ -1099,6 +1107,7 @@ class ItemUtilitiesMod {
     }
 
     static function drawPresetButtons(rect:OverlayRect, parent:Dynamic, kind:PresetKind):Void {
+        var characterId = heroPersistentId(resolveHero());
         var busy = switch kind {
             case Equipment: presetTransferActive;
             case Talent: talentPresetTransfer.active;
@@ -1128,7 +1137,48 @@ class ItemUtilitiesMod {
                     case Skill: saveCurrentSkillsToPreset(selectedSkillPreset);
                     case Appearance: saveCurrentAppearancesToPreset(selectedAppearancePreset);
                 }
+            }, PresetNames.labels(cast Reflect.field(config, presetNamesKey(kind)), characterId),
+            preset -> renamePreset(kind, preset, characterId), characterId);
+    }
+
+    static function presetNamesKey(kind:PresetKind):String {
+        return switch kind {
+            case Equipment: "weaponPresetNames";
+            case Talent: "talentPresetNames";
+            case Skill: "skillPresetNames";
+            case Appearance: "appearancePresetNames";
+        };
+    }
+
+    static function renamePreset(kind:PresetKind, preset:Int, characterId:String):Void {
+        var hero = resolveHero(), app = currentGameApp();
+        var valid = () -> enabled && hero != null && resolveHero() == hero && currentGameApp() == app
+            && characterId != null && heroPersistentId(hero) == characterId;
+        if (!PresetSlots.valid(preset) || !valid()) return;
+        var key = presetNamesKey(kind);
+        try {
+            var initial = PresetNames.name(cast Reflect.field(config, key), characterId, preset);
+            if (initial == "") initial = PresetSlots.label(preset);
+            NativePresetRename.open(G.current("ui.BaseUI", "current"), initial, valid, name -> {
+                try {
+                    // Preserve the latest settings and other characters' names.
+                    // Only publish a changed label after its save succeeds.
+                    var values:Dynamic = Json.parse(sys.io.File.getContent(
+                        "hlx/config/" + HlxRuntime.moduleName() + "/config.json"));
+                    var records:Dynamic = Reflect.field(values, key);
+                    if (records != null && !Std.isOfType(records, Array)) throw "Preset name storage must be an array.";
+                    var renamed = PresetNames.renamed(cast records, characterId, preset, name);
+                    Reflect.setField(values, key, renamed);
+                    ModConfig.save(HlxRuntime.moduleName(), values);
+                    Reflect.setField(config, key, renamed);
+                } catch (error:Dynamic) {
+                    status = "Could not save the preset name.";
+                    logLockError("rename preset", error);
+                }
             });
+        } catch (error:Dynamic) {
+            logLockError("open preset rename", error);
+        }
     }
 
     static function syncSelectedTalentPreset():Void {
@@ -1300,6 +1350,7 @@ class ItemUtilitiesMod {
             var remainingLocks = kind == Locks
                 ? CharacterResetStore.withoutCharacter(lockRecords, characterId) : null;
             ModConfig.save(HlxRuntime.moduleName(), cleared);
+            if (kind != Locks) NativePresetRename.invalidate();
             for (key in CharacterResetStore.fields(kind))
                 Reflect.setField(config, key, Reflect.field(cleared, key));
             // Clear live caches as well, so the next save cannot resurrect data.
@@ -3329,6 +3380,8 @@ class ItemUtilitiesMod {
     }
 
     static function loadPresetHotkeyConfig(data:Dynamic):Void {
+        for (key in ["weaponPresetNames", "talentPresetNames", "skillPresetNames", "appearancePresetNames"])
+            if (Reflect.field(config, key) == null) Reflect.setField(config, key, []);
         if (config.appearancePresets == null) config.appearancePresets = [];
         if (config.selectedAppearancePresets == null) config.selectedAppearancePresets = [];
         if (config.skillPresets == null) config.skillPresets = [];

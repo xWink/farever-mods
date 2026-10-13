@@ -17,6 +17,10 @@ private class UtilityControl {
     public var seen:Int = -1;
     public var action:Void->Void;
     public var select:Int->Void;
+    public var rename:Int->Void;
+    public var names:Array<String>;
+    public var characterId:String;
+    public var optionsRevision = 0;
     public var enabled = true;
     public var width = -1;
     public var height = -1;
@@ -48,6 +52,7 @@ class NativeUtilityUi {
         entry.enabled = false;
         entry.action = null;
         entry.select = null;
+        entry.rename = null;
         // A dropdown list lives outside its button; close it before detaching.
         if (entry.selector != null) G.call("ui.comp.Dropdown", "close", entry.selector, [null]);
         if (G.field(entry.root, "parent") != null) G.call("h2d.Object", "remove", entry.root);
@@ -161,7 +166,7 @@ class NativeUtilityUi {
     }
 
     public static function presets(owner:Dynamic, key:String, pixels:OverlayRect, busy:Bool, selected:Int,
-            select:Int->Void, save:Void->Void):Void {
+            select:Int->Void, save:Void->Void, ?names:Array<String>, ?rename:Int->Void, ?characterId:String):Void {
         if (owner == null) return;
         var rect = NativeUiLayout.localRect(owner, pixels);
         if (rect == null) return;
@@ -170,10 +175,6 @@ class NativeUtilityUi {
             attach(owner, entry.root); Ui.padding(entry.root, 0);
             entry.selector = node("dropdown", entry.root, [false,false,"options-dropdown-list"]);
             attach(entry.root, entry.selector);
-            var options = G.call("hl.types.ArrayObj", "slice", G.field(entry.selector, "items"), [0,0]);
-            for (i in 0...PresetSlots.COUNT)
-                G.call("hl.types.ArrayObj", "pushDyn", options, [{name:PresetSlots.label(i),value:i,icon:null,group:null}]);
-            G.call("ui.comp.Dropdown", "set_options", entry.selector, [options]);
             G.set(entry.selector, "onSelectOption", (_:Dynamic) -> {
                 if (live(entry) && entry.select != null) {
                     var index = G.integer(G.field(entry.selector, "selectedIndex"), -1);
@@ -186,7 +187,8 @@ class NativeUtilityUi {
                 if (live(entry) && entry.action != null) entry.action();
             }]);
         });
-        entry.select = select; entry.action = save;
+        entry.select = select; entry.action = save; entry.rename = rename;
+        refreshPresetNames(entry, names, characterId);
         var resized = entry.width != Math.round(rect.width) || entry.height != Math.round(rect.height);
         place(entry, rect);
         if (resized) {
@@ -200,6 +202,9 @@ class NativeUtilityUi {
             Ui.padding(selectButton, 0);
             for (side in ["left", "right"]) Ui.style(selectButton, "padding-" + side, 8);
             Ui.size(selectButton, selectorWidth, entry.height);
+            var text = G.field(entry.selector, "selectText");
+            G.call("ui.comp.FmtText", "set_maxWidthText", text, [Std.int(Math.max(1, selectorWidth - 44))]);
+            G.call("ui.comp.FmtText", "set_useEllipsis", text, [true]);
             Ui.size(entry.save, saveWidth, entry.height);
             Ui.position(entry.save, entry.width - saveWidth, 0);
         }
@@ -211,6 +216,36 @@ class NativeUtilityUi {
         if (G.field(entry.save, "enable") == busy) G.call("ui.UIElement", "set_enable", entry.save, [!busy]);
         if (busy && G.call("ui.comp.Dropdown", "isOpen", entry.selector) == true)
             G.call("ui.comp.Dropdown", "close", entry.selector, [null]);
+    }
+
+    static function refreshPresetNames(entry:UtilityControl, names:Array<String>, characterId:String):Void {
+        var changed = entry.names == null || entry.characterId != characterId;
+        for (i in 0...PresetSlots.COUNT) {
+            var name = names == null || i >= names.length ? PresetSlots.label(i) : names[i];
+            if (entry.names != null && entry.names[i] != name) changed = true;
+        }
+        if (!changed) return;
+        G.call("ui.comp.Dropdown", "close", entry.selector, [null]);
+        entry.characterId = characterId;
+        entry.names = [for (i in 0...PresetSlots.COUNT)
+            names == null || i >= names.length ? PresetSlots.label(i) : names[i]];
+        var revision = ++entry.optionsRevision;
+        var options = G.call("hl.types.ArrayObj", "slice", G.field(entry.selector, "items"), [0,0]);
+        for (i in 0...PresetSlots.COUNT)
+            G.call("hl.types.ArrayObj", "pushDyn", options, [{name:Ui.escape(entry.names[i]),value:i,icon:null,group:null}]);
+        // set_options builds the native rows immediately. Opening the list reuses
+        // them, so attach once per name/context change rather than every frame.
+        G.call("ui.comp.Dropdown", "set_options", entry.selector, [options]);
+        var items = G.array(G.field(entry.selector, "items"));
+        for (i in 0...items.length) {
+            var slot = i, item = items[i];
+            G.call("ui.UIElement", "set_onRightClick", item, [() -> {
+                if (!live(entry) || entry.rename == null || revision != entry.optionsRevision
+                    || !PresetSlots.valid(slot) || G.call("ui.comp.Dropdown", "isOpen", entry.selector) != true) return;
+                G.call("ui.comp.Dropdown", "close", entry.selector, [null]);
+                entry.rename(slot);
+            }]);
+        }
     }
 
     static function matchPresetBackground(entry:UtilityControl):Void {

@@ -46,7 +46,11 @@ class AppearancePresetTest {
             rejects(function() AppearancePresetStore.cleared(invalid, "db:1"), "invalid configuration cannot be overwritten by reset");
         for (id in [null, "", "   "])
             rejects(function() AppearancePresetStore.cleared(saved, id), "missing character must never become a global reset");
-        check(haxe.Json.stringify(AppearancePresetStore.cleared(saved, "db:unknown")) == original, "character without presets leaves all stored presets intact");
+        var unknownReset = AppearancePresetStore.cleared(saved, "db:unknown");
+        for (key in Reflect.fields(saved))
+            check(haxe.Json.stringify(Reflect.field(unknownReset, key)) == haxe.Json.stringify(Reflect.field(saved, key)),
+                "character without presets leaves all stored values intact: " + key);
+        check(unknownReset.appearancePresetNames.length == 0, "legacy configurations initialize empty name overrides");
         var rogueReset = AppearancePresetStore.cleared(cleared, "db:10");
         check(rogueReset.appearancePresets.length == 1 && rogueReset.appearancePresets[0].characterId == "db:100", "next character reset affects only that character");
         check(rogueReset.selectedAppearancePresets.length == 1 && rogueReset.selectedAppearancePresets[0].characterId == "db:100", "next character reset preserves remaining selection");

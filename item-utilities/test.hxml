@@ -97,3 +97,16 @@
 -cp tests
 -main BankAffinityTest
 --interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main PresetNamesTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/native-ui-stubs
+-cp tests
+-main NativePresetRenameTest
+--interp

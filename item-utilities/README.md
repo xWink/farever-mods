@@ -183,7 +183,7 @@ applies only to motes.
 
 ### Preset controls
 
-All four categories have five slots, labeled **Preset 1**, **Preset 2**, **Preset 3**,
+All four categories have five slots, initially labeled **Preset 1**, **Preset 2**, **Preset 3**,
 **Preset 4**, and **Preset 5**. The collapsed dropdown shows the selected slot;
 choosing a saved option immediately applies it. Empty options remain selectable.
 Selecting the current slot again reapplies it. Preset controls have no tooltips;
@@ -191,6 +191,13 @@ the selector, menu labels, and **Set** use the game's native button/dropdown sty
 **Set** saves your current setup to the selected slot. Controls are disabled while
 that category is applying a preset. The dropdown closes when you choose an option
 or click outside; individual hotkeys can apply presets without opening it.
+
+Right-click an option in any preset dropdown to **rename** that slot using the
+native text dialog. Names allow up to **15 characters** and are saved separately
+for each character and preset category, including empty slots. Confirm to save,
+or cancel to keep the old name. Leave the name empty to restore **Preset 1–5**.
+Renaming does not select, apply, or overwrite the slot's saved setup. Longer
+labels use an ellipsis in the closed control; open the dropdown to read them.
 The native dropdown handles input over its options. Closing the menu restores
 normal input; leaving the tab, hiding the controls, or opening another window
 also closes its list.
@@ -327,7 +334,7 @@ warning with **Continue** and **Cancel** and affects only the current character
 and that category. Cancel or Escape makes no changes. A logged-in character is
 required, even when Item Utilities is disabled.
 
-Preset resets delete the saved presets and reset the selected slot to 1. Current
+Preset resets delete the saved presets, restore their default names, and reset the selected slot to 1. Current
 equipment, allocated talents, equipped skills/runes, appearances, and hotkeys stay
 unchanged. Any pending application of that preset category stops; requests already
 sent to the game may still finish. Other characters and preset categories are

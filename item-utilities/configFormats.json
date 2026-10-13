@@ -89,7 +89,7 @@
       "colour": "red",
       "warning": {
         "enabled": true,
-        "warningText": "Delete all saved equipment presets for your current character? This cannot be undone. Your equipped items, hotkeys, and other characters' presets will stay unchanged."
+        "warningText": "Delete all saved equipment presets and reset their names for your current character? This cannot be undone. Your equipped items, hotkeys, and other characters' presets will stay unchanged."
       }
     },
     { "type": "title", "label": "Talent Presets" },
@@ -106,7 +106,7 @@
       "colour": "red",
       "warning": {
         "enabled": true,
-        "warningText": "Delete all saved talent presets for your current character? This cannot be undone. Your allocated talents, hotkeys, and other characters' presets will stay unchanged."
+        "warningText": "Delete all saved talent presets and reset their names for your current character? This cannot be undone. Your allocated talents, hotkeys, and other characters' presets will stay unchanged."
       }
     },
     { "type": "title", "label": "Skill Presets" },
@@ -123,7 +123,7 @@
       "colour": "red",
       "warning": {
         "enabled": true,
-        "warningText": "Delete all saved skill presets for your current character? This cannot be undone. Your equipped skills and runes, hotkeys, and other characters' presets will stay unchanged."
+        "warningText": "Delete all saved skill presets and reset their names for your current character? This cannot be undone. Your equipped skills and runes, hotkeys, and other characters' presets will stay unchanged."
       }
     },
     { "type": "title", "label": "Appearance Presets" },
@@ -140,7 +140,7 @@
       "colour": "red",
       "warning": {
         "enabled": true,
-        "warningText": "Delete all saved appearance presets for your current character? This cannot be undone. Other characters' presets, your current appearance, and hotkey bindings will stay unchanged."
+        "warningText": "Delete all saved appearance presets and reset their names for your current character? This cannot be undone. Other characters' presets, your current appearance, and hotkey bindings will stay unchanged."
       }
     }
   ]

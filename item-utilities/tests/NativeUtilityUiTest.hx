@@ -90,6 +90,43 @@ class NativeUtilityUiTest {
         UI.beginFrame(); UI.badge(slot); UI.endFrame();
         check(trash.parent==null && slot.children.length==1, "Switching marker kinds removes the old badge");
         UI.forget(slot);
+        testRename(scene);
         trace('Native utility UI: $checks checks passed');
+    }
+
+    static function testRename(scene:Dynamic):Void {
+        var owner=G.object("window",scene), rect=new OverlayRect(0,0,202,36);
+        var names=["Raid <fire>", "Boss", "Solo", "PvP", "Farming"], renamed=-1, applied=0, saved=0;
+        var draw=(busy:Bool,character:String) -> {
+            UI.beginFrame();
+            UI.presets(owner,"named",rect,busy,2,_ -> applied++,() -> saved++,names,i -> renamed=i,character);
+            UI.endFrame();
+        };
+        draw(false,"db:1");
+        var dropdown=owner.children[0].children[0], builds=G.optionsBuilds;
+        check(dropdown.options[0].name=="Raid &lt;fire&gt;", "Names are literal text, not FmtText markup");
+        check(dropdown.selectText.useEllipsis && dropdown.selectText.maxWidthText==92,
+            "Long labels stay inside the closed dropdown beside Set");
+        for (slot in 0...5) {
+            dropdown.listWindow=G.object("dropdown-list",scene);
+            dropdown.items[slot].onRightClick();
+            check(renamed==slot && dropdown.listWindow==null && dropdown.selectedIndex==2 && applied==0 && saved==0,
+                "Right click opens the clicked slot's rename without selecting/applying/saving its setup");
+        }
+        draw(false,"db:1"); check(G.optionsBuilds==builds,"Steady frames never rebuild rows or callbacks");
+        var old=dropdown.items[0].onRightClick;
+        names[0]="New raid"; draw(false,"db:1");
+        check(G.optionsBuilds==builds+1 && dropdown.options[0].name=="New raid" && applied==0,
+            "Confirmed name changes refresh labels without applying a preset");
+        renamed=-1; dropdown.listWindow=G.object("dropdown-list",scene); old();
+        check(renamed==-1,"Replaced option callbacks cannot rename another slot/context");
+        var current=dropdown.items[0].onRightClick;
+        draw(false,"db:10"); check(dropdown.listWindow==null,"Character changes dismiss the old popup even with identical names");
+        dropdown.listWindow=G.object("dropdown-list",scene); current(); check(renamed==-1,"Old character's rows cannot rename new character");
+        current=dropdown.items[0].onRightClick;
+        draw(true,"db:10"); dropdown.listWindow=G.object("dropdown-list",scene); current();
+        check(renamed==-1,"Busy preset cannot be renamed by a stale callback");
+        draw(false,"db:10"); dropdown.listWindow=G.object("dropdown-list",scene);
+        UI.forget(owner); current(); check(renamed==-1,"Removed window cannot open a rename dialog");
     }
 }
