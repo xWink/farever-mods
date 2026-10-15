@@ -125,7 +125,6 @@ class NativeSecretText {
         HlxRuntime.setField(control.input, "calcDone", false);
         HlxRuntime.setField(control.input, "splitLines", null);
         HlxRuntime.setField(control.input, "cursorXIndex", -1);
-        call("ui.UIElement", "set_textTip", control.button, [control.revealed ? "Hide secret" : "Show secret"]);
         drawEye(control.graphic, control.revealed);
     }
 

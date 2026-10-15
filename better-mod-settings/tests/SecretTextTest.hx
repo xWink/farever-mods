@@ -43,7 +43,7 @@ class SecretTextTest {
         eq(eye.obj.flowProperties.isAbsolute, false, "Eye stays inside the measured row");
         eq(NativeSecretText.display(input, input.text), "******", "New settings mask secrets");
         eq(hasPupil(eye), false, "New eye is closed");
-        eq(eye.obj.textTip, "Show secret", "Closed eye describes reveal");
+        eq(eye.obj.textTip, null, "Closed eye has no tooltip");
         eq(eye.parent, parent, "Eye stays in the textbox row");
         eq(Reflect.field(eye.styles, "fill-width"), false, "Eye does not stretch the row");
         eq(NativeSecretText.display({}, "ordinary text"), "ordinary text", "Unregistered textboxes stay unchanged");
@@ -51,7 +51,7 @@ class SecretTextTest {
         click(eye);
         eq(NativeSecretText.display(input, input.text), "aB 123", "First click reveals the original value");
         eq(hasPupil(eye), true, "Revealed eye has its pupil");
-        eq(eye.obj.textTip, "Hide secret", "Open eye describes hide");
+        eq(eye.obj.textTip, null, "Open eye has no tooltip");
         eq(NativeSecretText.display(other, other.text), "******", "Revealing one secret leaves others hidden");
         click(eye);
         eq(NativeSecretText.display(input, input.text), "******", "Second click hides the value again");
