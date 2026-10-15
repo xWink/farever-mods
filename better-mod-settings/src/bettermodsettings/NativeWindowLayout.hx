@@ -4,8 +4,9 @@ package bettermodsettings;
 class NativeWindowLayout {
     public static inline var WINDOW_WIDTH = 1000;
     public static inline var HEADER_WIDTH = WINDOW_WIDTH - 4;
-    public static inline var BODY_INSET = 7;
-    public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_INSET * 2;
+    public static inline var BODY_LEFT_INSET = 7;
+    public static inline var BODY_RIGHT_INSET = 9;
+    public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_LEFT_INSET - BODY_RIGHT_INSET;
 
     public static function headerFirst(window:Dynamic, ?tabs:Dynamic):Void {
         var header = HlxRuntime.resolveField(window, "header");
@@ -92,8 +93,9 @@ class NativeWindowLayout {
         // Leave room for both the decorative side rails and the body's native
         // background/shadow, which paints beyond its layout bounds.
         for (side in ["Left", "Right"]) {
-            style(body, "margin-" + side.toLowerCase(), BODY_INSET);
-            if (properties != null) HlxRuntime.setField(properties, "padding" + side, BODY_INSET);
+            var inset = side == "Left" ? BODY_LEFT_INSET : BODY_RIGHT_INSET;
+            style(body, "margin-" + side.toLowerCase(), inset);
+            if (properties != null) HlxRuntime.setField(properties, "padding" + side, inset);
         }
         style(body, "fill-width", false);
         call("h2d.Flow", "set_fillWidth", body, [false]);

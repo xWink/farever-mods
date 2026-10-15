@@ -1826,7 +1826,8 @@ class BetterModSettingsMod {
         tabButtons:Array<Dynamic>,
         tabWidths:Array<Int>,
         pages:Array<Array<Int>>,
-        pageIndex:Int
+        pageIndex:Int,
+        pageWidth:Int
     ):Void {
         if (pageIndex < 0 || pageIndex >= pages.length)
             return;
@@ -1840,10 +1841,11 @@ class BetterModSettingsMod {
 
             // Native tab styling is applied after construction and otherwise
             // restores centered distribution. Reassert the fixed navigation
-            // geometry whenever a page is shown.
+            // geometry whenever a page is shown, using the same viewport width
+            // as pagination so a stale width cannot push out the window frame.
             setFlowHorizontalSpacing(headerProperties, 10);
             setFlowHorizontalSpacing(viewportProperties, 20);
-            setFixedFlowWidth(viewportProperties, 886);
+            setFixedFlowWidth(viewportProperties, pageWidth);
             setFixedFlowHeight(viewportProperties, 50);
             if (flowType == null)
                 flowType = HlxRuntime.resolveType("h2d.Flow");
@@ -1915,7 +1917,7 @@ class BetterModSettingsMod {
                             tabFlowProperties,
                             "offsetX",
                             visible && index < tabWidths.length
-                                ? tabX - Std.int((886 - tabWidths[index]) * 0.5)
+                                ? tabX - Std.int((pageWidth - tabWidths[index]) * 0.5)
                                 : 0
                         );
                         HlxRuntime.setField(tabFlowProperties, "lineBreak", false);
@@ -2054,6 +2056,7 @@ class BetterModSettingsMod {
             var tabButtons = pendingTabButtons;
             var previousArrow = pendingTabPreviousArrow;
             var nextArrow = pendingTabNextArrow;
+            var pageWidth = pendingTabPageWidth;
             var currentPage = 0;
 
             HlxRuntime.callResolved(setOnClickMember, [
@@ -2068,7 +2071,8 @@ class BetterModSettingsMod {
                         tabButtons,
                         measuredWidths,
                         pages,
-                        currentPage
+                        currentPage,
+                        pageWidth
                     );
                 }
             ]);
@@ -2084,7 +2088,8 @@ class BetterModSettingsMod {
                         tabButtons,
                         measuredWidths,
                         pages,
-                        currentPage
+                        currentPage,
+                        pageWidth
                     );
                 }
             ]);
@@ -2094,7 +2099,8 @@ class BetterModSettingsMod {
                 tabButtons,
                 measuredWidths,
                 pages,
-                currentPage
+                currentPage,
+                pageWidth
             );
         } catch (error:Dynamic) {
             trace("[BetterModSettings] Could not finalize tab pagination: " + Std.string(error));
