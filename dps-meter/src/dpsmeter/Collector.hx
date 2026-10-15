@@ -16,6 +16,7 @@ class Collector {
     var profileRefresh:Map<String, Float> = [];
     var profileWeapons:Map<String, Dynamic> = [];
     var phrixes:Dynamic;
+    var cleodora:Dynamic;
     var riftWait:Dynamic;
     public function new(config:MeterSettings, ?timeline:NativeTimeline) {
         this.config = config;
@@ -37,6 +38,7 @@ class Collector {
             groupMembers = []; lastGroupSeen = -1; lastRoster = -1;
             profileRefresh = []; profileWeapons = [];
             phrixes = null;
+            cleodora = null;
             riftWait = null;
         }
         healingCapture.flush(now);
@@ -78,15 +80,16 @@ class Collector {
         // Objectives can arrive after entering the map; keep checking at the
         // roster's 4 Hz cadence. Completion does not remove the clearing goal.
         model.activityCategory = NativeCombatMetadata.activityCategory(model.activityId, inRift, player, G.field(layer, "mainActivity"));
+        refreshDungeonBoss(inRift);
         if (inRift) updateRiftState(player, now);
         refreshPhrixes(now);
         // Encounter timing must not depend on optional lobby/report metadata.
         var localInCombat = G.field(hero, "isInCombat") == true;
-        // Check teammates only to prolong an existing encounter, at this
-        // same 4 Hz cadence. Party combat alone cannot start the local meter.
+        // Teammates, or Honeyzabeth's active miniboss phase, can prolong an
+        // existing encounter. Neither starts the local meter without damage.
         var displayed = model.displayedFight();
         var partyInCombat = displayed != null && displayed.closed == 0 && (!localInCombat || !model.inCombat)
-            && PartyCombat.active(hero);
+            && (PartyCombat.active(hero) || cleodoraInCombat());
         model.update(now, localInCombat, partyInCombat);
         if (group != null && model.activityId != "" && model.difficulty < 0) {
             // Never assign a stale lobby from another dungeon to an open-world boss.
@@ -106,7 +109,34 @@ class Collector {
         if (uid == model.me) refreshPhrixes(now);
         else if (model.inCombat || model.current == null || !model.party.exists(uid)) return;
         var displayed = model.displayedFight();
-        model.onCombatExit(uid, now, displayed != null && displayed.closed == 0 && PartyCombat.active(hero, uid));
+        model.onCombatExit(uid, now, displayed != null && displayed.closed == 0
+            && (PartyCombat.active(hero, uid) || cleodoraInCombat()));
+    }
+    function refreshDungeonBoss(inRift:Bool):Void {
+        if (inRift || NativeCombatMetadata.dungeonBoss(model.activityId) != "Cleodora") {
+            cleodora = null; model.setDungeonBoss(null); return;
+        }
+        if (cleodora != null && (G.field(cleodora, "layer") != layer || G.field(cleodora, "removed") == true)) cleodora = null;
+        if (cleodora == null || G.call("ent.GameObject", "isDead", cleodora) == true) for (unit in G.array(G.field(layer, "units"))) {
+            if (G.text(G.field(unit, "kind")) != "Cleodora" || G.field(unit, "summonOwner") != null
+                || G.field(unit, "removed") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
+            cleodora = unit; break;
+        }
+        var name = "";
+        if (cleodora != null) name = G.text(G.call("ent.Unit", "getName", cleodora));
+        else {
+            var byId = G.field(G.current("Data", "unit"), "byId");
+            var inf = byId == null ? null : G.call("haxe.ds.StringMap", "get", byId, ["Cleodora"]);
+            if (inf != null) name = G.text(G.staticCall("HText", "unit", [inf, null]));
+        }
+        model.setDungeonBoss({kind:"Cleodora", name:name == "" ? "Cleodora" : name, uid:G.uid(cleodora),
+            level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId"))});
+    }
+    function cleodoraInCombat():Bool {
+        // These replicated fields are available even while canBeHit is false.
+        // Never query isAtDeathDoor: the shipped client makes it server-only.
+        return cleodora != null && G.field(cleodora, "removed") != true
+            && G.field(cleodora, "isInCombat") == true && G.call("ent.GameObject", "isDead", cleodora) != true;
     }
     function refreshPhrixes(now:Float, observedHit:Bool = false):Void {
         if (phrixes == null) return;

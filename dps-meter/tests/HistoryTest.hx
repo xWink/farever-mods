@@ -57,7 +57,7 @@ class HistoryTest {
     static function main():Void {
         clientSkillCompatibility(); archivePolicy(); targetDummies();
         lifecycle(); partyCombat(); chakram(); riftCountdown(); gameVersions(); outcomes(); recapSummary(); snapshots(); storage(); encounterFolders(); uploader(); victoryUploads(); categories(); metadata(); breakdown(); encounterDetails(); historyActions(); snapshotLayouts(); snapshotTextures(); snapshotViewports(); historyOptions(); literalLabels(); bossRecords();
-        recentFights();
+        recentFights(); honeyzabeth();
         Sys.println('Fight history: $checks checks passed');
     }
     static function archivePolicy():Void {
@@ -414,6 +414,77 @@ class HistoryTest {
         m.updatePhrixes(61, "chakram", 4, false, false, false); m.update(61, false);
         check(m.history.length == 1 && m.history[0].duration() == 50 && m.history[0].players["ally"].damage == 20,
             "A later party wipe never rewinds the encounter to an earlier local death");
+    }
+    static function honeyzabeth():Void {
+        function configure(m:CombatModel):Void {
+            m.activityId = "HoneyArena"; m.activityCategory = HistoryCategory.BOSS; m.difficulty = 2;
+            m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"queen", level:20, foeId:9});
+        }
+        function mini(time:Float, amount:Float, kill:Bool = false, source:String = "me"):DamageEvent {
+            var e = hit(time, amount, kill, true, source, "mini");
+            e.bossKind = "Cleodora_Champion2"; e.bossName = "Miniboss"; e.bossFlags = 0x10;
+            return e;
+        }
+        var m = model(); configure(m); m.onCombatEnter("me", 10);
+        check(m.current == null, "Honeyzabeth's dungeon and combat entry alone do not start the clock");
+        var heal = hit(10.1, 30); heal.effect = 1; m.record(heal);
+        check(m.current == null, "Pre-fight healing does not start Honeyzabeth's encounter");
+        m.record(mini(11, 100)); var first = m.current;
+        check(first.start == 11 && first.bossKind == "Cleodora" && first.bossUid == "queen"
+            && FightHistory.name(first) == "Queen Honeyzabeth" && first.category == HistoryCategory.BOSS,
+            "First miniboss damage starts a named Honeyzabeth encounter with the normal damage timestamp");
+        m.record(mini(12, 200, true, "ally")); m.onTargetDeath("mini", 12);
+        m.onCombatExit("me", 13, true); m.update(30, false, true);
+        check(m.current == first && first.duration(30) == 19 && m.history.length == 0,
+            "Honeyzabeth's active phase keeps the opening damage and timer through miniboss transitions");
+        heal.time = 31; m.record(heal);
+        var queen = hit(35, 300, false, true, "me", "queen");
+        queen.bossKind = "Cleodora"; queen.bossName = "Queen Honeyzabeth"; queen.bossFlags = 0x10;
+        m.record(queen); m.record(mini(36, 50, true));
+        check(first.start == 11 && first.bossKind == "Cleodora" && first.bossUid == "queen"
+            && first.players["me"].damage == 450 && first.players["ally"].damage == 200 && first.players["me"].heal == 30,
+            "Queen damage, later miniboss kills, party damage and healing all remain in the original encounter");
+        queen.time = 40; queen.amount = 400; queen.kill = true; m.record(queen);
+        m.onCombatExit("me", 40);
+        m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"next-queen", level:20, foeId:9});
+        check(m.lastCombat.bossUid == "queen", "A respawn during the final-damage grace period cannot rebind the completed attempt");
+        m.update(41, false);
+        check(m.history.length == 1 && m.history[0].start == 11 && m.history[0].duration() == 29
+            && m.history[0].outcome == "Victory" && m.history[0].players["me"].damage == 850,
+            "Queen's death produces one full encounter including the opening miniboss phases");
+        var encoded = FightHistory.encode(m.history[0], "honeyzabeth_full");
+        check(encoded.bossKind == "Cleodora" && encoded.category == HistoryCategory.BOSS
+            && FightHistory.decode(encoded).duration() == 29, "History/Fareverly serialization retains the full encounter");
+
+        m = model(); configure(m); m.onCombatEnter("me", 10); m.record(mini(11, 100, true));
+        m.onCombatExit("me", 12); m.update(13, false);
+        check(m.history.length == 1 && m.history[0].outcome == "Defeat" && m.history[0].bossKind == "Cleodora",
+            "Killing a miniboss then wiping is a Honeyzabeth defeat, never a boss victory");
+        m.onCombatEnter("me", 20); m.record(mini(21, 7));
+        check(m.current.start == 21 && m.current.players["me"].damage == 7, "A retry gets fresh timing and totals");
+        m.reset(25);
+        check(m.history.length == 2 && m.history[1].outcome == "Defeat" && m.dungeonBoss == null,
+            "Leaving preserves the unfinished attempt and clears the dungeon override");
+
+        m = model(); configure(m); m.record(mini(10, 50)); m.onCombatEnter("me", 10.1);
+        check(m.current.start == 10 && m.current.players["me"].damage == 50,
+            "Honeyzabeth retains the normal opening-damage-before-entry buffer");
+        m = model(); configure(m); m.record(mini(10, 50, false, "ally")); m.update(11, false, true);
+        check(m.current == null && m.history.length == 0, "Party damage while the local player is idle cannot start Honeyzabeth");
+
+        m = model(); m.activityId = "HoneyArena"; m.activityCategory = HistoryCategory.BOSS;
+        m.onCombatEnter("me", 10); m.record(mini(11, 100, true));
+        m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"", level:0, foeId:0});
+        check(m.current.start == 11 && m.current.bossUid == "", "Late objective metadata relabels opening damage without adopting a miniboss UID");
+        m.onCombatExit("me", 12); m.update(13, false);
+        check(m.history[0].outcome == "Defeat", "Missing queen entity metadata cannot turn a miniboss kill into victory");
+
+        m = model(); m.activityCategory = HistoryCategory.BOSS;
+        m.setDungeonBoss({kind:"Ratsar", name:"King Ratsar", uid:"ratsar", level:10, foeId:1});
+        m.onCombatEnter("me", 10); m.record(hit(11, 100));
+        check(m.current.category == HistoryCategory.OTHER && m.current.bossKind == "", "Other dungeons retain their existing encounter rule");
+        m = model(); configure(m); m.enableRift();
+        check(m.dungeonBoss == null, "Rifts never inherit Honeyzabeth's dungeon override");
     }
     static function riftCountdown():Void {
         var m = model(); m.enableRift(); m.onCombatEnter("me", 10);

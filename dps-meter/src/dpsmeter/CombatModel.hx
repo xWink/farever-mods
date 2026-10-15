@@ -3,6 +3,7 @@ package dpsmeter;
 import dpsmeter.RiftTracker.RiftRecap;
 
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
+typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
@@ -263,6 +264,7 @@ class CombatModel {
     public var difficulty:Int = -1;
     public var activityId:String = "";
     public var activityCategory:String = "Other";
+    public var dungeonBoss(default, null):Null<DungeonBossInfo>;
     var lastKillSource:String = "";
     var lastKillAmount:Float = -1;
     var lastKillTarget:String = "";
@@ -294,6 +296,7 @@ class CombatModel {
         session = new Fight(now, gameVersion); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         activityCategory = "Other";
+        dungeonBoss = null;
         lastKillTarget = ""; lastKillTime = -1;
         inCombat = false; awaitingExitState = false; pendingFight = null;
         clearPhrixes();
@@ -380,6 +383,7 @@ class CombatModel {
         rift = new RiftTracker(gameVersion);
         current = null; lastCombat = null; pendingFight = null;
         boss = null; lastBoss = null;
+        dungeonBoss = null;
         clearPhrixes();
     }
     /** Only called for a Phrixes entity that our party actually damaged. */
@@ -471,6 +475,32 @@ class CombatModel {
         // accumulate indefinitely and get imported into the next encounter.
         if (pendingFight != null && now - pendingFight.start > ENTRY_DAMAGE_SECONDS) finishPendingFight();
     }
+    public function setDungeonBoss(value:Null<DungeonBossInfo>):Void {
+        dungeonBoss = value;
+        // Objectives/entities may replicate just after the opening hit. Label
+        // that existing fight without restarting its clock or adding damage.
+        for (list in [[current, pendingFight], pendingHistory])
+            for (fight in list) if (fight != null && fight.activityId == activityId) applyDungeonBoss(fight);
+    }
+    function applyDungeonBoss(fight:Fight):Bool {
+        if (rift != null || dungeonBoss == null || dungeonBoss.kind != "Cleodora" || fight.targetDummy
+            || (activityCategory != HistoryCatalog.HistoryCategory.BOSS
+                && activityCategory != HistoryCatalog.HistoryCategory.DUNGEON)) return false;
+        fight.category = activityCategory;
+        if (fight.bossKind != dungeonBoss.kind) {
+            fight.bossUid = ""; fight.bossLevel = 0; fight.bossFoeId = 0;
+        }
+        fight.bossKind = dungeonBoss.kind; fight.bossName = dungeonBoss.name;
+        fight.bossFlags = 0x10;
+        // A respawn may arrive during the finished fight's final-damage grace
+        // period. Keep that attempt attached to the queen it actually fought.
+        if (dungeonBoss.uid != "" && (fight.closed == 0 || fight.bossUid == "" || fight.bossUid == dungeonBoss.uid)) {
+            fight.bossUid = dungeonBoss.uid;
+            fight.bossLevel = dungeonBoss.level; fight.bossFoeId = dungeonBoss.foeId;
+            fight.targets[fight.bossUid] = true;
+        }
+        return true;
+    }
     function addToFight(fight:Fight, e:DamageEvent, info:PlayerInfo):Void {
         fight.me = me;
         if (profiles.exists(me)) {
@@ -488,12 +518,24 @@ class CombatModel {
         fight.add(e, info);
         if (fight.category == HistoryCatalog.HistoryCategory.OTHER && fight.targetDummy)
             fight.category = HistoryCatalog.HistoryCategory.DUMMY;
-        if (e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0
+        var dungeonEncounter = applyDungeonBoss(fight);
+        if (!dungeonEncounter && e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0
             && ((fight.bossFlags & 0x10) == 0 || (e.bossFlags & 0x10) != 0)) {
             fight.bossFlags = e.bossFlags;
             fight.bossKind = e.bossKind;
             fight.bossUid = e.target;
             fight.bossName = e.bossName != null && e.bossName != "" ? e.bossName : e.bossKind;
+        }
+        // Honeyzabeth cannot be hit during her opening miniboss phases. The
+        // dungeon's KillBoss objective owns the whole attempt from its first
+        // ordinary combat damage, including wipes before she becomes hittable.
+        // Do not let a miniboss's flags, name or death replace the final boss.
+        if (dungeonEncounter) {
+            if (e.effect != 1 && e.bossKind == dungeonBoss.kind && e.summoned != true) {
+                fight.bossUid = e.target; fight.bossLevel = e.bossLevel; fight.bossFoeId = e.bossFoeId;
+                if (e.bossName != null && e.bossName != "") fight.bossName = e.bossName;
+            }
+            if (fight.bossUid != "") fight.targets[fight.bossUid] = true;
         }
     }
     function finishCurrent(now:Float):Void {

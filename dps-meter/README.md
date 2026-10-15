@@ -472,6 +472,12 @@ and being revived resumes the same chart. The fight ends when everyone leaves
 combat or the party wipes. Players in other instances and dead teammates cannot
 keep it open; party combat alone does not start a new fight while you are idle.
 
+Honeyzabeth's Hivetrunk includes the opening miniboss phases in Queen Honeyzabeth's
+encounter. It uses the usual first-damage/combat-entry rule; entering the dungeon,
+combat flags alone, and pre-fight healing do not start the timer. Her active combat
+state keeps the same attempt running between miniboss phases, even before she can
+be hit. Only the queen's death counts as victory; an earlier wipe remains a defeat.
+
 Chakram's opening health bar appears in the live meter with its own damage and
 timer, including normal visibility while fighting. This temporary chart is never
 saved or uploaded. New Chakram recordings begin with damage after **Surrendering

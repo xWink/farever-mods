@@ -8,6 +8,7 @@ class NativeCombatMetadata {
     static var activityTypes:Map<String, Int> = [];
     static var observed:Map<String, String> = [];
     static var observedBosses:Map<String, String> = [];
+    static var dungeonBosses:Map<String, String> = [];
     static var warned:Bool = false;
     static var dummyGroup:Null<Int>;
     public static function isTargetDummy(inf:Dynamic):Bool {
@@ -53,10 +54,17 @@ class NativeCombatMetadata {
                 }
             }
             var result = HistoryCategory.fromObjectives(false, true, ready, clearFoes);
+            if (bosses.length == 1) dungeonBosses[id] = bosses[0];
+            else if (bosses.length > 1) dungeonBosses.remove(id);
             if (result != HistoryCategory.OTHER) observed[id] = result;
             for (boss in bosses) HistoryCategory.observeBoss(observedBosses, boss, result);
             return observed.exists(id) ? observed[id] : result;
         } catch (e:Dynamic) { warn(e); return HistoryCategory.OTHER; }
+    }
+    /** Exact replicated dungeon objective, independent of translated names. */
+    public static function dungeonBoss(id:String):String {
+        var kind = dungeonBosses[id];
+        return kind == null ? "" : kind;
     }
     static function category(inf:Dynamic):String {
         if (inf == null) return HistoryCategory.OTHER;
