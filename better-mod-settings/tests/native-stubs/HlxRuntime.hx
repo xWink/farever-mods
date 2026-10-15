@@ -1,0 +1,53 @@
+import hlx.runtime.ResolvedMember;
+
+/** Minimal UI boundary for exercising the production secret-control callbacks. */
+class HlxRuntime {
+    public static function resolveType(name:String):String return name;
+    public static function resolveField(object:Dynamic, field:String):Dynamic return Reflect.field(object, field);
+    public static function setField(object:Dynamic, field:String, value:Dynamic):Void Reflect.setField(object, field, value);
+    public static function resolveMember(typeName:String, method:String):ResolvedMember return {typeName:typeName, method:method};
+    public static function resolveStaticMember(typeName:String, method:String):ResolvedMember return resolveMember(typeName, method);
+    public static function constructInstanceByName(typeName:String, count:Int, args:Array<Dynamic>):Dynamic {
+        return switch (typeName) {
+            case "h2d.Graphics":
+                var graphic:Dynamic = {commands:[]};
+                Reflect.setField(args[0], "graphic", graphic);
+                graphic;
+            case "h2d.filter.Nothing": {};
+            default: throw "Unexpected native construction: " + typeName;
+        };
+    }
+    public static function callResolved(member:ResolvedMember, args:Array<Dynamic>):Dynamic {
+        var object = args[0];
+        if (member.typeName == "h2d.Graphics") {
+            if (member.method == "clear") Reflect.setField(object, "commands", []);
+            else {
+                var commands:Array<Dynamic> = Reflect.field(object, "commands");
+                commands.push(member.method);
+            }
+            return null;
+        }
+        return switch (member.typeName + "." + member.method) {
+            case "domkit.Properties.createNew":
+                if (args[0] != "button") throw "Secret control must create a button";
+                var dom:Dynamic = {obj:{}, styles:{}, parent:args[1]};
+                var children:Array<Dynamic> = Reflect.field(args[1], "children");
+                children.push(dom);
+                dom;
+            case "domkit.Properties.initStyle":
+                Reflect.setField(Reflect.field(object, "styles"), args[1], args[2]);
+                null;
+            case "h2d.Flow.getProperties": {};
+            case "h2d.Object.setPosition":
+                Reflect.setField(object, "x", args[1]);
+                Reflect.setField(object, "y", args[2]);
+                null;
+            case "h2d.FlowProperties.set_isAbsolute", "h2d.filter.Filter.set_useScreenResolution",
+                 "h2d.filter.Filter.set_resolutionScale", "h2d.Object.set_filter",
+                 "ui.UIElement.set_onClick", "ui.UIElement.set_textTip":
+                Reflect.setField(object, member.method.substr(4), args[1]);
+                null;
+            default: throw "Unexpected native call: " + member.typeName + "." + member.method;
+        };
+    }
+}

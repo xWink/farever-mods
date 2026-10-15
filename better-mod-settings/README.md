@@ -137,7 +137,7 @@ the label and setting keep their usual behavior. Text is literal (no markup).
 | --- | --- | --- | --- |
 | `checkbox` | Boolean (`true` or `false`) | None | Represents a boolean only. A missing value is displayed as `false`. |
 | `slider` | Number | `min` (default `0`), `max` (default `100`), and `step` (default `1`), all numbers | Supply sensible bounds with `min <= max` and a positive `step`. A missing value starts at `min`. |
-| `text` | String | `placeholder` (default `""`) | Native single-line text field. Saves on each edit, including clearing to `""`, and publishes the usual config-change notification. BMS preserves the text exactly: no trimming, parsing, validation, or conversion to numbers/booleans. Missing or non-string values display as empty. Long text scrolls within the field. Placeholder text is only a hint and is never saved. |
+| `text` | String | `placeholder` (default `""`), `isSecret` (default `false`) | Native single-line text field. Saves on each edit, including clearing to `""`, and publishes the usual config-change notification. BMS preserves the text exactly: no trimming, parsing, validation, or conversion to numbers/booleans. Missing or non-string values display as empty. Long text scrolls within the field. Placeholder text is only a hint and is never saved. Secret fields add a reveal/hide eye button. |
 | `dropdown` | String | `options` (required, non-empty array of strings) | Native dropdown displaying options in the supplied order. Selecting an option saves its exact string, not its index, and publishes the usual config-change notification. A missing or unrecognized value displays the first option without writing the config merely by opening settings. Invalid descriptors are skipped and logged. |
 | `keybinding` | Integer key code, or `{ "code": 49, "modifier": 0 }` | Optional `modifiers: true` | Left-click to assign a key; right-click the assignment button to unbind it. Opted-in controls also accept one Ctrl, Shift, or Alt modifier, using Farever's key eligibility and modifier priority. `0` means **Not set**. Escape cancels capture. All hotkey activation stays suppressed until the assignment keys and modifiers have been released. |
 | `button` | None | `buttonText`, `colour`, `warning` | Sends an action event. No matching settings JSON property is needed or written. See below. |
@@ -165,6 +165,25 @@ stored; if several are held, Farever's priority is Ctrl, then Shift, then Alt.
 Key capture consumes keyboard and mouse-button events centrally, before `hxd.Key.onEvent` publishes them. BMS clears the previously published key state when the picker opens and keeps assignment input private. Native game actions and mods polling `hxd.Key.isPressed`, `isDown`, or `isReleased` (including inlined reads) therefore see no assignment input; they do not need individual capture guards. After assignment or Escape cancellation, protection remains until all keys/buttons are released and a quiet frame passes. The assigned key must be pressed again to activate its action. Closing the settings window cancels an unfinished assignment; leaving the game clears capture state. This covers Farever's key-state API, not separate operating-system or ImGui input backends.
 
 Mods interpret and validate text values themselves; for example, a mod can expose a hex colour as a string setting. Opening the settings window does not save or normalize text values.
+
+Set `"isSecret": true` on a text descriptor to display asterisks and an eye button:
+
+```json
+{
+  "key": "apiKey",
+  "type": "text",
+  "label": "API key",
+  "placeholder": "Enter API key",
+  "isSecret": true
+}
+```
+
+The eye starts closed whenever settings open or you return to a settings tab.
+Clicking it reveals the text; clicking again hides it. Visibility is never saved.
+Editing, selection, clipboard actions, undo/redo, and config-change notifications
+work like an ordinary text field. Toggling visibility does not save a setting or
+change its value. This masks the display only; the configuration still stores the
+original string.
 
 The current format does not provide color pickers, nested settings values, collapsible groups, conditional controls, or settings that span multiple JSON properties.
 
@@ -272,3 +291,26 @@ and populated with `pushDyn`. The dialog API requires `ArrayObj`; passing a mod'
 `Array<Dynamic>` directly produces `ArrayDyn` and fails before the popup opens.
 
 Text tests run on the interpreter and HashLink. The HashLink test reproduces the native string identity mismatch, checks that values serialize as JSON strings, and covers Unicode, whitespace, empty input, numeric-looking text, reopening, and malformed old records.
+
+Secret-field checks run on the interpreter and HashLink. A stub native UI drives
+the actual eye-button callbacks and checks default masking, independent toggles,
+tab changes, reopening, and unchanged text, cursor, selection, and undo state.
+Text conversion tests cover Unicode and saving the original string. The mask is
+applied after the native text-layout method and only to registered secret inputs.
+Final eye-button appearance and editing behavior still require in-game confirmation.
+
+## Runtime-bound settings
+
+A text, button, or status descriptor can opt into `"binding": true`. The mod
+registers an object at `hlx.runtime.Registry` bucket
+`better-mod-settings/bindings`, key `<mod-id>/<setting-key>`. Text/status bindings
+supply `value`; text bindings supply `onChange(value):Bool`; text/button bindings
+may set `enabled`. A `"type": "status"` row displays read-only, wrapping text.
+BMS refreshes these controls while the page is open. Runtime strings are rewrapped
+into BMS before use across module boundaries.
+
+Bound text is never written through BMS's ordinary config path, even when its
+provider is missing. This allows a secret field to use a separate, protected
+shared credential file without duplicating the key in exported mod settings.
+The provider owns persistence and validation; secrets still use `isSecret` and
+start masked each time settings open.

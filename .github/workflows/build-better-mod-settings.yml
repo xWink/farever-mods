@@ -61,6 +61,8 @@ jobs:
           mkdir -p build
           haxe -cp src -cp ../shared/src -cp tests -main TextSettingTest -hl build/text-setting-test.hl
           ../.text-hashlink/hl build/text-setting-test.hl
+          haxe -cp src -cp tests -cp tests/native-stubs -main SecretTextTest -hl build/secret-text-test.hl
+          ../.text-hashlink/hl build/secret-text-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main DropdownSettingTest -hl build/dropdown-setting-test.hl
           ../.text-hashlink/hl build/dropdown-setting-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main KeyCaptureInputTest -hl build/key-capture-input-test.hl

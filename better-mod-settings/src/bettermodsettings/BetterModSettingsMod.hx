@@ -105,6 +105,14 @@ class BetterModSettingsMod {
 
     static function main():Void {}
 
+    @:hlx.postfix(h2d.TextInput.splitRawText)
+    static function maskSecretText(instance:Dynamic, text:String, leftMargin:hl.Ref<Float>, afterData:hl.Ref<Float>,
+        font:Dynamic, sizes:Dynamic, prevChar:Null<Int>, result:String):String {
+        // Preserve native layout and editing. Only the displayed string changes;
+        // TextInput.text remains the original value used by onChange and undo.
+        return NativeSecretText.display(instance, result);
+    }
+
     @:hlx.prefix(lib.Input.checkInput)
     static function protectNativeInput(key:String, checkKey:Dynamic, checkPad:Dynamic):HlxPrefixResult<Bool> {
         // Native input callbacks inline hxd.Key reads, so protect this entry point too.
@@ -140,6 +148,8 @@ class BetterModSettingsMod {
         if (nativeSettingsWindow == null
             || HlxRuntime.resolveField(nativeSettingsWindow, "allocated") != true) {
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
+            NativeSettingBinding.clear();
             NativeSettingTooltip.hide();
             if (capturingKeybind != null) {
                 capturingKeybind = null;
@@ -166,6 +176,8 @@ class BetterModSettingsMod {
     @:hlx.prefix(GameApp.dispose)
     static function resetKeyCapture(instance:Dynamic):HlxPrefixResult<Void> {
         NativeDropdown.closeAll(true);
+        NativeSecretText.hideAll(true);
+        NativeSettingBinding.clear();
         NativeSettingTooltip.reset();
         capturingKeybind = null;
         captureInput.reset();
@@ -206,6 +218,7 @@ class BetterModSettingsMod {
         refreshPendingTabPagination();
         flushSettingsNotifications();
         flushButtonActions();
+        NativeSettingBinding.refresh();
     }
 
     @:hlx.prefix(ui.win.BaseWindow.closeSelfOnOpen)
@@ -360,6 +373,8 @@ class BetterModSettingsMod {
             }
 
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
+            NativeSettingBinding.clear();
             // TitleWindow auto-displays before its constructor returns. The
             // prefix above must be active during that call so BaseUI keeps the
             // EscapeMenu beside this companion window.
@@ -405,6 +420,8 @@ class BetterModSettingsMod {
         } catch (error:Dynamic) {
             openingNativeSettingsWindow = false;
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
+            NativeSettingBinding.clear();
             nativeSettingsWindow = null;
             trace("[BetterModSettings] Could not open native settings window: " + Std.string(error));
         }
@@ -822,6 +839,7 @@ class BetterModSettingsMod {
     ):Void {
         // The native dropdown list lives in a separate window, outside its tab.
         NativeDropdown.closeAll();
+        NativeSecretText.hideAll();
         NativeSettingTooltip.hide();
         if (h2dObjectType == null)
             h2dObjectType = HlxRuntime.resolveType("h2d.Object");
@@ -872,7 +890,19 @@ class BetterModSettingsMod {
             }
             var settingParent = createOptionRow(parentProperties, label, index, SettingTooltip.text(definition));
 
-            if (type == "checkbox") {
+            var bound = Reflect.field(definition, "binding") == true;
+            var modId = stringField(mod, "id", "");
+            if (type == "status") {
+                var props = HlxRuntime.callResolved(createNewMember, ["text", settingParent,
+                    [NativeSettingBinding.read(modId, key)], {id:"setting" + index}]);
+                prepareSettingControl(settingParent, props, false);
+                var text = props == null ? null : HlxRuntime.resolveField(props, "obj");
+                if (text != null) {
+                    applyInlineStyle(props, "max-width", 300);
+                    HlxRuntime.callResolved(HlxRuntime.resolveMember(HlxRuntime.resolveType("ui.comp.FmtText"), "set_textMultiline"), [text, true]);
+                    NativeSettingBinding.track(modId, key, text, "status");
+                }
+            } else if (type == "checkbox") {
                 var checked = boolValue(Reflect.field(mod, "values"), key, false);
                 var checkProperties:Dynamic = HlxRuntime.callResolved(createNewMember, [
                     "check-box",
@@ -948,9 +978,12 @@ class BetterModSettingsMod {
                     var hint = HlxRuntime.resolveField(box, "inputHint");
                     if (hint != null)
                         applyInlineStyle(HlxRuntime.resolveField(hint, "dom"), "color", 0xE0D8CD);
+                    if (TextSetting.isSecret(definition))
+                        prepareSettingControl(settingParent, NativeSecretText.attach(settingParent, input, "settingSecret" + index), false);
                     var setText = HlxRuntime.resolveMember(HlxRuntime.resolveType("h2d.TextInput"), "set_text");
                     HlxRuntime.callResolved(setText, [input,
-                        TextSetting.storedValue(Reflect.field(Reflect.field(mod, "values"), key))]);
+                        bound ? NativeSettingBinding.read(modId, key) : TextSetting.storedValue(Reflect.field(Reflect.field(mod, "values"), key))]);
+                    if (bound) NativeSettingBinding.track(modId, key, input, "text");
                     var setHint = HlxRuntime.resolveMember(HlxRuntime.resolveType("ui.comp.InputBox"), "set_hintText");
                     HlxRuntime.callResolved(setHint, [box, stringField(definition, "placeholder", "")]);
                     var targetMod = mod;
@@ -1001,6 +1034,7 @@ class BetterModSettingsMod {
                 prepareSettingControl(settingParent, properties, false);
                 var button = properties == null ? null : HlxRuntime.resolveField(properties, "obj");
                 if (button != null) {
+                    if (bound) NativeSettingBinding.track(modId, key, button, "button");
                     try NativeActionButton.style(properties, action.colour)
                     catch (error:Dynamic) trace("[BetterModSettings] Could not style action: " + Std.string(error));
                     HlxRuntime.callResolved(setOnClickMember, [button, function():Void {
@@ -2287,6 +2321,9 @@ class BetterModSettingsMod {
 
     static function saveSetting(mod:Dynamic, key:String, value:Dynamic):Bool {
         try {
+            var definitions:Array<Dynamic> = cast Reflect.field(mod, "definitions");
+            for (definition in definitions) if (Reflect.field(definition, "key") == key && Reflect.field(definition, "binding") == true)
+                return NativeSettingBinding.save(stringField(mod, "id", ""), key, value);
             var settingsPath = Std.string(Reflect.field(mod, "settingsPath"));
             var values:Dynamic = Json.parse(File.getContent(settingsPath));
             Reflect.setField(values, key, value);

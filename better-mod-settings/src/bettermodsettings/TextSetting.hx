@@ -2,6 +2,15 @@ package bettermodsettings;
 
 /** Text crossing the game/module boundary must acquire the mod's String identity. */
 class TextSetting {
+    public static function isSecret(definition:Dynamic):Bool return Reflect.field(definition, "isSecret") == true;
+    public static function mask(text:String):String {
+        var masked = new StringBuf();
+        // HashLink indexes text in UTF-16 units, including surrogate pairs.
+        // Preserve those offsets without exposing any original characters.
+        for (i in 0...text.length) masked.addChar(42);
+        return masked.toString();
+    }
+
     public static function nativeValue(value:Dynamic):String {
         if (value == null) return "";
         #if hl

@@ -23,6 +23,12 @@
 --interp
 --next
 -cp src
+-cp tests
+-cp tests/native-stubs
+-main SecretTextTest
+--interp
+--next
+-cp src
 -cp ../shared/src
 -cp tests
 -main DropdownSettingTest
