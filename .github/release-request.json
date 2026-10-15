@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.10.0",
-  "commit": "269605453351b69ca1319a7050303cc1013c917b",
-  "notes": "- Added 3 most recent reports to the home page of Fight History\n- Added Detailed Reports to all fights, allowing ultra-detailed analysis of any fight\n",
+  "project": "more-settings",
+  "version": "1.19.0",
+  "commit": "1059c53696a346e9d3eef8e92ea2eec674af9e3a",
+  "notes": "- Added a new setting to enable message timestamps\n- Added new settings to hide your own VFX",
   "dry_run": false
 }
