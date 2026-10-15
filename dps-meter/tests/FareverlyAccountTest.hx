@@ -59,10 +59,21 @@ class FareverlyAccountTest {
         calls = 0;
         flow = new AuthFlow((m,u,b,t) -> ++calls == 1 ? device() : complete("other-account"), () -> now);
         flow.begin("test-account", false, entropy()); flow.step(); now += 5; flow.step(); check(!flow.active && flow.credential == null && flow.message.indexOf("another Farever account") >= 0, "Mismatched credential cannot be saved");
-        for (code in ["access_denied", "already_linked", "account_not_linked", "account_conflict", "invalid_grant", "already_consumed", "invalid_request"]) {
+        for (code in ["access_denied", "account_not_linked", "account_conflict", "invalid_grant", "already_consumed", "invalid_request"]) {
             flow = new AuthFlow((m,u,b,t) -> response(409, {error:code, message:"Do not echo private server text"}), () -> now);
             flow.begin("test-account", false, entropy()); flow.step();
             check(!flow.active && flow.message == Protocol.error(code) && flow.message.indexOf("private") < 0, "Server error is terminal and has a safe English explanation");
+        }
+        for (rotate in [false, true]) {
+            calls = 0; var actions:Array<String> = [];
+            flow = new AuthFlow((m,u,b,t) -> {
+                calls++; actions.push(Json.parse(b.toString()).action);
+                return calls == 1 ? response(409, {error:rotate ? "account_not_linked" : "already_linked"}, "7") : device();
+            }, () -> now);
+            flow.begin("test-account", rotate, entropy()); flow.step();
+            now += 6; flow.step(); check(calls == 1, "Generate Key fallback respects Retry-After");
+            now++; flow.step();
+            check(calls == 2 && flow.active && flow.verificationUri == uri && actions[0] != actions[1], "One button handles signup and lost-key rotation with fresh browser approval");
         }
         calls = 0; flow = new AuthFlow((m,u,b,t) -> {calls++; return response(503, {});}, () -> now, () -> 0);
         flow.begin("test-account", false, entropy());
@@ -87,7 +98,7 @@ class FareverlyAccountTest {
         };
         var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.enqueue(RecoveryTest.fixture()); queue.step(); check(calls == 0, "Missing key pauses without any network request");
-        value = credential(); queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate new key") >= 0, "401 pauses and offers regeneration");
+        value = credential(); queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate Key") >= 0, "401 pauses and offers regeneration");
         now += 1000; queue.step(); check(posts == 1, "Invalid key is not retried");
         queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.step(); check(posts == 1, "401 pause survives restart");
@@ -103,7 +114,7 @@ class FareverlyAccountTest {
         RecoveryTest.remove(root);
         root += "-forbidden"; value = credential();
         queue = new FareverlyUploader(root, (m,u,b,t) -> m == "GET" ? response(200, {encounters:[{bossKind:"TestBoss",category:"boss-dungeons",ranked:true}]}) : response(403, {error:"account_mismatch"}), _ -> {}, () -> now, () -> 0, () -> value);
-        queue.enqueue(RecoveryTest.fixture()); queue.step(); check(queue.authMessage.indexOf("Customer support") >= 0 && FileSystem.exists(queue.reportPath("offline-test")), "403 explains the mismatch and preserves local log");
+        queue.enqueue(RecoveryTest.fixture()); queue.step(); check(queue.authMessage.indexOf("another Farever account") >= 0 && FileSystem.exists(queue.reportPath("offline-test")), "403 explains the mismatch and preserves local log");
         RecoveryTest.remove(root);
     }
     static function diagnostics():Void {

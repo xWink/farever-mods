@@ -116,3 +116,10 @@
 -cp tests
 -main FareverlyAccountTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main FareverlyLocalImportTest
+--interp

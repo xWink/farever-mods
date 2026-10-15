@@ -16,6 +16,7 @@ class BetterModSettingsMod {
     static var activeEscapeMenu:Dynamic;
     static var modSettingsButton:Dynamic;
     static var nativeSettingsWindow:Dynamic;
+    static var nativeSettingsTabs:Dynamic;
     static var openingNativeSettingsWindow:Bool = false;
     static var compatibleMods:Array<Dynamic> = [];
     static var pendingSettingsNotifications:Map<String, Bool> = new Map();
@@ -412,8 +413,10 @@ class BetterModSettingsMod {
             pendingTabLabels = [];
             labelStyleFramesRemaining = 0;
 
+            nativeSettingsTabs = null;
             discoverCompatibleMods();
             buildSettingsContent(windowProperties);
+            if (nativeSettingsTabs != null) NativeSettingsChrome.layout(nativeSettingsWindow, nativeSettingsTabs);
             displayNativeSettingsWindow();
 
         } catch (error:Dynamic) {
@@ -645,6 +648,7 @@ class BetterModSettingsMod {
         HlxRuntime.setField(windowProperties, "contentRoot", bodyContentRoot);
         if (tabs == null)
             return;
+        nativeSettingsTabs = HlxRuntime.resolveField(tabs, "obj");
         increaseHorizontalSpacing(tabs, 20);
         prepareTabSizing(tabs);
         var previousPageArrow = createTabPageArrow(

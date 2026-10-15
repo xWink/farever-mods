@@ -48,7 +48,8 @@ class NativeHistoryWindow {
     var snapshotButton:Dynamic;
     var fareverlyButton:NativeFareverlyButton;
     var fareverlyOpen = new FareverlyOpen();
-    var fareverlyBrowser = new FareverlyBrowser();
+    var fareverlyImport = new FareverlyLocalImport();
+    var fareverlyRecord:Dynamic;
     var fareverlyAvailable = false;
     var fareverlyMessage = "";
     var modeButton:MeterModeButton;
@@ -129,7 +130,7 @@ class NativeHistoryWindow {
         }
     }
     function navigate(mode:String, group:String, page:Int, ?entry:HistoryEntry):Void {
-        fareverlyOpen.select(""); fareverlyAvailable = false; fareverlyMessage = "";
+        fareverlyOpen.select(""); fareverlyRecord = null; fareverlyAvailable = false; fareverlyMessage = "";
         show(fareverlyButton.object, false);
         recap = null; recapView.setRecap(null); show(recapView.object, false);
         detailed.visible(false); show(detailedButton, false);
@@ -220,7 +221,8 @@ class NativeHistoryWindow {
             width = 0;
             show(deleteButton, true); show(snapshotButton, true); show(modeButton.object, true);
             show(detailedButton, true);
-            fareverlyAvailable = true;
+            fareverlyRecord = response.record;
+            fareverlyAvailable = fight != null && recap == null;
             fareverlyOpen.select(fareverlyAvailable ? selectedEntry.id : "");
             show(fareverlyButton.object, true);
             fareverlyButton.update(fareverlyOpen.busy(haxe.Timer.stamp()), fareverlyAvailable, haxe.Timer.stamp());
@@ -268,11 +270,11 @@ class NativeHistoryWindow {
         var now = haxe.Timer.stamp(), url = fareverlyOpen.begin(now);
         if (url == "") return;
         fareverlyMessage = ""; status(""); fareverlyButton.update(true, true, now);
-        try fareverlyBrowser.open(url) catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
+        try fareverlyImport.open(fareverlyRecord) catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
     }
     function updateFareverly(now:Float):Void {
         if (fareverlyOpen.opening) try {
-            if (fareverlyBrowser.poll()) fareverlyOpen.opened(now);
+            if (fareverlyImport.poll()) fareverlyOpen.opened(now);
         } catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
         fareverlyButton.update(fareverlyOpen.busy(now), fareverlyAvailable && !pending && !copying, now);
         if (fareverlyMessage != fareverlyOpen.message) {
@@ -720,7 +722,7 @@ class NativeHistoryWindow {
         return true;
     }
     public function dispose():Void {
-        fareverlyOpen.select(""); fareverlyAvailable = false; fareverlyMessage = "";
+        fareverlyOpen.select(""); fareverlyRecord = null; fareverlyAvailable = false; fareverlyMessage = "";
         finishDrag();
         dragSurface = null;
         if (options != null) { options.close(); options = null; }

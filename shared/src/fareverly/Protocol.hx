@@ -13,7 +13,13 @@ class Protocol {
     public static function connectUrl(value:String):Bool
         return value != null && ~/^https:\/\/fareverly\.com\/connect\/[a-f0-9]{8}-([a-f0-9]{4}-){3}[a-f0-9]{12}$/.match(value);
     public static function browserUrl(value:String):Bool
-        return value == ORIGIN + "/analyze" || value == ORIGIN + "/contact" || connectUrl(value);
+        return value == ORIGIN + "/analyze" || value == ORIGIN + "/contact" || connectUrl(value) || localUrl(value);
+    public static function localUrl(value:String):Bool {
+        var pattern = ~/^https:\/\/fareverly\.com\/analyze#desktop=v1\.([0-9]{1,5})\.[a-f0-9]{64}$/;
+        if (value == null || !pattern.match(value)) return false;
+        var port = Std.parseInt(pattern.matched(1));
+        return port != null && port >= 1024 && port <= 65535;
+    }
     public static function base64url(bytes:Bytes):String
         return StringTools.replace(StringTools.replace(haxe.crypto.Base64.encode(bytes, false), "+", "-"), "/", "_");
     public static function challenge(verifier:String):String return base64url(haxe.crypto.Sha256.make(Bytes.ofString(verifier)));
@@ -39,15 +45,15 @@ class Protocol {
         } catch (_:Dynamic) return 0;
     }
     public static function error(code:String):String return switch (code) {
-        case "already_linked": "This account is already linked. Choose Generate new key.";
-        case "account_not_linked": "This account is not linked yet. Choose Sign in through Steam.";
-        case "account_conflict": "This Steam or Farever account is linked to another account. Choose Customer support.";
-        case "account_mismatch": "The Fareverly key belongs to another Farever account. Choose Customer support.";
-        case "already_consumed": "The key was already delivered. Choose Generate new key if it was not saved.";
+        case "already_linked": "This account is already linked. Choose Generate Key.";
+        case "account_not_linked": "This account is not linked yet. Choose Generate Key.";
+        case "account_conflict": "This Steam or Farever account is linked to another account. Contact Fareverly support.";
+        case "account_mismatch": "The Fareverly key belongs to another Farever account. Contact Fareverly support.";
+        case "already_consumed": "The key was already delivered. Choose Generate Key if it was not saved.";
         case "invalid_grant", "request_expired": "The sign-in request expired or is invalid. Start again.";
         case "access_denied": "Steam sign-in was declined.";
         case "invalid_request": "Fareverly rejected the sign-in request format. Please report this error.";
-        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Generate new key.";
+        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Generate Key.";
         default: "Fareverly sign-in is unavailable. Please try again later.";
     }
 }

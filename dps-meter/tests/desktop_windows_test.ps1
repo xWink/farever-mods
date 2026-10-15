@@ -55,6 +55,11 @@ $playAudio = [DesktopTest]::Bind($module, 'hlp_play_audio', 'PBiiid_i', [Desktop
 $updateAudio = [DesktopTest]::Bind($module, 'hlp_update_audio', 'Pd_i', [DesktopTest+UpdateAudio])
 $stopAudio = [DesktopTest]::Bind($module, 'hlp_stop_audio', 'P_i', [DesktopTest+AudioAction])
 $disposeAudio = [DesktopTest]::Bind($module, 'hlp_dispose_audio', 'P_i', [DesktopTest+AudioAction])
+$openUrl = [DesktopTest]::Bind($module, 'hlp_open_url', 'PBi_i', [DesktopTest+PathAction])
+foreach ($badUrl in @('https://example.invalid/', 'https://fareverly.com.evil/analyze', 'https://fareverly.com/analyze&calc', 'file:///C:/Windows/System32/cmd.exe')) {
+    $urlBytes = [Text.Encoding]::UTF8.GetBytes($badUrl)
+    if ($openUrl.Invoke($urlBytes, $urlBytes.Length) -ne 87) { throw 'Unsafe browser URL accepted' }
+}
 # Offline checks: no Steam requests or production combat reports.
 $random = [DesktopTest]::Bind($module, 'hlp_secure_random', 'PBi_i', [DesktopTest+PathAction])
 $writeCredential = [DesktopTest]::Bind($module, 'hlp_write_credential', 'PBiBi_i', [DesktopTest+WriteCredential])

@@ -34,10 +34,6 @@ class DpsMeterMod {
         readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
         fareverlyAccount = new NativeFareverlyAccount();
-        Bus.subscribe("better-mod-settings/action/" + HlxRuntime.moduleName() + "/fareverlyRetry", (_:Dynamic) -> {
-            if (config.sendLogs) writer.retryFareverly();
-            fareverlyAccount.uploadMessage(config.sendLogs ? "Failed submissions queued for a bounded background retry." : "Enable combat log uploads before retrying submissions.");
-        });
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
     static function reloadConfig():Void {

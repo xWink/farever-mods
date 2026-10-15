@@ -9,7 +9,7 @@ import sys.thread.Lock;
 import sys.thread.Thread;
 
 private typedef AccountCommand = {kind:String, account:String, key:String, rotate:Bool, generation:Int};
-typedef AccountEvent = {generation:Int, active:Bool, message:String, code:String, account:String, url:String, credential:Credential};
+typedef AccountEvent = {generation:Int, active:Bool, manualResult:Bool, message:String, code:String, account:String, url:String, credential:Credential};
 
 /** Separate from the upload queue so a slow ranked request cannot stall sign-in. */
 class FareverlyAccountWorker {
@@ -28,6 +28,7 @@ class FareverlyAccountWorker {
     var transport:FareverlyHttp;
     var requestedGeneration = 0;
     var generation = 0;
+    var manualResult = false;
     public function new() Thread.create(run);
     public function start(account:String, rotate:Bool):Int { var id = ++requestedGeneration; commands.add({kind:"start", account:account, rotate:rotate, key:"", generation:id}); wake.release(); return id; }
     public function edit(account:String, key:String):Void { commands.add({kind:"edit", account:account, rotate:false, key:key, generation:requestedGeneration}); wake.release(); }
@@ -41,11 +42,11 @@ class FareverlyAccountWorker {
         }
     }
     function emit():Void {
-        var value:AccountEvent = {generation:generation, active:flow.active, message:flow.active ? flow.message : status,
+        var value:AccountEvent = {generation:generation, active:flow.active, manualResult:manualResult, message:flow.active ? flow.message : status,
             code:flow.userCode, account:flow.accountId, url:flow.verificationUri, credential:credential};
         var signature = haxe.Json.stringify(value);
         if (signature == lastEvent) return;
-        lastEvent = signature; events.add(value);
+        lastEvent = signature; events.add(value); manualResult = false;
     }
     function run():Void {
         transport = new FareverlyHttp(progress);
@@ -84,7 +85,7 @@ class FareverlyAccountWorker {
                         status = value.accessToken == "" ? "Sign in through Steam to connect Fareverly." : "Fareverly key loaded.";
                     }
                 }
-                if (manualKey != null && haxe.Timer.stamp() >= manualAt) saveManual();
+                if (manualKey != null && haxe.Timer.stamp() >= manualAt) { manualResult = true; saveManual(); }
                 var wasActive = flow.active;
                 flow.step();
                 if (wasActive && !flow.active) status = flow.message;

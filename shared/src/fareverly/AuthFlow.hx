@@ -18,6 +18,7 @@ class AuthFlow {
     var verifier = "";
     var deviceCode = "";
     var action = "link";
+    var switchedAction = false;
     var nextRequest:Float = 0;
     var interval:Float = 5;
     var failures = 0;
@@ -27,7 +28,7 @@ class AuthFlow {
     public function begin(account:String, rotate:Bool, entropy:Bytes):Void {
         if (active) throw "Steam sign-in is already in progress.";
         if (!Protocol.validAccount(account) || entropy == null || entropy.length != 32) throw "A local Farever account and secure random verifier are required.";
-        accountId = account; action = rotate ? "rotate" : "link";
+        accountId = account; action = rotate ? "rotate" : "link"; switchedAction = false;
         verifier = Protocol.base64url(entropy); entropy.fill(0, entropy.length, 0);
         deviceCode = ""; userCode = ""; verificationUri = ""; credential = null;
         failures = 0; interval = 5; active = true; nextRequest = clock(); expiresAt = clock() + 600;
@@ -83,6 +84,13 @@ class AuthFlow {
             }
             credential = {accessToken:data.access_token, accountId:data.account_id, steamId:data.steam_id, expiresAt:data.expires_at};
             finish("Steam sign-in approved. Saving your key..."); return;
+        }
+        // One Generate Key action covers first signup and replacement of a lost
+        // key. Both still require a fresh Steam approval; no key is changed here.
+        if (starting && response.status == 409 && !switchedAction && data != null
+            && ((action == "link" && data.error == "already_linked") || (action == "rotate" && data.error == "account_not_linked"))) {
+            action = action == "link" ? "rotate" : "link"; switchedAction = true;
+            nextRequest = now + Math.max(5, Protocol.retryAfter(response.retryAfter, now)); return;
         }
         if (response.status == 0 || response.status == 429 || response.status >= 500) {
             failures++;

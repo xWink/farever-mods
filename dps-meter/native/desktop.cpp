@@ -32,6 +32,7 @@ static bool path_from_utf8(const char *bytes, int length, std::wstring &path) {
 }
 
 #include "fareverly_account.h"
+#include "fareverly_browser.h"
 
 static int open_folder(const char *bytes, int length) {
     std::wstring path;
@@ -149,3 +150,4 @@ EXPORT void *hlp_dispose_audio(const char **signature) { *signature = "P_i"; ret
 
 EXPORT void *hlp_secure_random(const char **signature) { *signature = "PBi_i"; return reinterpret_cast<void *>(&secure_random); }
 EXPORT void *hlp_write_credential(const char **signature) { *signature = "PBiBi_i"; return reinterpret_cast<void *>(&write_credential); }
+EXPORT void *hlp_open_url(const char **signature) { *signature = "PBi_i"; return reinterpret_cast<void *>(&open_fareverly_url); }

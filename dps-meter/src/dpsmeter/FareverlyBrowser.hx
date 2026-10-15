@@ -8,11 +8,22 @@ class FareverlyBrowser {
     final launch:String->Int;
     var active = false;
     public function new(?launch:String->Int) this.launch = launch == null ? openWindows : launch;
-    static function openWindows(url:String):Int {
+    public static function openWindows(url:String):Int {
         if (Sys.systemName() != "Windows") throw "Opening Fareverly requires Windows.";
-        // Only fixed Fareverly pages and UUID connect paths pass validation.
-        return Sys.command('start "" "' + url + '"');
+        if (!fareverly.Protocol.browserUrl(url)) throw "This Fareverly address is unavailable.";
+        #if hl
+        var bytes = haxe.io.Bytes.ofString(url);
+        var result = openNative(bytes, bytes.length);
+        if (result == -1) throw "Install the complete DPS Meter update, including its desktop plugin.";
+        return result;
+        #else
+        throw "Opening Fareverly requires the Windows desktop plugin.";
+        #end
     }
+    #if hl
+    @:hlNative("?dps_meter_desktop", "open_url")
+    static function openNative(bytes:hl.Bytes, length:Int):Int return -1;
+    #end
     public function open(url:String):Void {
         if (url == null || url == "" || url.length > 2048 || !fareverly.Protocol.browserUrl(url))
             throw "This Fareverly address is unavailable.";

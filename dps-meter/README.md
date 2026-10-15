@@ -552,22 +552,31 @@ live gate phase and both recap views, and survive log saving. Older logs with no
 recorded count leave it unspecified.
 
 The **Fareverly logo button**, immediately to the right of the snapshot button,
-opens `https://fareverly.com/analyze` in your browser. It works for any opened log,
-including practice and defeats, with uploads disabled and without an account.
-Load a local JSON log on that page. The button never submits to rankings, retries
-ranked submissions, looks up a ranked report, or creates a share link. A spinner
-and disabled button cover the asynchronous browser handoff, with a short cooldown
-to prevent repeated tabs. Browser activation stays off the game thread.
+opens Fareverly's analyzer and automatically loads the selected local JSON as a
+local report preview, including practice fights and defeats. No account or upload
+toggle is needed. Combined recaps are unsupported by Fareverly and disable this
+button. It never submits to rankings, retries ranked submissions, looks up a ranked
+report, or creates a share link. A spinner and disabled button cover the import,
+with a short cooldown to prevent repeated tabs.
+
+The handoff runs off the game thread, binds only `127.0.0.1`, and serves one
+selected JSON (up to 5 MiB) through a random one-use token. Only Fareverly's origin
+is accepted. It closes after delivery or 90 seconds; no file paths or API keys
+are exposed. The browser removes the temporary fragment before importing, and
+responses are never cached. Some browsers ask once for local-connection
+permission. If denied or expired, allow the connection and click the button again.
+Browser activation uses Windows ShellExecute directly, with no terminal process.
 
 ### Steam sign-in
 
 In **General**, **Upload combat logs to Fareverly** follows **Enabled**. Below it,
 the **Fareverly API key** textbox is empty by default and masked until its eye is
-opened. Choose **Sign in through Steam** for initial signup, or **Generate new key**
-to replace a lost, expired, or exposed key. Both open the normal browser; the mod
-never asks for a Steam password. Match the displayed verification code and Farever
-account ID before approving. **Cancel sign-in** stops polling, and **Customer
-support** opens Fareverly's support page for account conflicts.
+opened. **Generate Key** handles both initial signup and replacement of a lost,
+expired, or exposed key, using a fresh Steam sign-in in your normal browser. The
+mod never asks for a Steam password. A temporary sign-in dialog shows the code
+and Farever account ID to match before approving, and lets you cancel. Results
+appear in a dialog and the secret textbox refreshes after the key is saved.
+General contains no separate help, retry, status, replacement, or pending rows.
 
 Device authorization uses a Windows cryptographically secure 32-byte verifier
 and S256 PKCE. Polling runs on a separate worker at least five seconds apart,
