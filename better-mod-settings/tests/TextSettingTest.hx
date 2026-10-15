@@ -48,16 +48,6 @@ class TextSettingTest {
         eq(old.length, 6, "Reproduces the customer's damaged record");
         eq(TextSetting.storedValue(old), "", "Damaged records reopen as editable empty fields");
         #end
-        eq(TextSetting.isSecret({isSecret:true}), true, "Boolean isSecret enables masking");
-        for (definition in ([{}, {isSecret:false}, {isSecret:"true"}, {isSecret:1}]:Array<Dynamic>))
-            eq(TextSetting.isSecret(definition), false, "Ordinary textboxes stay ordinary");
-        eq(TextSetting.mask(""), "", "Empty secrets stay empty");
-        eq(TextSetting.mask("a b-12"), "******", "Secret mask covers spaces and punctuation");
-        eq(TextSetting.mask("ab\r\ncd"), "**\r\n**", "Mask preserves native line boundaries");
-        var unicode = "café 日本語 🎨";
-        var masked = TextSetting.mask(unicode);
-        eq(masked.length, unicode.length, "Mask preserves native character indexing");
-        eq(masked.split("*").join(""), "", "Unicode secrets expose no original characters");
         Sys.println('Text settings: $checks checks passed.');
     }
 }

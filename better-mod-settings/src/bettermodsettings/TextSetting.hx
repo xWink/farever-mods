@@ -2,16 +2,6 @@ package bettermodsettings;
 
 /** Text crossing the game/module boundary must acquire the mod's String identity. */
 class TextSetting {
-    public static function isSecret(definition:Dynamic):Bool return Reflect.field(definition, "isSecret") == true;
-    public static function mask(text:String):String {
-        var masked = new StringBuf();
-        for (i in 0...text.length) {
-            var code = text.charCodeAt(i);
-            masked.addChar(code == 10 || code == 13 ? code : 42);
-        }
-        return masked.toString();
-    }
-
     public static function nativeValue(value:Dynamic):String {
         if (value == null) return "";
         #if hl
