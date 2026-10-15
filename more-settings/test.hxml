@@ -91,6 +91,13 @@
 --next
 -cp src
 -cp ../shared/src
+-cp tests/social-stubs
+-cp tests
+-main ChatTimestampsTest
+--interp
+--next
+-cp src
+-cp ../shared/src
 -cp tests/chatbubble-stubs
 -cp tests
 -main SelfChatBubblesTest

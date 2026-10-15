@@ -2,7 +2,7 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-more-settings.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=more-settings%2Fv&expanded=true)
 
-Client settings for **Farever**: combat controls, chat filtering, boss health numbers, optional queue optimizations, a native Barbershop button, and separate ally presentation controls for rifts, dungeons, and the overworld. Previously called **More Audio Settings**.
+Client settings for **Farever**: combat controls, chat filtering, boss health numbers, optional performance improvements, a native Barbershop button, and separate own and allied presentation controls for rifts, dungeons, and the overworld. Previously called **More Audio Settings**.
 
 ## Settings
 
@@ -12,10 +12,10 @@ Open **More Settings** in [Better Mod Settings](../better-mod-settings/).
 | --- | --- | --- |
 | General | Performance improvements; Performance diagnostics; Leave dungeon button; Hide UI hotkey | Performance improvements and diagnostics off; leave dungeon button on; Hide UI defaults to F2 |
 | Combat | Fancy damage numbers; Show skill icons next to damage numbers; Disable damage numbers; Skill proc alerts; Skill proc alert size %; Skill proc alert position; Outline buff stack numbers; Show boss health; Keep Crabgantua rockfall warnings visible; Hide allied minion HP bars | Fancy numbers, skill icons, damage hiding, proc alerts, boss health and minion bar hiding off; Crabgantua warnings and buff stack outlines on; proc size 100%, position Right |
-| Social | Disable profanity filter; Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Enable friend notes; Wait for party to enter dungeon; Rebind social interact hotkey; Social interact hotkey; Show self chat bubbles | Profanity option on (imports previous preference); connection filtering, social rebind and self bubbles off; social key unassigned; commands, close after sending, notes and waiting for party on |
-| Rift Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
-| Dungeon Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
-| Overworld Effects | Hide ally attacks; Hide ally buffs; Hide allies | All off |
+| Social | Disable profanity filter; Hide friend connection notifications; Enable missing slash commands; Sending message closes chat; Add timestamp to messages; Enable friend notes; Wait for party to enter dungeon; Rebind social interact hotkey; Social interact hotkey; Show self chat bubbles | Profanity option on (imports previous preference); connection filtering, timestamps, social rebind and self bubbles off; social key unassigned; commands, close after sending, notes and waiting for party on |
+| Rift Effects | Hide ally attacks; Hide ally buffs; Hide allies; Hide own attacks; Hide own buffs | All off |
+| Dungeon Effects | Hide ally attacks; Hide ally buffs; Hide allies; Hide own attacks; Hide own buffs | All off |
+| Overworld Effects | Hide ally attacks; Hide ally buffs; Hide allies; Hide own attacks; Hide own buffs | All off |
 
 **Combat** appears directly below **General** and contains damage-number controls, **Skill proc alerts**, **Keep Crabgantua rockfall warnings visible**, and **Hide allied minion HP bars**. Quick cast and target-lock camera controls are available in **Fix Target Lock**.
 
@@ -61,6 +61,7 @@ Gradients span the placed glyph geometry, excluding the formatted text's blank l
 - **Hide friend connection notifications** hides friends' connected/disconnected system messages while their online status continues updating.
 - **Enable missing slash commands** adds `/invite <player>`, `/leave`, and `/w <player> [message]`. A bare `/w <player>` opens the whisper channel; including a message sends it. Names match exactly, ignoring case, from the current area, party, friends, or recent chat. Quote names containing spaces. Unknown or ambiguous names produce a chat error; failed whispers never fall through into public chat. Invites and leaving use the game's normal permission checks.
 - **Sending message closes chat** closes the textbox after Enter submits a message, returning control of the character even when the mouse is over chat. The submission's Enter press cannot reopen it. Selecting a whisper recipient without a message keeps the textbox open.
+- **Add timestamp to messages** shows local receipt time as `[HH:MM]` before local, global, party, and whisper messages. It is off by default and updates messages already displayed when toggled. System messages keep their existing native timestamps. Message text, links, colours, history, and outgoing messages retain their normal behavior.
 - **Enable friend notes** adds **Add note** after **Send message** in a friend's gear menu (**Edit note** when a note exists). Notes are limited to **30 characters**, displayed after a hyphen beside the name in smaller text, and saved by your account and the friend's account in `hlx/config/more-settings/friend-notes.json`. They follow character changes. Press Enter or click Save to save without opening chat. Save an empty note to remove it; Cancel leaves it unchanged. Names and notes use the available header space, reserving room only for controls that overlap that row. Text is shortened only when it does not fit. Notes do not add hover tooltips or row highlighting. Party labels such as **(Leader)** remain before the note without overlapping it. Disabling the setting hides notes without deleting them. Notes are local and are never sent to other players.
 
 The profanity option applies to displayed player text and keeps HTML escaping. Character-name validation is unchanged.
@@ -69,12 +70,13 @@ The profanity option applies to displayed player text and keeps HTML escaping. C
 
 **Performance improvements** is an optional checkbox under **General**, off by default. It can be changed while playing. It addresses specific findings from the static performance review:
 
-- Large main-thread worker queues use an index while executing jobs and compact the remaining array once per servicing pass, avoiding a full array shift for every job. Small queues keep the native path. Job order, newly submitted jobs, loading/gameplay budgets, and threaded-work tracking are preserved. Jobs still run to completion on their original thread; one expensive job can still cause a hitch.
 - The incoming-effects feed removes its oldest damage/healing rows when needed to make room within a 32-row target. Pending display times are brought forward so a sustained burst cannot keep extending the same delayed numeric tail. Combat transitions, game-beat messages, and other text notifications are retained, even when that requires exceeding the target. This affects the HUD's recent numeric feed only; damage, healing, floating combat numbers, and DPS Meter logs continue normally.
 - Terrain normal/height textures reuse their last native composition while the camera neighborhood, chunks, buffer bindings, source textures, and destination resources remain unchanged. This avoids repeated clears/copies and temporary rendering-object creation on reusable passes. Native chunk lookups and renderer bindings still run; pixel refreshes, arriving/departing chunks, resource recreation, context loss, and camera neighborhood changes force the original rebuild. Source textures retain the native recent-use lifetime. Cache references are bounded and released on terrain disposal or when the option is disabled.
 - During gameplay, optional DX12 pipeline-cache replay is spread across quiet frames instead of building all saved variants for a newly compiled shader at once. It prepares at most one saved variant per update after two seconds outside combat without a slow frame, and postpones work when native graphics locks are busy. Background and loading-screen warm-up remain native. Required draw pipelines and first-use shader compilation still run normally; individual compilation stalls remain possible.
 - Initial equipment, hair, and face loading for other players is split into component jobs on the existing main-thread worker queue. Its frame budget can be checked between components. The base model and animation reload remain native; readiness callbacks wait for the components. Local-player models, monsters, NPCs, existing-model rebuilds and appearance-editor previews keep native behavior. Stale work is cancelled when a model is replaced, removed or its game session ends.
 - Fence-safe DX12 resource-release queues are transferred to a dedicated cleanup worker after native command resets and descriptor retirement finish, including single-resource queues. Pending references are capped at 65,536 to accommodate observed gameplay cleanup bursts, with a DXGI memory-budget guard (at least 512 MiB and 10% free). Pressure, loading, disabling the option, world exit or driver replacement/reset waits for accepted work to finish; pressure also leaves the current queue with native cleanup. Descriptors, command resets and GPU waits remain native. Slow resource destruction no longer directly occupies the game thread on the offloaded path, but pressure fallback and shared graphics-driver waits can still stall gameplay.
+
+Main-thread worker-queue processing uses the game's native implementation, which now batches queue removal. More Settings only measures its duration when diagnostics are enabled.
 
 Disabling the option restores native handling for new work and discards optional pipeline preparation. Accepted character builds finish so their models cannot be stranded; already removed HUD rows are not recreated. Automated tests validate scheduling, reuse and lifecycle behavior, not in-game frame-time gains. Individual model/prefab loads, terrain jobs, entity initialization and other GPU pass costs still need profiling or engine changes. The option does not reduce graphics quality or skip world/network updates.
 
@@ -115,14 +117,16 @@ including when the dungeon has an exit portal. The button hides during combat.
 Disabling the option restores the game's normal visibility rules on the next HUD
 update. Its normal leave action is unchanged; rifts and overworld UI are unaffected.
 
-Targets the September 30 Live client with HLX Core 0.0.8 or newer.
+Targets Live client 0.3.0.31346 with HLX Core 0.0.8 or newer.
 Fast-travel music and unfocused-volume controls now belong to the game’s native settings. More Settings no longer changes those volumes or ships an audio plugin.
 
 **Hide UI hotkey** rebinds the game's existing UI visibility shortcut. Choose a key under **General**; the default is **F2**. The selected key replaces the original keyboard binding and retains the game's normal hide/show behavior and input restrictions. Typing in chat or another text field does not hide the UI. Update Better Mod Settings too: its key-capture guard prevents assigning a shortcut from hiding the settings window. Hide UI and Social interact accept one Ctrl, Shift, or Alt modifier with Farever-supported keys. Update Better Mod Settings to assign combinations. Existing single-key bindings carry over, and the game retains its native modifier, input-mode, and hold checks. Escape cancels capture.
 
 **Hide ally attacks** hides the visuals and sounds of friendly players' damaging or harmful abilities with no beneficial component. **Hide ally buffs** covers healing, shields, beneficial statuses, and utility abilities. Mixed damage/support abilities belong to the buffs category so attack hiding preserves useful support effects. Classification follows native skill data and referenced subskills/statuses.
 
-**Hide allies** hides friendly player models and equipment independently of their abilities. Names and other UI remain visible. Your own model, abilities, summons' effects, and buffs you cast on other players remain visible. Enemy and duel/PvP opponent effects remain visible. Other players' buffs applied to you follow the caster's filter.
+**Hide allies** hides friendly player models and equipment independently of their abilities. Names and other UI remain visible. Your own model remains visible. Enemy and duel/PvP opponent effects remain visible. Other players' buffs applied to you follow the caster's filter.
+
+**Hide own attacks** and **Hide own buffs** apply the same ability categories to your own visuals and sounds, including summoned abilities and effects you cast on other players. Each has an independent, off-by-default checkbox under **Rift Effects**, **Dungeon Effects**, and **Overworld Effects**. Allied and own settings are independent; filtering follows the caster, not the recipient. Mixed damage/support abilities use **Hide own buffs**. These settings do not hide your character model.
 
 Rifts take precedence over dungeons; dungeon instances (including boss instances) use Dungeon Effects; World maps use Overworld Effects. Unknown locations are left visible. Visibility options are client presentation changes: skills, damage, healing, targeting, animation callbacks, and network state continue normally.
 
@@ -155,6 +159,6 @@ haxe compile.hxml
 
 Output: `build/more-settings/more-settings.hl` and `build/more-settings/implementation/more-settings.hl`. Package both binaries and `configFormats.json` under `hlx/mods/more-settings/`.
 
-Regression tests exercise UI controls, minion bar visibility/restoration, Barbershop ownership and layout, boss health formatting, region/ability policies, appearance isolation, damage styling, worker ordering/budgets, pipeline lifecycle and terrain reuse with simulated native adapters. CI runs interpreter and HashLink checks before compiling and packaging. Actual rendering and frame-time gains still require in-game multiplayer testing.
+Regression tests exercise UI controls, minion bar visibility/restoration, Barbershop ownership and layout, boss health formatting, region/ability policies, appearance isolation, damage styling, chat timestamp formatting and lifecycle, own/allied effect ownership, pipeline lifecycle and terrain reuse with simulated native adapters. CI runs interpreter and HashLink checks before compiling and packaging. Actual rendering and frame-time gains still require in-game multiplayer testing.
 
 Model membership and adoption of existing effects refresh at most five times per second. Native member lookup and skill classification are cached; disabled filters avoid entity scans. Rendering hooks never skip skill execution or character animation updates.

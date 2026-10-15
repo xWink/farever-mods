@@ -165,6 +165,15 @@
       }
     },
     {
+      "key": "addMessageTimestamps",
+      "type": "checkbox",
+      "label": "Add timestamp to messages",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Show local receipt time as [HH:MM] before chat messages. Existing system timestamps are kept. Updates messages already in chat."
+      }
+    },
+    {
       "key": "enableFriendNotes",
       "type": "checkbox",
       "label": "Enable friend notes",
@@ -225,6 +234,24 @@
       "label": "Hide allies"
     },
     {
+      "key": "riftHideOwnAttacks",
+      "type": "checkbox",
+      "label": "Hide own attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your damaging or harmful abilities, including your summons. Healing, buffs and utility abilities use Hide own buffs."
+      }
+    },
+    {
+      "key": "riftHideOwnBuffs",
+      "type": "checkbox",
+      "label": "Hide own buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your healing, shields, buffs and utility abilities, including effects you apply to others."
+      }
+    },
+    {
       "type": "title",
       "label": "Dungeon Effects"
     },
@@ -244,6 +271,24 @@
       "label": "Hide allies"
     },
     {
+      "key": "dungeonHideOwnAttacks",
+      "type": "checkbox",
+      "label": "Hide own attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your damaging or harmful abilities, including your summons. Healing, buffs and utility abilities use Hide own buffs."
+      }
+    },
+    {
+      "key": "dungeonHideOwnBuffs",
+      "type": "checkbox",
+      "label": "Hide own buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your healing, shields, buffs and utility abilities, including effects you apply to others."
+      }
+    },
+    {
       "type": "title",
       "label": "Overworld Effects"
     },
@@ -261,6 +306,24 @@
       "key": "overworldHideAllies",
       "type": "checkbox",
       "label": "Hide allies"
+    },
+    {
+      "key": "overworldHideOwnAttacks",
+      "type": "checkbox",
+      "label": "Hide own attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your damaging or harmful abilities, including your summons. Healing, buffs and utility abilities use Hide own buffs."
+      }
+    },
+    {
+      "key": "overworldHideOwnBuffs",
+      "type": "checkbox",
+      "label": "Hide own buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide the visuals and sounds of your healing, shields, buffs and utility abilities, including effects you apply to others."
+      }
     }
   ]
 }

@@ -10,6 +10,7 @@ typedef MoreSettingsConfig = {
     var rebindSocialInteract:Bool;
     var socialInteractKey:Dynamic;
     var showSelfChatBubbles:Bool;
+    var addMessageTimestamps:Bool;
     var fancyDamageNumbers:Bool;
     var showSkillIconNextToDamageNumber:Bool;
     var obviousSkillProcs:Bool;
@@ -29,12 +30,18 @@ typedef MoreSettingsConfig = {
     var riftHideAllyAttacks:Bool;
     var riftHideAllyBuffs:Bool;
     var riftHideAllies:Bool;
+    var riftHideOwnAttacks:Bool;
+    var riftHideOwnBuffs:Bool;
     var dungeonHideAllyAttacks:Bool;
     var dungeonHideAllyBuffs:Bool;
     var dungeonHideAllies:Bool;
+    var dungeonHideOwnAttacks:Bool;
+    var dungeonHideOwnBuffs:Bool;
     var overworldHideAllyAttacks:Bool;
     var overworldHideAllyBuffs:Bool;
     var overworldHideAllies:Bool;
+    var overworldHideOwnAttacks:Bool;
+    var overworldHideOwnBuffs:Bool;
 }
 
 class SettingsData {
@@ -46,6 +53,7 @@ class SettingsData {
         rebindSocialInteract: false,
         socialInteractKey: 0, // Unassigned until the player chooses a key.
         showSelfChatBubbles: false,
+        addMessageTimestamps: false,
         fancyDamageNumbers: false,
         showSkillIconNextToDamageNumber: false,
         obviousSkillProcs: false,
@@ -63,8 +71,11 @@ class SettingsData {
         leaveDungeonButton: true,
         hideUiKey: 113, // hxd.Key.F2
         riftHideAllyAttacks: false, riftHideAllyBuffs: false, riftHideAllies: false,
+        riftHideOwnAttacks: false, riftHideOwnBuffs: false,
         dungeonHideAllyAttacks: false, dungeonHideAllyBuffs: false, dungeonHideAllies: false,
-        overworldHideAllyAttacks: false, overworldHideAllyBuffs: false, overworldHideAllies: false
+        dungeonHideOwnAttacks: false, dungeonHideOwnBuffs: false,
+        overworldHideAllyAttacks: false, overworldHideAllyBuffs: false, overworldHideAllies: false,
+        overworldHideOwnAttacks: false, overworldHideOwnBuffs: false
     };
 
     public static function normalize(config:MoreSettingsConfig):Void {

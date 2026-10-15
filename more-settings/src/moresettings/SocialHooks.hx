@@ -16,12 +16,13 @@ class SocialHooks {
         hideConnections = config.hideFriendConnectionNotifications;
         SocialChat.commandsEnabled = config.enableMissingSlashCommands;
         SocialChat.closeAfterSend = config.sendingMessageClosesChat;
+        try ChatTimestamps.configure(config.addMessageTimestamps) catch (e:Dynamic) report(e);
         try SelfChatBubbles.configure(config.showSelfChatBubbles) catch (e:Dynamic) report(e);
         try interact.configure(config.rebindSocialInteract, config.socialInteractKey, refreshExisting) catch (e:Dynamic) report(e);
         try FriendNotes.configure(config.enableFriendNotes, refreshExisting) catch (e:Dynamic) report(e);
     }
     public static function dispose():Void {
-        SocialChat.clear(); FriendNotes.dispose(); interact.dispose(); SelfChatBubbles.dispose();
+        SocialChat.clear(); FriendNotes.dispose(); interact.dispose(); SelfChatBubbles.dispose(); ChatTimestamps.dispose();
     }
     public static function report(error:Dynamic):Void {
         var message = Std.string(error);
@@ -122,6 +123,10 @@ class SocialHooks {
     static function received(instance:Dynamic, message:Dynamic, result:Void):Void {
         try SocialChat.remember(message) catch (e:Dynamic) report(e);
     }
+    @:hlx.postfix(ui.hud.ChatBoxMessage.init)
+    static function messageInitialized(instance:Dynamic, result:Void):Void {
+        try ChatTimestamps.attach(instance) catch (e:Dynamic) report(e);
+    }
     @:hlx.prefix(ui.win.PlayerCard.init)
     static function beforeCardInit(instance:Dynamic):HlxPrefixResult<Void> {
         FriendNotes.detach(instance);
@@ -130,6 +135,7 @@ class SocialHooks {
     @:hlx.prefix(ui.UIElement.onRemove)
     static function removed(instance:Dynamic):HlxPrefixResult<Void> {
         FriendNotes.detach(instance);
+        ChatTimestamps.forget(instance);
         return Continue;
     }
     @:hlx.postfix(ui.win.PlayerCard.init)

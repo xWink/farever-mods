@@ -5,13 +5,11 @@ import hlx.runtime.HlxPrefixResult;
 /** Opt-in fixes for audited client queues and terrain rendering. */
 class PerformanceHooks {
     public static var enabled(default, set):Bool = false;
-    static var queue = new WorkerQueue();
     static var terrain = new TerrainGlobalsCache();
     static var pipelines = new PipelineWarmup();
     static var characters = new CharacterVisualJobs();
     static var resources = new ResourceCleanup();
     static var pipelineFailed:Bool = false;
-    static var queueFailed:Bool = false;
     static var feedFailed:Bool = false;
     static var terrainFailed:Bool = false;
 
@@ -159,23 +157,12 @@ class PerformanceHooks {
     @:hlx.prefix(lib.Workers.work)
     static function work(instance:Dynamic):HlxPrefixResult<Void> {
         StallMetrics.begin(FrameMetrics.WORKERS);
-        // A nested work() must use the current cursor even if a job toggles us off.
-        if ((!enabled || queueFailed) && !queue.active(instance)) return Continue;
-        try return queue.run(instance) ? Skip : Continue catch (e:Dynamic) {
-            // run() compacts the consumed prefix on failure. Do not dispatch the
-            // original in the same pass and accidentally rerun a failing job.
-            if (!queueFailed) trace("[More Settings] Performance worker queue disabled: " + Std.string(e));
-            queueFailed = true;
-            return Skip;
-        }
+        // The game batches its own worker queue now. Keep only diagnostics.
+        return Continue;
     }
 
     @:hlx.postfix(lib.Workers.work)
     static function afterWork(instance:Dynamic, result:Void):Void StallMetrics.end(FrameMetrics.WORKERS);
-
-    @:hlx.postfix(lib.Workers.isEmpty)
-    static function isEmpty(instance:Dynamic, result:Bool):Bool
-        return queue.isEmpty(instance, result);
 
     @:hlx.prefix(ui.hud.EffectsFeed.addLine)
     static function beforeFeedLine(instance:Dynamic, text:String):HlxPrefixResult<Dynamic> {

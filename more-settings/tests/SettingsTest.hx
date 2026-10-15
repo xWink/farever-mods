@@ -15,7 +15,7 @@ class SettingsTest {
     }
 
     static function main():Void {
-        bossHealth(); hideUiBinding(); policy(); classification(); presentation();
+        bossHealth(); hideUiBinding(); policy(); classification(); presentation(); ownPresentation();
         Sys.println('More Settings: $checks checks passed.');
     }
 
@@ -150,7 +150,7 @@ class SettingsTest {
         var c = SettingsData.defaults();
         for (region in ["rift", "dungeon", "overworld", ""]) {
             var f = EffectPolicy.filters(c, region);
-            eq(f.attacks || f.buffs || f.models, false, "visibility defaults off");
+            eq(EffectPolicy.effectsActive(f) || f.models, false, "all visibility defaults off");
         }
         c.riftHideAllyAttacks = true; c.dungeonHideAllyBuffs = true; c.overworldHideAllies = true;
         eq(EffectPolicy.region(true, true, true), "rift", "rift takes precedence over dungeon");
@@ -163,6 +163,24 @@ class SettingsTest {
                 !own && ally && benefit, "dungeon buff filter excludes self, enemies and attacks");
             eq(EffectPolicy.hideEffect(own, ally, benefit, EffectPolicy.filters(c, "overworld")), false,
                 "model-only setting leaves every ability visible");
+        }
+        for (region in ["rift", "dungeon", "overworld"]) {
+            c = SettingsData.defaults();
+            Reflect.setField(c, region + "HideOwnAttacks", true);
+            for (other in ["rift", "dungeon", "overworld", ""]) {
+                var f = EffectPolicy.filters(c, other);
+                eq(EffectPolicy.effectsActive(f), other == region, "own-only filter activates its region");
+                for (own in [false, true]) for (ally in [false, true]) for (benefit in [false, true])
+                    eq(EffectPolicy.hideEffect(own, ally, benefit, f), other == region && own && !benefit,
+                        "own attacks filter is independent of ally, buff and other region settings");
+            }
+            Reflect.setField(c, region + "HideOwnAttacks", false);
+            Reflect.setField(c, region + "HideOwnBuffs", true);
+            var f = EffectPolicy.filters(c, region);
+            eq(EffectPolicy.effectsActive(f), true, "own buffs alone activate filtering");
+            eq(EffectPolicy.hideEffect(true, false, true, f), true, "own support effects hidden");
+            eq(EffectPolicy.hideEffect(true, false, false, f), false, "own attacks stay visible");
+            eq(EffectPolicy.hideEffect(false, true, true, f), false, "ally support effects stay visible");
         }
     }
 
@@ -200,7 +218,7 @@ class SettingsTest {
         var allyBuff:Dynamic = {owner: friend, inf: heal};
         checkFx(allyAttack, true, "ally attack hidden in rift");
         checkFx(allyBuff, false, "ally buff visible with attack-only filter");
-        checkFx({owner: self, inf: damage}, false, "own attack always visible");
+        checkFx({owner: self, inf: damage}, false, "ally setting leaves own attack visible");
         checkFx({owner: enemy, inf: damage}, false, "PvP enemy attack visible");
         checkFx({owner: {types: ["ent.Foe"]}, inf: damage}, false, "monster attack visible");
         checkFx({owner: {summonOwner: self}, inf: damage}, false, "own summon attack visible");
@@ -233,8 +251,8 @@ class SettingsTest {
         AllyEffects.pop(); AllyEffects.pop();
 
         var ownSound:Dynamic = {entity: self, inst: {}, playing: true};
-        eq(AllyEffects.beforeSound(ownSound), false, "local audio always starts");
-        AllyEffects.updateSound(ownSound); eq(ownSound.playing, true, "local audio never stopped");
+        eq(AllyEffects.beforeSound(ownSound), false, "ally setting leaves local audio starting normally");
+        AllyEffects.updateSound(ownSound); eq(ownSound.playing, true, "ally setting leaves local audio playing");
 
         var screenEffect:Dynamic = {enabled: true};
         var alreadyOff:Dynamic = {enabled: false};
@@ -270,6 +288,65 @@ class SettingsTest {
         checkExistingFx(fx, false, "pool reuse never hides new local caster");
         AllyEffects.dispose(); checkExistingFx(fx, false, "scene disposal clears visibility state");
     }
+    static function ownPresentation():Void {
+        var c = SettingsData.defaults(); c.riftHideOwnAttacks = true;
+        var layer:Dynamic = {isRift:true, config:{mapId:"World/Test"}, units:[], areas:[], entities:[]};
+        var self:Dynamic = player(layer, true), friend:Dynamic = player(layer, false), enemy:Dynamic = player(layer, false);
+        enemy.enemy = true;
+        var summon:Dynamic = {summonOwner:self, skills:[]};
+        var damage:Dynamic = {props:{}, steps:[{effects:[{effect:0}]}]};
+        var heal:Dynamic = {props:{}, steps:[{effects:[{effect:1}]}]};
+        var ownAttack:Dynamic = {owner:self, inf:damage};
+        var ownBuff:Dynamic = {owner:self, inf:heal};
+        var runningFx:Dynamic = {flags:2, subFXs:[], effects:[]};
+        var summonFx:Dynamic = {flags:2, subFXs:[], effects:[]};
+        self.skills = [{owner:self, inf:damage, steps:[{fxs:[runningFx]}]}];
+        summon.skills = [{owner:summon, inf:damage, steps:[{fxs:[summonFx]}]}];
+        layer.units = [self, friend, enemy, summon];
+        AllyEffects.dispose(); AllyEffects.configure(c); AllyEffects.update({hero:self});
+        eq(AllyEffects.active, true, "own-only settings activate creation and render hooks");
+        checkExistingFx(runningFx, true, "enabling adopts an already-running own skill");
+        checkExistingFx(summonFx, true, "enabling adopts an already-running own summon skill");
+        checkFx(ownAttack, true, "own attack hidden");
+        checkFx(ownBuff, false, "own support stays visible with attacks-only setting");
+        checkFx({owner:friend, inf:damage}, false, "own setting leaves ally attacks visible");
+        checkFx({owner:enemy, inf:damage}, false, "own setting leaves enemy attacks visible");
+        checkFx({owner:summon, inf:damage}, true, "own summoned attack hidden");
+        checkFx({owner:{proxy:self}, inf:damage}, true, "own proxy resolves to local player");
+        checkFx({owner:{summonOwner:friend}, inf:damage}, false, "allied summon remains visible");
+        eq(AllyEffects.hideMesh(self.unitView.children[0]), false, "own model stays visible");
+
+        self.anim = {currentDef:{skillSource:ownAttack}};
+        var sound:Dynamic = {entity:self, inst:{}, playing:true};
+        eq(AllyEffects.beforeSound(sound), true, "own ability audio follows attack toggle");
+        AllyEffects.updateSound(sound); eq(sound.playing, false, "own ability loop stops");
+        c.riftHideOwnAttacks = false; c.riftHideOwnBuffs = true; AllyEffects.configure(c);
+        checkExistingFx(runningFx, false, "turning attack hiding off restores existing effects");
+        checkFx(ownBuff, true, "own buff hidden independently");
+        checkFx({owner:friend, instigator:self, inf:heal}, true, "own heal on another player follows caster");
+        checkFx({owner:self, instigator:friend, inf:heal}, false, "ally heal on self stays visible");
+        AllyEffects.pushSkill(ownBuff); AllyEffects.pushSoundEntity(friend);
+        eq(AllyEffects.beforeSound({}), true, "own buff sound through another recipient keeps caster");
+        AllyEffects.pop(); AllyEffects.pop();
+        var fx:Dynamic = {flags:2, subFXs:[], effects:[]};
+        AllyEffects.pushSkill(ownBuff); AllyEffects.bindCreated(fx); AllyEffects.pop();
+        checkExistingFx(fx, true, "own pooled effect hidden");
+        AllyEffects.pushSkill({owner:friend, inf:heal}); AllyEffects.bindCreated(fx); AllyEffects.pop();
+        checkExistingFx(fx, false, "pool reuse replaces own caster with visible ally caster");
+
+        layer.isRift = false; layer.mainActivity = {types:["st.activity.Dungeon"]};
+        AllyEffects.update({hero:self});
+        eq(AllyEffects.active, false, "leaving region removes own filters");
+        checkFx(ownBuff, false, "rift settings never leak into dungeon");
+        c.dungeonHideOwnBuffs = true; AllyEffects.configure(c);
+        checkFx(ownBuff, true, "dungeon own buff setting works independently");
+        layer.mainActivity = null; AllyEffects.update({hero:self});
+        checkFx(ownBuff, false, "dungeon setting never leaks into overworld");
+        c.overworldHideOwnAttacks = true; AllyEffects.configure(c);
+        checkFx(ownAttack, true, "overworld own attack setting works independently");
+        AllyEffects.dispose();
+    }
+
     static function player(layer:Dynamic, own:Bool):Dynamic return {
         types: ["ent.Hero"], layer: layer, ownerPlayer: {isMe: own}, player: {},
         skills: [], statuses: {array: []}, unitView: {children: [

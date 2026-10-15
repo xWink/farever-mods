@@ -127,7 +127,9 @@ class GameAccess {
                 {xMin:x, xMax:x + width, yMin:y, yMax:y + number(field(object,"calculatedHeight"),16)};
             case "calcTextWidth": text(args[0]).length * 7.0;
             case "set_font": object.font = args[0]; args[0];
-            case "set_text": object.text = args[0]; args[0];
+            case "set_text":
+                if (type == "ui.comp.FmtText") object.prevUnformatted = args[0];
+                object.text = args[0]; args[0];
             case "set_textColor", "set_lineBreak", "set_textTip", "set_textMultiline", "set_useEllipsis", "set_maxWidthText":
                 set(object,name.substr(4),args[0]); args[0];
             case "setText": object.text = args[0]; null;

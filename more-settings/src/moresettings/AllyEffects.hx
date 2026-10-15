@@ -14,7 +14,7 @@ class AllyEffects {
     static var hero:Dynamic;
     static var layer:Dynamic;
     static var region:String = "";
-    static var filters:RegionFilters = {attacks: false, buffs: false, models: false};
+    static var filters:RegionFilters = {attacks: false, buffs: false, models: false, ownAttacks: false, ownBuffs: false};
     static var origins:ObjectMap<Dynamic, EffectOrigin> = new ObjectMap();
     static var soundOrigins:ObjectMap<Dynamic, EffectOrigin> = new ObjectMap();
     static var friends:ObjectMap<Dynamic, Bool> = new ObjectMap();
@@ -31,7 +31,7 @@ class AllyEffects {
     public static function configure(value:MoreSettingsConfig):Void {
         config = value;
         filters = EffectPolicy.filters(config, region);
-        active = filters.attacks || filters.buffs;
+        active = EffectPolicy.effectsActive(filters);
         if (!filters.models) hiddenMeshes = new ObjectMap();
         nextRefresh = 0;
     }
@@ -51,7 +51,7 @@ class AllyEffects {
             if (nextRegion != region) {
                 region = nextRegion;
                 filters = EffectPolicy.filters(config, region);
-                active = filters.attacks || filters.buffs;
+                active = EffectPolicy.effectsActive(filters);
                 hiddenMeshes = new ObjectMap(); nextRefresh = 0;
             }
             // Recover an abandoned presentation scope if the game threw while
@@ -66,7 +66,8 @@ class AllyEffects {
                 if (!active) continue;
                 // This also adopts already-running buffs when a filter is
                 // enabled, and keeps effects on recipients attributed correctly.
-                if (ally(unit)) for (skill in G.array(G.field(unit, "skills"))) adoptSkill(skill);
+                if (own(playerSource(unit)) || ally(unit))
+                    for (skill in G.array(G.field(unit, "skills"))) adoptSkill(skill);
                 for (status in G.array(G.field(unit, "statuses"), true)) adoptSkill(status);
                 bindEntity(unit, G.field(unit, "crtAnimFx"));
             }
@@ -132,7 +133,7 @@ class AllyEffects {
         if (!active || skill == null || hero == null) return null;
         var root = call(skill, "getSourceSkill");
         var source = playerSource(call(root == null ? skill : root, "getSourceObject"));
-        if (!ally(source)) return null;
+        if (!own(source) && !ally(source)) return null;
         return {source: source, beneficial: NativeSkillFacts.beneficial(skill)
             || (root != null && root != skill && NativeSkillFacts.beneficial(root))};
     }
@@ -156,7 +157,7 @@ class AllyEffects {
     public static function pushSoundEntity(entity:Dynamic):Void {
         if (!active) return;
         // Entity.sfx assigns SoundObject.entity after calling play. Preserve an
-        // existing hit/skill scope (including a local player's null scope).
+        // existing hit/skill scope so the recipient cannot change the caster.
         var stack = scopes.value;
         if (stack != null && stack.length > 0) stack.push(stack[stack.length - 1]);
         else pushEntity(entity);
@@ -223,7 +224,7 @@ class AllyEffects {
 
     static function hidden(value:EffectOrigin):Bool {
         if (!active || value == null) return false;
-        return EffectPolicy.hideEffect(value.source == hero, ally(value.source), value.beneficial, filters);
+        return EffectPolicy.hideEffect(own(value.source), ally(value.source), value.beneficial, filters);
     }
 
     public static function beforeFxSync(fx:Dynamic, ctx:Dynamic):Void {
@@ -377,11 +378,11 @@ class AllyEffects {
         origins = new ObjectMap(); hiddenMeshes = new ObjectMap();
         scopes.value = []; syncFrames.value = [];
         hero = null; layer = null; region = ""; active = false;
-        filters = {attacks: false, buffs: false, models: false};
+        filters = {attacks: false, buffs: false, models: false, ownAttacks: false, ownBuffs: false};
         NativeSkillFacts.clear(); nextRefresh = 0;
     }
 
     static function fail(error:Dynamic):Void {
-        if (!reported) { reported = true; trace("[More Settings] Ally effects: " + Std.string(error)); }
+        if (!reported) { reported = true; trace("[More Settings] Ability effects: " + Std.string(error)); }
     }
 }

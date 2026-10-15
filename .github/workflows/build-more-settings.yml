@@ -99,6 +99,15 @@ jobs:
           ../.combat-hashlink/hl build/social-test.hl
           haxe -cp src -cp ../shared/src -cp tests/social-stubs -cp tests -main SocialInteractTest -hl build/social-interact-test.hl
           ../.combat-hashlink/hl build/social-interact-test.hl
+          haxe -cp src -cp ../shared/src -cp tests/social-stubs -cp tests -main ChatTimestampsTest -hl build/chat-timestamps-test.hl
+          ../.combat-hashlink/hl build/chat-timestamps-test.hl
+      - name: Test regional own and allied effects on HashLink
+        working-directory: more-settings
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink
+        run: |
+          haxe -cp src -cp ../shared/src -cp tests/stubs -cp tests -main SettingsTest -hl build/settings-test.hl
+          ../.combat-hashlink/hl build/settings-test.hl
       - name: Test incremental loading and pipeline lifecycle on HashLink
         working-directory: more-settings
         env:
