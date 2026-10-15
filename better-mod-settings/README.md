@@ -334,7 +334,7 @@ Text conversion tests cover Unicode and saving the original string. The mask is
 applied after the native text-layout method and only to registered secret inputs.
 Final eye-button appearance and editing behavior still require in-game confirmation.
 
-The native header stops 2px inside the window edge. The body has 15px side
+The native header stops 4px inside the window edge. The body has 5px side
 insets so its background clears the decorative frame. Tabs occupy a compact 70px
 row; native overlay margins and height filling are removed from the header,
 tabs, and title content, and the body's extra top inset is cleared. Secret textboxes and their

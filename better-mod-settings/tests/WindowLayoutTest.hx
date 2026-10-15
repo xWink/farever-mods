@@ -34,15 +34,15 @@ class WindowLayoutTest {
             "Compacting the contents preserves native centered window positioning");
         check(window.verticalAlign == "Top" && !Reflect.hasField(window.dom.styles, "valign"),
             "Only content alignment is overridden; the window cannot be moved above its centered anchor");
-        check(header.minWidth == 998 && header.maxWidth == 998 && header.fillWidth == false,
-            "Header stops two pixels before the outer edge without stretching back over it");
+        check(header.minWidth == 996 && header.maxWidth == 996 && header.fillWidth == false,
+            "Header stops four pixels before the outer edge without stretching back over it");
         check(body.paddingTop == 0, "Content no longer reserves space for overlaid tabs");
         check(tabs.minHeight == 70 && tabs.maxHeight == 70 && tabs.paddingTop == 10 && tabs.paddingBottom == 10,
             "Tab strip fits the 50px buttons with 10px top and bottom spacing");
         check(window.paddingLeft == 0 && window.paddingRight == 0, "Window padding cannot inset the full-width header");
         var options = node("options"); options.parent = body; options.fillHeight = true;
         NativeWindowLayout.compactBody(options);
-        check(options.flowProperties.paddingLeft == 15 && options.flowProperties.paddingRight == 15
+        check(options.flowProperties.paddingLeft == 5 && options.flowProperties.paddingRight == 5
             && options.fillWidth == false && body.paddingLeft == 0 && body.paddingRight == 0,
             "Body reserves both side borders without double-counting native title-content padding");
         check(NativeWindowLayout.BODY_WIDTH + options.flowProperties.paddingLeft + options.flowProperties.paddingRight

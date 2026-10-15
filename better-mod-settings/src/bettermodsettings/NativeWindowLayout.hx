@@ -3,8 +3,8 @@ package bettermodsettings;
 /** Use normal native flow order: header, tabs, then the settings body. */
 class NativeWindowLayout {
     public static inline var WINDOW_WIDTH = 1000;
-    public static inline var HEADER_WIDTH = WINDOW_WIDTH - 2;
-    public static inline var BODY_INSET = 15;
+    public static inline var HEADER_WIDTH = WINDOW_WIDTH - 4;
+    public static inline var BODY_INSET = 5;
     public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_INSET * 2;
 
     public static function headerFirst(window:Dynamic, ?tabs:Dynamic):Void {
@@ -21,7 +21,7 @@ class NativeWindowLayout {
         call("h2d.Flow", "set_reverse", window, [false]);
         style(window, "vspacing", 0);
         call("h2d.Flow", "set_verticalSpacing", window, [0]);
-        // The header covers the frame, with a 2px allowance for its native edge.
+        // The header covers the frame, with a 4px allowance for its native edge.
         // Body insets belong to the body so they do not shorten the header.
         for (side in ["Left", "Right", "Top", "Bottom"]) {
             style(window, "padding-" + side.toLowerCase(), 0);
