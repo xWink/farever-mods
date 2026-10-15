@@ -31,6 +31,8 @@ static bool path_from_utf8(const char *bytes, int length, std::wstring &path) {
         || (path.size() >= 3 && path[0] == L'\\' && path[1] == L'\\');
 }
 
+#include "fareverly_account.h"
+
 static int open_folder(const char *bytes, int length) {
     std::wstring path;
     if (!path_from_utf8(bytes, length, path)) return ERROR_INVALID_PARAMETER;
@@ -144,3 +146,6 @@ EXPORT void *hlp_play_audio(const char **signature) { *signature = "PBiiid_i"; r
 EXPORT void *hlp_update_audio(const char **signature) { *signature = "Pd_i"; return reinterpret_cast<void *>(&update_audio); }
 EXPORT void *hlp_stop_audio(const char **signature) { *signature = "P_i"; return reinterpret_cast<void *>(&stop_audio); }
 EXPORT void *hlp_dispose_audio(const char **signature) { *signature = "P_i"; return reinterpret_cast<void *>(&dispose_audio); }
+
+EXPORT void *hlp_secure_random(const char **signature) { *signature = "PBi_i"; return reinterpret_cast<void *>(&secure_random); }
+EXPORT void *hlp_write_credential(const char **signature) { *signature = "PBiBi_i"; return reinterpret_cast<void *>(&write_credential); }

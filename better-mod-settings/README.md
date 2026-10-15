@@ -298,3 +298,19 @@ Unicode cursor offsets, unchanged editing callbacks and undo/selection state, an
 saving the original text. Native masking changes only text layout; its hook and
 layout fields are checked against the supplied game bytecode. The final eye-button
 appearance and native editing behavior still require in-game confirmation.
+
+## Runtime-bound settings
+
+A text, button, or status descriptor can opt into `"binding": true`. The mod
+registers an object at `hlx.runtime.Registry` bucket
+`better-mod-settings/bindings`, key `<mod-id>/<setting-key>`. Text/status bindings
+supply `value`; text bindings supply `onChange(value):Bool`; text/button bindings
+may set `enabled`. A `"type": "status"` row displays read-only, wrapping text.
+BMS refreshes these controls while the page is open. Runtime strings are rewrapped
+into BMS before use across module boundaries.
+
+Bound text is never written through BMS's ordinary config path, even when its
+provider is missing. This allows a secret field to use a separate, protected
+shared credential file without duplicating the key in exported mod settings.
+The provider owns persistence and validation; secrets still use `isSecret` and
+start masked each time settings open.

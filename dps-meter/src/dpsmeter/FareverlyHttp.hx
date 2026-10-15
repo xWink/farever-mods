@@ -1,13 +1,18 @@
 package dpsmeter;
 
 import haxe.io.Bytes;
-typedef FareverlyResponse = {status:Int, body:String, retryAfter:String, error:String};
+typedef FareverlyResponse = fareverly.Protocol.Response;
 
 /** Worker-only HTTP with bounded response memory and cooperative local saves. */
 class FareverlyHttp {
     final progress:Void->Void;
     public function new(progress:Void->Void) this.progress = progress;
-    public function request(method:String, url:String, body:Bytes):FareverlyResponse {
+    public function request(method:String, url:String, body:Bytes):FareverlyResponse return authenticated(method, url, body, "");
+    public function authenticated(method:String, url:String, body:Bytes, token:String):FareverlyResponse {
+        if (url != "https://fareverly.com/api/v1/logs" && url != "https://fareverly.com/api/v1/account"
+            && url != "https://fareverly.com/api/v1/encounters" && url != "https://fareverly.com/api/v1/auth/device"
+            && url != "https://fareverly.com/api/v1/auth/token")
+            throw "Unsupported Fareverly endpoint.";
         var result:FareverlyResponse = {status:0, body:"", retryAfter:"", error:""};
         var http = new sys.Http(url);
         var output = new BoundedResponse();
@@ -16,6 +21,11 @@ class FareverlyHttp {
             progress();
             http.cnxTimeout = 30; http.noShutdown = true;
             http.setHeader("Accept", "application/json");
+            if (token != "") {
+                if (!fareverly.Protocol.validKey(token) || (url != "https://fareverly.com/api/v1/logs" && url != "https://fareverly.com/api/v1/account"))
+                    throw "Invalid credential destination.";
+                http.setHeader("Authorization", "Bearer " + token);
+            }
             http.setHeader("User-Agent", "Farever-DPS-Meter/Fareverly-1");
             if (body != null) { http.setHeader("Content-Type", "application/json"); http.setPostBytes(body); }
             http.onStatus = value -> result.status = value;

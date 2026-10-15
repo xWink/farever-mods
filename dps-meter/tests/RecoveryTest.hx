@@ -94,6 +94,9 @@ class RecoveryTest {
         remove(root);
         check(ReadyCheck.COUNTDOWN_DELAY == 0.7, "Ready check retains the final requested delay");
     }
+    static function testCredential():fareverly.Protocol.Credential return {
+        accessToken:"fv1_" + StringTools.lpad("", "A", 43), accountId:"test-account", steamId:"76561198000000000", expiresAt:"2027-10-15T12:00:00.000Z"
+    };
     static function uploads():Void {
         var now = Date.fromString("2026-10-15 12:00:00").getTime() / 1000;
         var good = fixture();
@@ -109,39 +112,35 @@ class RecoveryTest {
         fight.players["test-player"].healingRecorded = false;
         check(!Reflect.hasField(FightHistory.encode(fight, "no-heals").players[0], "healing"), "History encoder omits unrecorded healing for Fareverly compatibility");
         var root = "build/recovery-upload-" + Std.random(0x3fffffff), posts = 0, gets = 0;
-        var transport = (method:String, url:String, body:haxe.io.Bytes) -> {
+        var transport = (method:String, url:String, body:haxe.io.Bytes, token:String) -> {
             if (method == "GET") { gets++; return response(200, {encounters:[{bossKind:"TestBoss", category:"boss-dungeons", ranked:true}]}); }
             posts++;
             check(body.toString() == Json.stringify(good), "Upload sends the existing JSON directly");
             return posts == 1 ? response(429, {error:"test rate limit"}, "120") : response(201, {status:"accepted", url:"/reports/test-report"});
         };
-        var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0);
+        var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testCredential);
         queue.enqueue(good); queue.step();
         check(posts == 1 && gets == 1, "Catalog is fetched before the first submission");
         var path = queue.reportPath(good.id);
         check(queue.state(path).nextAttempt == now + 120, "Retry-After takes priority over backoff");
-        var restarted = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0);
+        var restarted = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testCredential);
         restarted.step(); check(posts == 1, "Persistent cooldown survives a restart");
         now += 120; restarted.step();
         check(posts == 2 && restarted.state(path).status == "accepted", "Retry succeeds once cooldown ends");
         check(FileSystem.exists(path), "Accepted payload is kept locally");
-        var report = restarted.report({id:3, fightId:good.id, retry:false}, false);
-        check(report.status == "ready" && report.url == "https://fareverly.com/reports/test-report", "Existing report opens even when uploads are disabled");
         remove(root);
         root = "build/recovery-retries-" + Std.random(0x3fffffff); posts = 0;
-        queue = new FareverlyUploader(root, (method, url, body) -> {
+        queue = new FareverlyUploader(root, (method, url, body, token) -> {
             if (method == "GET") return response(200, {encounters:[{bossKind:"TestBoss", category:"boss-dungeons", ranked:true}]});
             posts++; return response(503);
-        }, _ -> {}, () -> now, () -> 0);
+        }, _ -> {}, () -> now, () -> 0, testCredential);
         queue.enqueue(good);
         for (_ in 0...8) { queue.step(); now += 1000; }
         path = queue.reportPath(good.id);
         check(posts == 4 && queue.state(path).status == "failed", "Transient failures stop after four attempts");
         check(FileSystem.exists(path), "Failed payload is always retained locally");
-        queue.report({id:1, fightId:good.id, retry:true}, false); queue.step();
-        check(posts == 4, "Disabled uploads cannot restart failed work");
-        queue.report({id:2, fightId:good.id, retry:true}, true); queue.step();
-        check(posts == 5, "Explicit retry starts a bounded new attempt budget");
+        queue.retryFailed(good.id); queue.step();
+        check(posts == 5, "Explicit background retry starts a bounded new attempt budget");
         remove(root);
         check(FareverlyUploader.reportUrl("https://fareverly.com.evil/reports/x") == "" && FareverlyUploader.reportUrl("/reports/x\"&bad") == "", "Browser URL validation excludes foreign origins and shell syntax");
         var local = Date.fromString("2026-10-15 12:00:00");
@@ -162,25 +161,18 @@ class RecoveryTest {
         check(DetailedReport.query(data, request).total == 3, "Clearing actor filters restores every event");
     }
     static function openButton():Void {
-        var button = new FareverlyOpen(); button.select("fight-a"); var first = button.begin(1);
-        check(first != null && button.begin(2) == null, "Repeated clicks are blocked during lookup");
-        button.select("fight-b");
-        check(button.receive({id:first.id, fightId:"fight-a", status:"ready", url:"/reports/stale", message:""}, 2) == "", "A stale response cannot open a previously selected log");
-        var current = button.begin(3);
-        check(button.receive({id:current.id, fightId:"fight-b", status:"pending", url:"", message:""}, 4) == "", "Pending submission keeps waiting");
-        check(button.poll(4.5) == null && button.poll(4.75) != null, "Polling is throttled");
-        button.poll(39); check(!button.busy(39) && button.message != "", "A stalled lookup times out and can be retried");
-        current = button.begin(40);
-        check(button.receive({id:current.id, fightId:"fight-b", status:"ready", url:"/reports/current", message:""}, 41) != "", "Only matching ready response returns an address");
-        button.select("fight-c"); check(button.begin(42) == null, "Browser activation blocks clicks across navigation");
-        button.opened(43); check(button.busy(44) && !button.busy(45), "Browser handoff has the restored two-second cooldown");
+        var button = new FareverlyOpen(); button.select("fight-a");
+        check(button.begin(1) == "https://fareverly.com/analyze" && button.begin(2) == "", "Analyzer opens directly and repeated clicks are blocked");
+        button.select("fight-b"); check(button.begin(2) == "", "Navigation cannot start a second browser launch");
+        button.opened(3); check(button.busy(4) && !button.busy(5), "Browser handoff retains its cooldown");
+        check(button.begin(5) == FareverlyOpen.URL, "No ranked lookup is required");
         // A deliberately stalled launcher proves open() returns without waiting for it.
         var entered = new sys.thread.Lock(), release = new sys.thread.Lock(), launched = new sys.thread.Lock();
         var browser = new FareverlyBrowser(url -> { entered.release(); release.wait(); launched.release(); return 0; });
-        var before = haxe.Timer.stamp(); browser.open("https://fareverly.com/reports/test");
+        var before = haxe.Timer.stamp(); browser.open("https://fareverly.com/analyze");
         check(haxe.Timer.stamp() - before < 0.5 && entered.wait(2), "Browser launch runs off the caller thread");
         check(!browser.poll(), "Pending browser launch does not block polling");
-        var rejected = false; try browser.open("https://fareverly.com/reports/test") catch (_:Dynamic) rejected = true;
+        var rejected = false; try browser.open("https://fareverly.com/analyze") catch (_:Dynamic) rejected = true;
         check(rejected, "Duplicate native launches are rejected");
         release.release(); check(launched.wait(2), "Injected browser launcher completes without opening a real browser");
         var complete = false;

@@ -109,3 +109,10 @@
 -cp tests
 -main RecoveryTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main FareverlyAccountTest
+--interp

@@ -76,8 +76,9 @@ class RunWriter {
         if (retentionKey == key) return;
         retentionKey = key; prepare(); uploader.setRetention(enabled, months);
     }
-    public function requestFareverly(request:FareverlyRequest):Void { prepare(); uploader.requestFareverly(request); }
-    public function receiveFareverly():Null<FareverlyReport> return uploader == null ? null : uploader.receiveFareverly();
+
+    public function retryFareverly():Void { prepare(); uploader.retryFareverly(); }
+    public function receiveAuthMessage():Null<String> return uploader == null ? null : uploader.receiveAuthMessage();
 
     function prepare():Void {
         if (uploader == null) uploader = new LogUploader("hlx/mods/dps-meter");

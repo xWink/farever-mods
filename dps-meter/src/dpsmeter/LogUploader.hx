@@ -14,6 +14,7 @@ private typedef QueuedHistory = {record:Dynamic, submitFareverly:Bool};
 /** One worker owns uploads and queue maintenance. No game objects cross into it. */
 class LogUploader {
     final root:String;
+    final diagnostics:DiagnosticLog;
     final stopRequests = new Deque<Bool>();
     final wake = new Lock();
     final saveMutex = new Mutex();
@@ -29,9 +30,12 @@ class LogUploader {
     final timelineFinished = new Deque<String>();
     final timelineFinishedPending:Array<String> = [];
     final fareverly:FareverlyUploader;
+    final authMessages = new Deque<String>();
+    var lastAuthMessage = "";
+    public function receiveAuthMessage():Null<String> return authMessages.pop(false);
     final fareverlySettings = new Deque<Bool>();
-    final fareverlyRequests = new Deque<FareverlyRequest>();
-    final fareverlyResponses = new Deque<FareverlyReport>();
+    final fareverlyRetries = new Deque<Bool>();
+    public function retryFareverly():Void { fareverlyRetries.add(true); wake.release(); }
     final retentionSettings = new Deque<{enabled:Bool, months:Int}>();
     var fareverlyEnabled = false;
     var retentionReady = false;
@@ -43,8 +47,9 @@ class LogUploader {
 
     public function new(root:String) {
         this.root = root;
+        diagnostics = new DiagnosticLog(root);
         history = new FightHistoryStore(root, log);
-        fareverly = new FareverlyUploader(root, new FareverlyHttp(progress).request, log);
+        fareverly = new FareverlyUploader(root, new FareverlyHttp(progress).authenticated, log);
     }
 
     public function archive(record:Dynamic, submitFareverly:Bool = false):Void {
@@ -98,23 +103,12 @@ class LogUploader {
 
     public function setFareverlyEnabled(enabled:Bool):Void { fareverlySettings.add(enabled); wake.release(); }
     public function setRetention(enabled:Bool, months:Int):Void { retentionSettings.add({enabled:enabled, months:LogRetention.months(months)}); wake.release(); }
-    public function requestFareverly(request:FareverlyRequest):Void { fareverlyRequests.add(request); wake.release(); }
-    public function receiveFareverly():Null<FareverlyReport> return fareverlyResponses.pop(false);
     function updateFareverlySettings():Void {
         var value = fareverlySettings.pop(false);
         while (value != null) { fareverlyEnabled = value; value = fareverlySettings.pop(false); }
-    }
-    function readFareverlyReports():Void {
-        updateFareverlySettings();
-        var request = fareverlyRequests.pop(false);
-        while (request != null) {
-            try fareverlyResponses.add(fareverly.report(request, fareverlyEnabled)) catch (error:Dynamic) {
-                fareverlyResponses.add({id:request.id, fightId:request.fightId, status:"unavailable", url:"",
-                    message:"Could not read this log's Fareverly submission. Try again."});
-                log("Fareverly report: " + Std.string(error));
-            }
-            request = fareverlyRequests.pop(false);
-        }
+        var retry = fareverlyRetries.pop(false);
+        if (retry != null && fareverlyEnabled) fareverly.retryFailed();
+        while (fareverlyRetries.pop(false) != null) {}
     }
     /** Settings changes only update the next scheduled pass; they never trigger deletion. */
     function prune(?now:Date):Void {
@@ -154,6 +148,7 @@ class LogUploader {
         saveMutex.acquire();
         try history.timeline.cleanupStartup(log) catch (error:Dynamic) log("Timeline startup cleanup: " + Std.string(error));
         saveMutex.release();
+        diagnostics.maintain();
         var historyWarmAttempted = false;
         while (!shouldStop()) {
             try {
@@ -162,12 +157,17 @@ class LogUploader {
                     historyWarmAttempted = true;
                     try warmHistory() catch (error:Dynamic) log("History preload: " + Std.string(error));
                 }
-                browseHistory(); readBossRecords(); readFareverlyReports();
+                browseHistory(); readBossRecords();
                 try prune() catch (error:Dynamic) log("Automatic log deletion: " + Std.string(error));
                 updateFareverlySettings();
                 if (fareverlyEnabled && !shouldStop())
-                    try fareverly.step() catch (error:Dynamic) log("Fareverly: " + Std.string(error));
-                readFareverlyReports();
+                    try {
+                        fareverly.step();
+                        if (lastAuthMessage != fareverly.authMessage) {
+                            lastAuthMessage = fareverly.authMessage; authMessages.add(lastAuthMessage);
+                        }
+                    } catch (error:Dynamic) log("Fareverly: " + Std.string(error));
+
             } catch (error:Dynamic) {
                 if (!shouldStop()) log("Uploader will retry: " + Std.string(error));
             }
@@ -224,16 +224,9 @@ class LogUploader {
             flush();
             browseHistory();
             readBossRecords();
-            readFareverlyReports();
+
         }
     }
 
-    function log(message:String):Void {
-        try {
-            var output = File.append(root + "/uploader.log", false);
-            try output.writeString("[" + DateTools.format(Date.now(), "%H:%M:%S") + "] " + message + "\n")
-            catch (e:Dynamic) { output.close(); throw e; }
-            output.close();
-        } catch (_:Dynamic) {}
-    }
+    function log(message:String):Void diagnostics.write(message);
 }

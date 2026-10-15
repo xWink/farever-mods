@@ -54,7 +54,9 @@ class NativeButtonTooltip {
         G.call("h2d.Text", "set_lineBreak", measure, [true]);
         G.call("h2d.Text", "set_maxWidth", measure, [wrapWidth]);
         G.call("h2d.Text", "set_text", measure, [text]);
-        var width = Math.ceil(G.number(G.call("h2d.Text", "get_textWidth", measure)) * scale) + 2;
+        // FmtText's bold glyph overhang and the native header inset are not
+        // included in Text.textWidth. Leave breathing room at the right edge.
+        var width = Math.ceil(G.number(G.call("h2d.Text", "get_textWidth", measure)) * scale) + 28;
         // SimpleTip's header has nested flows. Remove their fixed minimums too,
         // retaining each flow's own padding and the game's background/border.
         var flow = G.field(title, "parent");

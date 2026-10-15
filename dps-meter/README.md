@@ -28,10 +28,11 @@ Install the **complete archive**, including the `implementation/` subfolder. Mis
 
 The mod and its data are contained in `hlx/mods/dps-meter/`. Local fight charts
 live in `history/<encounter>/`; submission payloads and retry states live in
-`fareverly/`. Diagnostics are written to `uploader.log`. No external uploader
-application is required. This recovery restores the last working build; the new
-Fareverly account/sign-in integration is a separate follow-up. Uploads to a server
-that requires authentication will fail safely and leave local logs intact.
+`fareverly/`. Diagnostics are written to `uploader.log`. It rotates at 1 MiB and
+keeps one previous file (`uploader.log.1`), so diagnostics use at most 2 MiB.
+Oversized legacy diagnostics are removed at startup, on the background worker.
+Diagnostics use local English explanations instead of copying server response
+text. No external uploader application is required.
 
 The included Windows x64 desktop plugin,
 `hlx/plugins/dps-meter/dps_meter_desktop.hdll`, supports folder opening, Recycle Bin
@@ -521,8 +522,7 @@ are permanently deleted. Published reports are unaffected. Explicit **Delete log
 actions still use the Recycle Bin.
 
 The **Upload combat logs to Fareverly** setting controls automatic submissions.
-The recovered uploader uses the previous unauthenticated API; support for the new
-account requirement is pending. Combat statistics become public when a ranked
+Connect a Fareverly account through Steam in **General** first. Combat statistics become public when a ranked
 report is retained. Only newly
 recorded, completed boss victories are considered; existing fight history is never
 automatically submitted. The individual `fight_*.json` history snapshot preserves
@@ -533,8 +533,8 @@ their actual party size and use `-1` when difficulty is inapplicable.
 
 Fareverly's supported encounter IDs and availability are fetched and cached for
 the session when a submission is pending. Requests run on the background worker,
-using certificate-verified HTTPS, with a 5 MiB body limit and no authorization
-header. Exact submitted JSON and retry state are stored in
+using certificate-verified HTTPS, with a 5 MiB body limit and the connected
+Fareverly key in its Authorization header. Exact submitted JSON and retry state are stored in
 `hlx/mods/dps-meter/fareverly/`. Failed submissions remain local until their
 configured retention age expires. Turning off uploads pauses pending work and
 stops new submissions from being queued; local history still works.
@@ -551,46 +551,51 @@ Rift gate counts come from the replicated **CloseGates** objective, appear in th
 live gate phase and both recap views, and survive log saving. Older logs with no
 recorded count leave it unspecified.
 
-The **Fareverly logo button**, immediately to the right of the snapshot button
-in an individual fight log, opens that fight's retained report in your browser.
-It shows a loading spinner and blocks repeat clicks while resolving the report
-and handing it to the browser. Navigating away or closing the log cancels a
-pending report lookup. Once Windows begins browser activation, the launch finishes
-on a separate worker thread, keeping shell commands and browser startup off the game
-thread. Repeat clicks remain blocked until the handoff completes, including across
-navigation, followed by a brief two-second cooldown. This tracks the handoff, not
-the browser's page-loading progress. The button uses the existing submission,
-including after a game restart; it does not create a share link. Uploads produce no chat messages or
-displayed URLs, and there is no chat command. An unavailable report or a failure
-is explained inside the log window. Combined recaps, defeats, and practice logs
-have a disabled button. Existing unsubmitted history is not uploaded by opening it.
+The **Fareverly logo button**, immediately to the right of the snapshot button,
+opens `https://fareverly.com/analyze` in your browser. It works for any opened log,
+including practice and defeats, with uploads disabled and without an account.
+Load a local JSON log on that page. The button never submits to rankings, retries
+ranked submissions, looks up a ranked report, or creates a share link. A spinner
+and disabled button cover the asynchronous browser handoff, with a short cooldown
+to prevent repeated tabs. Browser activation stays off the game thread.
 
-Outside-top-three results are complete and are not retried. Network errors,
-rate limits, and server errors get at most three automatic retries, with
-exponential backoff, jitter, and any longer `Retry-After` delay. Retry counts
-and cooldowns survive restarts. Clicking the Fareverly button after a transient
-failure retries only that log and refreshes availability, preserving its payload,
-ID, and server cooldowns. HTTP 400/408/413/415/422 and local
-validation failures are retained with their reason and are not resubmitted
-unchanged.
+### Steam sign-in
 
-Uploader tests use injected HTTP responses and local-only fixtures; they never
-publish synthetic leaderboard entries. Run them with the existing `haxe test.hxml`.
-The recovery suite covers startup cleanup, retention timing, filtering, bounded
-submission retries, and asynchronous browser opening using injected local fixtures.
+In **General**, **Upload combat logs to Fareverly** follows **Enabled**. Below it,
+the **Fareverly API key** textbox is empty by default and masked until its eye is
+opened. Choose **Sign in through Steam** for initial signup, or **Generate new key**
+to replace a lost, expired, or exposed key. Both open the normal browser; the mod
+never asks for a Steam password. Match the displayed verification code and Farever
+account ID before approving. **Cancel sign-in** stops polling, and **Customer
+support** opens Fareverly's support page for account conflicts.
+
+Device authorization uses a Windows cryptographically secure 32-byte verifier
+and S256 PKCE. Polling runs on a separate worker at least five seconds apart,
+respects Retry-After, stops after ten minutes, and bounds transient retries.
+Only one flow may run across mods using the shared Fareverly helper. The old key
+remains valid until an approved rotation completes. Returned credentials must
+match the local Farever account and grant upload/account-read scopes.
+
+Credentials are atomically stored in `hlx/config/fareverly/account.json`, with a
+Windows ACL restricted to the current OS user. This is the shared account file
+for integrations using `shared/src/fareverly`; the Trade UI is not changed by this
+DPS Meter update. BMS reads this value through a runtime binding, so it is not
+duplicated in the ordinary DPS Meter config. The file is excluded from packages
+and Git. Never share it or include it in diagnostic uploads or cloud exports.
+The textbox refreshes after sign-in and when the shared file changes. Pasted keys
+are verified against the account endpoint before replacing the stored key.
+
+Ranked uploads run only through the background uploader. Requests use bounded
+retries (at most four attempts) for transient failures, respecting Retry-After
+and persisted cooldowns. **Retry failed uploads** in settings starts another bounded
+background attempt for queued transient failures; it never submits unqueued
+history. A 401 pauses that key across restarts and offers key
+regeneration; a 403 explains an account mismatch and offers support. A new valid
+key resumes pending submissions. No authentication result deletes a local log.
+Server bodies, device codes, PKCE verifiers, keys, and Authorization headers are
+never written to diagnostics. Fixtures are used only in offline tests.
+
+
 The first launch imports surviving reports from `logs/`, `logs/sent/`, and
 `logs/rejected/` without submitting them again. Previously deleted reports
-cannot be recovered. Older reports use their original encounter names and an
-estimated start time derived from the recorded export time and duration.
-
-Disk writes, history indexing, and chart reads run on the uploader worker.
-Logs are organized by encounter and difficulty, for example
-`history/Crabgantua - Heroic/<log>.json` and `history/Rift - Gates/<log>.json`.
-Existing flat history logs move into these folders automatically without
-rewriting their contents. Windows-invalid folder characters are replaced;
-reserved names, trailing dots/spaces, and overly long names are handled too.
-If a move fails, the original file remains readable and the next launch retries.
-The temporary **Rift - Before gates** chart is still not saved. Existing phase identifiers remain readable; older `logs/` exports are local import sources only.
-Only compact summaries are kept in its index; the browser requests one page
-or one chart at a time. Back up `hlx/mods/dps-meter/history/` to preserve your
-local charts when reinstalling the mod or moving to another computer.
+cannot be recovered. Older reports retain their original encounter names.

@@ -15,6 +15,7 @@ public static class DesktopTest {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int PathAction(byte[] path, int length);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int CopyImage(byte[] bytes, int length, int width, int height);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int AudioAction();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int WriteCredential(byte[] path, int pathLength, byte[] content, int length);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int PlayAudio(byte[] bytes, int length, int rate, int channels, double volume);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] public delegate int UpdateAudio(double volume);
     public static Delegate Bind(IntPtr module, string name, string expected, Type type) {
@@ -54,6 +55,34 @@ $playAudio = [DesktopTest]::Bind($module, 'hlp_play_audio', 'PBiiid_i', [Desktop
 $updateAudio = [DesktopTest]::Bind($module, 'hlp_update_audio', 'Pd_i', [DesktopTest+UpdateAudio])
 $stopAudio = [DesktopTest]::Bind($module, 'hlp_stop_audio', 'P_i', [DesktopTest+AudioAction])
 $disposeAudio = [DesktopTest]::Bind($module, 'hlp_dispose_audio', 'P_i', [DesktopTest+AudioAction])
+# Offline checks: no Steam requests or production combat reports.
+$random = [DesktopTest]::Bind($module, 'hlp_secure_random', 'PBi_i', [DesktopTest+PathAction])
+$writeCredential = [DesktopTest]::Bind($module, 'hlp_write_credential', 'PBiBi_i', [DesktopTest+WriteCredential])
+[byte[]]$entropyA = New-Object byte[] 32
+[byte[]]$entropyB = New-Object byte[] 32
+if ($random.Invoke($entropyA, 31) -eq 0) { throw 'Incorrect entropy size accepted' }
+if ($random.Invoke($entropyA, 32) -ne 0 -or $random.Invoke($entropyB, 32) -ne 0) { throw 'Windows CSPRNG failed' }
+if ([Convert]::ToBase64String($entropyA) -eq [Convert]::ToBase64String($entropyB)) { throw 'Random outputs repeated' }
+$credentialFolder = Join-Path ([IO.Path]::GetTempPath()) ('fareverly-local-test-' + [Guid]::NewGuid())
+[IO.Directory]::CreateDirectory($credentialFolder) | Out-Null
+try {
+    $credentialPath = Join-Path $credentialFolder 'account.json'
+    $pathBytes = [Text.Encoding]::UTF8.GetBytes($credentialPath)
+    $first = [Text.Encoding]::UTF8.GetBytes('{"fixture":"first"}')
+    $second = [Text.Encoding]::UTF8.GetBytes('{"fixture":"replacement"}')
+    if ($writeCredential.Invoke($pathBytes, $pathBytes.Length, $first, $first.Length) -ne 0) { throw 'Secure initial write failed' }
+    if ($writeCredential.Invoke($pathBytes, $pathBytes.Length, $second, $second.Length) -ne 0) { throw 'Atomic credential replacement failed' }
+    if ([IO.File]::ReadAllText($credentialPath) -ne '{"fixture":"replacement"}') { throw 'Wrong contents after replacement' }
+    if ($writeCredential.Invoke($pathBytes, $pathBytes.Length, $first, 0) -eq 0) { throw 'Invalid write accepted' }
+    if ([IO.File]::ReadAllText($credentialPath) -ne '{"fixture":"replacement"}') { throw 'Rejected write destroyed the old credential' }
+    $acl = Get-Acl -LiteralPath $credentialPath
+    if (-not $acl.AreAccessRulesProtected) { throw 'Credential ACL inherits access' }
+    $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))
+    if ($rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $owner) { throw 'Credential access is not restricted to the current OS user' }
+    if (@(Get-ChildItem -LiteralPath $credentialFolder).Count -ne 1) { throw 'Temporary credential files remain' }
+    Write-Output 'Windows credentials: CSPRNG, atomic replacement, owner-only ACL, and failure preservation passed'
+} finally { Remove-Item -LiteralPath $credentialFolder -Recurse -Force }
 # Hosted runners may have no endpoint; never mistake a no-op backend for success.
 [byte[]]$pcm = New-Object byte[] 96000 # 0.5 seconds, stereo PCM16 at 48 kHz
 if ($playAudio.Invoke($pcm, 95999, 48000, 2, 0.5) -eq 0) { throw 'Unaligned PCM buffer was accepted' }

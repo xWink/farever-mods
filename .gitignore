@@ -3,3 +3,8 @@
 **/package/
 **/dist/
 **/__pycache__/
+
+# Local Fareverly credentials and runtime reports must never be committed.
+**/hlx/config/
+**/fareverly/account.json*
+**/uploader.log*

@@ -20,6 +20,7 @@ class DpsMeterMod {
     static var kills:KillNotifications;
     static var readyCheck:ReadyCheckController;
     static var writer:RunWriter;
+    static var fareverlyAccount:NativeFareverlyAccount;
     static var timeline:NativeTimeline;
     static function main():Void {
         if (ConfigMigration.importLegacy()) reloadConfig();
@@ -32,6 +33,11 @@ class DpsMeterMod {
         kills = new KillNotifications(config);
         readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
+        fareverlyAccount = new NativeFareverlyAccount();
+        Bus.subscribe("better-mod-settings/action/" + HlxRuntime.moduleName() + "/fareverlyRetry", (_:Dynamic) -> {
+            if (config.sendLogs) writer.retryFareverly();
+            fareverlyAccount.uploadMessage(config.sendLogs ? "Failed submissions queued for a bounded background retry." : "Enable combat log uploads before retrying submissions.");
+        });
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
     static function reloadConfig():Void {
@@ -73,6 +79,7 @@ class DpsMeterMod {
     @:hlx.prefix(GameApp.dispose)
     static function stopUploads(instance:Dynamic):HlxPrefixResult<Void> {
         finishHistory();
+        if (fareverlyAccount != null) fareverlyAccount.disconnect();
         if (historyView != null) historyView.dispose();
         if (readyCheck != null) readyCheck.dispose();
         // A later GameApp (for example after reconnecting) starts a new worker.
@@ -253,6 +260,11 @@ class DpsMeterMod {
             collector = new Collector(config, timeline);
         }
         var now = haxe.Timer.stamp();
+        try {
+            fareverlyAccount.update(G.field(instance, "hero"));
+            var authMessage = writer.receiveAuthMessage();
+            while (authMessage != null) { fareverlyAccount.uploadMessage(authMessage); authMessage = writer.receiveAuthMessage(); }
+        } catch (_:Dynamic) {}
         try {
             if (NativeHotkey.isPressed(config.toggleHotkey)) {
                 config.visible = !config.visible; saveConfig();

@@ -6,8 +6,6 @@ import haxe.Json;
 import haxe.io.Bytes;
 import dpsmeter.FareverlyHttp.FareverlyResponse;
 
-typedef FareverlyRequest = {id:Int, fightId:String, retry:Bool};
-typedef FareverlyReport = {id:Int, fightId:String, status:String, url:String, message:String};
 private typedef SubmissionState = {status:String, attempts:Int, nextAttempt:Float, reason:String, retryable:Bool, url:String};
 
 /** Durable, bounded submission queue. Called only by the log worker. */
@@ -16,7 +14,11 @@ class FareverlyUploader {
     public static inline var MAX_BODY = 5 * 1024 * 1024;
     static inline var MAX_ATTEMPTS = 4;
     final folder:String;
-    final request:(String, String, Bytes)->FareverlyResponse;
+    final request:fareverly.Protocol.Transport;
+    final credentials:Void->fareverly.Protocol.Credential;
+    public var authMessage(default, null) = "";
+    var blockedKey = "";
+    var credential:fareverly.Protocol.Credential;
     final log:String->Void;
     final clock:Void->Float;
     final random:Void->Float;
@@ -27,11 +29,12 @@ class FareverlyUploader {
     var catalogError = "";
     var catalogRetryAt:Float = 0;
     var catalogAttempts = 0;
-    public function new(root:String, request:(String, String, Bytes)->FareverlyResponse, log:String->Void,
-        ?clock:Void->Float, ?random:Void->Float) {
+    public function new(root:String, request:fareverly.Protocol.Transport, log:String->Void,
+        ?clock:Void->Float, ?random:Void->Float, ?credentials:Void->fareverly.Protocol.Credential) {
         folder = root + "/fareverly"; this.request = request; this.log = log;
         this.clock = clock == null ? () -> Date.now().getTime() / 1000 : clock;
         this.random = random == null ? Math.random : random;
+        this.credentials = credentials == null ? () -> fareverly.SecureStore.read() : credentials;
     }
     function initialize():Void {
         if (loaded) return;
@@ -41,6 +44,14 @@ class FareverlyUploader {
             var value:Dynamic = read(path);
             if (value == null || !numeric(value.until) || value.until < 0) throw "Invalid Fareverly cooldown; queue kept locally.";
             nextRequest = value.until;
+        }
+        var paused = folder + "/auth-paused.json";
+        if (FileSystem.exists(paused)) {
+            var state:Dynamic = read(paused);
+            if (state != null && Std.isOfType(state.fingerprint, String)) {
+                blockedKey = state.fingerprint;
+                authMessage = state.mismatch == true ? fareverly.Protocol.error("account_mismatch") : fareverly.Protocol.error("unauthorized");
+            }
         }
         loaded = true;
     }
@@ -96,24 +107,6 @@ class FareverlyUploader {
         }
     }
     function reportPath(id:String):String return folder + "/fight_" + haxe.crypto.Sha256.encode(id) + ".json";
-    public function report(request:FareverlyRequest, enabled:Bool):FareverlyReport {
-        var result:FareverlyReport = {id:request.id, fightId:request.fightId, status:"unavailable", url:"", message:""};
-        var path = reportPath(request.fightId);
-        if (!FileSystem.exists(path)) { result.message = "This log has not been submitted to Fareverly."; return result; }
-        var saved = state(path);
-        if (request.retry && enabled && saved.status == "failed" && saved.retryable) { retryFailed(request.fightId); saved = state(path); }
-        if (saved.status == "accepted" || saved.status == "duplicate") {
-            result.url = reportUrl(saved.url);
-            if (result.url != "") result.status = "ready";
-            else result.message = "The saved Fareverly report address is unavailable.";
-        } else if (saved.status == "pending") {
-            if (enabled) result.status = "pending";
-            else result.message = "Enable combat log uploads in DPS Meter settings to finish this submission.";
-        } else if (saved.status == "not_retained")
-            result.message = "Fareverly did not retain this clear because it is outside your three fastest results.";
-        else result.message = !enabled && saved.retryable ? "Enable combat log uploads in DPS Meter settings to retry this submission." : saved.reason;
-        return result;
-    }
     function fetchCatalog(now:Float):Bool {
         if (catalogDone) return true;
         if (now < catalogRetryAt) return false;
@@ -138,9 +131,22 @@ class FareverlyUploader {
     public function step():Void {
         if (!FileSystem.exists(folder)) return;
         initialize(); var now = clock();
+        credential = credentials();
+        if (!fareverly.Protocol.validKey(credential.accessToken)) {
+            authMessage = "Sign in through Steam in DPS Meter settings to enable ranked uploads."; return;
+        }
+        var fingerprint = haxe.crypto.Sha256.encode(credential.accessToken);
+        if (fingerprint == blockedKey) return;
+        if (credential.expiresAt != "" && fareverly.Protocol.expiry(credential.expiresAt) <= now) {
+            authMessage = "Your Fareverly key has expired. Choose Generate new key in DPS Meter settings."; return;
+        }
+        authMessage = "";
         if (now < nextRequest) return;
         for (path in paths()) {
             var saved = state(path);
+            if (saved.status == "failed" && StringTools.startsWith(saved.reason, "HTTP 401")) {
+                saved = initial(); save(path, saved);
+            }
             if (saved.status != "pending" || now < saved.nextAttempt) continue;
             if (saved.attempts >= MAX_ATTEMPTS) { finish(path, saved, "failed", "Retry limit reached; local log retained.", true); continue; }
             if (!fetchCatalog(now)) return;
@@ -151,12 +157,25 @@ class FareverlyUploader {
                 bytes = File.getBytes(path); record = Json.parse(bytes.toString());
                 var reason = FareverlyContract.validate(record, now); if (reason != "") throw reason;
             } catch (error:Dynamic) { finish(path, saved, "failed", Std.string(error), false); continue; }
+            var players:Array<Dynamic> = record.players;
+            var uploaders = players.filter(p -> p.isMe == true || p.uid == record.me);
+            if (uploaders.length != 1 || uploaders[0].accountId != credential.accountId) {
+                finish(path, saved, "failed", "This log belongs to a different Farever account than the connected key.", false); continue;
+            }
             var matching = [for (entry in catalog) if (entry.bossKind == record.bossKind && FareverlyContract.category(entry.category) == record.category) entry];
             if (matching.length != 1) { finish(path, saved, "failed", "Encounter is not in Fareverly's supported catalog.", false); continue; }
             if (matching[0].ranked != true) { finish(path, saved, "failed", "Fareverly rankings are temporarily unavailable. Try again later.", true); continue; }
             // Persist the attempt before sending: a crash cannot reset the retry budget.
             saved.attempts++; saved.nextAttempt = now + 30; save(path, saved); cooldown(now + 7);
             var response = call("POST", ORIGIN + "/api/v1/logs", bytes); now = clock();
+            if (response.status == 401 || response.status == 403) {
+                // Stop all automatic requests with this key, including after restart.
+                blockedKey = fingerprint;
+                authMessage = fareverly.Protocol.error(response.status == 401 ? "unauthorized" : "account_mismatch");
+                write(folder + "/auth-paused.json", Json.stringify({fingerprint:fingerprint, mismatch:response.status == 403}));
+                saved.attempts--; saved.reason = authMessage; save(path, saved);
+                log("Fareverly: " + authMessage); return;
+            }
             var data:Dynamic = null; try data = Json.parse(response.body) catch (_:Dynamic) {}
             if ((response.status == 200 || response.status == 201) && response.error == "" && data != null) {
                 if (data.status == "not_retained" && data.reason == "outside_top_three") {
@@ -178,7 +197,7 @@ class FareverlyUploader {
         }
     }
     function call(method:String, url:String, bytes:Bytes):FareverlyResponse {
-        try return request(method, url, bytes) catch (error:Dynamic) return {status:0, body:"", retryAfter:"", error:Std.string(error)};
+        try return request(method, url, bytes, method == "POST" && credential != null ? credential.accessToken : "") catch (error:Dynamic) return {status:0, body:"", retryAfter:"", error:Std.string(error)};
     }
     function finish(path:String, state:SubmissionState, status:String, reason:String, retryable:Bool):Void {
         state.status = status; state.reason = reason; state.retryable = retryable; save(path, state);
@@ -191,13 +210,27 @@ class FareverlyUploader {
         return response.status == 0 || response.status == 429 || response.status >= 500 || (response.status >= 200 && response.status < 300 && response.error != "");
     static function describe(response:FareverlyResponse):String {
         var prefix = response.status == 0 ? "Network error" : "HTTP " + response.status;
-        try {
-            var data:Dynamic = Json.parse(response.body);
-            var message:String = Std.isOfType(data.message, String) ? data.message : Std.isOfType(data.error, String) ? data.error : "";
-            if (message != "") return prefix + ": " + message.substr(0, 300)
-                + (Std.isOfType(data.path, String) && data.path != "" ? " (" + (cast data.path:String).substr(0, 150) + ")" : "");
-        } catch (_:Dynamic) {}
-        return prefix + (response.error == "" ? "" : ": " + response.error.substr(0, 300));
+        // Remote text may be localized or include private data. Keep only known
+        // error codes and translate diagnostics locally, never echo response bodies.
+        var code = "";
+        try { var data:Dynamic = Json.parse(response.body); if (data != null && Std.isOfType(data.error, String)) code = data.error; } catch (_:Dynamic) {}
+        var explanation = switch (code) {
+            case "account_mismatch": "Uploader account does not match the connected key";
+            case "unauthorized": "Steam sign-in or a new key is required";
+            case "rate_limited": "Upload rate limit reached";
+            case "inconsistent_totals": "Recorded combat totals do not match their breakdown";
+            case "unsupported_encounter": "Encounter is not supported";
+            case "ineligible_fight": "Fight is not eligible for ranking";
+            case "missing_metadata": "Required fight metadata is missing";
+            default: switch (response.status) {
+                case 0: "Could not connect to Fareverly";
+                case 400, 408, 413, 415, 422: "Fareverly rejected the log format or recorded values";
+                case 429: "Upload rate limit reached";
+                case 503: "Fareverly uploads are temporarily unavailable";
+                default: "Fareverly could not complete the request";
+            }
+        };
+        return prefix + ": " + explanation;
     }
     public static function reportUrl(value:Dynamic):String {
         if (!Std.isOfType(value, String)) return "";
@@ -205,20 +238,7 @@ class FareverlyUploader {
         if (StringTools.startsWith(path, ORIGIN)) path = path.substr(ORIGIN.length);
         return ~/^\/reports\/[A-Za-z0-9_-]+$/.match(path) ? ORIGIN + path : "";
     }
-    public static function retryAfter(value:String, now:Float):Float {
-        if (value == null) return 0;
-        value = StringTools.trim(value);
-        if (~/^[0-9]+$/.match(value)) { var seconds = Std.parseFloat(value); return Math.isFinite(seconds) ? seconds : 0; }
-        var date = ~/^[A-Za-z]{3}, ([0-9]{2}) ([A-Za-z]{3}) ([0-9]{4}) ([0-9]{2}):([0-9]{2}):([0-9]{2}) GMT$/;
-        if (!date.match(value)) return 0;
-        var month = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].indexOf(date.matched(2));
-        if (month < 0) return 0;
-        try {
-            var parsed = new Date(Std.parseInt(date.matched(3)), month, Std.parseInt(date.matched(1)),
-                Std.parseInt(date.matched(4)), Std.parseInt(date.matched(5)), Std.parseInt(date.matched(6)));
-            return Math.max(0, (parsed.getTime() - parsed.getTimezoneOffset() * 60000) / 1000 - now);
-        } catch (_:Dynamic) return 0;
-    }
+    public static function retryAfter(value:String, now:Float):Float return fareverly.Protocol.retryAfter(value, now);
     static function write(path:String, contents:String):Void {
         File.saveContent(path + ".tmp", contents);
         if (FileSystem.exists(path)) FileSystem.deleteFile(path);

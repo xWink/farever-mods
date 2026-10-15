@@ -220,7 +220,7 @@ class NativeHistoryWindow {
             width = 0;
             show(deleteButton, true); show(snapshotButton, true); show(modeButton.object, true);
             show(detailedButton, true);
-            fareverlyAvailable = FareverlyContract.candidate(response.record);
+            fareverlyAvailable = true;
             fareverlyOpen.select(fareverlyAvailable ? selectedEntry.id : "");
             show(fareverlyButton.object, true);
             fareverlyButton.update(fareverlyOpen.busy(haxe.Timer.stamp()), fareverlyAvailable, haxe.Timer.stamp());
@@ -265,23 +265,15 @@ class NativeHistoryWindow {
     }
     function openFareverly():Void {
         if (pending || copying || mode != "chart" || !fareverlyAvailable) return;
-        var now = haxe.Timer.stamp(), request = fareverlyOpen.begin(now);
-        if (request == null) return;
+        var now = haxe.Timer.stamp(), url = fareverlyOpen.begin(now);
+        if (url == "") return;
         fareverlyMessage = ""; status(""); fareverlyButton.update(true, true, now);
-        writer.requestFareverly(request);
+        try fareverlyBrowser.open(url) catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
     }
     function updateFareverly(now:Float):Void {
         if (fareverlyOpen.opening) try {
             if (fareverlyBrowser.poll()) fareverlyOpen.opened(now);
         } catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
-        var response = writer.receiveFareverly();
-        while (response != null) {
-            var url = fareverlyOpen.receive(response, now);
-            if (url != "") try fareverlyBrowser.open(url) catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
-            response = writer.receiveFareverly();
-        }
-        var request = fareverlyOpen.poll(now);
-        if (request != null) writer.requestFareverly(request);
         fareverlyButton.update(fareverlyOpen.busy(now), fareverlyAvailable && !pending && !copying, now);
         if (fareverlyMessage != fareverlyOpen.message) {
             fareverlyMessage = fareverlyOpen.message;

@@ -10,12 +10,12 @@ class FareverlyBrowser {
     public function new(?launch:String->Int) this.launch = launch == null ? openWindows : launch;
     static function openWindows(url:String):Int {
         if (Sys.systemName() != "Windows") throw "Opening Fareverly requires Windows.";
-        // open() accepts only a canonical HTTPS report URL with a restricted ID alphabet.
+        // Only fixed Fareverly pages and UUID connect paths pass validation.
         return Sys.command('start "" "' + url + '"');
     }
     public function open(url:String):Void {
-        if (url == null || url == "" || url.length > 2048 || FareverlyUploader.reportUrl(url) != url)
-            throw "This Fareverly report address is unavailable.";
+        if (url == null || url == "" || url.length > 2048 || !fareverly.Protocol.browserUrl(url))
+            throw "This Fareverly address is unavailable.";
         if (active) throw "Fareverly is already opening in your browser.";
         active = true;
         try Thread.create(() -> {
