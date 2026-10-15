@@ -2,6 +2,11 @@ package bettermodsettings;
 
 /** Use normal native flow order: header, tabs, then the settings body. */
 class NativeWindowLayout {
+    public static inline var WINDOW_WIDTH = 1000;
+    public static inline var HEADER_WIDTH = WINDOW_WIDTH - 2;
+    public static inline var BODY_INSET = 15;
+    public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_INSET * 2;
+
     public static function headerFirst(window:Dynamic, ?tabs:Dynamic):Void {
         var header = HlxRuntime.resolveField(window, "header");
         var content = HlxRuntime.resolveField(window, "titleWindowContent");
@@ -16,8 +21,8 @@ class NativeWindowLayout {
         call("h2d.Flow", "set_reverse", window, [false]);
         style(window, "vspacing", 0);
         call("h2d.Flow", "set_verticalSpacing", window, [0]);
-        // The header is window chrome, so it must cover the full 1000px window,
-        // including the 10px that the narrower settings body does not occupy.
+        // The header covers the frame, with a 2px allowance for its native edge.
+        // Body insets belong to the body so they do not shorten the header.
         for (side in ["Left", "Right", "Top", "Bottom"]) {
             style(window, "padding-" + side.toLowerCase(), 0);
             call("h2d.Flow", "set_padding" + side, window, [0]);
@@ -28,13 +33,21 @@ class NativeWindowLayout {
         // puts the header above the screen. Only align the contents here.
         style(window, "content-valign", top);
         call("h2d.Flow", "set_verticalAlign", window, [top]);
-        for (key in ["width", "min-width", "max-width"]) style(header, key, 1000);
-        call("h2d.Flow", "set_minWidth", header, [1000]);
-        call("h2d.Flow", "set_maxWidth", header, [1000]);
+        for (key in ["width", "min-width", "max-width"]) style(header, key, HEADER_WIDTH);
+        call("h2d.Flow", "set_minWidth", header, [HEADER_WIDTH]);
+        call("h2d.Flow", "set_maxWidth", header, [HEADER_WIDTH]);
+        style(header, "fill-width", false);
+        call("h2d.Flow", "set_fillWidth", header, [false]);
         // Native title content reserves room for overlaid tabs. Our tabs now
         // occupy their own flow row, so that old top inset must not be counted.
         style(content, "padding-top", 0);
         call("h2d.Flow", "set_paddingTop", content, [0]);
+        // Use one explicit horizontal inset on OptionsContent below. Native
+        // title-content padding must not be added to that width a second time.
+        for (side in ["Left", "Right"]) {
+            style(content, "padding-" + side.toLowerCase(), 0);
+            call("h2d.Flow", "set_padding" + side, content, [0]);
+        }
         if (tabs != null) {
             for (key in ["height", "min-height", "max-height"]) style(tabs, key, 70);
             call("h2d.Flow", "set_minHeight", tabs, [70]);
@@ -74,7 +87,16 @@ class NativeWindowLayout {
     public static function compactBody(body:Dynamic):Void {
         if (body == null) return;
         var parent = HlxRuntime.resolveField(body, "parent");
-        if (parent != null) clearMargins(body, call("h2d.Flow", "getProperties", parent, [body]));
+        var properties = parent == null ? null : call("h2d.Flow", "getProperties", parent, [body]);
+        clearMargins(body, properties);
+        // Leave room for both the decorative side rails and the body's native
+        // background/shadow, which paints beyond its layout bounds.
+        for (side in ["Left", "Right"]) {
+            style(body, "margin-" + side.toLowerCase(), BODY_INSET);
+            if (properties != null) HlxRuntime.setField(properties, "padding" + side, BODY_INSET);
+        }
+        style(body, "fill-width", false);
+        call("h2d.Flow", "set_fillWidth", body, [false]);
         style(body, "padding-top", 0);
         call("h2d.Flow", "set_paddingTop", body, [0]);
         style(body, "fill-height", false);

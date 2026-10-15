@@ -549,9 +549,9 @@ class BetterModSettingsMod {
             if (body == null)
                 return;
             if (setMinWidthMember != null)
-                HlxRuntime.callResolved(setMinWidthMember, [body, 990]);
+                HlxRuntime.callResolved(setMinWidthMember, [body, NativeWindowLayout.BODY_WIDTH]);
             if (setMaxWidthMember != null)
-                HlxRuntime.callResolved(setMaxWidthMember, [body, 990]);
+                HlxRuntime.callResolved(setMaxWidthMember, [body, NativeWindowLayout.BODY_WIDTH]);
             if (setMinHeightMember != null)
                 HlxRuntime.callResolved(setMinHeightMember, [body, 520]);
             if (setMaxHeightMember != null)
@@ -564,9 +564,9 @@ class BetterModSettingsMod {
             if (propertiesType != null && initStyleMember == null)
                 initStyleMember = HlxRuntime.resolveMember(propertiesType, "initStyle");
             if (initStyleMember != null) {
-                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "width", 990]);
-                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "min-width", 990]);
-                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "max-width", 990]);
+                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "width", NativeWindowLayout.BODY_WIDTH]);
+                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "min-width", NativeWindowLayout.BODY_WIDTH]);
+                HlxRuntime.callResolved(initStyleMember, [bodyProperties, "max-width", NativeWindowLayout.BODY_WIDTH]);
                 HlxRuntime.callResolved(initStyleMember, [bodyProperties, "height", 520]);
                 HlxRuntime.callResolved(initStyleMember, [bodyProperties, "min-height", 520]);
                 HlxRuntime.callResolved(initStyleMember, [bodyProperties, "max-height", 520]);
