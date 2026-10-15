@@ -5,12 +5,15 @@ import dpsmeter.MeterConfig;
 import modconfig.CommonSettings;
 import dpsmeter.DiagnosticLog;
 import dpsmeter.FareverlyUploader;
+import dpsmeter.FareverlyAccountWorker;
+import dpsmeter.FareverlyHttp;
 import haxe.io.Bytes;
 import haxe.Json;
 import sys.FileSystem;
 import sys.io.File;
 
 @:access(dpsmeter.FareverlyUploader)
+@:access(dpsmeter.FareverlyAccountWorker)
 @:access(RecoveryTest)
 class FareverlyAccountTest {
     static var checks = 0;
@@ -120,8 +123,26 @@ class FareverlyAccountTest {
         flow.begin("test-account", false, entropy()); var deadline = flow.expiresAt; flow.step(); now += 5; flow.step();
         now += 89; flow.step(); check(calls == 2 && flow.expiresAt == deadline, "Rate limits delay polling without extending expiry");
         now = deadline; flow.step(); check(!flow.active && calls == 2, "Ten-minute expiry stops pending flow");
-        uploads(); diagnostics();
+        verificationFeedback(); uploads(); diagnostics();
         Sys.println("Fareverly accounts: " + checks + " checks passed");
+    }
+    static function verificationFeedback():Void {
+        for (notifySuccess in [false, true]) for (success in [false, true]) {
+            // Exercise the real verification path with an offline transport,
+            // without starting the worker's permanent background thread.
+            var worker = Type.createEmptyInstance(FareverlyAccountWorker);
+            worker.manualKey = key; worker.account = "test-account";
+            worker.manualResult = true; worker.manualNotifySuccess = notifySuccess;
+            var http = new VerificationHttp(success
+                ? response(200, {account_id:"test-account", steam_id:"76561198000000000", scopes:["logs:upload"]})
+                : response(401, {}));
+            worker.transport = http;
+            worker.saveManual();
+            check(http.calls == 1 && worker.manualKey == null, "Both automatic and manual checks still verify the key once");
+            check(worker.manualResult == (!success || notifySuccess), "Only automatic verification successes suppress the dialog");
+            check(success ? worker.verifiedKey == key && worker.verifiedAccount == "test-account" : worker.verifiedKey == null,
+                "Silent success still caches verification, and failures never mark the key verified");
+        }
     }
     static function uploads():Void {
         var root = "build/account-upload-test-" + Std.random(0x3fffffff);
@@ -182,5 +203,15 @@ class FareverlyAccountTest {
         try FareverlyConfig.read(common) catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
         check(failed, "Corrupt common config fails safely");
         RecoveryTest.remove(root);
+    }
+}
+
+private class VerificationHttp extends FareverlyHttp {
+    final result:Response;
+    public var calls = 0;
+    public function new(result:Response) { super(() -> {}); this.result = result; }
+    override public function authenticated(method:String, url:String, body:Bytes, token:String):Response {
+        calls++;
+        return result;
     }
 }

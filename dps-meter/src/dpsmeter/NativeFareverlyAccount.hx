@@ -28,14 +28,15 @@ class NativeFareverlyAccount {
         owner = HlxRuntime.moduleName();
         var prefix = "better-mod-settings/action/" + owner + "/";
         Bus.subscribe(prefix + "fareverlySignIn", (_:Dynamic) -> start());
-        settingsChanged();
+        settingsChanged(false);
     }
-    public function settingsChanged():Void {
+    public function settingsChanged(notifySuccess:Bool = true):Void {
         var key:String;
         try key = readKey() catch (_:Dynamic) { status.value = "Common settings could not be read."; return; }
         if (active && key != observedKey) worker.cancel();
+        var edited = notifySuccess && key != observedKey;
         observedKey = key;
-        worker.settings(localAccount, key);
+        worker.settings(localAccount, key, edited);
     }
     function start():Void {
         if (active) return;
@@ -51,7 +52,7 @@ class NativeFareverlyAccount {
     public function update(hero:Dynamic):Void {
         var account = NativePlayerIdentity.accountId(hero);
         if (account == null) account = "";
-        if (account != localAccount) { if (active) worker.cancel(); localAccount = account; settingsChanged(); }
+        if (account != localAccount) { if (active) worker.cancel(); localAccount = account; settingsChanged(false); }
         if (opening) try { if (browser.poll()) opening = false; }
         catch (_:Dynamic) { opening = false; worker.cancel(); status.value = "Could not open your browser. Try signing in again."; }
         var event = worker.receive();

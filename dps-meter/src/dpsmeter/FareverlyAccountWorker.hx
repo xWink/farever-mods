@@ -7,7 +7,7 @@ import sys.thread.Deque;
 import sys.thread.Lock;
 import sys.thread.Thread;
 
-private typedef AccountCommand = {kind:String, account:String, key:String, rotate:Bool, generation:Int};
+private typedef AccountCommand = {kind:String, account:String, key:String, rotate:Bool, generation:Int, notifySuccess:Bool};
 typedef AccountEvent = {generation:Int, active:Bool, manualResult:Bool, message:String, code:String, account:String, url:String, credential:Credential, persist:Bool, expectedKey:String};
 
 /** Separate from the upload queue so a slow ranked request cannot stall sign-in. */
@@ -25,6 +25,7 @@ class FareverlyAccountWorker {
     var verifiedKey = "";
     var verifiedAccount = "";
     var manualKey:Null<String>;
+    var manualNotifySuccess = false;
     var manualAt:Float = 0;
     var account = "";
     var status = "Sign in through Steam to connect Fareverly.";
@@ -33,8 +34,8 @@ class FareverlyAccountWorker {
     var generation = 0;
     var manualResult = false;
     public function new() Thread.create(run);
-    public function start(account:String, rotate:Bool, key:String):Int { var id = ++requestedGeneration; commands.add({kind:"start", account:account, rotate:rotate, key:key, generation:id}); wake.release(); return id; }
-    public function settings(account:String, key:String):Void { commands.add({kind:"settings", account:account, rotate:false, key:key, generation:requestedGeneration}); wake.release(); }
+    public function start(account:String, rotate:Bool, key:String):Int { var id = ++requestedGeneration; commands.add({kind:"start", account:account, rotate:rotate, key:key, generation:id, notifySuccess:false}); wake.release(); return id; }
+    public function settings(account:String, key:String, notifySuccess:Bool = false):Void { commands.add({kind:"settings", account:account, rotate:false, key:key, generation:requestedGeneration, notifySuccess:notifySuccess}); wake.release(); }
     public function cancel():Void { cancellations.add(true); wake.release(); }
     public function receive():Null<AccountEvent> return events.pop(false);
     function progress():Void {
@@ -73,6 +74,7 @@ class FareverlyAccountWorker {
                             if (flow.active && changed) { flow.cancel(); status = "Steam sign-in cancelled because the API-key setting changed."; }
                             if (!flow.active && changed) {
                                 expectedKey = configuredKey;
+                                manualNotifySuccess = command.notifySuccess;
                                 manualKey = Protocol.validKey(configuredKey) && Protocol.validAccount(account)
                                     && (verifiedKey != configuredKey || verifiedAccount != account) ? configuredKey : null;
                                 manualAt = haxe.Timer.stamp() + 0.75;
@@ -121,5 +123,8 @@ class FareverlyAccountWorker {
         }
         verifiedKey = key; verifiedAccount = account;
         status = "Fareverly key verified.";
+        // Background checks still report errors, but only an edited key needs
+        // a success dialog. Loading a saved key at login should be silent.
+        manualResult = manualNotifySuccess;
     }
 }

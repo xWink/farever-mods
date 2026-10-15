@@ -605,6 +605,8 @@ preserves other common fields and refuses to overwrite a key edited while
 sign-in was pending. BMS and DPS Meter use the common config-change notification.
 Pasted keys save to the same common file. Clearing the field stops use of that
 key; masking affects the display only.
+Successful verification of a saved key at login is silent. Editing the key or
+completing Steam sign-in still shows a confirmation; verification errors remain visible.
 
 There is no credential migration or fallback: neither the former DPS Meter
 API-key setting nor the rejected credential file is read or imported. Generate

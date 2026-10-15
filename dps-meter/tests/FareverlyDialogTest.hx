@@ -41,6 +41,36 @@ class FareverlyDialogTest {
         worker.events.push(completed); controller.update(hero);
         check(saves == 1 && G.latest.buttons.length == 1 && G.latest.buttons[0].text == "OK", "Successful authorization still saves and shows its result");
         controller.disconnect();
+        verificationFeedback();
         Sys.println('Fareverly dialog: $checks checks passed.');
+    }
+
+    static function verificationFeedback():Void {
+        var key = "fv1_" + StringTools.lpad("", "K", 43);
+        var controller = new NativeFareverlyAccount((_,_) -> true, () -> key);
+        var worker = FareverlyAccountWorker.last;
+        var hero = {accountId:"private-account-id"};
+        var created = G.created;
+        check(!worker.settingsCalls[0].notifySuccess, "Loading a saved key requests silent verification");
+        controller.update(hero);
+        check(!worker.settingsCalls[1].notifySuccess, "Character login requests silent verification");
+        var verified = event(0,false); verified.message = "Fareverly key verified.";
+        worker.events.push(verified); controller.update(hero);
+        check(G.created == created, "Successful background verification creates no popup");
+
+        key = "fv1_" + StringTools.lpad("", "N", 43);
+        controller.settingsChanged();
+        check(worker.settingsCalls[2].notifySuccess, "Editing the key requests a verification confirmation");
+        controller.settingsChanged();
+        check(!worker.settingsCalls[3].notifySuccess, "Unrelated settings changes do not request a success popup");
+        verified.manualResult = true;
+        worker.events.push(verified); controller.update(hero);
+        check(G.created == created + 1 && G.latest.message == verified.message, "Manual verification still shows its result");
+        G.choose(G.latest, 0);
+
+        var failed = event(0,false); failed.manualResult = true; failed.message = "Could not verify this key.";
+        worker.events.push(failed); controller.update(hero);
+        check(G.created == created + 2 && G.latest.message == failed.message, "Verification errors remain visible");
+        controller.disconnect();
     }
 }
