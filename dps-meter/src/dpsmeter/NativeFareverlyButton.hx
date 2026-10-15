@@ -43,7 +43,7 @@ class NativeFareverlyButton {
         if (loading) G.call("h2d.Object", "set_rotation", spinner, [now * 5]);
         var clickable = available && !loading;
         if (enabled != clickable) { enabled = clickable; G.call("ui.UIElement", "set_enable", object, [clickable]); }
-        var text = loading ? "Opening in Fareverly..." : available ? "Open in Fareverly" : "Open a fight log to use the Fareverly analyzer.";
+        var text = loading ? "Opening in Fareverly..." : available ? "Open in Fareverly" : "Not compatible with Fareverly";
         if (tip != text) { tip = text; NativeButtonTooltip.set(object, text); }
     }
 }
