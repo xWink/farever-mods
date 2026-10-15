@@ -5,7 +5,7 @@ class NativeWindowLayout {
     public static inline var WINDOW_WIDTH = 1000;
     public static inline var HEADER_WIDTH = WINDOW_WIDTH - 4;
     public static inline var BODY_LEFT_INSET = 7;
-    public static inline var BODY_RIGHT_INSET = 9;
+    public static inline var BODY_RIGHT_INSET = 8;
     public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_LEFT_INSET - BODY_RIGHT_INSET;
 
     public static function headerFirst(window:Dynamic, ?tabs:Dynamic):Void {
