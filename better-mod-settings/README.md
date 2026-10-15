@@ -114,6 +114,7 @@ A title displays larger, bold text on its own row, without a separator or contro
 | `key` | Yes | String | Exact top-level property name in the settings JSON, or the action identifier for a button. An empty key is ignored; nested paths are not supported. Button keys must be unique within the mod. |
 | `type` | Yes | String | Must be exactly `checkbox`, `slider`, `text`, `dropdown`, `keybinding`, or `button` for a control. Use `title` for a display-only title row as described above. |
 | `label` | For dropdowns | String | Text displayed beside the control. Dropdowns require a non-empty label; other controls default to `key`. |
+| `isCommon` | No | Boolean | `true` stores the value in `hlx/config/common/config.json`, shared by descriptor key across mods. Applies to value controls, not titles or action buttons. Defaults to `false`. |
 | `tooltip` | No | Object | Set `enabled` to `true` and supply a non-empty string `tooltipText` to add a circled question mark immediately after the label. Hover the icon to display the help text. |
 
 ```json
@@ -186,6 +187,40 @@ change its value. This masks the display only; the configuration still stores th
 original string.
 
 The current format does not provide color pickers, nested settings values, collapsible groups, conditional controls, or settings that span multiple JSON properties.
+
+#### Common settings
+
+Add `"isCommon": true` to any checkbox, slider, text, dropdown, or keybinding
+setting to store its value in `hlx/config/common/config.json`. Mods sharing the
+same `key` share one value, so agree on its type and meaning. Keep private
+settings in the mod's normal config; do not put common defaults into
+`@:hlx.config` and expect them to be loaded from there.
+
+```json
+{
+  "key": "fareverlyApiKey",
+  "type": "text",
+  "label": "Fareverly API key",
+  "isSecret": true,
+  "isCommon": true
+}
+```
+
+The common folder/file is created on the first write. Missing values use the
+control's usual empty/default display without writing on open. BMS never reads
+or imports a previous mod-local value for a common setting. Each edit reloads
+and updates only its common key, preserving the other mods' fields. Malformed
+common JSON is reported without overwriting it. A mod still needs its normal
+settings file (an empty `{}` suffices) for discovery.
+
+Common edits publish `better-mod-settings/config-changed/common` with a `null`
+payload after saving. Consumers should subscribe to that topic and reload the
+common file; ordinary settings keep the existing per-mod notification. The
+shared `modconfig.CommonSettings` helper exposes `read()`, `write(key, value)`,
+`PATH`, and `CHANGED_TOPIC`. A mod writing a common setting itself should publish
+`CHANGED_TOPIC` after a successful write. BMS refreshes every open control for
+that key, including copies on other mod tabs, without saving it again. The
+folder name `common` is reserved for this shared configuration.
 
 #### Action buttons
 
@@ -299,8 +334,9 @@ Text conversion tests cover Unicode and saving the original string. The mask is
 applied after the native text-layout method and only to registered secret inputs.
 Final eye-button appearance and editing behavior still require in-game confirmation.
 
-The native header spans the same width as the body. Tabs occupy a compact 70px
-row without the native overlay's extra top inset. Secret textboxes and their
+The native header spans the full 1000px window width. Tabs occupy a compact 70px
+row; native overlay margins and height filling are removed from the header,
+tabs, and title content, and the body's extra top inset is cleared. Secret textboxes and their
 eye buttons share one horizontal control area, with a fixed click target and
 clearance before the scrollbar. Layout and control tests exercise these native
 calls; final appearance still requires in-game confirmation.

@@ -15,7 +15,7 @@ class FareverlyDialogTest {
         account:"private-account-id", url:active ? uri : "", credential:Protocol.empty(), persist:false, expectedKey:""};
     static function main():Void {
         var saves = 0;
-        var controller = new NativeFareverlyAccount(MeterConfig.defaults(), (_,_) -> { saves++; return true; });
+        var controller = new NativeFareverlyAccount((_,_) -> { saves++; return true; }, () -> "");
         var worker = FareverlyAccountWorker.last;
         var hero = {accountId:"private-account-id"};
         controller.update(hero);

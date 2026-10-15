@@ -45,15 +45,15 @@ class Protocol {
         } catch (_:Dynamic) return 0;
     }
     public static function error(code:String):String return switch (code) {
-        case "already_linked": "This account is already linked. Choose Generate Key.";
-        case "account_not_linked": "This account is not linked yet. Choose Generate Key.";
+        case "already_linked": "This account is already linked. Choose Generate API key.";
+        case "account_not_linked": "This account is not linked yet. Choose Generate API key.";
         case "account_conflict": "This Steam or Farever account is linked to another account. Contact Fareverly support.";
         case "account_mismatch": "The Fareverly key belongs to another Farever account. Contact Fareverly support.";
-        case "already_consumed": "The key was already delivered. Choose Generate Key if it was not saved.";
+        case "already_consumed": "The key was already delivered. Choose Generate API key if it was not saved.";
         case "invalid_grant", "request_expired": "The sign-in request expired or is invalid. Start again.";
         case "access_denied": "Steam sign-in was declined.";
         case "invalid_request": "Fareverly rejected the sign-in request format. Please report this error.";
-        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Generate Key.";
+        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Generate API key.";
         default: "Fareverly sign-in is unavailable. Please try again later.";
     }
 }

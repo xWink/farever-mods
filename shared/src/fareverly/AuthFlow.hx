@@ -85,11 +85,14 @@ class AuthFlow {
             credential = {accessToken:data.access_token, accountId:data.account_id, steamId:data.steam_id, expiresAt:data.expires_at};
             finish("Steam sign-in approved. Saving your key..."); return;
         }
-        // One Generate Key action covers first signup and replacement of a lost
-        // key. Both still require a fresh Steam approval; no key is changed here.
-        if (starting && response.status == 409 && !switchedAction && data != null
+        // Link state is discovered during token exchange, after Steam approval.
+        // Restart once with the correct action and a fresh device request; the
+        // previous approved request must never be polled again.
+        if (response.status == 409 && !switchedAction && data != null
             && ((action == "link" && data.error == "already_linked") || (action == "rotate" && data.error == "account_not_linked"))) {
             action = action == "link" ? "rotate" : "link"; switchedAction = true;
+            deviceCode = ""; userCode = ""; verificationUri = "";
+            message = "Preparing a new sign-in code. Approve the new code in your browser to generate your API key.";
             nextRequest = now + Math.max(5, Protocol.retryAfter(response.retryAfter, now)); return;
         }
         if (response.status == 0 || response.status == 429 || response.status >= 500) {

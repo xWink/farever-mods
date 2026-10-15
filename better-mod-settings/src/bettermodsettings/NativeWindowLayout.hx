@@ -16,11 +16,18 @@ class NativeWindowLayout {
         call("h2d.Flow", "set_reverse", window, [false]);
         style(window, "vspacing", 0);
         call("h2d.Flow", "set_verticalSpacing", window, [0]);
-        // Match the 990px body inside the 1000px window. The native overlay
-        // header otherwise keeps a narrower width after becoming a flow child.
-        for (key in ["width", "min-width", "max-width"]) style(header, key, 990);
-        call("h2d.Flow", "set_minWidth", header, [990]);
-        call("h2d.Flow", "set_maxWidth", header, [990]);
+        // The header is window chrome, so it must cover the full 1000px window,
+        // including the 10px that the narrower settings body does not occupy.
+        for (side in ["Left", "Right", "Top", "Bottom"]) {
+            style(window, "padding-" + side.toLowerCase(), 0);
+            call("h2d.Flow", "set_padding" + side, window, [0]);
+        }
+        var top = HlxRuntime.constructEnum(HlxRuntime.resolveType("h2d.FlowAlign"), "Top", []);
+        style(window, "valign", top);
+        call("h2d.Flow", "set_verticalAlign", window, [top]);
+        for (key in ["width", "min-width", "max-width"]) style(header, key, 1000);
+        call("h2d.Flow", "set_minWidth", header, [1000]);
+        call("h2d.Flow", "set_maxWidth", header, [1000]);
         // Native title content reserves room for overlaid tabs. Our tabs now
         // occupy their own flow row, so that old top inset must not be counted.
         style(content, "padding-top", 0);
@@ -43,6 +50,12 @@ class NativeWindowLayout {
             call("h2d.FlowProperties", "set_isAbsolute", properties, [false]);
             HlxRuntime.setField(properties, "offsetX", 0);
             HlxRuntime.setField(properties, "offsetY", 0);
+            // DOMKit margins live in the parent's FlowProperties, separately
+            // from the child's padding and height. The native overlay reserves
+            // tab/header space here too; reducing the tab height alone leaves it.
+            clearMargins(child, properties);
+            style(child, "fill-height", false);
+            call("h2d.Flow", "set_fillHeight", child, [false]);
         }
         var index:Int = call("h2d.Object", "getChildIndex", window, [content]);
         var headerIndex:Int = call("h2d.Object", "getChildIndex", window, [header]);
@@ -53,6 +66,23 @@ class NativeWindowLayout {
             moveChild(window, tabs, index + 1);
         }
         call("h2d.Flow", "set_needReflow", window, [true]);
+    }
+
+    public static function compactBody(body:Dynamic):Void {
+        if (body == null) return;
+        var parent = HlxRuntime.resolveField(body, "parent");
+        if (parent != null) clearMargins(body, call("h2d.Flow", "getProperties", parent, [body]));
+        style(body, "padding-top", 0);
+        call("h2d.Flow", "set_paddingTop", body, [0]);
+        style(body, "fill-height", false);
+        call("h2d.Flow", "set_fillHeight", body, [false]);
+    }
+
+    static function clearMargins(child:Dynamic, properties:Dynamic):Void {
+        for (side in ["Left", "Right", "Top", "Bottom"]) {
+            style(child, "margin-" + side.toLowerCase(), 0);
+            if (properties != null) HlxRuntime.setField(properties, "padding" + side, 0);
+        }
     }
 
     static function moveChild(window:Dynamic, child:Dynamic, index:Int):Void {

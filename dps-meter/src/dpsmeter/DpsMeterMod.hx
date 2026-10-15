@@ -6,6 +6,7 @@ import dpsmeter.MeterConfig.MeterSettings;
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import modconfig.ConfigMigration;
+import modconfig.CommonSettings;
 import hlx.runtime.HlxPrefixResult;
 import dpsmeter.GameAccess as G;
 
@@ -27,7 +28,6 @@ class DpsMeterMod {
         if (ConfigMigration.importLegacy()) reloadConfig();
         else if (!ConfigMigration.hasNative()) MeterConfig.importLegacy(config);
         MeterConfig.normalize(config);
-        FareverlyConfig.discardUnsupported(config);
         saveConfig();
         historyView = new NativeHistoryWindow(config, reportMode);
         view = new NativeMeterWindow(config, () -> historyView.open(), reportMode);
@@ -35,7 +35,8 @@ class DpsMeterMod {
         kills = new KillNotifications(config);
         readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
-        fareverlyAccount = new NativeFareverlyAccount(config, saveFareverlyCredential);
+        fareverlyAccount = new NativeFareverlyAccount(saveFareverlyCredential);
+        Bus.subscribe(CommonSettings.CHANGED_TOPIC, (_:Dynamic) -> fareverlyAccount.settingsChanged());
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
     static function reloadConfig():Void {
@@ -48,12 +49,10 @@ class DpsMeterMod {
     }
 
     static function saveFareverlyCredential(value:fareverly.Protocol.Credential, expectedKey:String):Bool {
-        // BMS may have saved another setting while the browser/worker was active.
-        // Reload before saving so the new key never restores stale config values.
-        reloadConfig();
-        if (!FareverlyConfig.apply(config, value, expectedKey)) return false;
-        try config.save() catch (_:Dynamic) { reloadConfig(); return false; }
-        fareverlyAccount.settingsChanged();
+        try {
+            if (!FareverlyConfig.save(value, expectedKey)) return false;
+        } catch (_:Dynamic) return false;
+        Bus.publish(CommonSettings.CHANGED_TOPIC, null);
         return true;
     }
 

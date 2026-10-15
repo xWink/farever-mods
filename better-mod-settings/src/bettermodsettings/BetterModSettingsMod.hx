@@ -2,6 +2,7 @@ package bettermodsettings;
 
 import haxe.Json;
 import modinput.Hotkey;
+import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import hlx.runtime.HlxPrefixResult;
@@ -18,6 +19,8 @@ class BetterModSettingsMod {
     static var nativeSettingsWindow:Dynamic;
     static var openingNativeSettingsWindow:Bool = false;
     static var compatibleMods:Array<Dynamic> = [];
+    static final commonControls = new CommonSettingControls();
+    static var commonSettingsChanged = false;
     static var pendingSettingsNotifications:Map<String, Bool> = new Map();
     static var actionButtons = new ActionButtonQueue();
     static var actionDialog:Dynamic;
@@ -103,7 +106,9 @@ class BetterModSettingsMod {
     static var getFlowPropertiesMember:hlx.runtime.ResolvedMember;
     static var displayWindowMember:hlx.runtime.ResolvedMember;
 
-    static function main():Void {}
+    static function main():Void {
+        Bus.subscribe(CommonSettings.CHANGED_TOPIC, (_:Dynamic) -> commonSettingsChanged = true);
+    }
 
     @:hlx.postfix(h2d.TextInput.splitRawText)
     static function maskSecretText(instance:Dynamic, text:String, leftMargin:hl.Ref<Float>, afterData:hl.Ref<Float>,
@@ -149,6 +154,7 @@ class BetterModSettingsMod {
             || HlxRuntime.resolveField(nativeSettingsWindow, "allocated") != true) {
             NativeDropdown.closeAll(true);
             NativeSecretText.hideAll(true);
+            commonControls.clear();
             NativeSettingTooltip.hide();
             if (capturingKeybind != null) {
                 capturingKeybind = null;
@@ -176,6 +182,7 @@ class BetterModSettingsMod {
     static function resetKeyCapture(instance:Dynamic):HlxPrefixResult<Void> {
         NativeDropdown.closeAll(true);
         NativeSecretText.hideAll(true);
+        commonControls.clear();
         NativeSettingTooltip.reset();
         capturingKeybind = null;
         captureInput.reset();
@@ -215,6 +222,7 @@ class BetterModSettingsMod {
         refreshPendingOptionLabelStyles();
         refreshPendingTabPagination();
         flushSettingsNotifications();
+        refreshCommonSettings();
         flushButtonActions();
     }
 
@@ -371,6 +379,7 @@ class BetterModSettingsMod {
 
             NativeDropdown.closeAll(true);
             NativeSecretText.hideAll(true);
+            commonControls.clear();
             // TitleWindow auto-displays before its constructor returns. The
             // prefix above must be active during that call so BaseUI keeps the
             // EscapeMenu beside this companion window.
@@ -418,6 +427,7 @@ class BetterModSettingsMod {
             openingNativeSettingsWindow = false;
             NativeDropdown.closeAll(true);
             NativeSecretText.hideAll(true);
+            commonControls.clear();
             nativeSettingsWindow = null;
             trace("[BetterModSettings] Could not open native settings window: " + Std.string(error));
         }
@@ -573,6 +583,10 @@ class BetterModSettingsMod {
             if (!FileSystem.exists(modsPath) || !FileSystem.isDirectory(modsPath))
                 return;
 
+            var common:Dynamic = {};
+            try common = CommonSettings.read()
+            catch (error:Dynamic) trace("[BetterModSettings] Could not load common settings: " + Std.string(error));
+
             for (folder in FileSystem.readDirectory(modsPath)) {
                 var folderPath = modsPath + "/" + folder;
                 var formatPath = folderPath + "/configFormats.json";
@@ -591,6 +605,7 @@ class BetterModSettingsMod {
                     var definitions:Array<Dynamic> = cast Reflect.field(format, "configs");
                     if (definitions == null)
                         continue;
+                    CommonSettings.overlay(values, definitions, common);
                     compatibleMods.push({
                         id: folder,
                         name: stringField(format, "displayName", folder),
@@ -670,6 +685,7 @@ class BetterModSettingsMod {
         if (bodyProperties == null)
             bodyProperties = windowProperties;
         sizeBody(bodyProperties);
+        NativeWindowLayout.compactBody(HlxRuntime.resolveField(bodyProperties, "obj"));
         var settingsParentProperties = prepareNativeOptionsBody(bodyProperties);
 
         var panels:Array<Dynamic> = [];
@@ -901,6 +917,8 @@ class BetterModSettingsMod {
                 prepareSettingControl(settingParent, checkProperties, true);
                 if (check != null) {
                     setCheckboxValue(check, checked);
+                    commonControls.add(definition, Reflect.field(mod.values, key),
+                        value -> setCheckboxValue(check, value == true));
                     var targetMod = mod;
                     var targetKey = key;
                     HlxRuntime.setField(check, "onValueChange", function(value:Bool):Void {
@@ -923,6 +941,12 @@ class BetterModSettingsMod {
                     : HlxRuntime.resolveField(sliderProperties, "obj");
                 prepareSettingControl(settingParent, sliderProperties, false);
                 if (slider != null) {
+                    var setValue = HlxRuntime.resolveMember(HlxRuntime.resolveType("ui.comp.Slider"), "updateVal");
+                    commonControls.add(definition, Reflect.field(mod.values, key), function(value:Dynamic):Void {
+                        var number = Std.isOfType(value, Int) || Std.isOfType(value, Float) ? value : min;
+                        HlxRuntime.setField(slider, "value", number);
+                        HlxRuntime.callResolved(setValue, [slider]);
+                    });
                     var targetMod = mod;
                     var targetKey = key;
                     HlxRuntime.setField(slider, "onChange", function(newValue:Float):Void {
@@ -939,10 +963,12 @@ class BetterModSettingsMod {
                 if (control != null) {
                     var targetMod = mod;
                     var targetKey = key;
-                    try NativeDropdown.configure(control, dropdownDefinition,
-                        Reflect.field(Reflect.field(mod, "values"), key),
-                        function(value:String):Bool return saveSetting(targetMod, targetKey, value))
-                    catch (error:Dynamic)
+                    try {
+                        var update = NativeDropdown.configure(control, dropdownDefinition,
+                            Reflect.field(mod.values, key),
+                            function(value:String):Bool return saveSetting(targetMod, targetKey, value));
+                        commonControls.add(definition, Reflect.field(mod.values, key), update);
+                    } catch (error:Dynamic)
                         trace("[BetterModSettings] Could not configure dropdown " + key + ": " + Std.string(error));
                 }
             } else if (type == "text") {
@@ -970,6 +996,11 @@ class BetterModSettingsMod {
                     var setText = HlxRuntime.resolveMember(HlxRuntime.resolveType("h2d.TextInput"), "set_text");
                     HlxRuntime.callResolved(setText, [input,
                         TextSetting.storedValue(Reflect.field(Reflect.field(mod, "values"), key))]);
+                    commonControls.add(definition, Reflect.field(mod.values, key), function(value:Dynamic):Void {
+                        var text = TextSetting.storedValue(value);
+                        if (TextSetting.nativeValue(HlxRuntime.resolveField(input, "text")) != text)
+                            HlxRuntime.callResolved(setText, [input, text]);
+                    });
                     var setHint = HlxRuntime.resolveMember(HlxRuntime.resolveType("ui.comp.InputBox"), "set_hintText");
                     HlxRuntime.callResolved(setHint, [box, stringField(definition, "placeholder", "")]);
                     var targetMod = mod;
@@ -995,6 +1026,8 @@ class BetterModSettingsMod {
                     : HlxRuntime.resolveField(keyProperties, "obj");
                 prepareSettingControl(settingParent, keyProperties, false);
                 if (keyButton != null) {
+                    commonControls.add(definition, Reflect.field(mod.values, key),
+                        value -> setKeyButtonText(keyButton, bindingName(value)));
                     var targetMod = mod;
                     var targetKey = key;
                     HlxRuntime.callResolved(setOnClickMember, [keyButton, function():Void {
@@ -2305,7 +2338,15 @@ class BetterModSettingsMod {
     }
 
     static function saveSetting(mod:Dynamic, key:String, value:Dynamic):Bool {
+        if (commonControls.refreshing) return true;
         try {
+            var definitions:Array<Dynamic> = mod.definitions;
+            for (definition in definitions) if (Reflect.field(definition, "key") == key && CommonSettings.isCommon(definition)) {
+                CommonSettings.write(key, value);
+                Reflect.setField(mod.values, key, value);
+                pendingSettingsNotifications.set("common", true);
+                return true;
+            }
             var settingsPath = Std.string(Reflect.field(mod, "settingsPath"));
             var values:Dynamic = Json.parse(File.getContent(settingsPath));
             Reflect.setField(values, key, value);
@@ -2313,12 +2354,26 @@ class BetterModSettingsMod {
                 ModConfig.save(stringField(mod, "id", ""), values);
             else
                 File.saveContent(settingsPath, Json.stringify(values, null, "  "));
+            // Keep common values in the UI snapshot, never in the mod file.
+            CommonSettings.overlay(values, mod.definitions, mod.values);
             Reflect.setField(mod, "values", values);
             queueSettingsNotification(mod);
             return true;
         } catch (error:Dynamic) {
             trace("[BetterModSettings] Could not save " + key + ": " + Std.string(error));
             return false;
+        }
+    }
+
+    static function refreshCommonSettings():Void {
+        if (!commonSettingsChanged) return;
+        commonSettingsChanged = false;
+        try {
+            var values = CommonSettings.read();
+            for (mod in compatibleMods) CommonSettings.overlay(mod.values, mod.definitions, values);
+            commonControls.refresh(values);
+        } catch (error:Dynamic) {
+            trace("[BetterModSettings] Could not reload common settings: " + Std.string(error));
         }
     }
 

@@ -62,7 +62,7 @@ class HlxRuntime {
                  "h2d.Flow.set_fillWidth", "h2d.Flow.set_fillHeight", "h2d.Flow.set_multiline",
                  "h2d.Flow.set_minWidth", "h2d.Flow.set_maxWidth", "h2d.Flow.set_minHeight", "h2d.Flow.set_maxHeight",
                  "h2d.Flow.set_paddingLeft", "h2d.Flow.set_paddingRight", "h2d.Flow.set_paddingTop", "h2d.Flow.set_paddingBottom",
-                 "h2d.Flow.set_verticalSpacing", "h2d.Flow.set_horizontalSpacing",
+                 "h2d.Flow.set_verticalAlign", "h2d.Flow.set_verticalSpacing", "h2d.Flow.set_horizontalSpacing",
                  "ui.UIElement.set_onClick", "ui.UIElement.set_textTip":
                 Reflect.setField(object, member.method.substr(4), args[1]);
                 null;

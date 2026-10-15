@@ -571,47 +571,52 @@ Browser activation uses Windows ShellExecute directly, with no terminal process.
 
 ### Steam sign-in
 
-In **General**, **Upload combat logs to Fareverly** follows **Enabled**. Below it,
-the **Fareverly API key** textbox is empty by default and masked until its eye is
-opened. **Generate Key** handles both initial signup and replacement of a lost,
-expired, or exposed key, using a fresh Steam sign-in in your normal browser. The
-mod never asks for a Steam password. A temporary sign-in dialog shows only the code to match before approving,
-with a single Cancel sign-in button. Cancelling closes it without another popup. Results
-appear in a dialog. Reopen Mod Settings to display the newly saved key.
-General contains no separate help, retry, status, replacement, or pending rows.
+The **Fareverly** category follows **General** and contains **Upload combat logs
+to Fareverly**, the secret **Fareverly API key** textbox, and **Generate API key**.
+Uploading requires an API key. The field is empty by default and its eye starts
+closed each time Mod Settings opens.
+
+**Generate API key** handles initial signup and replacement of a lost, expired,
+or exposed key using Steam sign-in in your normal browser. The mod never asks
+for a Steam password. The temporary dialog shows only the code to match, with
+one Cancel sign-in button. Cancelling closes it without another popup. A saved
+key refreshes the open BMS field automatically.
 
 Device authorization uses a Windows cryptographically secure 32-byte verifier
 and S256 PKCE. Polling runs on a separate worker at least five seconds apart,
 respects Retry-After, stops after ten minutes, and bounds transient retries.
 Only one flow may run across mods using the shared Fareverly helper. The old key
 remains valid until an approved rotation completes. Returned credentials must
-match the local Farever account and grant upload/account-read scopes.
+match the local Farever account and grant upload/account-read scopes. The API
+checks existing account links during token exchange. If the initial action does
+not match the server's link state, the mod starts one new approval with the
+correct action and opens its new browser code, rather than ending with an
+"already linked" error. Approve that new code to finish generating the key.
 
-The API key is the only Fareverly credential setting, stored as the ordinary
-`fareverlyApiKey` string in `hlx/config/dps-meter/config.json`. No account ID,
+The API key is the only Fareverly credential setting. Its descriptor uses both
+`isSecret: true` and `isCommon: true`; its `fareverlyApiKey` value lives in
+`hlx/config/common/config.json` so other Fareverly mods can use it. No account ID,
 Steam ID, expiry, or verification fingerprint is saved alongside it. The server
-authenticates the key, checks expiry and scope, and compares the log's uploader
-account with the account linked to the key. The mod reads the current game
-account only when needed for sign-in or key verification.
+authenticates the key and checks expiry, scope, and the log's uploader account.
+The mod reads the current game account when needed for sign-in or verification.
 
-BMS uses normal config writes and config-change notifications; Secrets add only
-`isSecret: true` to the textbox. Generate Key uses the existing button action
-event. The game thread reloads other settings before saving a returned key and
-refuses to overwrite a key edited while sign-in was pending. Pasted keys are
-saved normally. Clearing the field stops use of that key; masking is display-only.
+Generate API key uses the existing BMS button action event. Saving a returned key
+preserves other common fields and refuses to overwrite a key edited while
+sign-in was pending. BMS and DPS Meter use the common config-change notification.
+Pasted keys save to the same common file. Clearing the field stops use of that
+key; masking affects the display only.
 
-The rejected shared credential file is never read or imported. On startup,
-configs containing the rejected credential metadata fields have their old key
-cleared and those fields removed; generate or paste a new key afterward. A new
-key-only config is preserved normally on subsequent starts. Config files are
-not included in installation ZIPs.
+There is no credential migration or fallback: neither the former DPS Meter
+API-key setting nor the rejected credential file is read or imported. Generate
+a new key for the common setting. Config files are not included in installation
+ZIPs.
 
 Ranked uploads run only through the background uploader. Requests use bounded
 retries (at most four attempts) for transient failures, respecting Retry-After
 and persisted cooldowns. Exhausted attempts retain their local files; settings
 have no manual retry control, and opening history never queues an upload. A 401
 pauses that key across restarts; a 403 records an account-mismatch diagnostic.
-Generate Key replaces an invalid key and resumes pending submissions. No
+Generate API key replaces an invalid key and resumes pending submissions. No
 authentication result deletes a local log.
 Server bodies, device codes, PKCE verifiers, keys, and Authorization headers are
 never written to diagnostics. Fixtures are used only in offline tests.

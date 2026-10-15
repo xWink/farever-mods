@@ -65,6 +65,8 @@ jobs:
           ../.text-hashlink/hl build/secret-text-test.hl
           haxe -cp src -cp tests -cp tests/native-stubs -main WindowLayoutTest -hl build/window-layout-test.hl
           ../.text-hashlink/hl build/window-layout-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main CommonSettingsTest -hl build/common-settings-test.hl
+          ../.text-hashlink/hl build/common-settings-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main DropdownSettingTest -hl build/dropdown-setting-test.hl
           ../.text-hashlink/hl build/dropdown-setting-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main KeyCaptureInputTest -hl build/key-capture-input-test.hl

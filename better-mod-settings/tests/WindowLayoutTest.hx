@@ -6,7 +6,7 @@ class WindowLayoutTest {
         checks++;
         if (!ok) throw message;
     }
-    static function node(name:String):Dynamic return {name:name, dom:{styles:{}}, flowProperties:{isAbsolute:true}};
+    static function node(name:String):Dynamic return {name:name, dom:{styles:{}}, flowProperties:{isAbsolute:true, paddingTop:70, paddingBottom:10, paddingLeft:5, paddingRight:5}};
     static function order(window:Dynamic):String {
         var children:Array<Dynamic> = window.children;
         return [for (child in children) child.name].join(",");
@@ -23,13 +23,23 @@ class WindowLayoutTest {
         check(order(window) == "background,header,tabs,body", "Header, tabs, and body have explicit visual order");
         for (_ in 0...3) NativeWindowLayout.headerFirst(window, tabs);
         check(order(window) == "background,header,tabs,body", "Repeated layout cannot move the title back to the bottom");
-        check(header.minWidth == 990 && header.maxWidth == 990, "Header spans the same inner width as the settings body");
+        check(header.minWidth == 1000 && header.maxWidth == 1000, "Header spans the full outer window width, not the narrower body");
         check(body.paddingTop == 0, "Content no longer reserves space for overlaid tabs");
         check(tabs.minHeight == 70 && tabs.maxHeight == 70 && tabs.paddingTop == 10 && tabs.paddingBottom == 10,
             "Tab strip fits the 50px buttons with 10px top and bottom spacing");
+        check(window.paddingLeft == 0 && window.paddingRight == 0, "Window padding cannot inset the full-width header");
+        var options = node("options"); options.parent = body; options.fillHeight = true;
+        NativeWindowLayout.compactBody(options);
+        check(options.paddingTop == 0 && options.flowProperties.paddingTop == 0 && options.fillHeight == false,
+            "OptionsContent cannot reintroduce the overlay tab gap");
         check(window.verticalSpacing == 0, "No extra window-level gap separates the tabs and body");
         check(window.layout == "Vertical" && window.reverse == false, "Native flow runs from top to bottom");
         for (child in [header,tabs,body]) {
+            check(child.flowProperties.paddingTop == 0 && child.flowProperties.paddingBottom == 0
+                && child.flowProperties.paddingLeft == 0 && child.flowProperties.paddingRight == 0,
+                "Native overlay margins are removed from the parent flow");
+            check(Reflect.field(child.dom.styles, "margin-top") == 0 && child.fillHeight == false,
+                "CSS refresh cannot restore overlay gaps or stretch the tabs");
             check(child.flowProperties.isAbsolute == false, "Content participates in normal layout");
             check(Reflect.field(child.dom.styles, "position") == false, "CSS cannot restore overlay positioning");
             check(!Reflect.hasField(child, "x") && !Reflect.hasField(child, "y"), "No hard-coded pixel positioning");

@@ -28,7 +28,6 @@ typedef MeterSettings = {
     var showCompletedCodexKills:Bool;
     var unlocked:Bool;
     var sendLogs:Bool;
-    var fareverlyApiKey:String;
     var debug:Bool;
     var me:String;
     var group:String;
@@ -69,7 +68,6 @@ class MeterConfig {
         showCompletedCodexKills: false,
         unlocked: true,
         sendLogs: true,
-        fareverlyApiKey: "",
         debug: false,
         me: "",
         group: "",

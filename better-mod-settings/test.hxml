@@ -47,6 +47,13 @@
 --interp
 
 --next
+-cp src
+-cp ../shared/src
+-cp tests
+-main CommonSettingsTest
+--interp
+
+--next
 -cp ../shared/src
 -cp ../shared/tests
 -main HotkeyTest

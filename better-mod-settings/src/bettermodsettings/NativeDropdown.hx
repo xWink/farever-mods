@@ -13,7 +13,7 @@ class NativeDropdown {
     static var topElement:hlx.runtime.ResolvedMember;
     static var contains:hlx.runtime.ResolvedMember;
 
-    public static function configure(control:Dynamic, setting:DropdownSetting, value:Dynamic, save:String->Bool):Void {
+    public static function configure(control:Dynamic, setting:DropdownSetting, value:Dynamic, save:String->Bool):Dynamic->Void {
         if (arraySlice == null) arraySlice = member("hl.types.ArrayObj", "slice");
         if (arrayPush == null) arrayPush = member("hl.types.ArrayObj", "pushDyn");
         if (setOptions == null) setOptions = member("ui.comp.Dropdown", "set_options");
@@ -46,6 +46,10 @@ class NativeDropdown {
             else HlxRuntime.callResolved(initIndex, [control, selected]);
         });
         controls.push(control);
+        return function(value:Dynamic):Void {
+            selected = setting.selectedIndex(value);
+            HlxRuntime.callResolved(initIndex, [control, selected]);
+        };
     }
 
     /** Run after native hit testing, without consuming or changing the click. */

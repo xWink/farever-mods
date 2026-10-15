@@ -2,6 +2,7 @@ import fareverly.AuthFlow;
 import fareverly.Protocol;
 import dpsmeter.FareverlyConfig;
 import dpsmeter.MeterConfig;
+import modconfig.CommonSettings;
 import dpsmeter.DiagnosticLog;
 import dpsmeter.FareverlyUploader;
 import haxe.io.Bytes;
@@ -72,10 +73,45 @@ class FareverlyAccountTest {
                 return calls == 1 ? response(409, {error:rotate ? "account_not_linked" : "already_linked"}, "7") : device();
             }, () -> now);
             flow.begin("test-account", rotate, entropy()); flow.step();
-            now += 6; flow.step(); check(calls == 1, "Generate Key fallback respects Retry-After");
+            now += 6; flow.step(); check(calls == 1, "Generate API key fallback respects Retry-After");
             now++; flow.step();
             check(calls == 2 && flow.active && flow.verificationUri == uri && actions[0] != actions[1], "One button handles signup and lost-key rotation with fresh browser approval");
         }
+        // The deployed API reports link state at exchange, not device creation.
+        for (rotate in [false, true]) {
+            calls = 0;
+            var newUri = StringTools.replace(uri, "123456789abc", "123456789abd");
+            flow = new AuthFlow((m,u,b,t) -> {
+                calls++;
+                var data = Json.parse(b.toString());
+                return switch (calls) {
+                    case 1: device();
+                    case 2: response(409, {error:rotate ? "account_not_linked" : "already_linked"}, "7");
+                    case 3:
+                        check(u == Protocol.ORIGIN + "/api/v1/auth/device" && data.action == (rotate ? "link" : "rotate"),
+                            "Exchange conflict restarts device authorization with the correct action");
+                        device(newUri);
+                    default: complete();
+                };
+            }, () -> now);
+            flow.begin("test-account", rotate, entropy()); flow.step(); now += 5; flow.step();
+            check(flow.active && flow.credential == null && flow.userCode == "" && flow.verificationUri == "",
+                "Already-linked response clears the old approval without terminating generation");
+            now += 6; flow.step(); check(calls == 2, "Exchange fallback respects Retry-After");
+            now++; flow.step();
+            check(flow.verificationUri == newUri, "New approval URL is exposed for the browser to open");
+            now += 5; flow.step();
+            check(!flow.active && flow.credential.accessToken == key && calls == 4, "Restarted approval delivers a secret");
+        }
+        calls = 0;
+        flow = new AuthFlow((m,u,b,t) -> switch (++calls) {
+            case 1, 3: device();
+            case 2: response(409, {error:"already_linked"});
+            default: response(409, {error:"account_not_linked"});
+        }, () -> now);
+        flow.begin("test-account", false, entropy());
+        for (_ in 0...6) { flow.step(); now += 5; }
+        check(!flow.active && calls == 4 && flow.credential == null, "Conflicting link state cannot loop between approvals forever");
         calls = 0; flow = new AuthFlow((m,u,b,t) -> {calls++; return response(503, {});}, () -> now, () -> 0);
         flow.begin("test-account", false, entropy());
         for (_ in 0...10) { flow.step(); now += 30; }
@@ -99,7 +135,7 @@ class FareverlyAccountTest {
         };
         var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.enqueue(RecoveryTest.fixture()); queue.step(); check(calls == 0, "Missing key pauses without any network request");
-        value = key; queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate Key") >= 0, "401 pauses and offers regeneration");
+        value = key; queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate API key") >= 0, "401 pauses and offers regeneration");
         now += 1000; queue.step(); check(posts == 1, "Invalid key is not retried");
         queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.step(); check(posts == 1, "401 pause survives restart");
@@ -126,37 +162,25 @@ class FareverlyAccountTest {
         check(FileSystem.stat(path).size < 200 && FileSystem.stat(path + ".1").size == DiagnosticLog.LIMIT, "Rotation retains one bounded previous file");
         File.saveContent(path, StringTools.lpad("", "y", DiagnosticLog.LIMIT)); log.write("Rotate again");
         check(File.getContent(path + ".1").charAt(0) == "y", "Older rotated diagnostics are deleted");
-        var config = MeterConfig.defaults();
-        config.transparency = 41;
-        check(FareverlyConfig.apply(config, credential(), ""), "Generated key applies to the expected normal config value");
-        File.saveContent(root + "/config.json", Json.stringify(config));
-        check(FareverlyConfig.read(root + "/config.json") == key, "Uploader reads only the ordinary DPS Meter API key");
-        check([for (name in Reflect.fields(config)) if (StringTools.startsWith(name, "fareverly")) name].join(",") == "fareverlyApiKey",
-            "Only the API-key field is stored, with no account, Steam, expiry or fingerprint metadata");
-        check(config.transparency == 41, "Saving a key preserves other settings");
-        config.fareverlyApiKey = "edited after browser opened";
-        check(!FareverlyConfig.apply(config, credential(), key), "Late authorization cannot overwrite a newer textbox edit");
-        check(config.fareverlyApiKey == "edited after browser opened", "A rejected save keeps the user's newer text");
+        var common = root + "/hlx/config/common/config.json";
+        File.saveContent(root + "/config.json", Json.stringify({fareverlyApiKey:key, transparency:41}));
         File.saveContent(root + "/legacy.json", Json.stringify(credential()));
-        File.saveContent(root + "/config.json", "{\"transparency\":41}");
-        check(FareverlyConfig.read(root + "/config.json") == "", "Missing API key stays empty even when an old credential file exists");
-        for (field in ["fareverlyAccountId", "fareverlySteamId", "fareverlyExpiresAt", "fareverlyKeyFingerprint"]) {
-            var old:Dynamic = {fareverlyApiKey:key, transparency:41}; Reflect.setField(old, field, "old value");
-            File.saveContent(root + "/config.json", Json.stringify(old)); config.fareverlyApiKey = key;
-            check(FareverlyConfig.read(root + "/config.json") == "", "Uploader rejects old credentials even before cleanup is saved");
-            check(FareverlyConfig.discardUnsupported(config, root + "/config.json") && config.fareverlyApiKey == "",
-                "Rejected metadata format does not preserve or import its API key");
-        }
-        check(config.transparency == 41, "Removing unsupported credential state keeps unrelated settings");
-        FareverlyConfig.apply(config, credential(), "");
-        File.saveContent(root + "/config.json", Json.stringify(config));
-        check(!FareverlyConfig.discardUnsupported(config, root + "/config.json") && config.fareverlyApiKey == key,
-            "A new key-only config survives later startups");
-        config.fareverlyApiKey = ""; File.saveContent(root + "/config.json", Json.stringify(config));
-        check(FareverlyConfig.read(root + "/config.json") == "", "A cleared key stays cleared");
-        File.saveContent(root + "/config.json", "{invalid secret-data"); var failed = false;
-        try FareverlyConfig.read(root + "/config.json") catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
-        check(failed, "Corrupt config fails safely");
+        check(FareverlyConfig.read(common) == "", "Missing common key never imports old private or shared credentials");
+        check(!Reflect.hasField(MeterConfig.defaults(), "fareverlyApiKey"), "API key is not a DPS Meter private setting");
+        CommonSettings.write("anotherModSetting", 41, common);
+        check(FareverlyConfig.save(credential(), "", common), "Generated key saves in the common config");
+        check(FareverlyConfig.read(common) == key, "Uploader reads the common API key");
+        var saved = CommonSettings.read(common);
+        check(Reflect.fields(saved).length == 2 && saved.anotherModSetting == 41,
+            "Only the API key is added; no credential metadata, and other mods' settings survive");
+        CommonSettings.write(FareverlyConfig.KEY, "edited after browser opened", common);
+        check(!FareverlyConfig.save(credential(), key, common), "Late authorization cannot overwrite a newer common textbox edit");
+        check(FareverlyConfig.read(common) == "edited after browser opened", "Rejected save keeps the newer value");
+        CommonSettings.write(FareverlyConfig.KEY, "", common);
+        check(FareverlyConfig.read(common) == "", "Cleared common key stays empty despite old private credentials");
+        File.saveContent(common, "{invalid secret-data"); var failed = false;
+        try FareverlyConfig.read(common) catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
+        check(failed, "Corrupt common config fails safely");
         RecoveryTest.remove(root);
     }
 }

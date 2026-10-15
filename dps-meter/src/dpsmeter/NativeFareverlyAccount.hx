@@ -2,15 +2,14 @@ package dpsmeter;
 
 import dpsmeter.GameAccess as G;
 import hlx.runtime.Bus;
-import dpsmeter.MeterConfig.MeterSettings;
 import fareverly.Protocol;
 import fareverly.SessionLease;
 
-/** BMS uses the ordinary DPS Meter config and its existing change/action events. */
+/** Uses BMS common settings and the ordinary button action event. */
 class NativeFareverlyAccount {
     final worker = new FareverlyAccountWorker();
     final browser = new FareverlyBrowser();
-    final config:MeterSettings;
+    final readKey:Void->String;
     final saveCredential:(Credential, String)->Bool;
     var observedKey = "";
     final status:Dynamic = {value:"Sign in through Steam to connect Fareverly."};
@@ -23,28 +22,32 @@ class NativeFareverlyAccount {
     var owner:String;
     var generation = 0;
     var cancelled = false;
-    public function new(config:MeterSettings, saveCredential:(Credential, String)->Bool) {
-        this.config = config; this.saveCredential = saveCredential;
+    public function new(saveCredential:(Credential, String)->Bool, ?readKey:Void->String) {
+        this.readKey = readKey == null ? () -> FareverlyConfig.read() : readKey;
+        this.saveCredential = saveCredential;
         owner = HlxRuntime.moduleName();
         var prefix = "better-mod-settings/action/" + owner + "/";
-        Bus.subscribe(prefix + "fareverlySignIn", (_:Dynamic) -> start(FareverlyConfig.key(config) != ""));
+        Bus.subscribe(prefix + "fareverlySignIn", (_:Dynamic) -> start());
         settingsChanged();
     }
     public function settingsChanged():Void {
-        var key = FareverlyConfig.key(config);
+        var key:String;
+        try key = readKey() catch (_:Dynamic) { status.value = "Common settings could not be read."; return; }
         if (active && key != observedKey) worker.cancel();
         observedKey = key;
         worker.settings(localAccount, key);
     }
-    function start(replace:Bool):Void {
+    function start():Void {
         if (active) return;
+        var key:String;
+        try key = readKey() catch (_:Dynamic) { notice("Common settings could not be read. Check hlx/config/common/config.json."); return; }
         if (localAccount == "") { notice("Enter the game with your character before generating a key."); return; }
         if (!SessionLease.acquire(owner)) { notice("A Fareverly sign-in is already in progress in another mod."); return; }
         active = true; cancelled = false; openedUri = ""; status.value = "Preparing Steam sign-in...";
-        generation = worker.start(localAccount, replace, FareverlyConfig.key(config));
+        generation = worker.start(localAccount, key != "", key);
     }
     public function uploadMessage(message:String):Void { if (!active && message != "") status.value = message; }
-    public function disconnect():Void { cancelled = true; closeDialog(); localAccount = ""; worker.settings("", FareverlyConfig.key(config)); worker.cancel(); }
+    public function disconnect():Void { cancelled = true; closeDialog(); localAccount = ""; worker.settings("", observedKey); worker.cancel(); }
     public function update(hero:Dynamic):Void {
         var account = NativePlayerIdentity.accountId(hero);
         if (account == null) account = "";
@@ -64,8 +67,8 @@ class NativeFareverlyAccount {
             if (event.code != "") status.value = "Code: " + event.code + "\n" + event.message;
             if (event.persist) {
                 if (saveCredential(event.credential, event.expectedKey))
-                    status.value = event.manualResult ? "Fareverly key verified and saved." : "Steam connected. Your Fareverly key has been saved. Reopen Mod Settings to display it.";
-                else status.value = "The key could not be saved, or the textbox changed during sign-in. Your current DPS Meter settings were kept.";
+                    status.value = event.manualResult ? "Fareverly key verified and saved." : "Steam connected. Your Fareverly key has been saved. It is shared with other Fareverly mods.";
+                else status.value = "The key could not be saved, or the textbox changed during sign-in. Your current common settings were kept.";
             }
             if (finished || event.manualResult) notice(status.value);
             if (event.url != "" && event.url != openedUri) {
