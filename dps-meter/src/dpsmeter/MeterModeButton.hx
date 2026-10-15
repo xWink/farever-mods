@@ -31,6 +31,7 @@ class MeterModeButton {
         healing = value; draw();
     }
     function draw():Void {
+        NativeButtonTooltip.set(object, healing ? "Switch to damage report" : "Switch to healing report");
         G.call("h2d.Graphics", "clear", graphic);
         if (!healing) {
             // Curved crescent blades follow the supplied crossed-axes reference.

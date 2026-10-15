@@ -3,7 +3,7 @@
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=dps-meter&expanded=true)
 
 An HLX combat meter with a movable, resizable native Farever window and boss-kill
-uploads to [Farever Logs](https://fareverlogs.fr/).
+uploads to [Fareverly](https://fareverly.com/).
 
 Targets the September 30 Live client. Requires HLX Core 0.0.8 or newer.
 
@@ -26,45 +26,31 @@ Install the **complete archive**, including the `implementation/` subfolder. Mis
 4. Extract the complete ZIP directly into the Farever game directory. It contains `hlx/mods/dps-meter/` and `hlx/plugins/dps-meter/`.
 5. Launch Farever.
 
-The mod and its data are contained in `hlx/mods/dps-meter/`. Upload settings
-(`uploader.ini`), upload history (`uploader.log`), and queued reports (`logs/`)
-also live in this folder. Local fight charts live in `history/<encounter>/`. An external
-uploader is not required. The included Windows x64 desktop plugin,
+The mod and its data are contained in `hlx/mods/dps-meter/`. Local fight charts
+live in `history/<encounter>/`; submission payloads and retry states live in
+`fareverly/`. Diagnostics are written to `uploader.log`. No external uploader
+application is required. This recovery restores the last working build; the new
+Fareverly account/sign-in integration is a separate follow-up. Uploads to a server
+that requires authentication will fail safely and leave local logs intact.
+
+The included Windows x64 desktop plugin,
 `hlx/plugins/dps-meter/dps_meter_desktop.hdll`, supports folder opening, Recycle Bin
 deletion, image clipboard access, and Ready Check audio. Install this folder too
 when updating manually, and restart Farever so it loads the updated plugin.
-
-Use DPS Meter in place of the original Group DPS `dinput8.dll` collector to avoid
-running two collectors that export the same encounters. Keep DLLs belonging to
-unrelated mods. Installation does not replace `uploader.ini`, `group-dps.ini`, or
-saved meter settings.
-
-### Upgrading from the external uploader
-
-Close Farever and let the old uploader finish before upgrading. Existing
-`uploader.ini` settings and queued logs in the mod folder are reused automatically.
-You can remove the old `uploader.exe`, `start-uploader.ps1`, and
-`UPLOADER-NOTICE.md` from `hlx/mods/dps-meter/`. Uploads now run while Farever is
-open; unsent reports resume on the next launch.
-
-If your uploader files are still in the game directory, move their
-`uploader.ini`, `uploader.log`, and uploader-owned `logs/` contents into
-`hlx/mods/dps-meter/`, preserving the `logs/` subdirectories. Do not overwrite
-existing files or copy reports into both queues. Existing files in the game
-directory are not migrated automatically. The old game-folder `uploader.exe`
-can be removed if no other mod uses it.
+Installation preserves saved meter settings and existing logs. Older local export
+files are imported into history once for compatibility, without uploading them.
 
 ## Highlights
 
 - **Live party DPS:** Damage, DPS, and team contribution with class-colored bars and clickable skill breakdowns using game skill names and each skill's share of that player's damage.
 - **Summon tracking:** Minion damage credited to its owner and the skill that summoned it.
-- **Native, customizable window:** Move, resize, lock, and scroll the meter, with optional automatic hiding and a smooth fade.
+- **Native, customizable window:** Move, resize, lock, and scroll the meter, with optional automatic hiding and a smooth fade. The **UI scale (%)** slider enlarges the whole meter from 100% to 200%. A large gold corner grip marks the unlocked state; dragging and resizing respect the selected scale.
 - **Controller focus:** The live meter stays out of controller navigation so it does not take focus from the game's menu controls. Its buttons, charts, dragging, and resizing remain mouse-operated; full controller navigation is not implemented.
 - **Rift tracking and recaps:** Separate gate and boss phases covering all players present, with both charts in one post-rift recap.
 - **Fight history:** Save Boss Dungeons, Classic Dungeons, World Bosses, and **Target Dummies**; choose an attempt by date, character, party size, duration, and your DPS, then reopen its player and skill charts. Other unclassified combat is not saved; existing Other history remains available.
 - **Kill notifications:** Optional boss kill totals with the previous fastest kill time. **Show unmastered Codex kills** displays progress through each enemy's final mastery requirement, including the finishing kill. **Show mastered Codex kills** displays subsequent kill totals. The target comes from the game's enemy-specific Codex thresholds, rather than the earlier XP reward milestone. Existing settings are preserved; unmastered notifications default to on and mastered notifications to off.
 - **Party ready checks:** A movable party status popup, chat/button responses, a 60-second timeout, and an automatic leader countdown when everyone is ready.
-- **Automatic log uploads:** Send completed boss encounters to [Farever Logs](https://fareverlogs.fr/) in the background, with no external application.
+- **Automatic log uploads:** Send eligible completed boss victories to [Fareverly](https://fareverly.com/) in the background, with no external application.
 - **Better Mod Settings integration:** Customize display options and hotkeys, with settings and window placement saved between sessions.
 
 ## Player identity in logs
@@ -171,11 +157,13 @@ logging. Disable detailed recording without disabling the existing summaries.
 
 Detailed data stays local in `history/<encounter>/<fight>.json.timeline`, paired
 with the existing summary JSON. It is newline-delimited JSON: a versioned header
-with initial state, then one event per line. These files are not added to Farever
-Logs uploads. Deleting a fight recycles both files, with recovery backups if either
+with initial state, then one event per line. These files are not included in Fareverly submissions. Deleting a fight recycles both files, with recovery backups if either
 operation fails. Temporary `timeline-spool/` chunks are removed after a normal
-session shutdown and successful archive saves; interrupted/failed sessions retain
-their chunks. Detailed reports follow the existing encounter-saving policy.
+session shutdown and successful archive saves. A background startup pass removes
+abandoned chunks and interrupted chunk writes from previous sessions, then removes
+empty stream directories. It preserves current-session streams, unrecognized files,
+and saved history/timeline sidecars. This startup cleanup runs independently of
+Automatic Log Deletion. Detailed reports follow the existing encounter-saving policy.
 
 ## Ready Check
 
@@ -197,7 +185,7 @@ drag it, and hide the mouse to control the camera while the check stays open.
 The leader's **Cancel** button sends **`cancelrc`** and closes everyone's popup.
 The top-right timer cancels the check after **60 seconds** if anyone is not ready.
 Once everyone is ready, the popup closes immediately and every enabled client
-plays the quest-completed sound once. After a **1.8-second pause** for its audible cue,
+plays the quest-completed sound once. 0.7 seconds after the final ready response,
 the leader sends **5, 4, 3, 2, 1, GO** in Group chat, one second apart. The **5**
 echo starts the supplied voice recording as one continuous clip; subsequent
 numbers do not restart playback. **GO** plays the boom at 80% of its original volume.
@@ -509,8 +497,8 @@ with Farever-supported keys. Update Better Mod Settings to assign combinations.
 Existing single-key bindings carry over, and modified shortcuts do not also
 activate their plain-key counterparts.
 
-New history logs include `gameVersion`; uploaded reports include `game_version`.
-Both record the running game's version from `Config.getVersion()`. Reopened
+Local logs and Fareverly submissions include `gameVersion`, recorded from
+`Config.getVersion()`. Reopened
 logs retain their original version, and older logs without it remain readable.
 
 New logs save their outcome. Boss attempts require the boss's actual death;
@@ -521,13 +509,75 @@ Late death messages are included before the log is archived. Older logs without
 outcome data show **Outcome unknown**; their skill kill counts do not reliably
 identify boss victories. Outcomes also appear in clipboard snapshots.
 
-Fight history and sent reports are kept indefinitely unless you explicitly remove
-them. They survive game restarts and character changes. The former uploader `keep_days` option is ignored; no
-age-based cleanup runs. Local history works even with log uploads disabled.
-Only confirmed victories can be submitted to fareverlogs.fr. Defeats and unknown
-outcomes are blocked both when queued and before HTTP, including saved retries
-and recovered drafts. Older queued reports without a confirmed outcome stay
-local. Defeated fights remain available in combat history.
+**Automatic Log Deletion** is enabled by default and deletes local logs older than
+**12 calendar months**. Its age slider runs from **1 to 24 months**, in one-month
+steps. Disable the option to retain logs indefinitely. Cleanup runs on the background
+worker at startup and every 24 hours thereafter. Changing settings never triggers
+cleanup or resets that schedule; the next scheduled pass uses the latest settings.
+Age is based on
+the fight's recorded date, with the day clamped for shorter months. Expired history
+JSON, detailed timelines, recovery drafts, and local Fareverly payload/retry files
+are permanently deleted. Published reports are unaffected. Explicit **Delete log**
+actions still use the Recycle Bin.
+
+The **Upload combat logs to Fareverly** setting controls automatic submissions.
+The recovered uploader uses the previous unauthenticated API; support for the new
+account requirement is pending. Combat statistics become public when a ranked
+report is retained. Only newly
+recorded, completed boss victories are considered; existing fight history is never
+automatically submitted. The individual `fight_*.json` history snapshot preserves
+its original ID and full-precision identity strings. Combined rift recaps, gate
+phases, practice, defeats, and incomplete or inconsistent recordings remain local.
+Dungeon logs require the complete party and recorded difficulty. Rifts preserve
+their actual party size and use `-1` when difficulty is inapplicable.
+
+Fareverly's supported encounter IDs and availability are fetched and cached for
+the session when a submission is pending. Requests run on the background worker,
+using certificate-verified HTTPS, with a 5 MiB body limit and no authorization
+header. Exact submitted JSON and retry state are stored in
+`hlx/mods/dps-meter/fareverly/`. Failed submissions remain local until their
+configured retention age expires. Turning off uploads pauses pending work and
+stops new submissions from being queued; local history still works.
+
+Event filters include **source and target dropdowns** that combine
+with event type and search. Both use recorded actor IDs, with distinct labels for
+repeated names. Changing event filters leaves the full-fight graph intact.
+
+Saved logs with only one recorded player open directly to that player's skill
+breakdown. Clicking the breakdown returns to the player chart and stays there.
+Switching between damage and healing preserves the selected player.
+
+Rift gate counts come from the replicated **CloseGates** objective, appear in the
+live gate phase and both recap views, and survive log saving. Older logs with no
+recorded count leave it unspecified.
+
+The **Fareverly logo button**, immediately to the right of the snapshot button
+in an individual fight log, opens that fight's retained report in your browser.
+It shows a loading spinner and blocks repeat clicks while resolving the report
+and handing it to the browser. Navigating away or closing the log cancels a
+pending report lookup. Once Windows begins browser activation, the launch finishes
+on a separate worker thread, keeping shell commands and browser startup off the game
+thread. Repeat clicks remain blocked until the handoff completes, including across
+navigation, followed by a brief two-second cooldown. This tracks the handoff, not
+the browser's page-loading progress. The button uses the existing submission,
+including after a game restart; it does not create a share link. Uploads produce no chat messages or
+displayed URLs, and there is no chat command. An unavailable report or a failure
+is explained inside the log window. Combined recaps, defeats, and practice logs
+have a disabled button. Existing unsubmitted history is not uploaded by opening it.
+
+Outside-top-three results are complete and are not retried. Network errors,
+rate limits, and server errors get at most three automatic retries, with
+exponential backoff, jitter, and any longer `Retry-After` delay. Retry counts
+and cooldowns survive restarts. Clicking the Fareverly button after a transient
+failure retries only that log and refreshes availability, preserving its payload,
+ID, and server cooldowns. HTTP 400/408/413/415/422 and local
+validation failures are retained with their reason and are not resubmitted
+unchanged.
+
+Uploader tests use injected HTTP responses and local-only fixtures; they never
+publish synthetic leaderboard entries. Run them with the existing `haxe test.hxml`.
+The recovery suite covers startup cleanup, retention timing, filtering, bounded
+submission retries, and asynchronous browser opening using injected local fixtures.
 The first launch imports surviving reports from `logs/`, `logs/sent/`, and
 `logs/rejected/` without submitting them again. Previously deleted reports
 cannot be recovered. Older reports use their original encounter names and an
@@ -540,8 +590,7 @@ Existing flat history logs move into these folders automatically without
 rewriting their contents. Windows-invalid folder characters are replaced;
 reserved names, trailing dots/spaces, and overly long names are handled too.
 If a move fails, the original file remains readable and the next launch retries.
-The temporary **Rift - Before gates** chart is still not saved. Uploaded report
-phase identifiers and the `logs/` upload queue remain unchanged.
+The temporary **Rift - Before gates** chart is still not saved. Existing phase identifiers remain readable; older `logs/` exports are local import sources only.
 Only compact summaries are kept in its index; the browser requests one page
 or one chart at a time. Back up `hlx/mods/dps-meter/history/` to preserve your
 local charts when reinstalling the mod or moving to another computer.

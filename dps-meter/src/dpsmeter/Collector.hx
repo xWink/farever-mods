@@ -133,6 +133,8 @@ class Collector {
         var bossDefeated = false;
         for (objective in G.array(G.field(context, "objectives"), true)) {
             if (G.text(G.field(objective, "kind")) == "EventWait") riftWait = objective;
+            if (G.text(G.field(objective, "kind")) == "CloseGates")
+                model.updateRiftGates(G.integer(G.call("st.Objective", "getCurrentValue", objective), -1));
             if (G.text(G.field(objective, "kind")) != "KillBoss") continue;
             bossDefeated = G.call("st.Objective", "isCompleted", objective) == true;
             var target = G.field(objective, "target");

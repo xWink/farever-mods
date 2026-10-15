@@ -30,7 +30,7 @@ class HistoryTest {
         if (!condition) throw message;
     }
     static function profile(id:String = "me", mine:Bool = true):PlayerInfo return {
-        uid: id, name: mine ? "Shawn" : "Ally", isMe: mine, className: mine ? "warrior" : "mage",
+        uid: id, name: mine ? "TestPlayer" : "Ally", isMe: mine, className: mine ? "warrior" : "mage",
         weapon: null, classSkills: [], weaponSkills: []
     };
     static function hit(time:Float, amount:Float, kill:Bool = false, boss:Bool = false, source:String = "me", target:String = "enemy"):DamageEvent return {
@@ -121,7 +121,7 @@ class HistoryTest {
             check(m.boss == null && m.completed.length == 0, "Dummy flags cannot produce boss uploads");
             var writer = new RunWriter(); writer.archive(fight);
             check(writer.uploader != null, "Dummy practice reaches the archive worker");
-            var record = writer.uploader.historyIncoming.pop(false);
+            var record = writer.uploader.historyIncoming.pop(false).record;
             check(record != null && record.targetDummy == true, "Detached queue preserves dummy evidence");
             var store = new FightHistoryStore(root, _ -> {}); store.save(record);
             check(FileSystem.exists(archivePath(root, record.id)), "Dummy practice is written to disk");
@@ -207,7 +207,7 @@ class HistoryTest {
         var prior = FightHistory.encode(f, "prior"); prior.duration = 72.34;
         store.save(prior);
         var query:BossRecordRequest = {id: 200, bossKind: "BossKind", difficulty: 1,
-            playerName: "Shawn", playerClass: "warrior", before: f.startedAt + 100000};
+            playerName: "TestPlayer", playerClass: "warrior", before: f.startedAt + 100000};
         check(store.bossRecord(query).best == 72.34, "Previously saved victories are available without opening history");
         var excluded = ["difficulty", "class", "character", "boss", "defeat", "unknown", "gates", "zero"];
         for (reason in excluded) {
@@ -261,7 +261,7 @@ class HistoryTest {
         check(worker.receiveBossRecord().best == 72.34, "Worker can save the current record before lookup without using it as prior best");
         check(worker.receiveHistory().id == 17 && worker.receiveBossRecord() == null,
             "History navigation and record notifications have independent response queues");
-        var next = {id: 201, bossKind: query.bossKind, difficulty: 1, playerName: "Shawn", playerClass: "warrior", before: query.before + 100000};
+        var next = {id: 201, bossKind: query.bossKind, difficulty: 1, playerName: "TestPlayer", playerClass: "warrior", before: query.before + 100000};
         worker.requestBossRecord(query); worker.requestBossRecord(next); worker.readBossRecords();
         check(worker.receiveBossRecord().id == 200 && worker.receiveBossRecord().best == 50,
             "Consecutive boss lookups are not coalesced away and retain their own cutoff");
@@ -271,7 +271,7 @@ class HistoryTest {
         m.record(hit(10, 100, false, true));
         var start = m.current.startedAt;
         var q = BossRecords.request(1, "BossKind", m, 5, start + 100000);
-        check(q.before == start && q.playerName == "Shawn" && q.playerClass == "warrior" && q.difficulty == 1,
+        check(q.before == start && q.playerName == "TestPlayer" && q.playerClass == "warrior" && q.difficulty == 1,
             "Kill progress before combat exit uses the active encounter's start and stable character identity");
         m.record(hit(12, 200, true, true)); m.onCombatExit("me", 12);
         check(BossRecords.request(2, "BossKind", m, 5, start + 100000).before == start,
@@ -552,7 +552,7 @@ class HistoryTest {
         m = model(); m.onCombatEnter("me", 10); m.record(hit(10, 90, false, false, "ally"));
         m.onCombatExit("me", 12); m.update(13, false);
         var passive = FightHistory.entry(FightHistory.encode(m.history[0], "passive"));
-        check(passive.personalDps == 0 && passive.playerName == "Shawn", "A known local player who dealt no damage has zero DPS and keeps their name");
+        check(passive.personalDps == 0 && passive.playerName == "TestPlayer", "A known local player who dealt no damage has zero DPS and keeps their name");
     }
     static function partyCombat():Void {
         var layer = {};
@@ -971,7 +971,6 @@ class HistoryTest {
             File.saveContent(root + "/" + folder + "/run_20200101-123456_1.json", Json.stringify(report));
         File.saveContent(root + "/uploader.ini", "keep_days=7\n");
         var uploader = new LogUploader(root);
-        uploader.loadSettings();
         uploader.archive(FightHistory.encode(sample(), "local_only"));
         uploader.flush();
         check(FileSystem.exists(archivePath(root, "local_only")), "Local history works without queuing an upload");
@@ -991,56 +990,28 @@ class HistoryTest {
         remove(root);
     }
     static function victoryUploads():Void {
-        var writer = new RunWriter();
-        var loss = sample(); loss.outcome = "Defeat"; loss.defeated = true;
-        writer.enqueue(loss);
-        check(writer.uploader == null, "An explicit defeat cannot enter the uploader even with a stale killed flag");
-        var unknown = sample(); writer.enqueue(unknown);
-        check(writer.uploader == null, "Damage and skill kills without a confirmed victory cannot enter the uploader");
-        var won = sample(); won.outcome = "Victory";
-        writer.enqueue(won);
-        var queued = writer.uploader.incoming.pop(false);
-        check(queued != null && queued.report.outcome == "Victory", "Victory outcome survives the worker handoff");
-        var bossKill = sample(); bossKill.defeated = true;
-        writer.enqueue(bossKill);
-        check(writer.uploader.incoming.pop(false).report.outcome == "Victory", "Native boss-kill confirmation still uploads before archive outcome is assigned");
-
+        // Queue only the exact history JSON; exercise this offline, without HTTP.
         var root = temp("victory-uploads");
         var uploader = new LogUploader(root);
-        var defeatReport = loss.json("20261011-160000", 1); defeatReport.outcome = "Defeat";
-        var unknownReport = unknown.json("20261011-160000", 2);
-        uploader.enqueue("run_defeat.json", defeatReport);
-        uploader.enqueue("run_unknown.json", unknownReport);
-        check(uploader.incoming.pop(false) == null, "Worker independently rejects defeat and unknown queue entries");
-        uploader.enqueue("run_victory.json", queued.report);
-        loss.defeated = false;
-        uploader.archive(FightHistory.encode(loss, "local_defeat"));
-        uploader.flush();
-        check(FileSystem.exists(archivePath(root, "local_defeat")), "Defeats are still retained in local combat history");
-        check(FileSystem.exists(root + "/logs/run_victory.json"), "Confirmed victory persists for restart and retry");
-        var outbound = Json.parse(uploader.uploadBytes("run_victory.json").toString());
-        check(!Reflect.hasField(outbound, "outcome") && outbound.session_id == queued.report.session_id
-            && outbound.players.length == queued.report.players.length, "Queue outcome is removed while the existing HTTP payload stays intact");
-        check(Json.parse(File.getContent(root + "/logs/run_victory.json")).outcome == "Victory", "Preparing an HTTP body does not erase retry eligibility on disk");
-
-        // Exercise the actual upload entry point without ever permitting a
-        // network target, including persisted jobs created by older versions.
-        uploader.apiUrl = "invalid://must-not-open";
-        for (entry in [{name:"run_defeat.json", report:defeatReport}, {name:"run_unknown.json", report:unknownReport}]) {
-            var contents = Json.stringify(entry.report);
-            File.saveContent(root + "/logs/" + entry.name, contents);
-            uploader.upload(entry.name);
-            check(uploader.retryAt[entry.name] == Math.POSITIVE_INFINITY, "Non-victory retry is skipped before HTTP rather than retried as a network failure");
-            check(File.getContent(root + "/logs/" + entry.name) == contents, "Skipped report remains intact locally");
+        for (outcome in ["Defeat", "", "Victory"]) {
+            var fight = sample(); fight.outcome = outcome; fight.bossKind = "BossKind";
+            var id = outcome == "" ? "unknown" : outcome;
+            uploader.archive(FightHistory.encode(fight, id), true);
         }
-        check(File.getContent(root + "/uploader.log").indexOf("upload failed") < 0, "Skipped reports never attempt the invalid HTTP target");
-        for (entry in [{name:"loss", report:defeatReport}, {name:"unknown", report:unknownReport}, {name:"win", report:queued.report}])
-            File.saveContent(root + "/logs/run_" + entry.name + ".pending", Json.stringify({report:entry.report, timestamp:"20261011-160000", boss:"BossKind"}));
-        uploader.recoverDrafts();
-        check(FileSystem.exists(root + "/logs/run_loss.pending") && FileSystem.exists(root + "/logs/run_unknown.pending"), "Unconfirmed crash drafts remain local without entering the upload queue");
-        check(!FileSystem.exists(root + "/logs/run_win.pending"), "Confirmed victory crash draft can still recover");
-        var recovered = FileSystem.readDirectory(root + "/logs").filter(name -> name.indexOf("_recovered_") >= 0);
-        check(recovered.length == 1 && Json.parse(File.getContent(root + "/logs/" + recovered[0])).outcome == "Victory", "Only the confirmed victory draft becomes a retryable report");
+        uploader.flush();
+        check(FileSystem.exists(archivePath(root, "Defeat")) && FileSystem.exists(archivePath(root, "unknown")),
+            "Defeats and unconfirmed outcomes stay in local history");
+        var submissions = FileSystem.readDirectory(root + "/fareverly").filter(name -> ~/^fight_[a-f0-9]{64}\.json$/.match(name));
+        check(submissions.length == 1, "Only a completed boss victory enters the Fareverly queue");
+        var saved = Json.parse(File.getContent(root + "/fareverly/" + submissions[0]));
+        check(saved.id == "Victory" && saved.outcome == "Victory", "Submission preserves existing fight JSON and outcome");
+        check(File.getContent(root + "/fareverly/" + submissions[0]) == File.getContent(archivePath(root, "Victory")),
+            "Local and submitted records have the same format");
+        var local = sample(); local.outcome = "Victory"; local.bossKind = "BossKind";
+        uploader.archive(FightHistory.encode(local, "uploads_disabled"), false); uploader.flush();
+        check(FileSystem.exists(archivePath(root, "uploads_disabled")), "Disabling uploads still saves history");
+        check(FileSystem.readDirectory(root + "/fareverly").filter(name -> ~/^fight_[a-f0-9]{64}\.json$/.match(name)).length == 1,
+            "Disabled uploads do not enqueue a victory");
         remove(root);
     }
     static function categories():Void {
@@ -1290,7 +1261,7 @@ class HistoryTest {
         var encoded = FightHistory.encode(sample(), "uid_fallback");
         for (p in FightHistory.array(encoded.players)) p.isMe = false;
         var summary = FightHistory.entry(encoded);
-        check(summary.playerName == "Shawn" && summary.playerClass == "warrior" && Math.abs(summary.personalDps - 35.05) < .0001, "Older records can recover personal stats from the recorded local UID");
+        check(summary.playerName == "TestPlayer" && summary.playerClass == "warrior" && Math.abs(summary.personalDps - 35.05) < .0001, "Older records can recover personal stats from the recorded local UID");
         remove(root);
     }
     static function encounterDetails():Void {
@@ -1312,9 +1283,9 @@ class HistoryTest {
         }
         var f = sample(); f.partySize = 5;
         var entry = FightHistory.entry(FightHistory.encode(f, "details"));
-        check(FightHistory.attemptHeading(entry) == FightHistory.dateLabel(f.startedAt) + "  ·  Shawn  ·  Party: 5  ·  Outcome unknown", "Attempt button starts with date, character, complete roster size, and outcome");
+        check(FightHistory.attemptHeading(entry) == FightHistory.dateLabel(f.startedAt) + "  ·  TestPlayer  ·  Party: 5  ·  Outcome unknown", "Attempt button starts with date, character, complete roster size, and outcome");
         check(FightHistory.attemptDetail(entry) == "10 sec  ·  Your DPS: 35", "Attempt button second line has duration then DPS");
-        check(FightHistory.chartDetail(entry) == FightHistory.dateLabel(f.startedAt) + "  ·  Shawn  ·  Your DPS: 35  ·  10 sec  ·  Outcome unknown" + UNKNOWN_SPLIT, "Chart summary has date, character, DPS, duration, outcome, and damage types in one row");
+        check(FightHistory.chartDetail(entry) == FightHistory.dateLabel(f.startedAt) + "  ·  TestPlayer  ·  Your DPS: 35  ·  10 sec  ·  Outcome unknown" + UNKNOWN_SPLIT, "Chart summary has date, character, DPS, duration, outcome, and damage types in one row");
         var old = FightHistory.encode(sample(), "old"); Reflect.deleteField(old, "difficulty"); Reflect.deleteField(old, "partySize");
         entry = FightHistory.entry(old);
         check(entry.difficulty == -1 && entry.partySize == 0 && entry.recordedPlayers == 2, "Old logs preserve unknown difficulty and only a lower bound on party size");
@@ -1395,7 +1366,7 @@ class HistoryTest {
         var gates = sample(); gates.phase = dpsmeter.RiftTracker.GATES_PHASE; gates.outcome = "Victory";
         var boss = sample(); boss.startedAt += 120000; boss.outcome = "Victory";
         var recap:dpsmeter.RiftTracker.RiftRecap = {gate: gates, boss: boss};
-        check(FightHistory.recapDetail(recap) == "Sep 14, 2026 at 13:20:30  ·  Shawn  ·  Victory" + UNKNOWN_SPLIT,
+        check(FightHistory.recapDetail(recap) == "Sep 14, 2026 at 13:20:30  ·  TestPlayer  ·  Victory" + UNKNOWN_SPLIT,
             "Recap summary uses the gates start, recorded local player, and boss result in history's date format");
         boss.outcome = "Defeat";
         check(StringTools.endsWith(FightHistory.recapDetail(recap), "  ·  Defeat" + UNKNOWN_SPLIT),
@@ -1404,13 +1375,13 @@ class HistoryTest {
         check(StringTools.endsWith(FightHistory.recapDetail(recap), "  ·  Outcome unknown" + UNKNOWN_SPLIT),
             "Missing outcome is not invented as a victory or defeat");
         boss.outcome = "Victory"; recap.gate = null;
-        check(FightHistory.recapDetail(recap) == "Sep 14, 2026 at 13:22:30  ·  Shawn  ·  Victory" + UNKNOWN_SPLIT,
+        check(FightHistory.recapDetail(recap) == "Sep 14, 2026 at 13:22:30  ·  TestPlayer  ·  Victory" + UNKNOWN_SPLIT,
             "Boss-only recap uses its recorded boss start time");
         boss.players.remove("me"); boss.meName = "Wink <Mage> & friends";
         check(FightHistory.recapDetail(recap).indexOf("  ·  Wink <Mage> & friends  ·  ") >= 0,
             "A local player without damage retains their recorded name as literal text");
         boss.meName = ""; recap.gate = gates;
-        check(FightHistory.recapDetail(recap).indexOf("  ·  Shawn  ·  ") >= 0,
+        check(FightHistory.recapDetail(recap).indexOf("  ·  TestPlayer  ·  ") >= 0,
             "The gates phase supplies the local name when the boss recording lacks it");
         recap.gate = null;
         check(FightHistory.recapDetail(recap) == "Sep 14, 2026 at 13:22:30  ·  Victory",

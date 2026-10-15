@@ -10,6 +10,7 @@ class RiftTracker {
     static inline var FINAL_DAMAGE_SECONDS:Float = 0.5;
     var phase:Int = 0; // 0: gates, 1: boss, 2: finished
     var gatesStarted:Bool = false;
+    var gatesClosed:Null<Int>;
     public var warmup(default, null):Null<Fight>;
     var gameVersion:String;
     var targetBossKind:String = "";
@@ -21,6 +22,12 @@ class RiftTracker {
     public var last(get, never):Null<Fight>;
 
     public function new(gameVersion:String = "") { this.gameVersion = gameVersion; }
+    public function updateGates(count:Int):Void {
+        if (count < 0) return;
+        if (gatesClosed == null || gatesClosed < count) gatesClosed = count;
+        if (fights[0] != null) fights[0].gatesClosed = gatesClosed;
+        if (fights[1] != null) fights[1].gatesClosed = gatesClosed;
+    }
     public function startGates():Void { gatesStarted = true; warmup = null; }
     public function waitingForGates():Bool return phase == 0 && !gatesStarted;
     public function updateWarmup(now:Float, active:Bool):Void {
@@ -109,6 +116,7 @@ class RiftTracker {
             if (e.effect == 1) return;
             fight = new Fight(e.time, gameVersion);
             fight.phase = index == 0 ? GATES_PHASE : "";
+            fight.gatesClosed = gatesClosed;
             fight.isBoss = index == 1;
             fight.bossName = fight.phase;
             fight.difficulty = difficulty;

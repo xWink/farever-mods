@@ -133,6 +133,32 @@ class FightHistoryStore {
         indexed = true;
         legacyMetadata = null;
     }
+    /** Scheduled worker-only deletion, including a fight's self-contained timeline. */
+    public function prune(cutoff:Float):Int {
+        index(); var count = 0; var legacy:Map<String, Bool> = [];
+        var expired = [for (entry in entries) if (LogRetention.expired(entry.startedAt, cutoff)) entry.id];
+        for (id in expired) try {
+            var path = paths[id];
+            for (suffix in [".timeline.tmp", ".timeline", ".tmp", ""])
+                if (FileSystem.exists(path + suffix)) FileSystem.deleteFile(path + suffix);
+            entries.remove(id); paths.remove(id); count++;
+            if (StringTools.startsWith(id, "legacy_")) legacy[id] = true;
+            if (detailedId == id) { detailedId = ""; detailedData = null; }
+        } catch (error:Dynamic) log("Could not delete expired log " + id + ": " + Std.string(error));
+        if (legacy.iterator().hasNext()) for (source in [root + "/logs", root + "/logs/sent", root + "/logs/rejected"])
+            if (FileSystem.exists(source)) for (name in FileSystem.readDirectory(source)) {
+                var path = source + "/" + name;
+                if (!StringTools.startsWith(name, "run_") || !StringTools.endsWith(name, ".json") || FileSystem.isDirectory(path)) continue;
+                try {
+                    var record:Dynamic = Json.parse(File.getContent(path));
+                    var key = FightHistory.text(record.session_id); if (key == "") key = name;
+                    if (legacy.exists("legacy_" + haxe.crypto.Md5.encode(key))) FileSystem.deleteFile(path);
+                } catch (error:Dynamic) log("Could not clean expired local export " + name + ": " + Std.string(error));
+            }
+        if (count > 0) log("Automatically deleted " + count + " expired fight logs.");
+        return count;
+    }
+
     public function query(request:HistoryRequest):HistoryResponse {
         if (request.catalog != null) {
             // Detach the snapshot before enriching it on this worker.

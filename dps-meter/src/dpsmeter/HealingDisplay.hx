@@ -38,11 +38,13 @@ class HealingDisplay {
             + "  ·  " + (selected == null ? "Your HPS: " : "HPS: ")
             + (known ? output(p.healing, p.heal / Math.max(1, entry.duration), number) : "unavailable")
             + "  ·  " + FightHistory.durationLabel(entry.duration) + "  ·  " + FightHistory.outcomeLabel(entry)
+            + (entry.phase != RiftTracker.GATES_PHASE || entry.gatesClosed == null ? "" : "  ·  " + FightHistory.gatesLabel(entry.gatesClosed))
             + "  ·  Healing output: " + (known ? output(p.healing, p.heal, number) : "unavailable")
             + "  ·  Healing received: " + (received == null ? "unavailable" : number(received));
     }
     public static function recapDetail(recap:RiftRecap):String {
         var first = recap.gate == null ? recap.boss : recap.gate;
+        var gates = first.gatesClosed != null ? first.gatesClosed : recap.boss.gatesClosed;
         var name = "", total = new HealingStats(), known = true;
         var received = 0.0, receivedKnown = true;
         for (fight in [recap.gate, recap.boss]) if (fight != null) {
@@ -55,6 +57,7 @@ class HealingDisplay {
         }
         return FightHistory.dateLabel(first.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + (recap.boss.outcome == "" ? "Outcome unknown" : recap.boss.outcome)
+            + (gates == null ? "" : "  ·  " + FightHistory.gatesLabel(gates))
             + "  ·  Healing output: " + (known ? output(total, total.output, number) : "unavailable")
             + "  ·  Healing received: " + (receivedKnown ? number(received) : "unavailable");
     }

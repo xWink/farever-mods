@@ -46,6 +46,11 @@ class NativeHistoryWindow {
     var folderButton:Dynamic;
     var deleteButton:Dynamic;
     var snapshotButton:Dynamic;
+    var fareverlyButton:NativeFareverlyButton;
+    var fareverlyOpen = new FareverlyOpen();
+    var fareverlyBrowser = new FareverlyBrowser();
+    var fareverlyAvailable = false;
+    var fareverlyMessage = "";
     var modeButton:MeterModeButton;
     var detailedButton:Dynamic;
     var detailed:NativeDetailedReport;
@@ -111,6 +116,7 @@ class NativeHistoryWindow {
             if (response.id == serial) display(response);
             response = writer.receiveHistory();
         }
+        updateFareverly(now);
         updateDrag();
         layout();
         if (mode == "chart" && !pending) {
@@ -123,6 +129,8 @@ class NativeHistoryWindow {
         }
     }
     function navigate(mode:String, group:String, page:Int, ?entry:HistoryEntry):Void {
+        fareverlyOpen.select(""); fareverlyAvailable = false; fareverlyMessage = "";
+        show(fareverlyButton.object, false);
         recap = null; recapView.setRecap(null); show(recapView.object, false);
         detailed.visible(false); show(detailedButton, false);
         if (mode == "detailed") detailed.reset();
@@ -177,6 +185,8 @@ class NativeHistoryWindow {
                 status(response.error, true);
                 show(deleteButton, mode == "chart"); show(snapshotButton, mode == "chart"); show(modeButton.object, mode == "chart");
                 show(detailedButton, mode == "chart");
+                show(fareverlyButton.object, mode == "chart");
+                fareverlyOpen.select(mode == "chart" && fareverlyAvailable && selectedEntry != null ? selectedEntry.id : "");
                 for (row in rows) show(row.deleteButton, mode == "fights" && row.entry != null);
                 for (row in recentRows) show(row.deleteButton, mode == "categories" && row.entry != null);
             } else if (mode == "categories" || openedFromRecent) navigate("categories", "", 0);
@@ -192,11 +202,12 @@ class NativeHistoryWindow {
             try {
                 if (RiftRecapHistory.isRecap(response.record)) {
                     recap = RiftRecapHistory.decode(response.record);
-                    recapView.setRecap(recap);
+                    recapView.setRecap(recap, true);
                     G.call("h2d.Text", "set_text", chartInfo, [FightHistory.recapDetail(recap)]);
                     show(recapView.object, true);
                 } else {
                     fight = FightHistory.decode(response.record);
+                    chart.openHistory(fight);
                     show(G.field(chartPanel, "obj"), true);
                 }
             } catch (e:Dynamic) {
@@ -209,6 +220,10 @@ class NativeHistoryWindow {
             width = 0;
             show(deleteButton, true); show(snapshotButton, true); show(modeButton.object, true);
             show(detailedButton, true);
+            fareverlyAvailable = FareverlyContract.candidate(response.record);
+            fareverlyOpen.select(fareverlyAvailable ? selectedEntry.id : "");
+            show(fareverlyButton.object, true);
+            fareverlyButton.update(fareverlyOpen.busy(haxe.Timer.stamp()), fareverlyAvailable, haxe.Timer.stamp());
             refreshChartDetail();
         } else {
             if (mode == "fights") options.setCharacters(response.characters);
@@ -248,6 +263,31 @@ class NativeHistoryWindow {
         }
         lastRefresh = -1;
     }
+    function openFareverly():Void {
+        if (pending || copying || mode != "chart" || !fareverlyAvailable) return;
+        var now = haxe.Timer.stamp(), request = fareverlyOpen.begin(now);
+        if (request == null) return;
+        fareverlyMessage = ""; status(""); fareverlyButton.update(true, true, now);
+        writer.requestFareverly(request);
+    }
+    function updateFareverly(now:Float):Void {
+        if (fareverlyOpen.opening) try {
+            if (fareverlyBrowser.poll()) fareverlyOpen.opened(now);
+        } catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
+        var response = writer.receiveFareverly();
+        while (response != null) {
+            var url = fareverlyOpen.receive(response, now);
+            if (url != "") try fareverlyBrowser.open(url) catch (error:Dynamic) fareverlyOpen.fail(Std.string(error));
+            response = writer.receiveFareverly();
+        }
+        var request = fareverlyOpen.poll(now);
+        if (request != null) writer.requestFareverly(request);
+        fareverlyButton.update(fareverlyOpen.busy(now), fareverlyAvailable && !pending && !copying, now);
+        if (fareverlyMessage != fareverlyOpen.message) {
+            fareverlyMessage = fareverlyOpen.message;
+            if (fareverlyMessage != "") status(fareverlyMessage, true);
+        }
+    }
     function openFolder():Void {
         try { DesktopActions.openFolder(logsPath); status(""); }
         catch (error:Dynamic) status(Std.string(error), true);
@@ -265,7 +305,7 @@ class NativeHistoryWindow {
         if (pending || copying || entry == null) return;
         pending = true; deleting = true; serial++;
         show(deleteButton, false); show(snapshotButton, false); show(modeButton.object, false);
-        show(detailedButton, false);
+        show(detailedButton, false); show(fareverlyButton.object, false); fareverlyOpen.select("");
         for (row in rows) show(row.deleteButton, false);
         for (row in recentRows) show(row.deleteButton, false);
         status("Moving log to the Recycle Bin...");
@@ -283,7 +323,7 @@ class NativeHistoryWindow {
             refreshSnapshotChart(true);
             if (recap != null) recapView.restoreScrolls([0, 0]); else chart.restoreScroll(0);
             NativeFightSnapshot.copyBody(window, width, height,
-                [header, back, snapshotButton, modeButton.object, deleteButton, detailedButton, folderButton, previous, next, pageLabel, actionStatus]);
+                [header, back, snapshotButton, fareverlyButton.object, modeButton.object, deleteButton, detailedButton, folderButton, previous, next, pageLabel, actionStatus]);
         } catch (error:Dynamic) {
             message = Std.string(error); failed = true;
             trace("[DPS Meter] Snapshot: " + Std.string(error));
@@ -376,6 +416,7 @@ class NativeHistoryWindow {
         back = button(panel, "Back", "dpsHistoryBack", goBack);
         folderButton = HistoryButtons.folder(panel, openFolder);
         snapshotButton = HistoryButtons.snapshot(panel, copySnapshot);
+        fareverlyButton = new NativeFareverlyButton(panel, openFareverly);
         modeButton = new MeterModeButton(panel, "dpsHistoryMode", setHealing, healing);
         deleteButton = button(panel, "Delete log", "dpsHistoryDelete", deleteLog);
         detailedButton = button(panel, "Detailed report", "dpsHistoryDetailed", () -> {
@@ -430,7 +471,7 @@ class NativeHistoryWindow {
         G.call("h2d.Text", "set_lineBreak", actionStatus, [false]);
         show(actionStatus, false);
         for (object in [back, heading, detail, chartInfo, empty, G.field(list, "obj"), G.field(chartPanel, "obj"), recapView.object, previous, next, pageLabel, footer,
-            folderButton, snapshotButton, modeButton.object, deleteButton, detailedButton, detailed.object, actionStatus])
+            folderButton, snapshotButton, fareverlyButton.object, modeButton.object, deleteButton, detailedButton, detailed.object, actionStatus])
             absolute(G.field(panel, "obj"), object);
         for (text in [title, detail, empty, pageLabel]) {
             var left = G.enumeration("h2d.Align", "Left");
@@ -522,9 +563,10 @@ class NativeHistoryWindow {
             size(G.field(panel, "obj"), inner, bodyHeight); position(G.field(panel, "obj"), 16, 8);
             size(back, 84, 34); position(back, 0, 8);
             size(snapshotButton, HistoryButtons.SNAPSHOT_SIZE, HistoryButtons.SNAPSHOT_SIZE);
-            position(snapshotButton, inner - HistoryButtons.SNAPSHOT_SIZE, 7);
+            position(snapshotButton, inner - HistoryButtons.SNAPSHOT_SIZE - 42, 7);
+            position(fareverlyButton.object, inner - HistoryButtons.SNAPSHOT_SIZE, 7);
             modeButton.resize(HistoryButtons.SNAPSHOT_SIZE);
-            position(modeButton.object, inner - HistoryButtons.SNAPSHOT_SIZE - 42, 7);
+            position(modeButton.object, inner - HistoryButtons.SNAPSHOT_SIZE - 84, 7);
             size(deleteButton, 138, 34); position(deleteButton, inner - 138, bodyHeight - 50);
             HistoryButtons.singleLine(detailedButton, Std.int(Math.min(194, inner - 150)));
             position(detailedButton, 0, bodyHeight - 50);
@@ -606,7 +648,7 @@ class NativeHistoryWindow {
         }
         headingBaseScale = G.number(G.field(headingStyle, "scaleX"), 1);
         var headingLeft = snapshot || mode == "categories" ? 0 : 100;
-        var headingRight = !snapshot && mode == "chart" ? HistoryButtons.SNAPSHOT_SIZE + 54 : 0;
+        var headingRight = !snapshot && mode == "chart" ? HistoryButtons.SNAPSHOT_SIZE + 96 : 0;
         fitLiteral(heading, width - 48 - headingLeft - headingRight, headingBaseScale * 1.75);
         position(heading, headingLeft, 8 + (34 - textHeight(heading)) / 2);
         G.call("ui.comp.FmtText", "updateScale", detail);
@@ -686,6 +728,7 @@ class NativeHistoryWindow {
         return true;
     }
     public function dispose():Void {
+        fareverlyOpen.select(""); fareverlyAvailable = false; fareverlyMessage = "";
         finishDrag();
         dragSurface = null;
         if (options != null) { options.close(); options = null; }
@@ -702,7 +745,7 @@ class NativeHistoryWindow {
         owner = null; rows = []; wrappers = []; frame = null; body = null; container = null;
         recentRows = []; openedFromRecent = false;
         categoryHeadingRow = null; categoryHeading = null; recentEmptyRow = null; recentEmpty = null;
-        chart = null; fight = null; recapView = null; recap = null; modeButton = null; width = 0; height = 0;
+        chart = null; fight = null; recapView = null; recap = null; modeButton = null; fareverlyButton = null; width = 0; height = 0;
         mode = "categories"; category = ""; group = ""; page = 0; groupsPage = 0; fightsPage = 0;
         headingFont = null; catalog = null;
     }

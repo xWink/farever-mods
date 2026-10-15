@@ -52,9 +52,10 @@ class DpsMeterMod {
     }
 
     static function flushFights():Void {
-        writer.archiveHistory(collector.model);
+        writer.setUploadsEnabled(config.sendLogs);
+        writer.setRetention(config.autoDeleteLogs, config.logRetentionMonths);
+        writer.archiveHistory(collector.model, config.sendLogs);
         while (collector.model.completed.length > 0 && collector.model.completed[0].pendingHealing == 0) {
-            if (config.sendLogs) writer.enqueue(collector.model.completed[0]);
             collector.model.completed.shift();
         }
     }

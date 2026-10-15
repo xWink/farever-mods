@@ -93,6 +93,24 @@ class DetailedReport {
         default: true;
         };
     }
+    static function addActor(actors:Map<String, String>, id:String, name:String, me:String, role:String):Void {
+        var key = id == "" ? "@none" : id;
+        if (id == "") name = "No " + role;
+        else if (id == me) name = "You";
+        else if (name == "") name = "Unknown " + role;
+        if (!actors.exists(key)) actors[key] = name;
+    }
+    static function actorChoices(actors:Map<String, String>, all:String):Array<{value:String, name:String}> {
+        var choices = [for (id => name in actors) {value:id, name:name}];
+        choices.sort((a,b) -> { var c = Reflect.compare(a.name.toLowerCase(), b.name.toLowerCase()); return c == 0 ? Reflect.compare(a.value, b.value) : c; });
+        var counts:Map<String, Int> = [], seen:Map<String, Int> = [];
+        for (c in choices) counts[c.name] = counts.exists(c.name) ? counts[c.name] + 1 : 1;
+        for (c in choices) if (counts[c.name] > 1) {
+            var name = c.name; seen[name] = seen.exists(name) ? seen[name] + 1 : 1;
+            c.name += " (" + seen[name] + ")";
+        }
+        choices.unshift({value:"", name:all}); return choices;
+    }
     public static function query(data:Dynamic, request:HistoryRequest):Dynamic {
         var me = text(data.me);
         var events:Array<TimelineEvent> = cast data.events;
@@ -102,6 +120,8 @@ class DetailedReport {
         var visible = attachUses(all);
         var pageSize = request.eventPageSize == null ? PAGE_SIZE : Std.int(Math.max(1, Math.min(MAX_PAGE_SIZE, request.eventPageSize)));
         var skill = text(request.eventSkill), filter = text(request.eventFilter);
+        var source = text(request.eventSource), target = text(request.eventTarget);
+        var sources:Map<String, String> = [], targets:Map<String, String> = [];
         var search = StringTools.trim(text(request.eventSearch)).toLowerCase();
         var filtered:Array<TimelineEvent> = [];
         var incomplete = false;
@@ -110,6 +130,12 @@ class DetailedReport {
             // whose flask events inherited a movement buff's name.
             if (request.skillNames != null && request.skillNames.exists(e.skill)) e.skillName = request.skillNames[e.skill];
             if (e.kind == "recording_gap" || e.kind == "recording_stopped" || (e.kind == "recording_started" && e.time > 0)) incomplete = true;
+            if (matches(e, me, "", request.statusMetadata)) {
+                addActor(sources, text(e.source), text(e.sourceName), me, "source");
+                addActor(targets, text(e.target), text(e.targetName), me, "target");
+            }
+            if (source != "" && (source == "@none" ? text(e.source) != "" : e.source != source)) continue;
+            if (target != "" && (target == "@none" ? e.target != "" : e.target != target)) continue;
             if (!matches(e, me, filter, request.statusMetadata) || (skill != "" && e.skill != skill && e.origin != skill)) continue;
             if (search != "" && (e.skill + " " + text(e.skillName) + " " + text(e.sourceName) + " " + text(e.targetName)
                 + " " + text(e.item) + " " + text(e.itemName) + " " + e.kind + " " + text(e.outcome)).toLowerCase().indexOf(search) < 0) continue;
@@ -126,7 +152,7 @@ class DetailedReport {
         var response:Dynamic = {version:1, me:me, count:events.length, total:filtered.length, page:page,
             pages:Std.int(Math.max(1, Math.ceil(filtered.length / pageSize))),
             rows:filtered.slice(page * pageSize, (page + 1) * pageSize), pageSize:pageSize,
-            duration:duration, incomplete:incomplete};
+            duration:duration, incomplete:incomplete, sources:actorChoices(sources, "All sources"), targets:actorChoices(targets, "All targets")};
         // Page/filter/search changes leave the full-fight graph untouched.
         if (request.includeGraph == false) return response;
         var end = duration;

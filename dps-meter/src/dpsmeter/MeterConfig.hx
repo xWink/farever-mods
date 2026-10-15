@@ -9,6 +9,9 @@ typedef MeterSettings = {
     var enabled:Bool;
     var visible:Bool;
     var transparency:Int;
+    var meterScale:Int;
+    var autoDeleteLogs:Bool;
+    var logRetentionMonths:Int;
     var hideOutOfCombat:Bool;
     var hideDelay:Int;
     var showRiftRecaps:Bool;
@@ -48,6 +51,9 @@ class MeterConfig {
         enabled: true,
         visible: true,
         transparency: 0,
+        meterScale: 100,
+        autoDeleteLogs: true,
+        logRetentionMonths: 12,
         hideOutOfCombat: false,
         hideDelay: 3,
         showRiftRecaps: true,
@@ -86,6 +92,8 @@ class MeterConfig {
         if (config.historyY != null && !Math.isFinite(config.historyY)) config.historyY = null;
         if (config.readyCheckX != null && !Math.isFinite(config.readyCheckX)) config.readyCheckX = null;
         if (config.readyCheckY != null && !Math.isFinite(config.readyCheckY)) config.readyCheckY = null;
+        config.meterScale = Std.int(Math.max(100, Math.min(200, config.meterScale)));
+        config.logRetentionMonths = LogRetention.months(config.logRetentionMonths);
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
         config.width = Std.int(Math.max(360, Math.min(1200, config.width)));
         config.height = Std.int(Math.max(MIN_HEIGHT, Math.min(1000, config.height)));

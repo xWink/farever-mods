@@ -70,7 +70,7 @@ class RiftRecapHistoryTest {
         check(m.recapHistory.length == 0 && m.history.length == 0 && m.completed.length == 2,
             "The real archive handoff consumes local logs independently of report uploading");
         writer.uploader.flush();
-        check(writer.uploader.incoming.pop(false) == null, "Combined recaps never enter the network upload queue");
+        check(!FileSystem.exists(root + "/fareverly"), "Combined recaps never enter the network upload queue");
         writer.archiveHistory(m); writer.uploader.flush();
         var store = new FightHistoryStore(root, _ -> {}, path -> FileSystem.deleteFile(path));
         var groups = store.query(request("groups")).groups;

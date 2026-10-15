@@ -44,6 +44,7 @@ class RiftRecapHistory {
         result.recapBossName = HistoryCategory.normalizeName(boss.name);
         result.category = HistoryCategory.WORLD; result.categoryVersion = HistoryCategory.VERSION;
         result.phase = "";
+        result.gatesClosed = gate != null && gate.gatesClosed != null ? gate.gatesClosed : boss.gatesClosed;
         result.startedAt = gate == null ? boss.startedAt : gate.startedAt;
         // DPS uses the sum of the two recorded phase durations, excluding any
         // unrecorded interval before the first boss hit.

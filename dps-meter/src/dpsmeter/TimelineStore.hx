@@ -14,6 +14,30 @@ class TimelineStore {
         if (!~/^[A-Za-z0-9_-]+$/.match(value)) throw "Invalid timeline identifier";
         return value;
     }
+    /** Remove abandoned session chunks once, before this worker begins saving.
+        Archived .json.timeline files live under history and are never touched. */
+    public function cleanupStartup(?log:String->Void):Int {
+        if (!FileSystem.exists(root) || !FileSystem.isDirectory(root)) return 0;
+        var count = 0;
+        for (stream in FileSystem.readDirectory(root)) {
+            // Current-session data can already exist if shutdown flush ran first.
+            if (!~/^[A-Za-z0-9_-]+$/.match(stream) || chunks.exists(stream)) continue;
+            var folder = root + "/" + stream;
+            if (!FileSystem.isDirectory(folder)) continue;
+            try {
+                // A single known level only: never recursively delete arbitrary files.
+                for (name in FileSystem.readDirectory(folder)) {
+                    if (!~/^[0-9]{9,}\.json(\.tmp)?$/.match(name)) continue;
+                    var path = folder + "/" + name;
+                    if (FileSystem.isDirectory(path)) continue;
+                    FileSystem.deleteFile(path); count++;
+                }
+                if (FileSystem.readDirectory(folder).length == 0) FileSystem.deleteDirectory(folder);
+            } catch (error:Dynamic) if (log != null) log("Could not clean an abandoned timeline stream: " + Std.string(error));
+        }
+        if (count > 0 && log != null) log("Removed " + count + " abandoned timeline chunks on startup.");
+        return count;
+    }
     public function append(batch:TimelineBatch):Void {
         var folder = root + "/" + safe(batch.stream);
         FileSystem.createDirectory(folder);

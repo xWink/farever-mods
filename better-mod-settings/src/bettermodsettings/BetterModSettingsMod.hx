@@ -105,6 +105,13 @@ class BetterModSettingsMod {
 
     static function main():Void {}
 
+    @:hlx.prefix(h2d.TextInput.splitRawText)
+    static function maskSecretText(instance:Dynamic, text:String, leftMargin:hl.Ref<Float>, afterData:hl.Ref<Float>,
+        font:Dynamic, sizes:Dynamic, prevChar:Null<Int>):HlxPrefixResult<String> {
+        var masked = NativeSecretText.masked(instance, text);
+        return masked == null ? Continue : SkipWith(masked);
+    }
+
     @:hlx.prefix(lib.Input.checkInput)
     static function protectNativeInput(key:String, checkKey:Dynamic, checkPad:Dynamic):HlxPrefixResult<Bool> {
         // Native input callbacks inline hxd.Key reads, so protect this entry point too.
@@ -140,6 +147,7 @@ class BetterModSettingsMod {
         if (nativeSettingsWindow == null
             || HlxRuntime.resolveField(nativeSettingsWindow, "allocated") != true) {
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
             NativeSettingTooltip.hide();
             if (capturingKeybind != null) {
                 capturingKeybind = null;
@@ -166,6 +174,7 @@ class BetterModSettingsMod {
     @:hlx.prefix(GameApp.dispose)
     static function resetKeyCapture(instance:Dynamic):HlxPrefixResult<Void> {
         NativeDropdown.closeAll(true);
+        NativeSecretText.hideAll(true);
         NativeSettingTooltip.reset();
         capturingKeybind = null;
         captureInput.reset();
@@ -360,6 +369,7 @@ class BetterModSettingsMod {
             }
 
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
             // TitleWindow auto-displays before its constructor returns. The
             // prefix above must be active during that call so BaseUI keeps the
             // EscapeMenu beside this companion window.
@@ -405,6 +415,7 @@ class BetterModSettingsMod {
         } catch (error:Dynamic) {
             openingNativeSettingsWindow = false;
             NativeDropdown.closeAll(true);
+            NativeSecretText.hideAll(true);
             nativeSettingsWindow = null;
             trace("[BetterModSettings] Could not open native settings window: " + Std.string(error));
         }
@@ -822,6 +833,7 @@ class BetterModSettingsMod {
     ):Void {
         // The native dropdown list lives in a separate window, outside its tab.
         NativeDropdown.closeAll();
+        NativeSecretText.hideAll();
         NativeSettingTooltip.hide();
         if (h2dObjectType == null)
             h2dObjectType = HlxRuntime.resolveType("h2d.Object");
@@ -948,6 +960,8 @@ class BetterModSettingsMod {
                     var hint = HlxRuntime.resolveField(box, "inputHint");
                     if (hint != null)
                         applyInlineStyle(HlxRuntime.resolveField(hint, "dom"), "color", 0xE0D8CD);
+                    if (TextSetting.isSecret(definition))
+                        prepareSettingControl(settingParent, NativeSecretText.attach(settingParent, input, "settingSecret" + index), false);
                     var setText = HlxRuntime.resolveMember(HlxRuntime.resolveType("h2d.TextInput"), "set_text");
                     HlxRuntime.callResolved(setText, [input,
                         TextSetting.storedValue(Reflect.field(Reflect.field(mod, "values"), key))]);

@@ -25,6 +25,17 @@ class NativeDamageChart {
     var skillTable:NativeSkillTable;
     var lastRefresh:Float = -1;
     var empty:Dynamic;
+    /** Opening a solo log immediately shows that player's breakdown. */
+    public function openHistory(fight:Fight):Void {
+        displayed = fight;
+        var player = "";
+        if (fight != null) {
+            var keys = fight.players.keys();
+            if (keys.hasNext()) player = keys.next();
+            if (keys.hasNext()) player = "";
+        }
+        selectPlayer(player);
+    }
     public function new(parent:Dynamic, id:String, emptyText:String = "", recap:Bool = false) {
         this.id = id; this.emptyText = emptyText;
         root = node("flow", parent, [], id + "Chart", "vertical");

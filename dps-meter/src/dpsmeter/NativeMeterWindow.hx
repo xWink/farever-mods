@@ -34,6 +34,7 @@ class NativeMeterWindow {
     var grip:Dynamic;
     var config:MeterSettings;
     var lastRefresh:Float = -1;
+    var uiScale:Float = 1;
     var width:Int = 0;
     var height:Int = 0;
     var headerHeight:Int = 0;
@@ -100,7 +101,7 @@ class NativeMeterWindow {
         G.set(window, "alpha", opacity);
         if (G.field(window, "visible") != true) lastRefresh = -1;
         show(window, true);
-        if (width != config.width || height != config.height) layout();
+        if (width != config.width || height != config.height || uiScale != config.meterScale / 100) layout();
         updateDrag();
         clampToScreen();
         position(window, config.x, config.y);
@@ -182,14 +183,15 @@ class NativeMeterWindow {
         absolute(options, container);
         absolute(container, G.field(content, "obj"));
         grip = G.create("h2d.Graphics", [window]);
-        G.call("h2d.Graphics", "beginFill", grip, [0x866342, 1.0]);
-        G.call("h2d.Graphics", "moveTo", grip, [0.0, 18.0]);
-        G.call("h2d.Graphics", "lineTo", grip, [18.0, 0.0]);
-        G.call("h2d.Graphics", "lineTo", grip, [18.0, 18.0]);
+        G.call("h2d.Graphics", "lineStyle", grip, [2.0, 5913120, 1.0]);
+        G.call("h2d.Graphics", "beginFill", grip, [16760639, 1.0]);
+        G.call("h2d.Graphics", "moveTo", grip, [0.0, 30.0]);
+        G.call("h2d.Graphics", "lineTo", grip, [30.0, 0.0]);
+        G.call("h2d.Graphics", "lineTo", grip, [30.0, 30.0]);
         G.call("h2d.Graphics", "endFill", grip);
         absolute(window, grip);
         dragSurface = G.create("h2d.Interactive", [100.0, 46.0, window, null]);
-        resizeSurface = G.create("h2d.Interactive", [22.0, 22.0, window, null]);
+        resizeSurface = G.create("h2d.Interactive", [34.0, 34.0, window, null]);
         absolute(window, dragSurface);
         absolute(window, resizeSurface);
         G.set(dragSurface, "onPush", (event:Dynamic) -> beginDrag(event, false));
@@ -222,6 +224,8 @@ class NativeMeterWindow {
         position(bossLabel, nameInset, Math.max(0, (34 - bossHeight) / 2));
     }
     function layout():Void {
+        uiScale = config.meterScale / 100;
+        G.call("h2d.Object", "setScale", window, [uiScale]);
         width = config.width; height = config.height;
         var innerWidth = width - 16;
         var toolbarObject = G.field(toolbar, "obj");
@@ -250,8 +254,8 @@ class NativeMeterWindow {
         G.set(dragSurface, "width", (headerWidth - 110) * 1.0);
         G.set(dragSurface, "height", headerHeight * 1.0);
         position(dragSurface, 110, 0);
-        position(resizeSurface, width - 22, height - 22);
-        position(grip, width - 18, height - 18);
+        position(resizeSurface, width - 34, height - 34);
+        position(grip, width - 32, height - 32);
         lastRefresh = -1;
     }
     function refresh(model:CombatModel, now:Float):Void {
@@ -265,6 +269,8 @@ class NativeMeterWindow {
         setText(timer, duration(elapsed));
         var bossName = fight == null ? "" : fight.phase != "" ? fight.phase : fight.bossName;
         bossName = HistoryCatalog.HistoryCategory.normalizeName(bossName);
+        if (fight != null && fight.phase == RiftTracker.GATES_PHASE && fight.gatesClosed != null)
+            bossName += " · " + FightHistory.gatesLabel(fight.gatesClosed);
         if (bossName != bossCaption) { bossCaption = bossName; bossLabelWidth = -1; }
         show(bossLabel, bossCaption != "");
     }
@@ -287,8 +293,8 @@ class NativeMeterWindow {
         var p = mouse();
         if (dragging) { config.x = startX + p.x - startMouseX; config.y = startY + p.y - startMouseY; }
         else {
-            config.width = Std.int(Math.max(360, Math.min(1200, startWidth + p.x - startMouseX)));
-            config.height = Std.int(Math.max(MeterConfig.MIN_HEIGHT, Math.min(1000, startHeight + p.y - startMouseY)));
+            config.width = Std.int(Math.max(360, Math.min(1200, startWidth + (p.x - startMouseX) / uiScale)));
+            config.height = Std.int(Math.max(MeterConfig.MIN_HEIGHT, Math.min(1000, startHeight + (p.y - startMouseY) / uiScale)));
             if (config.width != width || config.height != height) layout();
         }
     }
@@ -307,8 +313,8 @@ class NativeMeterWindow {
         var scene = G.field(owner, "s2d");
         var top = localPoint(0, 0);
         var bottom = localPoint(G.number(G.field(scene, "width"), 1920), G.number(G.field(scene, "height"), 1080));
-        config.x = Math.max(top.x, Math.min(config.x, Math.max(top.x, bottom.x - width)));
-        config.y = Math.max(top.y, Math.min(config.y, Math.max(top.y, bottom.y - height)));
+        config.x = Math.max(top.x, Math.min(config.x, Math.max(top.x, bottom.x - width * uiScale)));
+        config.y = Math.max(top.y, Math.min(config.y, Math.max(top.y, bottom.y - height * uiScale)));
     }
     function finishDrag():Void {
         if (!dragging && !resizing) return;

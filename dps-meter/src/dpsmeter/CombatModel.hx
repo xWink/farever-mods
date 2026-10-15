@@ -148,6 +148,7 @@ class Fight {
     public var partySize:Int = 0;
     public var activityId:String = "";
     public var category:String = "";
+    public var gatesClosed:Null<Int>;
     public var targetDummy:Bool = false;
     public var categoryVersion:Int = HistoryCatalog.HistoryCategory.VERSION;
     public var me:String = "";
@@ -203,6 +204,7 @@ class Fight {
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.partySize = partySize;
         result.category = category;
+        result.gatesClosed = gatesClosed;
         result.targetDummy = targetDummy;
         result.categoryVersion = categoryVersion;
         result.healingReceived = healingReceived.copy();
@@ -429,6 +431,8 @@ class CombatModel {
         // It is never placed in history, completed reports, or boss records.
         clearPhrixes(true);
     }
+    public function updateRiftGates(count:Int):Void { if (rift != null) rift.updateGates(count); }
+
     public function updateRiftState(now:Float, bossSpawned:Bool, bossDefeated:Bool, bossKind:String):Void {
         if (rift == null) return;
         rift.updateState(now, bossSpawned, bossDefeated, bossKind);

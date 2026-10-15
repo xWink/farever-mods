@@ -6,7 +6,7 @@ typedef HistoryEntry = {
     id:String, name:String, startedAt:Float, duration:Float, personalDps:Null<Float>, playerName:String,
     category:String, categoryVersion:Int, activityId:String, bossKind:String, phase:String,
     difficulty:Int, partySize:Int, recordedPlayers:Int, playerClass:String, outcome:String,
-    ?damageTypeSummary:String, ?targetDummy:Bool, ?kind:String, ?recapBossName:String
+    ?gatesClosed:Int, ?damageTypeSummary:String, ?targetDummy:Bool, ?kind:String, ?recapBossName:String
 };
 typedef HistoryGroup = {name:String, count:Int};
 typedef HistoryRecentEntry = {entry:HistoryEntry, category:String, group:String};
@@ -14,7 +14,7 @@ typedef HistoryHeading = {before:String, player:String, after:String};
 typedef HistoryCharacter = {key:String, name:String, className:String};
 typedef HistoryRequest = {id:Int, action:String, group:String, page:Int, fightId:String,
     ?category:String, ?catalog:HistoryCatalog, ?sortBy:String, ?ascending:Bool, ?character:String, ?outcome:String,
-    ?eventFilter:String, ?eventSkill:String, ?eventSearch:String, ?graphMetric:String, ?jumpTime:Float,
+    ?eventTarget:String, ?eventSource:String, ?eventFilter:String, ?eventSkill:String, ?eventSearch:String, ?graphMetric:String, ?jumpTime:Float,
     ?eventPageSize:Int, ?statusMetadata:Map<String, {kind:String, hidden:Bool}>, ?skillNames:Map<String, String>, ?includeGraph:Bool};
 typedef HistoryResponse = {
     id:Int, page:Int, total:Int, groups:Array<HistoryGroup>, entries:Array<HistoryEntry>, record:Dynamic, error:String,
@@ -29,18 +29,21 @@ class FightHistory {
         var players:Array<Dynamic> = [for (p in fight.ranked()) {
             var skills:Array<Dynamic> = [for (id => s in p.skills) {id: id, damage: s.damage, hits: s.hits,
                 crits: s.crits, kills: s.kills, casts: s.casts, damageBreakdown: s.damageBreakdown.json(s.damage)}];
-            {
+            var row:Dynamic = {
                 uid: p.info.uid, name: p.info.name, isMe: p.info.isMe || p.info.uid == fight.me,
                 accountId: p.info.accountId, characterId: p.info.characterId,
                 className: p.info.className, damage: p.damage, heal: p.heal,
                 hits: p.hits, crits: p.crits, kills: p.kills,
-                skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage), healing: p.healingJson()
-            }
+                skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage)
+            };
+            var healing = p.healingJson();
+            if (healing != null) Reflect.setField(row, "healing", healing);
+            row;
         }];
         return {version: 1, gameVersion: fight.gameVersion, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
             healingReceived: fight.healingReceived.json(),
             me: fight.me, meName: fight.meName, meClass: fight.meClass, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
-            activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase,
+            activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase, gatesClosed: fight.gatesClosed,
             difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
     }
     public static function name(fight:Fight):String {
@@ -66,7 +69,7 @@ class FightHistory {
             category: text(record.category), categoryVersion: Std.int(number(record.categoryVersion)),
             activityId: text(record.activityId), bossKind: text(record.bossKind), phase: text(record.phase),
             difficulty: difficulty(record.difficulty), partySize: Std.int(number(record.partySize)), recordedPlayers: recordedPlayers(record),
-            outcome: outcome(record.outcome), damageTypeSummary: damageTypeSummary, targetDummy: record.targetDummy == true};
+            gatesClosed: gateCount(record.gatesClosed), outcome: outcome(record.outcome), damageTypeSummary: damageTypeSummary, targetDummy: record.targetDummy == true};
     }
     public static function decode(record:Dynamic):Fight {
         if (RiftRecapHistory.isRecap(record)) throw "Open this log as a rift recap.";
@@ -81,6 +84,7 @@ class FightHistory {
         fight.me = text(record.me); fight.meName = text(record.meName); fight.meClass = text(record.meClass);
         fight.category = text(record.category); fight.activityId = text(record.activityId);
         fight.targetDummy = record.targetDummy == true;
+        fight.gatesClosed = gateCount(record.gatesClosed);
         fight.categoryVersion = Std.int(number(record.categoryVersion));
         fight.bossKind = text(record.bossKind); fight.phase = text(record.phase);
         fight.difficulty = difficulty(record.difficulty); fight.partySize = Std.int(number(record.partySize));
@@ -170,6 +174,12 @@ class FightHistory {
     public static function attemptDetail(entry:HistoryEntry):String
         return (RiftRecapHistory.isRecap(entry) ? text(entry.recapBossName) + "  ·  " : "")
             + durationLabel(entry.duration) + "  ·  " + dpsLabel(entry.personalDps);
+    public static function gateCount(value:Dynamic):Null<Int> {
+        if (value == null || (!Std.isOfType(value, Int) && !Std.isOfType(value, Float))) return null;
+        var n:Float = value;
+        return Math.isFinite(n) && n >= 0 && n <= 100000 && n % 1 == 0 ? Std.int(n) : null;
+    }
+    public static function gatesLabel(count:Null<Int>):String return count == null ? "" : count + " gates closed";
     public static function chartDetail(entry:Null<HistoryEntry>, ?player:PlayerStats):String {
         if (entry == null) return "";
         var name = player == null ? entry.playerName : player.info.name;
@@ -177,6 +187,7 @@ class FightHistory {
         var split = player == null ? entry.damageTypeSummary : player.damageBreakdown.summary(player.damage);
         return dateLabel(entry.startedAt) + (name == "" ? "" : "  ·  " + name)
             + "  ·  " + dpsLabel(dps, player == null) + "  ·  " + durationLabel(entry.duration) + "  ·  " + outcomeLabel(entry)
+            + (entry.phase != RiftTracker.GATES_PHASE || entry.gatesClosed == null ? "" : "  ·  " + gatesLabel(entry.gatesClosed))
             + (split == null || split == "" ? "" : "  ·  " + split);
     }
     public static function recapDetail(recap:dpsmeter.RiftTracker.RiftRecap):String {
@@ -195,8 +206,10 @@ class FightHistory {
             if (stats != null) { total += stats.damage; breakdown.merge(stats.damageBreakdown); }
         }
         var split = breakdown.summary(total);
+        var gates = first.gatesClosed != null ? first.gatesClosed : recap.boss.gatesClosed;
         return dateLabel(first.startedAt) + (player == "" ? "" : "  ·  " + player)
-            + "  ·  " + (result == "" ? "Outcome unknown" : result) + (split == "" ? "" : "  ·  " + split);
+            + "  ·  " + (result == "" ? "Outcome unknown" : result)
+            + (gates == null ? "" : "  ·  " + gatesLabel(gates)) + (split == "" ? "" : "  ·  " + split);
     }
     static function recordedPlayerName(fight:Null<Fight>):String {
         if (fight == null) return "";

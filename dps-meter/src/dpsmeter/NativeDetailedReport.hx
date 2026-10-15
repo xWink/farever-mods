@@ -22,6 +22,10 @@ class NativeDetailedReport {
     public var metric:String = "outgoing";
     var root:Dynamic;
     var filterBox:HistoryDropdown;
+    var sourceBox:HistoryDropdown;
+    var targetBox:HistoryDropdown;
+    public var source:String = "";
+    public var target:String = "";
     var metricBox:HistoryDropdown;
     var searchBox:Dynamic;
     var input:Dynamic;
@@ -71,6 +75,10 @@ class NativeDetailedReport {
             {value:"buffs", name:"Buffs"}, {value:"debuffs", name:"Debuffs"},
             {value:"defense", name:"Dodges / blocks"}, {value:"health", name:"Health / deaths"}], "",
             value -> { filter = value; request(0, null); });
+        sourceBox = new HistoryDropdown(root, "dpsEventSource", [{value:"", name:"All sources"}], "",
+            value -> { source = value; request(0, null); });
+        targetBox = new HistoryDropdown(root, "dpsEventTarget", [{value:"", name:"All targets"}], "",
+            value -> { target = value; request(0, null); });
         metricBox = new HistoryDropdown(root, "dpsEventGraph", [
             {value:"outgoing", name:"Damage dealt"}, {value:"incoming", name:"Damage taken"},
             {value:"healing", name:"Healing given"}, {value:"shield", name:"Shields given"},
@@ -122,7 +130,7 @@ class NativeDetailedReport {
         lanePrevious = button(root, "<", "dpsUptimePrevious", () -> { if (lanePage > 0) { lanePage--; drawGraph(); } });
         laneNext = button(root, ">", "dpsUptimeNext", () -> { lanePage++; drawGraph(); });
         for (i in 0...3) { var icon = G.create("h2d.Bitmap", [null, object]); absolute(object, icon); laneIcons.push(icon); show(icon, false); }
-        for (c in [filterBox.object, metricBox.object, searchBox, graphLabel, graphic, cursor, graphInput,
+        for (c in [filterBox.object, sourceBox.object, targetBox.object, metricBox.object, searchBox, graphLabel, graphic, cursor, graphInput,
             G.field(list, "obj"), empty, previous, next, pages, laneNext, lanePrevious].concat(headingTexts)) absolute(object, c);
         show(object, false);
     }
@@ -154,13 +162,16 @@ class NativeDetailedReport {
         position(t, x + (align == "right" ? w - tw * scale : align == "center" ? (w - tw * scale) / 2 : 0), y + (h - th * scale) / 2);
     }
     public function configureRequest(r:HistoryRequest):Void {
+        r.eventSource = source; r.eventTarget = target;
         r.eventFilter = filter; r.eventSkill = ""; r.eventSearch = search; r.graphMetric = metric;
         r.eventPageSize = capacity(); requestedPageSize = r.eventPageSize; r.statusMetadata = statusMetadata;
         r.skillNames = ["ConsumeFlask" => NativeCombatMetadata.skillName("ConsumeFlask")];
         r.includeGraph = data == null || data.graph == null || G.text(data.graph.metric) != metric;
     }
     public function reset():Void {
-        close(); search = ""; lanePage = 0; data = null;
+        close(); search = ""; source = ""; target = ""; lanePage = 0; data = null;
+        sourceBox.setChoices([{value:"", name:"All sources"}], "");
+        targetBox.setChoices([{value:"", name:"All targets"}], "");
         G.call("h2d.TextInput", "set_text", input, [""]); searchAt = -1;
     }
     public function visible(value:Bool):Void { show(object, value); if (!value) close(); }
@@ -172,6 +183,7 @@ class NativeDetailedReport {
         var newGraph = value.graph != null;
         if (!newGraph && data != null) { value.graph = data.graph; value.lanes = data.lanes; }
         data = value;
+        sourceBox.setChoices(cast data.sources, source); targetBox.setChoices(cast data.targets, target);
         setText(pages, "Page " + (data.page + 1) + " of " + data.pages + "  ·  " + data.total + " events");
         show(previous, data.page > 0); show(next, data.page + 1 < data.pages);
         var events:Array<TimelineEvent> = cast data.rows;
@@ -254,9 +266,11 @@ class NativeDetailedReport {
     function layout():Void {
         if (width < 100) return;
         var w = width, h = height; size(object, w, h);
-        var filterWidth = Std.int(w * .32);
+        var filterWidth = Std.int((w - 24) * .25);
         filterBox.resize(filterWidth); position(filterBox.object, 0, FILTER_Y);
-        var searchX = filterWidth + 8;
+        sourceBox.resize(filterWidth); position(sourceBox.object, filterWidth + 8, FILTER_Y);
+        targetBox.resize(filterWidth); position(targetBox.object, filterWidth * 2 + 16, FILTER_Y);
+        var searchX = filterWidth * 3 + 24;
         padding(searchBox, 0); size(searchBox, w - searchX, 42); position(searchBox, searchX, FILTER_Y);
         style(input, "width", Math.max(40, w - searchX - 24));
         // The native text input and its hint share the dropdowns' 42px row.
@@ -467,7 +481,7 @@ class NativeDetailedReport {
         }
         if (G.staticCall("hxd.Key", "isPressed", [0]) != true) return;
         var scene = G.field(G.current("ui.BaseUI", "current"), "s2d");
-        if (scene != null) for (c in [filterBox, metricBox])
+        if (scene != null) for (c in [filterBox, sourceBox, targetBox, metricBox])
             c.closeOutside(G.number(G.call("h2d.Scene", "get_mouseX", scene)), G.number(G.call("h2d.Scene", "get_mouseY", scene)));
     }
     function currentFonts():Array<Dynamic> {
@@ -486,7 +500,7 @@ class NativeDetailedReport {
     }
     public function closeOpen():Bool {
         var found = false;
-        for (c in [filterBox, metricBox]) if (c.isOpen()) { c.close(); found = true; }
+        for (c in [filterBox, sourceBox, targetBox, metricBox]) if (c.isOpen()) { c.close(); found = true; }
         return found;
     }
     public function close():Void { closeOpen(); searchAt = -1; }

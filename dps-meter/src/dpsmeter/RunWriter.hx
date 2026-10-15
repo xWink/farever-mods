@@ -4,6 +4,7 @@ import dpsmeter.CombatModel.Fight;
 import sys.thread.Thread;
 import dpsmeter.FightHistory;
 import dpsmeter.BossRecords;
+import dpsmeter.FareverlyUploader;
 
 /** The game thread hands off detached reports; the uploader owns disk and HTTP work. */
 class RunWriter {
@@ -11,7 +12,8 @@ class RunWriter {
     public var timeline:CombatTimeline;
     var started:Bool = false;
     var stopped:Bool = false;
-    var reportSequence:Int = Std.random(0x3fffffff);
+    var uploadsEnabled:Null<Bool>;
+    var retentionKey = "";
     var historySequence:Int = 0;
     final historySession:String = DateTools.format(Date.now(), "%Y%m%d_%H%M%S") + "_" + Std.random(0x3fffffff);
 
@@ -30,13 +32,13 @@ class RunWriter {
         return Sys.systemName() == "Windows" ? StringTools.replace(path, "/", "\\") : path;
     }
 
-    public function archive(fight:Fight):Void {
+    public function archive(fight:Fight, submitFareverly:Bool = false):Void {
         if (stopped || (fight.category == HistoryCatalog.HistoryCategory.OTHER && !fight.targetDummy)) return;
         var record = FightHistory.encode(fight, "fight_" + historySession + "_" + (++historySequence));
         if (!HistoryCatalog.HistoryCategory.canArchive(record)) return;
         attachTimeline(record, fight);
         prepare();
-        uploader.archive(record);
+        uploader.archive(record, submitFareverly);
     }
     public function archiveRecap(recap:dpsmeter.RiftTracker.RiftRecap):Void {
         if (stopped) return;
@@ -49,9 +51,9 @@ class RunWriter {
         prepare();
         uploader.archive(record);
     }
-    public function archiveHistory(model:dpsmeter.CombatModel):Void {
+    public function archiveHistory(model:dpsmeter.CombatModel, submitFareverly:Bool = false):Void {
         while (model.history.length > 0) {
-            archive(model.history[0]);
+            archive(model.history[0], submitFareverly);
             model.history.shift();
         }
         while (model.recapHistory.length > 0) {
@@ -64,20 +66,18 @@ class RunWriter {
     public function requestBossRecord(request:BossRecordRequest):Void { prepare(); uploader.requestBossRecord(request); }
     public function receiveBossRecord():Null<BossRecordResponse> return uploader == null ? null : uploader.receiveBossRecord();
 
-    public function enqueue(fight:Fight):Void {
-        // The older boss collector records a confirmed boss kill in defeated;
-        // history/Rift snapshots also have an explicit outcome. A defeat or an
-        // unknown result must never become an upload, even if queued by mistake.
-        if (stopped || (fight.outcome != "" ? fight.outcome != "Victory" : !fight.defeated)) return;
-        prepare();
-        var timestamp = DateTools.format(Date.now(), "%Y%m%d-%H%M%S");
-        reportSequence = (reportSequence + 1) & 0x3fffffff;
-        var report = fight.json(timestamp, reportSequence);
-        if (report.players.length == 0) return;
-        // Queue-only metadata survives restarts; LogUploader removes it before POST.
-        Reflect.setField(report, "outcome", "Victory");
-        uploader.enqueue("run_" + timestamp + "_" + reportSequence + ".json", report);
+    public function setUploadsEnabled(enabled:Bool):Void {
+        if (uploadsEnabled == enabled) return;
+        uploadsEnabled = enabled; prepare(); uploader.setFareverlyEnabled(enabled);
     }
+    public function setRetention(enabled:Bool, months:Int):Void {
+        months = LogRetention.months(months);
+        var key = Std.string(enabled) + ":" + months;
+        if (retentionKey == key) return;
+        retentionKey = key; prepare(); uploader.setRetention(enabled, months);
+    }
+    public function requestFareverly(request:FareverlyRequest):Void { prepare(); uploader.requestFareverly(request); }
+    public function receiveFareverly():Null<FareverlyReport> return uploader == null ? null : uploader.receiveFareverly();
 
     function prepare():Void {
         if (uploader == null) uploader = new LogUploader("hlx/mods/dps-meter");

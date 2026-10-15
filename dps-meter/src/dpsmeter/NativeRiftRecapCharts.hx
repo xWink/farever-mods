@@ -21,14 +21,16 @@ class NativeRiftRecapCharts {
         for (i in 0...2) addSection(dom, id + (i == 0 ? "Gate" : "Boss"));
     }
 
-    public function setRecap(result:Null<RiftRecap>):Void {
+    public function setRecap(result:Null<RiftRecap>, openHistory:Bool = false):Void {
         for (i in 0...sections.length) {
             var section = sections[i];
             var fight = result == null ? null : i == 0 ? result.gate : result.boss;
             section.fight = fight;
+            if (openHistory) (cast section.chart:NativeDamageChart).openHistory(fight);
             setText(section.name, HistoryCatalog.HistoryCategory.normalizeName(i == 0 ? RiftTracker.GATES_PHASE
                 : fight == null ? "Rift - Boss" : fight.phase));
-            setText(section.time, fight == null ? "" : duration(fight.duration()));
+            var gates = result == null ? null : result.gate != null && result.gate.gatesClosed != null ? result.gate.gatesClosed : result.boss.gatesClosed;
+            setText(section.time, (i == 0 && gates != null ? FightHistory.gatesLabel(gates) + " · " : "") + (fight == null ? "" : duration(fight.duration())));
         }
     }
 

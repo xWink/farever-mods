@@ -33,6 +33,7 @@ class HistoryButtons {
     }
     public static function snapshot(parent:Dynamic, click:Void->Void, id:String = "dpsHistorySnapshot"):Dynamic {
         var button = NativeUi.button(parent, "", id, click);
+        NativeButtonTooltip.set(button, "Copy snapshot to clipboard");
         padding(button, 0); size(button, SNAPSHOT_SIZE, SNAPSHOT_SIZE);
         var g = G.create("h2d.Graphics", [button]); absolute(button, g); position(g, 3, 6);
         G.call("h2d.Graphics", "lineStyle", g, [1.5, 0x5b4334, 1.0]);
