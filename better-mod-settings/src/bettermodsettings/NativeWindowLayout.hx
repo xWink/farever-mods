@@ -23,7 +23,10 @@ class NativeWindowLayout {
             call("h2d.Flow", "set_padding" + side, window, [0]);
         }
         var top = HlxRuntime.constructEnum(HlxRuntime.resolveType("h2d.FlowAlign"), "Top", []);
-        style(window, "valign", top);
+        // valign changes this window's alignment in its parent. Options keeps
+        // a centered anchor with a negative offset, so top-aligning that anchor
+        // puts the header above the screen. Only align the contents here.
+        style(window, "content-valign", top);
         call("h2d.Flow", "set_verticalAlign", window, [top]);
         for (key in ["width", "min-width", "max-width"]) style(header, key, 1000);
         call("h2d.Flow", "set_minWidth", header, [1000]);

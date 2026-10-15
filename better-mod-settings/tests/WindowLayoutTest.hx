@@ -6,7 +6,11 @@ class WindowLayoutTest {
         checks++;
         if (!ok) throw message;
     }
-    static function node(name:String):Dynamic return {name:name, dom:{styles:{}}, flowProperties:{isAbsolute:true, paddingTop:70, paddingBottom:10, paddingLeft:5, paddingRight:5}};
+    static function node(name:String):Dynamic {
+        var object:Dynamic = {name:name, flowProperties:{isAbsolute:true, paddingTop:70, paddingBottom:10, paddingLeft:5, paddingRight:5}};
+        object.dom = {obj:object, styles:{}};
+        return object;
+    }
     static function order(window:Dynamic):String {
         var children:Array<Dynamic> = window.children;
         return [for (child in children) child.name].join(",");
@@ -15,7 +19,10 @@ class WindowLayoutTest {
         var background = node("background"), body = node("body"), header = node("header"), tabs = node("tabs");
         var title = {}, close = {};
         header.headerTitle = title; header.closeBtn = close;
-        var window:Dynamic = {header:header, titleWindowContent:body, children:[background,body,header], dom:{styles:{}}};
+        var window = node("window");
+        window.header = header; window.titleWindowContent = body; window.children = [background,body,header];
+        window.flowProperties.verticalAlign = "Middle";
+        window.flowProperties.offsetY = -330;
         NativeWindowLayout.headerFirst(window);
         check(order(window) == "background,header,body", "Header precedes content even without compatible mods");
         var children:Array<Dynamic> = window.children; children.push(tabs);
@@ -23,6 +30,10 @@ class WindowLayoutTest {
         check(order(window) == "background,header,tabs,body", "Header, tabs, and body have explicit visual order");
         for (_ in 0...3) NativeWindowLayout.headerFirst(window, tabs);
         check(order(window) == "background,header,tabs,body", "Repeated layout cannot move the title back to the bottom");
+        check(window.flowProperties.verticalAlign == "Middle" && window.flowProperties.offsetY == -330,
+            "Compacting the contents preserves native centered window positioning");
+        check(window.verticalAlign == "Top" && !Reflect.hasField(window.dom.styles, "valign"),
+            "Only content alignment is overridden; the window cannot be moved above its centered anchor");
         check(header.minWidth == 1000 && header.maxWidth == 1000, "Header spans the full outer window width, not the narrower body");
         check(body.paddingTop == 0, "Content no longer reserves space for overlaid tabs");
         check(tabs.minHeight == 70 && tabs.maxHeight == 70 && tabs.paddingTop == 10 && tabs.paddingBottom == 10,

@@ -37,6 +37,15 @@ class HlxRuntime {
                 dom;
             case "domkit.Properties.initStyle":
                 Reflect.setField(Reflect.field(object, "styles"), args[1], args[2]);
+                // Match the game's separate ObjectComp/FlowComp setters:
+                // valign belongs to the parent; content-valign to this flow.
+                var styled = Reflect.field(object, "obj");
+                if (styled != null) {
+                    if (args[1] == "valign") {
+                        var properties = Reflect.field(styled, "flowProperties");
+                        if (properties != null) Reflect.setField(properties, "verticalAlign", args[2]);
+                    } else if (args[1] == "content-valign") Reflect.setField(styled, "verticalAlign", args[2]);
+                }
                 null;
             case "h2d.Flow.getProperties":
                 if (!Reflect.hasField(args[1], "flowProperties")) Reflect.setField(args[1], "flowProperties", {});
