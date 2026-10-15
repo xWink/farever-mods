@@ -4,7 +4,7 @@ package bettermodsettings;
 class NativeWindowLayout {
     public static inline var WINDOW_WIDTH = 1000;
     public static inline var HEADER_WIDTH = WINDOW_WIDTH - 4;
-    public static inline var BODY_INSET = 5;
+    public static inline var BODY_INSET = 7;
     public static inline var BODY_WIDTH = WINDOW_WIDTH - BODY_INSET * 2;
 
     public static function headerFirst(window:Dynamic, ?tabs:Dynamic):Void {

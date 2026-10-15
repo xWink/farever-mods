@@ -42,7 +42,7 @@ class WindowLayoutTest {
         check(window.paddingLeft == 0 && window.paddingRight == 0, "Window padding cannot inset the full-width header");
         var options = node("options"); options.parent = body; options.fillHeight = true;
         NativeWindowLayout.compactBody(options);
-        check(options.flowProperties.paddingLeft == 5 && options.flowProperties.paddingRight == 5
+        check(options.flowProperties.paddingLeft == 7 && options.flowProperties.paddingRight == 7
             && options.fillWidth == false && body.paddingLeft == 0 && body.paddingRight == 0,
             "Body reserves both side borders without double-counting native title-content padding");
         check(NativeWindowLayout.BODY_WIDTH + options.flowProperties.paddingLeft + options.flowProperties.paddingRight

@@ -1516,9 +1516,9 @@ class BetterModSettingsMod {
             if (flow == null)
                 return;
             if (setMinWidthMember != null)
-                HlxRuntime.callResolved(setMinWidthMember, [flow, 990]);
+                HlxRuntime.callResolved(setMinWidthMember, [flow, NativeWindowLayout.WINDOW_WIDTH]);
             if (setMaxWidthMember != null)
-                HlxRuntime.callResolved(setMaxWidthMember, [flow, 990]);
+                HlxRuntime.callResolved(setMaxWidthMember, [flow, NativeWindowLayout.WINDOW_WIDTH]);
             if (setMultilineMember != null)
                 HlxRuntime.callResolved(setMultilineMember, [flow, false]);
 
@@ -1528,12 +1528,12 @@ class BetterModSettingsMod {
             if (left != null && setHorizontalAlignMember != null)
                 HlxRuntime.callResolved(setHorizontalAlignMember, [flow, left]);
 
-            setHorizontalPadding(properties, 10);
-            applyInlineStyle(properties, "width", 990);
-            applyInlineStyle(properties, "min-width", 990);
-            applyInlineStyle(properties, "max-width", 990);
-            applyInlineStyle(properties, "padding-left", 10);
-            applyInlineStyle(properties, "padding-right", 10);
+            setHorizontalPadding(properties, 20);
+            applyInlineStyle(properties, "width", NativeWindowLayout.WINDOW_WIDTH);
+            applyInlineStyle(properties, "min-width", NativeWindowLayout.WINDOW_WIDTH);
+            applyInlineStyle(properties, "max-width", NativeWindowLayout.WINDOW_WIDTH);
+            applyInlineStyle(properties, "padding-left", 20);
+            applyInlineStyle(properties, "padding-right", 20);
             applyInlineStyle(properties, "multiline", false);
             if (left != null)
                 applyInlineStyle(properties, "halign", left);
@@ -1661,7 +1661,8 @@ class BetterModSettingsMod {
             var arrowGap = 10;
             var tabGap = 20;
             setFlowHorizontalSpacing(parentProperties, arrowGap);
-            var viewportWidth = 970 - 64 - arrowGap * 2;
+            // Full window width minus matching 20px margins, both arrows, and their gaps.
+            var viewportWidth = NativeWindowLayout.WINDOW_WIDTH - 40 - 64 - arrowGap * 2;
             if (viewportWidth < 120)
                 viewportWidth = 120;
 
