@@ -67,7 +67,7 @@ class AuthFlow {
             deviceCode = data.device_code; userCode = data.user_code; verificationUri = data.verification_uri;
             expiresAt = Math.min(expiresAt, now + data.expires_in); interval = Math.max(5, data.interval);
             nextRequest = now + Math.max(interval, Protocol.retryAfter(response.retryAfter, now));
-            message = "Match the code and Farever account in your browser, then approve Steam sign-in.";
+            message = "Match this code in your browser, then approve Steam sign-in.";
             return;
         }
         if (!starting && response.status == 202 && response.error == "" && data != null && data.status == "authorization_pending") {

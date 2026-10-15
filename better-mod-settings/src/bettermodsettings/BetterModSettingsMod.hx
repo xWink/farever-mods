@@ -963,8 +963,10 @@ class BetterModSettingsMod {
                     var hint = HlxRuntime.resolveField(box, "inputHint");
                     if (hint != null)
                         applyInlineStyle(HlxRuntime.resolveField(hint, "dom"), "color", 0xE0D8CD);
-                    if (TextSetting.isSecret(definition))
-                        prepareSettingControl(settingParent, NativeSecretText.attach(settingParent, input, "settingSecret" + index), false);
+                    if (TextSetting.isSecret(definition)) {
+                        NativeSecretText.prepareRow(settingParent, properties);
+                        NativeSecretText.attach(settingParent, input, "settingSecret" + index);
+                    }
                     var setText = HlxRuntime.resolveMember(HlxRuntime.resolveType("h2d.TextInput"), "set_text");
                     HlxRuntime.callResolved(setText, [input,
                         TextSetting.storedValue(Reflect.field(Reflect.field(mod, "values"), key))]);

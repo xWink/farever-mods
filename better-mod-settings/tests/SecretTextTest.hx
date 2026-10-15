@@ -25,10 +25,22 @@ class SecretTextTest {
         var input:Dynamic = {text:"aB 123", cursorIndex:4, selectionRange:selection,
             undo:undo, redo:redo, onChange:onChange, onFocus:onFocus};
         var other:Dynamic = {text:"second"};
-        var parent:Dynamic = {children:[]};
+        var parent:Dynamic = {obj:{}, styles:{}, children:[]};
+        var textbox:Dynamic = {obj:{}, styles:{}};
+        NativeSecretText.prepareRow(parent, textbox);
         NativeSecretText.hideAll(true);
         var eye = NativeSecretText.attach(parent, input, "secret1");
         var otherEye = NativeSecretText.attach(parent, other, "secret2");
+        eq(parent.obj.layout, "Horizontal", "Textbox and eye share a horizontal row");
+        eq(parent.obj.multiline, false, "Eye cannot wrap below the textbox");
+        eq(parent.obj.maxWidth, 280, "Control group reserves enough space before the scrollbar");
+        eq(textbox.obj.maxWidth + parent.obj.horizontalSpacing + eye.obj.maxWidth + parent.obj.paddingRight,
+            parent.obj.maxWidth, "Textbox, gap, eye, and right clearance fit inside the row");
+        eq(eye.obj.minWidth, 34, "Eye has a nonzero native hit target before style reflow");
+        eq(eye.obj.minHeight, 34, "Eye hit target has full button height");
+        eq(eye.obj.flowProperties.verticalAlign, "Middle", "Eye is centered beside the textbox");
+        eq(textbox.obj.flowProperties.verticalAlign, "Middle", "Textbox uses the same vertical alignment");
+        eq(eye.obj.flowProperties.isAbsolute, false, "Eye stays inside the measured row");
         eq(NativeSecretText.display(input, input.text), "******", "New settings mask secrets");
         eq(hasPupil(eye), false, "New eye is closed");
         eq(eye.obj.textTip, "Show secret", "Closed eye describes reveal");

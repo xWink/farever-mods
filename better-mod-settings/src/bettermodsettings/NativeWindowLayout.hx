@@ -14,6 +14,26 @@ class NativeWindowLayout {
         style(window, "reverse", false);
         call("h2d.Flow", "set_layout", window, [vertical]);
         call("h2d.Flow", "set_reverse", window, [false]);
+        style(window, "vspacing", 0);
+        call("h2d.Flow", "set_verticalSpacing", window, [0]);
+        // Match the 990px body inside the 1000px window. The native overlay
+        // header otherwise keeps a narrower width after becoming a flow child.
+        for (key in ["width", "min-width", "max-width"]) style(header, key, 990);
+        call("h2d.Flow", "set_minWidth", header, [990]);
+        call("h2d.Flow", "set_maxWidth", header, [990]);
+        // Native title content reserves room for overlaid tabs. Our tabs now
+        // occupy their own flow row, so that old top inset must not be counted.
+        style(content, "padding-top", 0);
+        call("h2d.Flow", "set_paddingTop", content, [0]);
+        if (tabs != null) {
+            for (key in ["height", "min-height", "max-height"]) style(tabs, key, 70);
+            call("h2d.Flow", "set_minHeight", tabs, [70]);
+            call("h2d.Flow", "set_maxHeight", tabs, [70]);
+            style(tabs, "padding-top", 10);
+            style(tabs, "padding-bottom", 10);
+            call("h2d.Flow", "set_paddingTop", tabs, [10]);
+            call("h2d.Flow", "set_paddingBottom", tabs, [10]);
+        }
         for (child in [header, tabs, content]) {
             if (child == null) continue;
             style(child, "position", false);

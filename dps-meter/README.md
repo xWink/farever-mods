@@ -213,7 +213,9 @@ Snapshot when reviewing a fight, including rift recaps. Each window remembers it
 view until the game restarts. Press **F8** to swap each window's damage/healing view,
 including Fight History and Rift Recap. Rebind **Switch damage/healing hotkey** in
 the **General** settings category. The hotkey is ignored while typing or assigning
-a keybinding. Both kinds of data are always collected and saved;
+a keybinding. All meter, Fight History, and Rift Recap windows share the same damage/healing
+selection. Clicking any mode button or using the hotkey switches all of them,
+including windows opened afterward. Both kinds of data are always collected and saved;
 switching views does not reset the encounter or change its damage statistics.
 
 Healing output includes overhealing. Click a healer to view their abilities,
@@ -573,8 +575,8 @@ In **General**, **Upload combat logs to Fareverly** follows **Enabled**. Below i
 the **Fareverly API key** textbox is empty by default and masked until its eye is
 opened. **Generate Key** handles both initial signup and replacement of a lost,
 expired, or exposed key, using a fresh Steam sign-in in your normal browser. The
-mod never asks for a Steam password. A temporary sign-in dialog shows the code
-and Farever account ID to match before approving, and lets you cancel. Results
+mod never asks for a Steam password. A temporary sign-in dialog shows only the code to match before approving,
+with a single Cancel sign-in button. Cancelling closes it without another popup. Results
 appear in a dialog. Reopen Mod Settings to display the newly saved key.
 General contains no separate help, retry, status, replacement, or pending rows.
 
@@ -585,22 +587,24 @@ Only one flow may run across mods using the shared Fareverly helper. The old key
 remains valid until an approved rotation completes. Returned credentials must
 match the local Farever account and grant upload/account-read scopes.
 
-The API key is the ordinary `fareverlyApiKey` string in
-`hlx/config/dps-meter/config.json`. Its account ID, Steam ID, expiry, and
-verification fingerprint are stored alongside it in that same mod config.
-BMS uses its normal config-file writes and config-change notification; the only
-extra textbox flag is `isSecret: true`. Generate Key uses the existing BMS button
-action event. No runtime binding or alternate credential writer is involved.
-The game thread saves returned keys after reloading other settings, and refuses
-to overwrite a key edited while authorization was pending. Pasted keys are saved
-normally and then verified before the uploader uses them. Clearing the field
-stops use of that key; masking is display-only.
+The API key is the only Fareverly credential setting, stored as the ordinary
+`fareverlyApiKey` string in `hlx/config/dps-meter/config.json`. No account ID,
+Steam ID, expiry, or verification fingerprint is saved alongside it. The server
+authenticates the key, checks expiry and scope, and compares the log's uploader
+account with the account linked to the key. The mod reads the current game
+account only when needed for sign-in or key verification.
 
-On the first upgrade, an existing `hlx/config/fareverly/account.json` is imported
-only if the DPS Meter config does not already contain the API-key field. The old
-file is left untouched as a backup; nothing writes or polls it afterward. An
-intentionally cleared key is never restored from that backup. Config files are
-not included in the installation ZIP.
+BMS uses normal config writes and config-change notifications; Secrets add only
+`isSecret: true` to the textbox. Generate Key uses the existing button action
+event. The game thread reloads other settings before saving a returned key and
+refuses to overwrite a key edited while sign-in was pending. Pasted keys are
+saved normally. Clearing the field stops use of that key; masking is display-only.
+
+The rejected shared credential file is never read or imported. On startup,
+configs containing the rejected credential metadata fields have their old key
+cleared and those fields removed; generate or paste a new key afterward. A new
+key-only config is preserved normally on subsequent starts. Config files are
+not included in installation ZIPs.
 
 Ranked uploads run only through the background uploader. Requests use bounded
 retries (at most four attempts) for transient failures, respecting Retry-After

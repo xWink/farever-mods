@@ -22,6 +22,7 @@ class NativeFareverlyAccount {
     var openedUri = "";
     var owner:String;
     var generation = 0;
+    var cancelled = false;
     public function new(config:MeterSettings, saveCredential:(Credential, String)->Bool) {
         this.config = config; this.saveCredential = saveCredential;
         owner = HlxRuntime.moduleName();
@@ -33,21 +34,21 @@ class NativeFareverlyAccount {
         var key = FareverlyConfig.key(config);
         if (active && key != observedKey) worker.cancel();
         observedKey = key;
-        worker.settings(localAccount, key, FareverlyConfig.credential(config));
+        worker.settings(localAccount, key);
     }
     function start(replace:Bool):Void {
         if (active) return;
         if (localAccount == "") { notice("Enter the game with your character before generating a key."); return; }
         if (!SessionLease.acquire(owner)) { notice("A Fareverly sign-in is already in progress in another mod."); return; }
-        active = true; openedUri = ""; status.value = "Preparing Steam sign-in...";
+        active = true; cancelled = false; openedUri = ""; status.value = "Preparing Steam sign-in...";
         generation = worker.start(localAccount, replace, FareverlyConfig.key(config));
     }
     public function uploadMessage(message:String):Void { if (!active && message != "") status.value = message; }
-    public function disconnect():Void { closeDialog(); localAccount = ""; worker.setAccount(""); worker.cancel(); }
+    public function disconnect():Void { cancelled = true; closeDialog(); localAccount = ""; worker.settings("", FareverlyConfig.key(config)); worker.cancel(); }
     public function update(hero:Dynamic):Void {
         var account = NativePlayerIdentity.accountId(hero);
         if (account == null) account = "";
-        if (account != localAccount) { if (active) worker.cancel(); localAccount = account; worker.setAccount(account); settingsChanged(); }
+        if (account != localAccount) { if (active) worker.cancel(); localAccount = account; settingsChanged(); }
         if (opening) try { if (browser.poll()) opening = false; }
         catch (_:Dynamic) { opening = false; worker.cancel(); status.value = "Could not open your browser. Try signing in again."; }
         var event = worker.receive();
@@ -56,8 +57,11 @@ class NativeFareverlyAccount {
             var finished = active && !event.active;
             if (finished) SessionLease.release(owner);
             active = event.active;
+            // Native Cancel already closes the dialog. Do not replace it with
+            // another modal/backdrop or act on a response queued before Cancel.
+            if (cancelled) { event = worker.receive(); continue; }
             status.value = event.message;
-            if (event.code != "") status.value = "Code: " + event.code + "\nFarever account: " + event.account + "\n" + event.message;
+            if (event.code != "") status.value = "Code: " + event.code + "\n" + event.message;
             if (event.persist) {
                 if (saveCredential(event.credential, event.expectedKey))
                     status.value = event.manualResult ? "Fareverly key verified and saved." : "Steam connected. Your Fareverly key has been saved. Reopen Mod Settings to display it.";
@@ -82,16 +86,15 @@ class NativeFareverlyAccount {
         var ui = G.current("ui.BaseUI", "current");
         if (ui == null) return;
         var buttons = G.call("hl.types.ArrayObj", "slice", G.field(ui, "windows"), [0, 0]);
-        G.call("hl.types.ArrayObj", "pushDyn", buttons, [{ic:"Confirm", input:null, checkEnable:null, onBack:!pending}]);
-        if (pending) G.call("hl.types.ArrayObj", "pushDyn", buttons, [{ic:"Cancel", input:null, checkEnable:null, onBack:true}]);
+        G.call("hl.types.ArrayObj", "pushDyn", buttons, [{ic:pending ? "Cancel" : "Confirm", input:null, checkEnable:null, onBack:true}]);
         dialogOwner = ui;
         dialog = G.call("ui.BaseUI", "displayDialog", ui, ["Fareverly", LiteralText.escape(message), buttons, function(choice:String):Void {
-            // Closing the code popup does not abort an approved browser flow.
-            if (pending && choice == "Cancel") worker.cancel();
+            // BaseDialog closes itself after invoking this callback.
+            dialog = null; dialogOwner = null;
+            if (pending && choice == "Cancel") { cancelled = true; worker.cancel(); }
         }]);
         var nativeButtons = G.field(dialog, "buttons");
-        G.call("ui.comp.Button", "setText", G.call("hl.types.ArrayObj", "getDyn", nativeButtons, [0]), [pending ? "Continue in browser" : "OK"]);
-        if (pending) G.call("ui.comp.Button", "setText", G.call("hl.types.ArrayObj", "getDyn", nativeButtons, [1]), ["Cancel sign-in"]);
+        G.call("ui.comp.Button", "setText", G.call("hl.types.ArrayObj", "getDyn", nativeButtons, [0]), [pending ? "Cancel sign-in" : "OK"]);
     }
     function open(url:String):Bool {
         if (opening) return false;

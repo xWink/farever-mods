@@ -15,10 +15,10 @@ class FareverlyUploader {
     static inline var MAX_ATTEMPTS = 4;
     final folder:String;
     final request:fareverly.Protocol.Transport;
-    final credentials:Void->fareverly.Protocol.Credential;
+    final apiKey:Void->String;
     public var authMessage(default, null) = "";
     var blockedKey = "";
-    var credential:fareverly.Protocol.Credential;
+    var key = "";
     final log:String->Void;
     final clock:Void->Float;
     final random:Void->Float;
@@ -30,11 +30,11 @@ class FareverlyUploader {
     var catalogRetryAt:Float = 0;
     var catalogAttempts = 0;
     public function new(root:String, request:fareverly.Protocol.Transport, log:String->Void,
-        ?clock:Void->Float, ?random:Void->Float, ?credentials:Void->fareverly.Protocol.Credential) {
+        ?clock:Void->Float, ?random:Void->Float, ?apiKey:Void->String) {
         folder = root + "/fareverly"; this.request = request; this.log = log;
         this.clock = clock == null ? () -> Date.now().getTime() / 1000 : clock;
         this.random = random == null ? Math.random : random;
-        this.credentials = credentials == null ? () -> FareverlyConfig.read() : credentials;
+        this.apiKey = apiKey == null ? () -> FareverlyConfig.read() : apiKey;
     }
     function initialize():Void {
         if (loaded) return;
@@ -131,15 +131,12 @@ class FareverlyUploader {
     public function step():Void {
         if (!FileSystem.exists(folder)) return;
         initialize(); var now = clock();
-        credential = credentials();
-        if (!fareverly.Protocol.validKey(credential.accessToken)) {
+        key = apiKey();
+        if (!fareverly.Protocol.validKey(key)) {
             authMessage = "Sign in through Steam in DPS Meter settings to enable ranked uploads."; return;
         }
-        var fingerprint = haxe.crypto.Sha256.encode(credential.accessToken);
+        var fingerprint = haxe.crypto.Sha256.encode(key);
         if (fingerprint == blockedKey) return;
-        if (credential.expiresAt != "" && fareverly.Protocol.expiry(credential.expiresAt) <= now) {
-            authMessage = "Your Fareverly key has expired. Choose Generate new key in DPS Meter settings."; return;
-        }
         authMessage = "";
         if (now < nextRequest) return;
         for (path in paths()) {
@@ -157,11 +154,8 @@ class FareverlyUploader {
                 bytes = File.getBytes(path); record = Json.parse(bytes.toString());
                 var reason = FareverlyContract.validate(record, now); if (reason != "") throw reason;
             } catch (error:Dynamic) { finish(path, saved, "failed", Std.string(error), false); continue; }
-            var players:Array<Dynamic> = record.players;
-            var uploaders = players.filter(p -> p.isMe == true || p.uid == record.me);
-            if (uploaders.length != 1 || uploaders[0].accountId != credential.accountId) {
-                finish(path, saved, "failed", "This log belongs to a different Farever account than the connected key.", false); continue;
-            }
+            // The server authenticates this bearer key and checks the log's
+            // uploader account. No account/Steam metadata is stored in config.
             var matching = [for (entry in catalog) if (entry.bossKind == record.bossKind && FareverlyContract.category(entry.category) == record.category) entry];
             if (matching.length != 1) { finish(path, saved, "failed", "Encounter is not in Fareverly's supported catalog.", false); continue; }
             if (matching[0].ranked != true) { finish(path, saved, "failed", "Fareverly rankings are temporarily unavailable. Try again later.", true); continue; }
@@ -197,7 +191,7 @@ class FareverlyUploader {
         }
     }
     function call(method:String, url:String, bytes:Bytes):FareverlyResponse {
-        try return request(method, url, bytes, method == "POST" && credential != null ? credential.accessToken : "") catch (error:Dynamic) return {status:0, body:"", retryAfter:"", error:Std.string(error)};
+        try return request(method, url, bytes, method == "POST" ? key : "") catch (error:Dynamic) return {status:0, body:"", retryAfter:"", error:Std.string(error)};
     }
     function finish(path:String, state:SubmissionState, status:String, reason:String, retryable:Bool):Void {
         state.status = status; state.reason = reason; state.retryable = retryable; save(path, state);

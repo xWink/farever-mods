@@ -298,3 +298,9 @@ tab changes, reopening, and unchanged text, cursor, selection, and undo state.
 Text conversion tests cover Unicode and saving the original string. The mask is
 applied after the native text-layout method and only to registered secret inputs.
 Final eye-button appearance and editing behavior still require in-game confirmation.
+
+The native header spans the same width as the body. Tabs occupy a compact 70px
+row without the native overlay's extra top inset. Secret textboxes and their
+eye buttons share one horizontal control area, with a fixed click target and
+clearance before the scrollbar. Layout and control tests exercise these native
+calls; final appearance still requires in-game confirmation.

@@ -20,6 +20,7 @@ class NativeRiftRecapWindow {
     var snapshotButton:Dynamic;
     var modeButton:MeterModeButton;
     var healing:Bool = false;
+    final reportMode:ReportMode;
     var copying:Bool = false;
     var statusUntil:Float = 0;
     var body:Dynamic;
@@ -36,10 +37,11 @@ class NativeRiftRecapWindow {
     var height:Int = 0;
     var retryAt:Float = 0;
 
-    public function new() {}
-    public function toggleMode():Void setHealing(!healing);
+    public function new(reportMode:ReportMode) {
+        this.reportMode = reportMode; reportMode.subscribe(setHealing);
+    }
+    public function toggleMode():Void reportMode.toggle();
     function setHealing(value:Bool):Void {
-        if (copying) return;
         healing = value;
         if (modeButton != null) modeButton.setHealing(value);
         if (charts != null) charts.setHealing(value);
@@ -120,7 +122,7 @@ class NativeRiftRecapWindow {
         G.call("ui.UIElement", "set_onClick", close, [() -> dispose()]);
         snapshotButton = HistoryButtons.snapshot(G.field(header, "dom"), copySnapshot, "dpsRiftRecapSnapshot");
         absolute(header, snapshotButton);
-        modeButton = new MeterModeButton(G.field(header, "dom"), "dpsRiftRecapMode", setHealing, healing);
+        modeButton = new MeterModeButton(G.field(header, "dom"), "dpsRiftRecapMode", reportMode.setHealing, healing);
         absolute(header, modeButton.object);
 
         body = node("options-content", dom, [0], "dpsRiftRecapBody");

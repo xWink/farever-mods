@@ -56,6 +56,7 @@ class NativeHistoryWindow {
     var detailedButton:Dynamic;
     var detailed:NativeDetailedReport;
     var healing:Bool = false;
+    final reportMode:ReportMode;
     var actionStatus:Dynamic;
     var selectedEntry:HistoryEntry;
     var deleting:Bool = false;
@@ -89,7 +90,9 @@ class NativeHistoryWindow {
     var startX:Float = 0;
     var startY:Float = 0;
 
-    public function new(config:MeterSettings) { this.config = config; }
+    public function new(config:MeterSettings, reportMode:ReportMode) {
+        this.config = config; this.reportMode = reportMode; reportMode.subscribe(setHealing);
+    }
     public function open():Void { requested = true; }
     public function toggle():Void {
         if (requested || (window != null && G.field(window, "removed") != true && G.field(window, "parent") != null)) dispose();
@@ -332,9 +335,8 @@ class NativeHistoryWindow {
         copying = false;
         status(message, failed);
     }
-    public function toggleMode():Void setHealing(!healing);
+    public function toggleMode():Void reportMode.toggle();
     function setHealing(value:Bool):Void {
-        if (copying) return;
         healing = value;
         if (modeButton != null) modeButton.setHealing(value);
         if (chart != null) chart.setHealing(value);
@@ -411,7 +413,7 @@ class NativeHistoryWindow {
         folderButton = HistoryButtons.folder(panel, openFolder);
         snapshotButton = HistoryButtons.snapshot(panel, copySnapshot);
         fareverlyButton = new NativeFareverlyButton(panel, openFareverly);
-        modeButton = new MeterModeButton(panel, "dpsHistoryMode", setHealing, healing);
+        modeButton = new MeterModeButton(panel, "dpsHistoryMode", reportMode.setHealing, healing);
         deleteButton = button(panel, "Delete log", "dpsHistoryDelete", deleteLog);
         detailedButton = button(panel, "Detailed report", "dpsHistoryDetailed", () -> {
             if (!pending && selectedEntry != null) navigate("detailed", group, 0, selectedEntry);

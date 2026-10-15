@@ -94,9 +94,7 @@ class RecoveryTest {
         remove(root);
         check(ReadyCheck.COUNTDOWN_DELAY == 0.7, "Ready check retains the final requested delay");
     }
-    static function testCredential():fareverly.Protocol.Credential return {
-        accessToken:"fv1_" + StringTools.lpad("", "A", 43), accountId:"test-account", steamId:"76561198000000000", expiresAt:"2027-10-15T12:00:00.000Z"
-    };
+    static function testApiKey():String return "fv1_" + StringTools.lpad("", "A", 43);
     static function uploads():Void {
         var now = Date.fromString("2026-10-15 12:00:00").getTime() / 1000;
         var good = fixture();
@@ -118,12 +116,12 @@ class RecoveryTest {
             check(body.toString() == Json.stringify(good), "Upload sends the existing JSON directly");
             return posts == 1 ? response(429, {error:"test rate limit"}, "120") : response(201, {status:"accepted", url:"/reports/test-report"});
         };
-        var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testCredential);
+        var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testApiKey);
         queue.enqueue(good); queue.step();
         check(posts == 1 && gets == 1, "Catalog is fetched before the first submission");
         var path = queue.reportPath(good.id);
         check(queue.state(path).nextAttempt == now + 120, "Retry-After takes priority over backoff");
-        var restarted = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testCredential);
+        var restarted = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testApiKey);
         restarted.step(); check(posts == 1, "Persistent cooldown survives a restart");
         now += 120; restarted.step();
         check(posts == 2 && restarted.state(path).status == "accepted", "Retry succeeds once cooldown ends");
@@ -133,7 +131,7 @@ class RecoveryTest {
         queue = new FareverlyUploader(root, (method, url, body, token) -> {
             if (method == "GET") return response(200, {encounters:[{bossKind:"TestBoss", category:"boss-dungeons", ranked:true}]});
             posts++; return response(503);
-        }, _ -> {}, () -> now, () -> 0, testCredential);
+        }, _ -> {}, () -> now, () -> 0, testApiKey);
         queue.enqueue(good);
         for (_ in 0...8) { queue.step(); now += 1000; }
         path = queue.reportPath(good.id);

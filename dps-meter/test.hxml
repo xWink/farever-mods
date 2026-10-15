@@ -123,3 +123,17 @@
 -cp tests
 -main FareverlyLocalImportTest
 --interp
+
+--next
+-cp src
+-cp tests
+-main ReportModeTest
+--interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/account-ui
+-main FareverlyDialogTest
+--interp

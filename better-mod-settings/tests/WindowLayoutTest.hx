@@ -23,6 +23,11 @@ class WindowLayoutTest {
         check(order(window) == "background,header,tabs,body", "Header, tabs, and body have explicit visual order");
         for (_ in 0...3) NativeWindowLayout.headerFirst(window, tabs);
         check(order(window) == "background,header,tabs,body", "Repeated layout cannot move the title back to the bottom");
+        check(header.minWidth == 990 && header.maxWidth == 990, "Header spans the same inner width as the settings body");
+        check(body.paddingTop == 0, "Content no longer reserves space for overlaid tabs");
+        check(tabs.minHeight == 70 && tabs.maxHeight == 70 && tabs.paddingTop == 10 && tabs.paddingBottom == 10,
+            "Tab strip fits the 50px buttons with 10px top and bottom spacing");
+        check(window.verticalSpacing == 0, "No extra window-level gap separates the tabs and body");
         check(window.layout == "Vertical" && window.reverse == false, "Native flow runs from top to bottom");
         for (child in [header,tabs,body]) {
             check(child.flowProperties.isAbsolute == false, "Content participates in normal layout");

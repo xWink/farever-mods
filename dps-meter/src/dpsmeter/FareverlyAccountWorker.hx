@@ -7,7 +7,7 @@ import sys.thread.Deque;
 import sys.thread.Lock;
 import sys.thread.Thread;
 
-private typedef AccountCommand = {kind:String, account:String, key:String, rotate:Bool, generation:Int, ?credential:Credential};
+private typedef AccountCommand = {kind:String, account:String, key:String, rotate:Bool, generation:Int};
 typedef AccountEvent = {generation:Int, active:Bool, manualResult:Bool, message:String, code:String, account:String, url:String, credential:Credential, persist:Bool, expectedKey:String};
 
 /** Separate from the upload queue so a slow ranked request cannot stall sign-in. */
@@ -22,6 +22,8 @@ class FareverlyAccountWorker {
     var persist = false;
     var expectedKey = "";
     var configuredKey = "";
+    var verifiedKey = "";
+    var verifiedAccount = "";
     var manualKey:Null<String>;
     var manualAt:Float = 0;
     var account = "";
@@ -32,8 +34,7 @@ class FareverlyAccountWorker {
     var manualResult = false;
     public function new() Thread.create(run);
     public function start(account:String, rotate:Bool, key:String):Int { var id = ++requestedGeneration; commands.add({kind:"start", account:account, rotate:rotate, key:key, generation:id}); wake.release(); return id; }
-    public function settings(account:String, key:String, value:Credential):Void { commands.add({kind:"settings", account:account, rotate:false, key:key, credential:value, generation:requestedGeneration}); wake.release(); }
-    public function setAccount(account:String):Void { commands.add({kind:"account", account:account, rotate:false, key:"", generation:requestedGeneration}); wake.release(); }
+    public function settings(account:String, key:String):Void { commands.add({kind:"settings", account:account, rotate:false, key:key, generation:requestedGeneration}); wake.release(); }
     public function cancel():Void { cancellations.add(true); wake.release(); }
     public function receive():Null<AccountEvent> return events.pop(false);
     function progress():Void {
@@ -59,11 +60,6 @@ class FareverlyAccountWorker {
                 var command = commands.pop(false);
                 while (command != null) {
                     switch (command.kind) {
-                        case "account":
-                            if (account != command.account) {
-                                if (flow.active) { flow.cancel(); status = "Steam sign-in cancelled because the local account changed."; }
-                                manualKey = null; account = command.account;
-                            }
                         case "start":
                             generation = command.generation;
                             if (!cancelled && !flow.active && Protocol.validAccount(command.account)) {
@@ -75,10 +71,10 @@ class FareverlyAccountWorker {
                             var changed = configuredKey != command.key || account != command.account;
                             configuredKey = command.key; account = command.account;
                             if (flow.active && changed) { flow.cancel(); status = "Steam sign-in cancelled because the API-key setting changed."; }
-                            credential = command.credential;
-                            if (!flow.active && (changed || (manualKey == null && credential.accessToken == "" && Protocol.validKey(configuredKey)))) {
+                            if (!flow.active && changed) {
                                 expectedKey = configuredKey;
-                                manualKey = credential.accessToken == "" && configuredKey != "" ? configuredKey : null;
+                                manualKey = Protocol.validKey(configuredKey) && Protocol.validAccount(account)
+                                    && (verifiedKey != configuredKey || verifiedAccount != account) ? configuredKey : null;
                                 manualAt = haxe.Timer.stamp() + 0.75;
                             }
                         default:
@@ -93,6 +89,7 @@ class FareverlyAccountWorker {
                     // Deliver once to the game thread. It owns the normal config
                     // object and reloads other BMS edits before saving this key.
                     credential = flow.credential;
+                    verifiedKey = credential.accessToken; verifiedAccount = credential.accountId;
                     persist = true;
                     status = "Steam connected. Saving your Fareverly key...";
                     flow.clearCredential();
@@ -122,7 +119,7 @@ class FareverlyAccountWorker {
             || !Std.isOfType(value.scopes, Array) || (cast value.scopes:Array<Dynamic>).indexOf("logs:upload") < 0) {
             status = "This key does not grant combat-log uploads."; return;
         }
-        var saved:Credential = {accessToken:key, accountId:account, steamId:value.steam_id, expiresAt:""};
-        credential = saved; persist = true; expectedKey = key; status = "Fareverly key verified. Saving...";
+        verifiedKey = key; verifiedAccount = account;
+        status = "Fareverly key verified.";
     }
 }

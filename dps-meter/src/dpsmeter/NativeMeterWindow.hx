@@ -24,6 +24,7 @@ class NativeMeterWindow {
     var historyButton:Dynamic;
     var modeButton:MeterModeButton;
     var healing:Bool = false;
+    final reportMode:ReportMode;
     final openHistory:Void->Void;
     var bossLabel:Dynamic;
     var bossCaption:String = "";
@@ -48,10 +49,11 @@ class NativeMeterWindow {
     var startHeight:Int = 0;
     var createRetry:Float = 0;
     var outOfCombatSince:Float = -1;
-    public function new(config:MeterSettings, openHistory:Void->Void) {
+    public function new(config:MeterSettings, openHistory:Void->Void, reportMode:ReportMode) {
         this.config = config; this.openHistory = openHistory;
+        this.reportMode = reportMode; reportMode.subscribe(setHealing);
     }
-    public function toggleMode():Void setHealing(!healing);
+    public function toggleMode():Void reportMode.toggle();
     function setHealing(value:Bool):Void {
         healing = value;
         if (modeButton != null) modeButton.setHealing(value);
@@ -147,7 +149,7 @@ class NativeMeterWindow {
         absolute(G.field(toolbar, "obj"), historyButton);
         padding(historyButton, 0);
         position(historyButton, 12, 0);
-        modeButton = new MeterModeButton(toolbar, "dpsMeterMode", setHealing, healing);
+        modeButton = new MeterModeButton(toolbar, "dpsMeterMode", reportMode.setHealing, healing);
         absolute(G.field(toolbar, "obj"), modeButton.object);
         timer = label(toolbar, "0:00");
         absolute(G.field(toolbar, "obj"), timer);

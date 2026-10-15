@@ -90,30 +90,26 @@ class FareverlyAccountTest {
     static function uploads():Void {
         var root = "build/account-upload-test-" + Std.random(0x3fffffff);
         var now = Date.fromString("2026-10-15 12:00:00").getTime() / 1000;
-        var value = Protocol.empty(), calls = 0, posts = 0;
+        var value = "", calls = 0, posts = 0;
         var transport:Transport = (method, url, body, token) -> {
             calls++;
             if (method == "GET") { check(token == "", "Catalog never receives the key"); return response(200, {encounters:[{bossKind:"TestBoss", category:"boss-dungeons", ranked:true}]}); }
-            posts++; check(token == value.accessToken && token != "", "Only ranked uploads receive the selected bearer key");
+            posts++; check(token == value && token != "", "Only ranked uploads receive the selected bearer key");
             return posts == 1 ? response(401, {error:"unauthorized", message:"localized/private detail"}) : response(201, {status:"accepted", url:"/reports/test"});
         };
         var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.enqueue(RecoveryTest.fixture()); queue.step(); check(calls == 0, "Missing key pauses without any network request");
-        value = credential(); queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate Key") >= 0, "401 pauses and offers regeneration");
+        value = key; queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate Key") >= 0, "401 pauses and offers regeneration");
         now += 1000; queue.step(); check(posts == 1, "Invalid key is not retried");
         queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.step(); check(posts == 1, "401 pause survives restart");
-        value = credential(); value.accessToken = "fv1_" + StringTools.lpad("", "N", 43); queue.step();
+        value = key; value = "fv1_" + StringTools.lpad("", "N", 43); queue.step();
         check(posts == 2 && queue.state(queue.reportPath("offline-test")).status == "accepted", "New key resumes pending queued victory");
         check(FileSystem.exists(queue.reportPath("offline-test")), "Local report is retained after success");
         var serialized = File.getContent(root + "/fareverly/auth-paused.json");
         check(serialized.indexOf(key) < 0 && serialized.indexOf("localized") < 0, "Pause file contains no key or raw server text");
         RecoveryTest.remove(root);
-        root += "-mismatch"; calls = 0; value = credential(); value.accountId = "other-account";
-        queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
-        queue.enqueue(RecoveryTest.fixture()); queue.step(); check(posts == 2, "A log from another account is never posted");
-        RecoveryTest.remove(root);
-        root += "-forbidden"; value = credential();
+        root += "-forbidden"; value = key;
         queue = new FareverlyUploader(root, (m,u,b,t) -> m == "GET" ? response(200, {encounters:[{bossKind:"TestBoss",category:"boss-dungeons",ranked:true}]}) : response(403, {error:"account_mismatch"}), _ -> {}, () -> now, () -> 0, () -> value);
         queue.enqueue(RecoveryTest.fixture()); queue.step(); check(queue.authMessage.indexOf("another Farever account") >= 0 && FileSystem.exists(queue.reportPath("offline-test")), "403 explains the mismatch and preserves local log");
         RecoveryTest.remove(root);
@@ -134,26 +130,30 @@ class FareverlyAccountTest {
         config.transparency = 41;
         check(FareverlyConfig.apply(config, credential(), ""), "Generated key applies to the expected normal config value");
         File.saveContent(root + "/config.json", Json.stringify(config));
-        check(FareverlyConfig.read(root + "/config.json").accessToken == key, "Uploader reloads the ordinary DPS Meter config key");
-        check(FareverlyConfig.read(root + "/config.json").accountId == "test-account", "Credential metadata stays in the same mod config");
-        check(config.transparency == 41, "Saving a credential preserves other settings");
+        check(FareverlyConfig.read(root + "/config.json") == key, "Uploader reads only the ordinary DPS Meter API key");
+        check([for (name in Reflect.fields(config)) if (StringTools.startsWith(name, "fareverly")) name].join(",") == "fareverlyApiKey",
+            "Only the API-key field is stored, with no account, Steam, expiry or fingerprint metadata");
+        check(config.transparency == 41, "Saving a key preserves other settings");
         config.fareverlyApiKey = "edited after browser opened";
         check(!FareverlyConfig.apply(config, credential(), key), "Late authorization cannot overwrite a newer textbox edit");
-        check(FareverlyConfig.credential(config).accessToken == "", "Old metadata cannot authorize partial edits");
-        config.fareverlyApiKey = "fv1_" + StringTools.lpad("", "N", 43);
-        check(FareverlyConfig.credential(config).accessToken == "", "A different well-formed key needs its own verification");
-        config.fareverlyApiKey = "";
-        check(FareverlyConfig.credential(config).accessToken == "", "Clearing the textbox disables the key");
+        check(config.fareverlyApiKey == "edited after browser opened", "A rejected save keeps the user's newer text");
         File.saveContent(root + "/legacy.json", Json.stringify(credential()));
         File.saveContent(root + "/config.json", "{\"transparency\":41}");
-        check(FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "One-time import preserves existing shared-file credentials");
-        check(config.fareverlyApiKey == key && config.transparency == 41, "Import only fills the credential fields");
-        check(FileSystem.exists(root + "/legacy.json"), "Migration retains the old file as a backup");
+        check(FareverlyConfig.read(root + "/config.json") == "", "Missing API key stays empty even when an old credential file exists");
+        for (field in ["fareverlyAccountId", "fareverlySteamId", "fareverlyExpiresAt", "fareverlyKeyFingerprint"]) {
+            var old:Dynamic = {fareverlyApiKey:key, transparency:41}; Reflect.setField(old, field, "old value");
+            File.saveContent(root + "/config.json", Json.stringify(old)); config.fareverlyApiKey = key;
+            check(FareverlyConfig.read(root + "/config.json") == "", "Uploader rejects old credentials even before cleanup is saved");
+            check(FareverlyConfig.discardUnsupported(config, root + "/config.json") && config.fareverlyApiKey == "",
+                "Rejected metadata format does not preserve or import its API key");
+        }
+        check(config.transparency == 41, "Removing unsupported credential state keeps unrelated settings");
+        FareverlyConfig.apply(config, credential(), "");
         File.saveContent(root + "/config.json", Json.stringify(config));
-        check(!FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "Existing per-mod key always wins");
-        config.fareverlyApiKey = "";
-        File.saveContent(root + "/config.json", Json.stringify(config));
-        check(!FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "An intentionally cleared key is never resurrected from the backup");
+        check(!FareverlyConfig.discardUnsupported(config, root + "/config.json") && config.fareverlyApiKey == key,
+            "A new key-only config survives later startups");
+        config.fareverlyApiKey = ""; File.saveContent(root + "/config.json", Json.stringify(config));
+        check(FareverlyConfig.read(root + "/config.json") == "", "A cleared key stays cleared");
         File.saveContent(root + "/config.json", "{invalid secret-data"); var failed = false;
         try FareverlyConfig.read(root + "/config.json") catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
         check(failed, "Corrupt config fails safely");

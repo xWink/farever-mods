@@ -22,15 +22,16 @@ class DpsMeterMod {
     static var writer:RunWriter;
     static var fareverlyAccount:NativeFareverlyAccount;
     static var timeline:NativeTimeline;
+    static final reportMode = new ReportMode();
     static function main():Void {
         if (ConfigMigration.importLegacy()) reloadConfig();
         else if (!ConfigMigration.hasNative()) MeterConfig.importLegacy(config);
         MeterConfig.normalize(config);
-        FareverlyConfig.importLegacy(config);
+        FareverlyConfig.discardUnsupported(config);
         saveConfig();
-        historyView = new NativeHistoryWindow(config);
-        view = new NativeMeterWindow(config, () -> historyView.open());
-        recapView = new NativeRiftRecapWindow();
+        historyView = new NativeHistoryWindow(config, reportMode);
+        view = new NativeMeterWindow(config, () -> historyView.open(), reportMode);
+        recapView = new NativeRiftRecapWindow(reportMode);
         kills = new KillNotifications(config);
         readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
@@ -289,7 +290,7 @@ class DpsMeterMod {
                     var ui = G.current("ui.BaseUI", "current");
                     if (ui != null && G.call("ui.BaseUI", "getFocusedTextInput", ui) == null) {
                         if (historyPressed) historyView.toggle();
-                        if (modePressed) { view.toggleMode(); historyView.toggleMode(); recapView.toggleMode(); }
+                        if (modePressed) reportMode.toggle();
                     }
                 }
             }
