@@ -575,7 +575,7 @@ opened. **Generate Key** handles both initial signup and replacement of a lost,
 expired, or exposed key, using a fresh Steam sign-in in your normal browser. The
 mod never asks for a Steam password. A temporary sign-in dialog shows the code
 and Farever account ID to match before approving, and lets you cancel. Results
-appear in a dialog and the secret textbox refreshes after the key is saved.
+appear in a dialog. Reopen Mod Settings to display the newly saved key.
 General contains no separate help, retry, status, replacement, or pending rows.
 
 Device authorization uses a Windows cryptographically secure 32-byte verifier
@@ -585,14 +585,22 @@ Only one flow may run across mods using the shared Fareverly helper. The old key
 remains valid until an approved rotation completes. Returned credentials must
 match the local Farever account and grant upload/account-read scopes.
 
-Credentials are atomically stored in `hlx/config/fareverly/account.json`, with a
-Windows ACL restricted to the current OS user. This is the shared account file
-for integrations using `shared/src/fareverly`; the Trade UI is not changed by this
-DPS Meter update. BMS reads this value through a runtime binding, so it is not
-duplicated in the ordinary DPS Meter config. The file is excluded from packages
-and Git. Never share it or include it in diagnostic uploads or cloud exports.
-The textbox refreshes after sign-in and when the shared file changes. Pasted keys
-are verified against the account endpoint before replacing the stored key.
+The API key is the ordinary `fareverlyApiKey` string in
+`hlx/config/dps-meter/config.json`. Its account ID, Steam ID, expiry, and
+verification fingerprint are stored alongside it in that same mod config.
+BMS uses its normal config-file writes and config-change notification; the only
+extra textbox flag is `isSecret: true`. Generate Key uses the existing BMS button
+action event. No runtime binding or alternate credential writer is involved.
+The game thread saves returned keys after reloading other settings, and refuses
+to overwrite a key edited while authorization was pending. Pasted keys are saved
+normally and then verified before the uploader uses them. Clearing the field
+stops use of that key; masking is display-only.
+
+On the first upgrade, an existing `hlx/config/fareverly/account.json` is imported
+only if the DPS Meter config does not already contain the API-key field. The old
+file is left untouched as a backup; nothing writes or polls it afterward. An
+intentionally cleared key is never restored from that backup. Config files are
+not included in the installation ZIP.
 
 Ranked uploads run only through the background uploader. Requests use bounded
 retries (at most four attempts) for transient failures, respecting Retry-After

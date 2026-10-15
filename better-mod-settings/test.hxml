@@ -29,6 +29,12 @@
 --interp
 --next
 -cp src
+-cp tests
+-cp tests/native-stubs
+-main WindowLayoutTest
+--interp
+--next
+-cp src
 -cp ../shared/src
 -cp tests
 -main DropdownSettingTest

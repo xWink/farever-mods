@@ -1,6 +1,7 @@
 import fareverly.AuthFlow;
 import fareverly.Protocol;
-import fareverly.SecureStore;
+import dpsmeter.FareverlyConfig;
+import dpsmeter.MeterConfig;
 import dpsmeter.DiagnosticLog;
 import dpsmeter.FareverlyUploader;
 import haxe.io.Bytes;
@@ -129,10 +130,32 @@ class FareverlyAccountTest {
         check(FileSystem.stat(path).size < 200 && FileSystem.stat(path + ".1").size == DiagnosticLog.LIMIT, "Rotation retains one bounded previous file");
         File.saveContent(path, StringTools.lpad("", "y", DiagnosticLog.LIMIT)); log.write("Rotate again");
         check(File.getContent(path + ".1").charAt(0) == "y", "Older rotated diagnostics are deleted");
-        File.saveContent(root + "/account.json", Json.stringify(credential()));
-        check(SecureStore.read(root + "/account.json").accessToken == key, "Shared config schema reloads without numeric ID conversion");
-        File.saveContent(root + "/account.json", "{invalid secret-data"); var failed = false;
-        try SecureStore.read(root + "/account.json") catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
+        var config = MeterConfig.defaults();
+        config.transparency = 41;
+        check(FareverlyConfig.apply(config, credential(), ""), "Generated key applies to the expected normal config value");
+        File.saveContent(root + "/config.json", Json.stringify(config));
+        check(FareverlyConfig.read(root + "/config.json").accessToken == key, "Uploader reloads the ordinary DPS Meter config key");
+        check(FareverlyConfig.read(root + "/config.json").accountId == "test-account", "Credential metadata stays in the same mod config");
+        check(config.transparency == 41, "Saving a credential preserves other settings");
+        config.fareverlyApiKey = "edited after browser opened";
+        check(!FareverlyConfig.apply(config, credential(), key), "Late authorization cannot overwrite a newer textbox edit");
+        check(FareverlyConfig.credential(config).accessToken == "", "Old metadata cannot authorize partial edits");
+        config.fareverlyApiKey = "fv1_" + StringTools.lpad("", "N", 43);
+        check(FareverlyConfig.credential(config).accessToken == "", "A different well-formed key needs its own verification");
+        config.fareverlyApiKey = "";
+        check(FareverlyConfig.credential(config).accessToken == "", "Clearing the textbox disables the key");
+        File.saveContent(root + "/legacy.json", Json.stringify(credential()));
+        File.saveContent(root + "/config.json", "{\"transparency\":41}");
+        check(FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "One-time import preserves existing shared-file credentials");
+        check(config.fareverlyApiKey == key && config.transparency == 41, "Import only fills the credential fields");
+        check(FileSystem.exists(root + "/legacy.json"), "Migration retains the old file as a backup");
+        File.saveContent(root + "/config.json", Json.stringify(config));
+        check(!FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "Existing per-mod key always wins");
+        config.fareverlyApiKey = "";
+        File.saveContent(root + "/config.json", Json.stringify(config));
+        check(!FareverlyConfig.importLegacy(config, root + "/config.json", root + "/legacy.json"), "An intentionally cleared key is never resurrected from the backup");
+        File.saveContent(root + "/config.json", "{invalid secret-data"); var failed = false;
+        try FareverlyConfig.read(root + "/config.json") catch (error:Dynamic) {failed = true; check(Std.string(error).indexOf("secret-data") < 0, "Invalid config error never echoes its contents");}
         check(failed, "Corrupt config fails safely");
         RecoveryTest.remove(root);
     }

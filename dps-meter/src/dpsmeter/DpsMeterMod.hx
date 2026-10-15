@@ -26,6 +26,7 @@ class DpsMeterMod {
         if (ConfigMigration.importLegacy()) reloadConfig();
         else if (!ConfigMigration.hasNative()) MeterConfig.importLegacy(config);
         MeterConfig.normalize(config);
+        FareverlyConfig.importLegacy(config);
         saveConfig();
         historyView = new NativeHistoryWindow(config);
         view = new NativeMeterWindow(config, () -> historyView.open());
@@ -33,7 +34,7 @@ class DpsMeterMod {
         kills = new KillNotifications(config);
         readyCheck = new ReadyCheckController(config);
         writer = new RunWriter();
-        fareverlyAccount = new NativeFareverlyAccount();
+        fareverlyAccount = new NativeFareverlyAccount(config, saveFareverlyCredential);
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> reloadConfig());
     }
     static function reloadConfig():Void {
@@ -42,6 +43,17 @@ class DpsMeterMod {
         for (key in Reflect.fields(loaded))
             Reflect.setField(config, key, Reflect.field(loaded, key));
         MeterConfig.normalize(config);
+        if (fareverlyAccount != null) fareverlyAccount.settingsChanged();
+    }
+
+    static function saveFareverlyCredential(value:fareverly.Protocol.Credential, expectedKey:String):Bool {
+        // BMS may have saved another setting while the browser/worker was active.
+        // Reload before saving so the new key never restores stale config values.
+        reloadConfig();
+        if (!FareverlyConfig.apply(config, value, expectedKey)) return false;
+        try config.save() catch (_:Dynamic) { reloadConfig(); return false; }
+        fareverlyAccount.settingsChanged();
+        return true;
     }
 
     public static function saveConfig():Void {

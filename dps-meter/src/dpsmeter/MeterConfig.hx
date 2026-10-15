@@ -28,6 +28,11 @@ typedef MeterSettings = {
     var showCompletedCodexKills:Bool;
     var unlocked:Bool;
     var sendLogs:Bool;
+    var fareverlyApiKey:String;
+    var fareverlyAccountId:String;
+    var fareverlySteamId:String;
+    var fareverlyExpiresAt:String;
+    var fareverlyKeyFingerprint:String;
     var debug:Bool;
     var me:String;
     var group:String;
@@ -68,6 +73,11 @@ class MeterConfig {
         showCompletedCodexKills: false,
         unlocked: true,
         sendLogs: true,
+        fareverlyApiKey: "",
+        fareverlyAccountId: "",
+        fareverlySteamId: "",
+        fareverlyExpiresAt: "",
+        fareverlyKeyFingerprint: "",
         debug: false,
         me: "",
         group: "",

@@ -34,7 +34,7 @@ class FareverlyUploader {
         folder = root + "/fareverly"; this.request = request; this.log = log;
         this.clock = clock == null ? () -> Date.now().getTime() / 1000 : clock;
         this.random = random == null ? Math.random : random;
-        this.credentials = credentials == null ? () -> fareverly.SecureStore.read() : credentials;
+        this.credentials = credentials == null ? () -> FareverlyConfig.read() : credentials;
     }
     function initialize():Void {
         if (loaded) return;
