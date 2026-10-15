@@ -596,11 +596,11 @@ are verified against the account endpoint before replacing the stored key.
 
 Ranked uploads run only through the background uploader. Requests use bounded
 retries (at most four attempts) for transient failures, respecting Retry-After
-and persisted cooldowns. **Retry failed uploads** in settings starts another bounded
-background attempt for queued transient failures; it never submits unqueued
-history. A 401 pauses that key across restarts and offers key
-regeneration; a 403 explains an account mismatch and offers support. A new valid
-key resumes pending submissions. No authentication result deletes a local log.
+and persisted cooldowns. Exhausted attempts retain their local files; settings
+have no manual retry control, and opening history never queues an upload. A 401
+pauses that key across restarts; a 403 records an account-mismatch diagnostic.
+Generate Key replaces an invalid key and resumes pending submissions. No
+authentication result deletes a local log.
 Server bodies, device codes, PKCE verifiers, keys, and Authorization headers are
 never written to diagnostics. Fixtures are used only in offline tests.
 
