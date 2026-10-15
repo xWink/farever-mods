@@ -18,6 +18,10 @@ class GameAccess {
     public static var onInputCheck:(String, Dynamic, Dynamic)->Bool;
     public static var heldAction:String;
     public static var holdProgress = 0.0;
+    public static var chatColours:Map<String, String> = [
+        "Chat_Local" => "#aaaaaa", "Chat_All" => "#e6b85c",
+        "Chat_Group" => "#66ccff", "Chat_Player" => "#dd88ee"
+    ];
     public static function field(object:Dynamic, name:String):Dynamic return object == null ? null : Reflect.field(object, name);
     public static function text(value:Dynamic, fallback = ""):String return value == null ? fallback : Std.string(value);
     public static function number(value:Dynamic, fallback:Float = 0):Float return value == null ? fallback : value;
@@ -36,6 +40,18 @@ class GameAccess {
         return type == "Data" ? {byId: {}} : ui;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "ui.hud.ChatBoxMessage" && name == "getChannelColor") return switch Type.enumConstructor(args[0]) {
+            case "Local": "Chat_Local";
+            case "All": "Chat_All";
+            case "Group": "Chat_Group";
+            case "Player": "Chat_Player";
+            default: throw "Unexpected timestamp channel";
+        };
+        if (type == "HText" && name == "withColor") {
+            var colour = chatColours.get(args[1]);
+            if (colour == null) throw "Unknown chat colour: " + args[1];
+            return '<font color="' + colour + '">' + args[0] + '</font>';
+        }
         if (type == "hxd.Key" && name == "getFrame") return keyFrame;
         if (type == "gamepad.Pad" && name == "get_active") return padActive;
         if (type == "lib.Input") return switch name {

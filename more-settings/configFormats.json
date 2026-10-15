@@ -165,15 +165,6 @@
       }
     },
     {
-      "key": "addMessageTimestamps",
-      "type": "checkbox",
-      "label": "Add timestamp to messages",
-      "tooltip": {
-        "enabled": true,
-        "tooltipText": "Show local receipt time as [HH:MM] before chat messages. Existing system timestamps are kept. Updates messages already in chat."
-      }
-    },
-    {
       "key": "enableFriendNotes",
       "type": "checkbox",
       "label": "Enable friend notes",
@@ -215,23 +206,44 @@
       }
     },
     {
+      "key": "addMessageTimestamps",
+      "type": "checkbox",
+      "label": "Add timestamp to messages",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Show local receipt time as [HH:MM] before chat messages. Existing system timestamps are kept. Updates messages already in chat."
+      }
+    },
+    {
       "type": "title",
       "label": "Rift Effects"
     },
     {
       "key": "riftHideAllyAttacks",
       "type": "checkbox",
-      "label": "Hide ally attacks"
+      "label": "Hide ally attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' damaging or harmful ability visuals and sounds, including their summons. Healing, buffs and mixed damage/support abilities use Hide ally buffs. Your own abilities are controlled separately."
+      }
     },
     {
       "key": "riftHideAllyBuffs",
       "type": "checkbox",
-      "label": "Hide ally buffs"
+      "label": "Hide ally buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' healing, shields, buffs and utility ability visuals and sounds, including effects applied to you. Mixed damage/support abilities are included. Your own effects are controlled separately."
+      }
     },
     {
       "key": "riftHideAllies",
       "type": "checkbox",
-      "label": "Hide allies"
+      "label": "Hide allies",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly player models and equipment. Names and other UI remain visible. Ability effects are controlled separately. Your character and enemies remain visible."
+      }
     },
     {
       "key": "riftHideOwnAttacks",
@@ -258,17 +270,29 @@
     {
       "key": "dungeonHideAllyAttacks",
       "type": "checkbox",
-      "label": "Hide ally attacks"
+      "label": "Hide ally attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' damaging or harmful ability visuals and sounds, including their summons. Healing, buffs and mixed damage/support abilities use Hide ally buffs. Your own abilities are controlled separately."
+      }
     },
     {
       "key": "dungeonHideAllyBuffs",
       "type": "checkbox",
-      "label": "Hide ally buffs"
+      "label": "Hide ally buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' healing, shields, buffs and utility ability visuals and sounds, including effects applied to you. Mixed damage/support abilities are included. Your own effects are controlled separately."
+      }
     },
     {
       "key": "dungeonHideAllies",
       "type": "checkbox",
-      "label": "Hide allies"
+      "label": "Hide allies",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly player models and equipment. Names and other UI remain visible. Ability effects are controlled separately. Your character and enemies remain visible."
+      }
     },
     {
       "key": "dungeonHideOwnAttacks",
@@ -295,17 +319,29 @@
     {
       "key": "overworldHideAllyAttacks",
       "type": "checkbox",
-      "label": "Hide ally attacks"
+      "label": "Hide ally attacks",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' damaging or harmful ability visuals and sounds, including their summons. Healing, buffs and mixed damage/support abilities use Hide ally buffs. Your own abilities are controlled separately."
+      }
     },
     {
       "key": "overworldHideAllyBuffs",
       "type": "checkbox",
-      "label": "Hide ally buffs"
+      "label": "Hide ally buffs",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly players' healing, shields, buffs and utility ability visuals and sounds, including effects applied to you. Mixed damage/support abilities are included. Your own effects are controlled separately."
+      }
     },
     {
       "key": "overworldHideAllies",
       "type": "checkbox",
-      "label": "Hide allies"
+      "label": "Hide allies",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Hide friendly player models and equipment. Names and other UI remain visible. Ability effects are controlled separately. Your character and enemies remain visible."
+      }
     },
     {
       "key": "overworldHideOwnAttacks",

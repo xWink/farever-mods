@@ -71,7 +71,14 @@ class ChatTimestamps {
         var current = rawText(row.label);
         // Preserve another UI writer's replacement when toggling this option.
         if (current != row.displayed) row.original = current;
-        var next = enabled ? row.prefix + row.original : row.original;
+        var next = row.original;
+        if (enabled) {
+            // Match ChatBoxMessage.init: resolve the channel's named colour
+            // through the game so theme/data changes apply to timestamps too.
+            var colour = G.staticCall("ui.hud.ChatBoxMessage", "getChannelColor", [G.field(row.message, "channel")]);
+            var timestamp = G.text(G.staticCall("HText", "withColor", [row.prefix, colour]));
+            next = timestamp + row.original;
+        }
         if (current != next) G.call("ui.comp.FmtText", "set_text", row.label, [next]);
         row.displayed = next;
     }
