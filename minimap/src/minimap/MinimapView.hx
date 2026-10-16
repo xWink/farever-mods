@@ -407,17 +407,7 @@ class MinimapView {
         }
     }
 
-    function findFont(object:Dynamic, depth:Int):Dynamic {
-        if (object == null || depth < 0) return null;
-        var font = G.field(object, "font");
-        if (font != null) return font;
-        var count = G.integer(G.call("h2d.Object", "get_numChildren", object));
-        for (i in 0...count) {
-            font = findFont(G.call("h2d.Object", "getChildAt", object, [i]), depth - 1);
-            if (font != null) return font;
-        }
-        return null;
-    }
+    function findFont(object:Dynamic, depth:Int):Dynamic return MapFonts.find(object, depth);
 
     function configureFilter(filter:Dynamic, type:String):Void {
         // Supersample only the bounded minimap, not the world-sized tile layer.

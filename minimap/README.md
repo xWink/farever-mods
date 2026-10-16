@@ -92,7 +92,7 @@ The minimap covers the overworld and hides in other instances. Live player, enem
 
 Party member arrows have a purple outline; friends outside your party use the same yellow as sparkling markers. Both outlines follow the arrow's edges and rear notch. Party membership takes priority over friendship. Membership follows the game's native group check and friends are matched by account ID using the native friend list. Both refresh with the live markers, so joining/leaving a party or adding/removing a friend updates the outline automatically. **Show players** controls ordinary, party, and friend player markers; facing direction, scaling, hover details, and height filtering work the same for all three.
 
-Off-screen party members have a blue guidance arrow with a purple outline, using the same shape as Rift and sparkling companion alerts. These arrows use the party members' positions available in the current map, disappear when their marker enters view (including partial visibility), and remain available when the vertical-distance filter hides their marker. Hovering shows the member's name, distance, and height. Party arrows remain enabled; Rift and sparkling companion alert toggles do not affect them. Arrow geometry is cached and follows minimap rotation, zoom, shape, and marker scale.
+Off-screen party members have a blue guidance arrow with a purple outline, using the same shape as Rift and sparkling companion alerts. These arrows use the party members' positions available in the current map, disappear when their marker enters view (including partial visibility), and remain available when the vertical-distance filter hides their marker. Hovering shows the member's name, distance, and height. Party arrows follow the Players category and Party members subfilter; Rift and sparkling companion alert toggles do not affect them. Arrow geometry is cached and follows minimap rotation, zoom, shape, and marker scale.
 
 Respawn point markers use a broad oval stone platform and a tall shouldered monument with a gold-rimmed purple inset, matching the world model. Their water and hover label follow the current character's unlock progress and update after activation. Both states remain enabled; marker scaling, hover distances, and the shared vertical filter apply to both. Obelisks keep their separate icon.
 
@@ -167,3 +167,7 @@ haxe compile.hxml
 Run the marker classification, activity visibility, hover measurements, vertical filtering, Rift schedule/state, Codex milestone, percentage-position, clipping, and compass regression tests with `haxe test.hxml` (no game or HLX runtime required).
 
 Output: `build/minimap/minimap.hl`. The independent workflow packages this project and publishes releases for `minimap/v*` tags.
+
+The **Players** map filter controls other players on both maps. Right-click for **Players**, **Party members**, and **Friends**; ordinary players default off, party members and friends default on. Party membership takes precedence over friendship. Your own arrow is independent of these filters.
+
+Obelisk fast travel shows only obelisk markers, enlarged by 50%. Their shared artwork has a stone basin around the water and no gold arms. Main-map hover text uses a smooth native UI font at the existing size and colour with a thin black outline.

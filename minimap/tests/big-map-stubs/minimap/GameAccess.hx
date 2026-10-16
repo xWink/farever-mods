@@ -119,6 +119,8 @@ class GameAccess {
         }
         if (type == "h2d.Object" || type == "ui.UIElement" && name == "set_visible") {
             switch name {
+                case "get_numChildren": return field(o, "children") == null ? 0 : o.children.length;
+                case "getChildAt": return o.children[args[0]];
                 case "drawTo":
                     if (args.length != 1 || args[0].clearColor != 0) throw "Invalid bake";
                     if (failBake) throw "Texture bake failed";
@@ -199,7 +201,7 @@ class GameAccess {
         if (type == "ent.GameObject" && name == "isDead") return false;
         if (type == "ent.Foe" && name == "isEnemyWith") return true;
         if (type == "ent.Hero" && name == "isSameGroup") return args[0].party == true;
-        if (type == "st.FriendList" && name == "isFriend") return false;
+        if (type == "st.FriendList" && name == "isFriend") return (cast o.friends:Array<String>).indexOf(args[0]) >= 0;
         if (type == "st.player.Collection" && name == "hasPet") return o.owned == args[0];
         if (name == "getName") return o.name;
         throw "Call " + type + "." + name;

@@ -15,7 +15,7 @@ class BigMapTest {
         if (a != b) throw message + ': expected ' + b + ', got ' + a;
     }
     static function config():MinimapSettings return cast {
-        enabled: true, markerScale: 100.,
+        enabled: true, markerScale: 100., mainMapPlayerFiltersInitialized:true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: false,
         showNpcs: true, showChests: true, showCompanions: true, hideCollectedCompanions: true,
         sparklingCompanionAlerts: false, showRespawnPoints: true, showObelisks: true,
@@ -60,7 +60,7 @@ class BigMapTest {
             gatherInf: {id: 'Ore_Copper_Small', requiredTool: 'GearPickaxe'}},
             {family: 'npc', enabled: true, kind: 'npc', posx: 7700., posy: 6000., posz: 25., inf: {id: 'npc', props: {}}}];
         var window:Dynamic = {hero: hero, scroll: {x: 13., y: 27.}, scrollContainer: {calculatedWidth: 1000., calculatedHeight: 800.},
-            markers: [], respawnPoints: new Map<String, Dynamic>(), tileScale: 2., zoom: 0.5, removed: false};
+            children:[{font:{size:22, nativeFont:true}}], markers: [], respawnPoints: new Map<String, Dynamic>(), tileScale: 2., zoom: 0.5, removed: false};
         var obelisk = nativeMarker(window, 15, 9000, 7000); obelisk.element = {id: 'tower'};
         var click = () -> {}; obelisk.content.onClick = click;
         var respawn = nativeMarker(window, 14, 8000, 6000); window.respawnPoints.set('spawn', respawn);
@@ -100,9 +100,9 @@ class BigMapTest {
         eq(obelisk.content.onClick, click, 'Obelisk travel callback preserved');
         eq(view.markers.obeliskScale, 1.5, 'Obelisks are 50 percent larger only in travel');
         for (kind in ['dungeon', 'soulstone', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
-            eq(BigMapView.travelPoint({kind:kind, x:0, y:0, z:0}), true, 'Travel retains ' + kind);
-        eq(BigMapView.travelPoint({kind:'player', partyMember:true, x:0, y:0, z:0}), true, 'Travel retains party');
-        eq(BigMapView.travelPoint({kind:'player', friend:true, x:0, y:0, z:0}), true, 'Travel retains friends');
+            eq(BigMapView.travelPoint({kind:kind, x:0, y:0, z:0}), false, 'Travel hides ' + kind);
+        eq(BigMapView.travelPoint({kind:'player', partyMember:true, x:0, y:0, z:0}), false, 'Travel hides party');
+        eq(BigMapView.travelPoint({kind:'player', friend:true, x:0, y:0, z:0}), false, 'Travel hides friends');
         // Put the obelisk onscreen to check actual icon size and smooth zoom.
         window.scroll.x = -8500.; window.scroll.y = -6500.;
         view.update(window, c);
@@ -222,13 +222,16 @@ class BigMapTest {
         eq(G.bakes, idleBakes, 'Native refresh does not rebake artwork');
 
         eq(nativeToggle.visible, false, 'Native filter toggles hidden while override is active');
-        eq(view.filterBar.buttons.length, 8, 'Eight main-map categories');
+        eq(view.filterBar.buttons.length, 9, 'Nine main-map categories');
         eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
             window.scrollContainer.calculatedWidth / 2, 'Hover caption horizontally centered in map');
-        eq(view.caption.filter.size, 1., 'Caption has a compact solid outline without a broad halo');
+        eq(view.caption.filter.size, 0.8, 'Caption has a compact solid outline without a broad halo');
+        eq(view.caption.font.nativeFont, true, 'Hover uses native smooth UI font');
+        eq(view.caption.scale, 1., 'Native font retains 22 pixel caption size');
+        eq(view.caption.smooth, true, 'Caption font is smoothed');
         eq(view.caption.filter.color, 0x000000, 'Caption outline is black');
         eq(view.caption.filter.alpha, 1., 'Caption outline has full opacity');
-        eq(view.measurements.root.filter.size, 1., 'Measurement row has matching compact outline');
+        eq(view.measurements.root.filter.size, 0.8, 'Measurement row has matching compact outline');
         eq(view.measurements.root.filter.alpha, 1., 'Measurement outline has matching opacity');
         eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
         eq([for (o in G.created) if (o.parent == view.overlay && o.nativeType == 'h2d.Text') o].length,

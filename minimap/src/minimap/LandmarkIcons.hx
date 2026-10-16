@@ -837,14 +837,24 @@ class LandmarkIcons {
     static function obelisk(g:Dynamic, r:Float):Void {
         // The blue stone idol: a split crown, four gold sockets, a long inlaid
         // column and a cyan travel ring. Shared by both map renderers.
+        // A raised stone basin surrounds the water, like the world landmark.
+        fill(g, 0x1e303a);
+        ellipse(g, r, 0, 1.12, 1.08, 0.35);
+        end(g);
+        fill(g, 0x66899a);
+        ellipse(g, r, 0, 1.05, 1.02, 0.30);
+        end(g);
+        fill(g, 0x9db8c5);
+        ellipse(g, r, 0, 1.01, 0.96, 0.25);
+        end(g);
         fill(g, 0x173745);
-        ellipse(g, r, 0, 1.12, 0.88, 0.26);
+        ellipse(g, r, 0, 1.03, 0.83, 0.19);
         end(g);
         fill(g, 0x279dbd);
-        ellipse(g, r, 0, 1.1, 0.79, 0.19);
+        ellipse(g, r, 0, 1.03, 0.76, 0.15);
         end(g);
         fill(g, 0x78e7fa);
-        ellipse(g, r, 0, 1.08, 0.65, 0.12);
+        ellipse(g, r, 0, 1.03, 0.63, 0.10);
         end(g);
 
         fill(g, 0x1e303a);
@@ -876,13 +886,6 @@ class LandmarkIcons {
         fill(g, 0x9b793c);
         for (y in [0.05, 0.35, 0.65])
             polygon(g, r, [-0.15, y, 0, y + 0.11, 0.15, y, 0.15, y + 0.09, 0, y + 0.2, -0.15, y + 0.09]);
-        // Curved gold arms flank the column below the crown.
-        for (side in [-1, 1])
-            polygon(g, r, [0.23, -0.08, 0.47, 0.07, 0.66, -0.06, 0.61, 0.18, 0.44, 0.25, 0.23, 0.1], side);
-        end(g);
-        fill(g, 0xe4c77a);
-        for (side in [-1, 1])
-            polygon(g, r, [0.25, -0.08, 0.47, 0.07, 0.66, -0.06, 0.57, 0.1, 0.44, 0.15, 0.25, 0.04], side);
         end(g);
         fill(g, 0x9db8c5);
         polygon(g, r, [-0.38, 0.87, -0.25, 0.87, -0.25, 1.04, -0.38, 1.04]);
@@ -890,7 +893,7 @@ class LandmarkIcons {
             polygon(g, r, [0.2, -1.14, 0.29, -1.22, 0.92, -0.94, 0.94, -0.84, 0.3, -1.1], side);
         end(g);
         fill(g, 0xa7f3ff);
-        ellipse(g, r, 0, 1.11, 0.48, 0.06);
+        ellipse(g, r, 0, 1.09, 0.48, 0.04);
         end(g);
     }
 

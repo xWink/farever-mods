@@ -155,11 +155,7 @@ class BigMapView {
     }
 
     /** ObeliskFly is the native selector mode; normal map highlights are not selectors. */
-    static function travelPoint(point:MapPoint):Bool return switch point.kind {
-        case "player": point.partyMember == true || point.friend == true;
-        case "obelisk", "soulstone", "dungeon", "inactiveRift", "nextRift", "upcomingRift", "riftPortal": true;
-        default: false;
-    };
+    static function travelPoint(point:MapPoint):Bool return point.kind == "obelisk";
 
     function createViewport(layer:Int):Dynamic {
         var viewport = G.create("h2d.Mask", [1, 1, null]);
@@ -248,13 +244,15 @@ class BigMapView {
 
     function ensureCaption():Void {
         if (caption != null) return;
-        var font = G.staticCall("hxd.res.DefaultFont", "get", []);
+        var font = MapFonts.find(window, 6);
+        if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
         captionScale = 22 / Math.max(1, G.number(G.field(font, "size"), 14));
         caption = G.create("h2d.Text", [font, overlay]);
         G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
+        G.set(caption, "smooth", true);
         // A tight, solid black border stays legible without an offset shadow.
-        MapTextOutline.apply(caption, 1.0);
-        measurements = new HoverMeasurements(overlay, font, 1.5, 1.0, false);
+        MapTextOutline.apply(caption, 0.8);
+        measurements = new HoverMeasurements(overlay, font, 1.5, 0.8, false);
     }
 
     function hideCaption():Void {

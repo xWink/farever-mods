@@ -15,7 +15,8 @@ class MainMapFilters {
             ["Activities", "Ascensions", "Completed activities"]),
         category("npcs", "NPCs", "npc", [], []),
         category("chests", "Chests", "chest", [], []),
-        category("secretOrbs", "Secret orbs", "secretOrb", [], [])
+        category("secretOrbs", "Secret orbs", "secretOrb", [], []),
+        category("players", "Players", "player", ["regular", "party", "friends"], ["Players", "Party members", "Friends"])
     ];
     var source:MinimapSettings;
     var saved:Array<String>;
@@ -36,6 +37,12 @@ class MainMapFilters {
         if (source == config && saved == config.mainMapHiddenFilters) return;
         source = config;
         if (config.mainMapHiddenFilters == null) config.mainMapHiddenFilters = ["activities:completed", "companions:collected", "enemies:mastered"];
+        // Apply the new player default once, including existing installations.
+        if (config.mainMapPlayerFiltersInitialized != true) {
+            config.mainMapHiddenFilters = config.mainMapHiddenFilters.copy();
+            if (config.mainMapHiddenFilters.indexOf("players:regular") < 0) config.mainMapHiddenFilters.push("players:regular");
+            config.mainMapPlayerFiltersInitialized = true;
+        }
         saved = config.mainMapHiddenFilters;
         hidden = [];
         for (key in saved) if (key != null) hidden[key] = true;
@@ -81,7 +88,8 @@ class MainMapFilters {
     function applyFilters(config:MinimapSettings):MinimapSettings {
         // These categories have no toggle on either map. Ignore legacy hidden
         // preferences while still applying the shared height filter afterward.
-        config.showPlayers = config.showObelisks = config.showRespawnPoints = config.showSoulstoneCircles = true;
+        config.showPlayers = enabled("players");
+        config.showObelisks = config.showRespawnPoints = config.showSoulstoneCircles = true;
         config.showOre = enabled("ore"); config.showPlants = enabled("plants");
         config.showEnemies = enabled("enemies"); config.showCompanions = enabled("companions");
         config.showActivities = enabled("activities"); config.showNpcs = enabled("npcs");
@@ -104,6 +112,8 @@ class MainMapFilters {
 
     /** Subtypes not covered by the minimap's existing collection flags. */
     public function accepts(point:MapPoint):Bool return switch point.kind {
+        // Party membership takes precedence when a party member is also a friend.
+        case "player": enabled("players") && enabled("players", point.partyMember == true ? "party" : point.friend == true ? "friends" : "regular");
         case "enemy": enabled("enemies", "regular");
         case "boss", "targetDummy": enabled("enemies", point.kind);
         case "companion": enabled("companions", point.sparkling == true ? "sparkling" : "regular");

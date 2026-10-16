@@ -26,6 +26,7 @@ class HoverMeasurements {
         for (_ in 0...2) {
             var shadow = shadows ? G.create("h2d.Text", [font, root]) : null;
             var text = G.create("h2d.Text", [font, root]);
+            G.set(text, "smooth", true);
             var arrowShadow = shadows ? G.create("h2d.Graphics", [root]) : null;
             var arrow = G.create("h2d.Graphics", [root]);
             if (shadow != null) G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);

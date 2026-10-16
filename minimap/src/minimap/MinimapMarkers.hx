@@ -159,7 +159,11 @@ class MinimapMarkers {
         try {
             refreshLandmarks();
             var points = collect(hero, config, x, y, radius + 12 * markerScale / scale);
-            if (pointFilter != null) points = points.filter(pointFilter);
+            if (pointFilter != null) {
+                points = points.filter(pointFilter);
+                // Companion alerts intentionally bypass marker filters. Party alerts do not.
+                alertTargets = alertTargets.filter(point -> point.kind != "player" || pointFilter(point));
+            }
             sampledPoints = points;
             draw(points, scale);
             healthy = true;

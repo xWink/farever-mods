@@ -28,7 +28,7 @@ class SharedMapFiltersTest {
         var container:Dynamic = {dom:null}; container.dom = {obj:container};
         var bar = new MainMapFilterBar(container, main, (parent, kind) -> G.create('h2d.Graphics', [parent]));
         bar.update({filterButtons:[]}, 1000, 800);
-        var fields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showNpcs', 'showChests', 'showSecretOrbs'];
+        var fields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showNpcs', 'showChests', 'showSecretOrbs', 'showPlayers'];
         for (i in 0...bar.buttons.length) {
             var button = bar.buttons[i];
             main.setEnabled(button.category.key, null, true);
@@ -135,6 +135,37 @@ class SharedMapFiltersTest {
                 eq(travel.points.filter(p -> p.kind == kind).length, 1, 'Collector retains protected destination ' + kind);
             eq(travel.points.filter(p -> p.kind == 'activity').length, 0, 'Activities off still hides ordinary activities');
         }
+        var playerConfig:MinimapSettings = Reflect.copy(reloaded);
+        playerConfig.mainMapHiddenFilters = [];
+        playerConfig.mainMapPlayerFiltersInitialized = false;
+        var pf = new MainMapFilters(); pf.bind(playerConfig);
+        eq(pf.enabled('players', 'regular'), false, 'New player filters hide ordinary players by default');
+        eq(pf.enabled('players', 'party'), true, 'Party defaults on');
+        eq(pf.enabled('players', 'friends'), true, 'Friends default on');
+        hero.player.friendList = {friends:['friend', 'party']};
+        layer.units = [hero,
+            {family:'player', posx:10., posy:0., posz:0., player:{uid:'stranger'}},
+            {family:'player', posx:20., posy:0., posz:0., player:{uid:'friend'}},
+            {family:'player', posx:30., posy:0., posz:0., party:true, player:{uid:'party'}},
+            {family:'player', posx:1000., posy:0., posz:0., party:true, player:{uid:'remote'}}];
+        var pm = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta'); pm.pointFilter = pf.accepts;
+        pm.update(hero, pf.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(pm.points.filter(p -> p.kind == 'player').length, 2, 'Collector shows friend and nearby party only by default');
+        eq(pm.alertTargets.filter(p -> p.kind == 'player').length, 2, 'Both party edge-alert candidates retained');
+        pf.setEnabled('players', 'party', false);
+        pm.update(hero, pf.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(pm.points.filter(p -> p.kind == 'player').length, 1, 'Party toggle hides party even if also friend');
+        eq(pm.alertTargets.filter(p -> p.kind == 'player').length, 0, 'Hidden party does not leak through edge alerts');
+        pf.setEnabled('players', 'friends', false); pf.setEnabled('players', 'regular', true);
+        pm.update(hero, pf.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(pm.points.filter(p -> p.kind == 'player').length, 1, 'Only ordinary player restored');
+        eq(pm.points.filter(p -> p.kind == 'player')[0].entity.player.uid, 'stranger', 'Regular category excludes friends and party');
+        pf.setEnabled('players', null, false);
+        pm.update(hero, pf.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(pm.points.filter(p -> p.kind == 'player').length, 0, 'Top-level player toggle hides all other players');
+        var persisted:MinimapSettings = haxe.Json.parse(haxe.Json.stringify(playerConfig));
+        var restored = new MainMapFilters(); restored.bind(persisted);
+        eq(restored.enabled('players', 'regular'), true, 'Saved player preference is not overwritten by migration');
         Sys.println('Shared map filters: $checks checks passed.');
     }
 }
