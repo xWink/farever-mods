@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.19.0",
-  "commit": "1059c53696a346e9d3eef8e92ea2eec674af9e3a",
-  "notes": "- Added a new setting to enable message timestamps\n- Added new settings to hide your own VFX",
+  "project": "better-mod-settings",
+  "version": "1.7.0",
+  "commit": "b4d2a0ea9da94b186af41346ac910acd09122149",
+  "notes": "- Added support for secrets, which are textboxes that hide the text within them.\n- Secrets can be revealed by clicking a button next to them.\n- Added support for common settings. These settings are added to a \"common\" config folder and can be shared by all mods using BMS.\n",
   "dry_run": false
 }
