@@ -92,6 +92,7 @@ class BigMapTest {
         eq(view.arrow.tile.texture.width, 256, 'Sharp cached icon has eight samples per local pixel');
         eq(view.arrow.tile.width, 32., 'Texture resolution does not enlarge icons');
         eq(view.arrow.tile.dx, -16., 'Cached icon stays centered');
+        eq(view.arrow.tile.texture.bakedBackground, 0, 'Own player arrow has a transparent background');
         eq(view.markers.hitPoints.length, 0, 'Offscreen world points have no artwork or hover targets');
         eq(G.field(view.root, 'filter'), null, 'Never filter the unbounded world root');
         eq(G.field(window.scroll, 'filter'), null, 'Map terrain is not supersampled');
@@ -202,6 +203,7 @@ class BigMapTest {
             eq(button.icon.nativeType, 'h2d.Bitmap', 'Filter symbol uses shared cached artwork');
             eq(button.icon.tile.texture.width, 256, 'Filter symbol is high resolution');
             eq(button.icon.smooth, true, 'Filter symbols are smoothly downsampled');
+            eq(button.icon.tile.texture.bakedBackground, 0, 'Filter icon background is transparent');
             eq(G.field(button.icon, 'filter'), null, 'Filter symbols have no per-frame smoothing pass');
             eq(G.field(button.object, 'filter'), null, 'Small icon smoothing does not capture the full native button');
         }

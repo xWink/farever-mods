@@ -84,7 +84,13 @@ class GameAccess {
             default: throw "Array " + name;
         };
         if (type == "h3d.mat.Texture") return switch name {
-            case "clear": o.clearColor = args[0]; null;
+            case "clear":
+                if (args.length != 3) throw "Invalid texture clear arguments";
+                // Match the game's RGB + separate alpha API: null means opaque.
+                o.clearColor = args[0];
+                o.clearAlpha = args[1] == null ? 1. : number(args[1]);
+                o.clearArgb = integer(args[0]) | (Std.int(Math.max(0, Math.min(1, o.clearAlpha)) * 255) << 24);
+                null;
             case "checkMipMapGen":
                 // The method and enums exist even on unsupported renderers.
                 throw "Mipmaps auto generation is not supported on this platform";
@@ -109,6 +115,7 @@ class GameAccess {
                     if (args.length != 1 || args[0].clearColor != 0) throw "Invalid bake";
                     if (failBake) throw "Texture bake failed";
                     bakes++; args[0].baked = true;
+                    args[0].bakedBackground = args[0].clearArgb;
                 case "addChild": args[0].parent = o;
                 case "set_filter": o.filter = args[0];
                 case "setScale": o.scale = args[0];

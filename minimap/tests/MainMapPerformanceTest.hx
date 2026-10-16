@@ -31,6 +31,8 @@ class MainMapPerformanceTest {
         eq(markers.mapIconMarkers.length, 10, 'Only ten of a thousand markers create artwork');
         eq(G.bakes, 1, 'A thousand identical markers share one texture');
         var texture = markers.mapIconMarkers[0].icon.tile.texture;
+        eq(texture.clearAlpha, 0., 'Texture clear explicitly requests zero opacity');
+        eq(texture.bakedBackground, 0, 'Unpainted icon pixels start transparent black, not opaque black');
         eq((cast texture.flags:Array<Dynamic>).join(','), 'Target', 'Cached textures allocate no mipmap chain');
         eq(G.field(texture, 'mipMap'), null, 'No mipmap sampling is enabled on unsupported renderers');
         eq(texture.width, 256, 'Removing mipmaps preserves the high-resolution artwork');

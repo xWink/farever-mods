@@ -38,7 +38,9 @@ class MainMapIconCache {
             G.call("h2d.Object", "setScale", graphics, [SAMPLES * 1.]);
             G.call("h2d.Object", "setPosition", graphics, [SIZE * SAMPLES / 2., SIZE * SAMPLES / 2.]);
             texture = G.create("h3d.mat.Texture", [SIZE * SAMPLES, SIZE * SAMPLES, flags, format]);
-            G.call("h3d.mat.Texture", "clear", texture, [0, null, null]);
+            // clear takes RGB and a separate alpha, which defaults to 1. Passing
+            // only zero as the color leaves an opaque black square behind icons.
+            G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
             G.call("h2d.Object", "drawTo", holder, [texture]);
             geometryReleased = true;
             cached = G.staticCall("h2d.Tile", "fromTexture", [texture]);
