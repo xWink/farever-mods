@@ -20,7 +20,7 @@ class MainMapControls {
             if (!movementWindows.exists(window)) movementWindows.set(window, (flags & keyboardFlag) != 0);
             if ((flags & keyboardFlag) == 0) G.call("ui.win.BaseWindow", "set_windowFlags", window, [flags | keyboardFlag]);
         } else restoreMovement(window);
-        if ((!config.enabled || !config.overrideBigMapMarkers) && extendedWindows.exists(window)) {
+        if (!config.enabled && extendedWindows.exists(window)) {
             extendedWindows.remove(window);
             G.call("ui.win.MapWindow", "clampTargetZoom", window);
         }
@@ -37,7 +37,7 @@ class MainMapControls {
         return result;
     }
     public function beforeClamp(window:Dynamic, config:MinimapSettings):Void {
-        if (config.enabled && config.overrideBigMapMarkers
+        if (config.enabled
             && G.call("ui.win.MapWindow", "isSelector", window) != true)
             zoomRequests.set(window, G.number(G.field(window, "targetZoom")));
         else zoomRequests.remove(window);

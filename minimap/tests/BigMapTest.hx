@@ -15,7 +15,7 @@ class BigMapTest {
         if (a != b) throw message + ': expected ' + b + ', got ' + a;
     }
     static function config():MinimapSettings return cast {
-        enabled: true, overrideBigMapMarkers: true, markerScale: 100.,
+        enabled: true, markerScale: 100.,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: false,
         showNpcs: true, showChests: true, showCompanions: true, hideCollectedCompanions: true,
         sparklingCompanionAlerts: false, showRespawnPoints: true, showObelisks: true,
@@ -389,15 +389,17 @@ class BigMapTest {
         var oldViewport = view.markerViewport;
         var oldFontSource = view.bonusDungeon.fontSource;
         c = change(c, 'overrideBigMapMarkers', false); view.update(window, c);
-        eq(view.root, null, 'Turning override off removes overlay');
+        eq(view.root, oldRoot, 'Legacy override=false cannot disable enhanced map');
+        c = change(c, 'enabled', false); view.update(window, c);
+        eq(view.root, null, 'Disabling mod removes overlay');
         eq(oldRoot.removed, true, 'Old overlay detached');
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
         eq(oldFontSource.removed, true, 'Hidden native font source is removed with the map overlay');
         eq(obelisk.alpha, 0.8, 'Original alpha restored');
-        eq(obelisk.content.getTip, obeliskTip, 'Disabling enhancement restores native obelisk tooltip');
-        eq(own.content.getTip, ownTip, 'Disabling enhancement restores own-player tooltip');
-        eq(obelisk.content.showTipOnOver, true, 'Disabling enhancement restores native hover behavior');
-        eq(nativeToggle.visible, true, 'Native filter toggles restored when override is disabled');
+        eq(obelisk.content.getTip, obeliskTip, 'Disabling mod restores native obelisk tooltip');
+        eq(own.content.getTip, ownTip, 'Disabling mod restores own-player tooltip');
+        eq(obelisk.content.showTipOnOver, true, 'Disabling mod restores native hover behavior');
+        eq(nativeToggle.visible, true, 'Native filter toggles restored when the mod is disabled');
         eq(obelisk.visible, true, 'Native filters refreshed');
         eq(npc.x, 15000., 'Original native position restored');
         c = config(); view.update(window, c);

@@ -8,7 +8,7 @@ import hlx.runtime.HlxPrefixResult;
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, overrideBigMapMarkers: true, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
+        enabled: true, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
         mainMapMarkerScale: 100, mainMapMovement: false,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,

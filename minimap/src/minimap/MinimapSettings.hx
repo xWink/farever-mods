@@ -6,7 +6,6 @@ typedef MinimapSettings = {
     var ?mainMapMarkerScale:Float;
     var ?mainMapMovement:Bool;
     var enabled:Bool;
-    var overrideBigMapMarkers:Bool;
     var transparency:Int;
     var zoom:Float;
     var size:Int;

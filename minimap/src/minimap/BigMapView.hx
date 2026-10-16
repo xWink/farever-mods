@@ -63,7 +63,7 @@ class BigMapView {
         var nextHero = G.call("ui.BaseElement", "get_myHero", nextWindow);
         var nextWorld = G.field(G.field(nextHero, "layer"), "world");
         // Instance coordinates must not be projected onto the overworld.
-        if (!config.enabled || !config.overrideBigMapMarkers || nextHero == null
+        if (!config.enabled || nextHero == null
             || G.field(nextHero, "removed") == true || G.text(G.field(nextWorld, "level")) != LEVEL
             || G.field(nextWindow, "removed") == true) {
             dispose();
