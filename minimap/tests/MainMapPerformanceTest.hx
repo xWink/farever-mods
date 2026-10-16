@@ -30,18 +30,22 @@ class MainMapPerformanceTest {
         eq(markers.hitPoints.length, 10, 'Only viewport markers become hover targets');
         eq(markers.mapIconMarkers.length, 10, 'Only ten of a thousand markers create artwork');
         eq(G.bakes, 1, 'A thousand identical markers share one texture');
+        eq(G.reductions, 2, 'Soft edges are averaged once per appearance, never per marker');
         var texture = markers.mapIconMarkers[0].icon.tile.texture;
         eq(texture.clearAlpha, 0., 'Texture clear explicitly requests zero opacity');
         eq(texture.bakedBackground, 0, 'Unpainted icon pixels start transparent black, not opaque black');
         eq((cast texture.flags:Array<Dynamic>).join(','), 'Target', 'Cached textures allocate no mipmap chain');
         eq(G.field(texture, 'mipMap'), null, 'No mipmap sampling is enabled on unsupported renderers');
-        eq(texture.width, 256, 'Removing mipmaps preserves the high-resolution artwork');
+        eq(texture.width, 64, 'Cached artwork retains two pixels per local pixel after supersampling');
+        for (o in G.created) if (G.field(o, 'nativeType') == 'h3d.mat.Texture' && o != texture)
+            eq(o.disposed, true, 'Temporary supersampling targets are released after baking');
         eq(markers.mapIconMarkers[0].icon.smooth, true, 'Ordinary smooth filtering remains enabled');
         eq(markers.mapIconMarkers[0].icon.tile, markers.mapIconMarkers[9].icon.tile, 'Texture sharing is by appearance');
         var transforms = G.positionWrites;
         markers.draw(points, 1);
         eq(G.positionWrites, transforms, 'Unchanged periodic samples rewrite no marker positions');
         eq(G.bakes, 1, 'Unchanged samples never rebake icons');
+        eq(G.reductions, 2, 'Unchanged samples never repeat smoothing passes');
         eq(markers.mapIconMarkers[0].icon.blendMode, 'AlphaAdd', 'Premultiplied cached edges use the native matching blend mode');
         var firstTile = markers.mapIconMarkers[0].icon.tile;
         markers.setViewport(-50000, 0, 1000, 800);
@@ -78,6 +82,15 @@ class MainMapPerformanceTest {
         eq(textures[textures.length - 1].disposed, true, 'Failed bake releases its render target');
         cache.tile('new-style', g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xffffff));
         eq(G.bakes, beforeFailure + 1, 'Failed appearance is retried instead of caching a blank tile');
+        var firstNewObject = G.created.length;
+        G.failReduction = true;
+        failed = false;
+        try cache.tile('failed-smoothing', g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xffffff)) catch (_:Dynamic) failed = true;
+        G.failReduction = false;
+        eq(failed, true, 'Smoothing failures are reported instead of caching unfinished artwork');
+        for (i in firstNewObject...G.created.length) if (G.field(G.created[i], 'nativeType') == 'h3d.mat.Texture')
+            eq(G.created[i].disposed, true, 'Failed smoothing releases both source and destination targets');
+        cache.tile('failed-smoothing', g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xffffff));
         cache.dispose();
         for (o in G.created) if (G.field(o, 'nativeType') == 'h3d.mat.Texture')
             eq(o.disposed, true, 'Session teardown releases every cached texture');

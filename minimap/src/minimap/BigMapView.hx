@@ -239,10 +239,9 @@ class BigMapView {
         captionScale = 22 / Math.max(1, G.number(G.field(font, "size"), 14));
         caption = G.create("h2d.Text", [font, overlay]);
         G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
-        // These objects are enlarged for the main map; a small local outline
-        // stays close to one display pixel instead of becoming a dark halo.
-        MapTextOutline.apply(caption, 0.75);
-        measurements = new HoverMeasurements(overlay, font, 1.5, 0.75, false);
+        // A tight, solid black border stays legible without an offset shadow.
+        MapTextOutline.apply(caption, 1.0);
+        measurements = new HoverMeasurements(overlay, font, 1.5, 1.0, false);
     }
 
     function hideCaption():Void {

@@ -5,6 +5,8 @@ class GameAccess {
     public static var globals:Map<String, Dynamic> = ["h3d.mat.TextureFlags.Target" => "Target", "hxd.PixelFormat.RGBA" => "RGBA", "h2d.BlendMode.AlphaAdd" => "AlphaAdd",
         "h3d.mat.TextureFlags.MipMapped" => "MipMapped", "h3d.mat.MipMap.Linear" => "Linear"];
     public static var bakes:Int = 0;
+    public static var reductions:Int = 0;
+    public static var failReduction:Bool = false;
     public static var positionWrites:Int = 0;
     public static var visibilityWrites:Int = 0;
     public static var failBake:Bool = false;
@@ -114,7 +116,18 @@ class GameAccess {
                 case "drawTo":
                     if (args.length != 1 || args[0].clearColor != 0) throw "Invalid bake";
                     if (failBake) throw "Texture bake failed";
-                    bakes++; args[0].baked = true;
+                    if (field(o, "nativeType") == "h2d.Bitmap") {
+                        if (failReduction) throw "Downsample failed";
+                        var source = o.tile.texture, target = args[0];
+                        if (source.disposed || !source.baked || source == target) throw "Invalid downsample source";
+                        if (target.width * 2 != source.width || target.height * 2 != source.height
+                            || o.tile.width != target.width || o.tile.height != target.height
+                            || o.x != 0. || o.y != 0. || o.scale != 1.) throw "Downsample must cover exactly half the source size";
+                        if (field(o, "smooth") != true || field(o, "blendMode") != "AlphaAdd") throw "Downsample must average premultiplied RGBA";
+                        if (target.clearArgb != 0 || source.bakedBackground != 0) throw "Downsample must preserve transparent padding";
+                        reductions++;
+                    } else bakes++;
+                    args[0].baked = true;
                     args[0].bakedBackground = args[0].clearArgb;
                 case "addChild": args[0].parent = o;
                 case "set_filter": o.filter = args[0];

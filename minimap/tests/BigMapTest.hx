@@ -89,7 +89,7 @@ class BigMapTest {
         eq(G.field(view.markerViewport, 'filter'), null, 'No per-frame marker-layer render target');
         eq(G.field(view.priorityViewport, 'filter'), null, 'No per-frame priority-layer render target');
         eq(view.arrow.nativeType, 'h2d.Bitmap', 'Own arrow uses cached high-resolution artwork');
-        eq(view.arrow.tile.texture.width, 256, 'Sharp cached icon has eight samples per local pixel');
+        eq(view.arrow.tile.texture.width, 64, 'Cached icon retains supersampled soft edges');
         eq(view.arrow.tile.width, 32., 'Texture resolution does not enlarge icons');
         eq(view.arrow.tile.dx, -16., 'Cached icon stays centered');
         eq(view.arrow.tile.texture.bakedBackground, 0, 'Own player arrow has a transparent background');
@@ -179,8 +179,11 @@ class BigMapTest {
         eq(view.filterBar.buttons.length, 8, 'Eight main-map categories');
         eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
             window.scrollContainer.calculatedWidth / 2, 'Hover caption horizontally centered in map');
-        eq(view.caption.filter.size, 0.75, 'Caption has a small outline without a broad halo');
-        eq(view.measurements.root.filter.size, 0.75, 'Measurement row has matching small outline');
+        eq(view.caption.filter.size, 1., 'Caption has a compact solid outline without a broad halo');
+        eq(view.caption.filter.color, 0x000000, 'Caption outline is black');
+        eq(view.caption.filter.alpha, 1., 'Caption outline has full opacity');
+        eq(view.measurements.root.filter.size, 1., 'Measurement row has matching compact outline');
+        eq(view.measurements.root.filter.alpha, 1., 'Measurement outline has matching opacity');
         eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
         eq([for (o in G.created) if (o.parent == view.overlay && o.nativeType == 'h2d.Text') o].length,
             1, 'Hover caption has no duplicate shadow text');
@@ -201,7 +204,7 @@ class BigMapTest {
         for (button in view.filterBar.buttons) {
             eq(G.field(button.object, 'textTip'), null, 'Filter toggle has no hover tooltip');
             eq(button.icon.nativeType, 'h2d.Bitmap', 'Filter symbol uses shared cached artwork');
-            eq(button.icon.tile.texture.width, 256, 'Filter symbol is high resolution');
+            eq(button.icon.tile.texture.width, 64, 'Filter symbol uses supersampled artwork');
             eq(button.icon.smooth, true, 'Filter symbols are smoothly downsampled');
             eq(button.icon.tile.texture.bakedBackground, 0, 'Filter icon background is transparent');
             eq(G.field(button.icon, 'filter'), null, 'Filter symbols have no per-frame smoothing pass');

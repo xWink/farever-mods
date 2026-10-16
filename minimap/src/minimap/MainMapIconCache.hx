@@ -2,10 +2,12 @@ package minimap;
 
 import minimap.GameAccess as G;
 
-/** One small GPU bake per appearance, shared by every marker and filter button. */
+/** One small supersampled bake per appearance, shared by markers and buttons. */
 class MainMapIconCache {
-    // Eight samples per local icon pixel preserve detail at enlarged marker/UI
-    // scales. This is independent of zoom and never allocates a map-sized target.
+    // Draw at 8x, then average down to 2x using two smooth half-size passes.
+    // Bilinear sampling alone cannot antialias an 8x texture at normal marker
+    // sizes. These cached passes restore soft edges without automatic mipmaps
+    // or a filter that redraws the whole map every frame.
     static inline var SIZE = 32;
     static inline var SAMPLES = 8;
     var tiles:Map<String, Dynamic> = [];
@@ -30,6 +32,7 @@ class MainMapIconCache {
         var cached = tiles[key];
         if (cached != null) return cached;
         var holder:Dynamic = null, texture:Dynamic = null;
+        var allocated:Array<Dynamic> = [];
         var geometryReleased = false;
         try {
             holder = G.create("h2d.Object", [null]);
@@ -38,11 +41,24 @@ class MainMapIconCache {
             G.call("h2d.Object", "setScale", graphics, [SAMPLES * 1.]);
             G.call("h2d.Object", "setPosition", graphics, [SIZE * SAMPLES / 2., SIZE * SAMPLES / 2.]);
             texture = G.create("h3d.mat.Texture", [SIZE * SAMPLES, SIZE * SAMPLES, flags, format]);
+            allocated.push(texture);
             // clear takes RGB and a separate alpha, which defaults to 1. Passing
             // only zero as the color leaves an opaque black square behind icons.
             G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
             G.call("h2d.Object", "drawTo", holder, [texture]);
             geometryReleased = true;
+            for (pixels in [SIZE * 4, SIZE * 2]) {
+                var source = G.staticCall("h2d.Tile", "fromTexture", [texture]);
+                G.call("h2d.Tile", "scaleToSize", source, [pixels * 1., pixels * 1.]);
+                holder = G.create("h2d.Bitmap", [source, null]);
+                geometryReleased = false;
+                style(holder);
+                texture = G.create("h3d.mat.Texture", [pixels, pixels, flags, format]);
+                allocated.push(texture);
+                G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
+                G.call("h2d.Object", "drawTo", holder, [texture]);
+                geometryReleased = true;
+            }
             cached = G.staticCall("h2d.Tile", "fromTexture", [texture]);
             G.call("h2d.Tile", "scaleToSize", cached, [SIZE * 1., SIZE * 1.]);
             G.call("h2d.Tile", "setCenterRatio", cached, [0.5, 0.5]);
@@ -51,9 +67,10 @@ class MainMapIconCache {
             // drawTo normally calls onRemove itself; a failed draw can leave
             // temporary geometry allocated even though this root has no parent.
             if (holder != null && !geometryReleased) try G.call("h2d.Object", "onRemove", holder) catch (_:Dynamic) {}
-            if (texture != null) try G.call("h3d.mat.Texture", "dispose", texture) catch (_:Dynamic) {}
+            for (target in allocated) try G.call("h3d.mat.Texture", "dispose", target) catch (_:Dynamic) {}
             throw error;
         }
+        for (target in allocated) if (target != texture) G.call("h3d.mat.Texture", "dispose", target);
         tiles[key] = cached;
         textures.push(texture);
         return cached;

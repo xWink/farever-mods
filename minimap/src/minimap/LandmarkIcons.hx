@@ -835,45 +835,71 @@ class LandmarkIcons {
     }
 
     static function obelisk(g:Dynamic, r:Float):Void {
-        fill(g, 0x282828);
-        obeliskShape(g, r + 1);
+        // The blue stone idol: a split crown, four gold sockets, a long inlaid
+        // column and a cyan travel ring. Shared by both map renderers.
+        fill(g, 0x173745);
+        ellipse(g, r, 0, 1.12, 0.88, 0.26);
         end(g);
-        fill(g, 0x999999);
+        fill(g, 0x279dbd);
+        ellipse(g, r, 0, 1.1, 0.79, 0.19);
+        end(g);
+        fill(g, 0x78e7fa);
+        ellipse(g, r, 0, 1.08, 0.65, 0.12);
+        end(g);
+
+        fill(g, 0x1e303a);
+        obeliskShape(g, r + 0.8);
+        end(g);
+        fill(g, 0x66899a);
         obeliskShape(g, r);
         end(g);
+        fill(g, 0x456477);
+        polygon(g, r, [0.12, -0.47, 0.4, -0.47, 0.4, 1.04, 0.12, 1.04]);
+        for (side in [-1, 1])
+            polygon(g, r, [0.18, -0.62, 1.02, -0.83, 0.91, -0.39, 0.44, -0.29, 0.18, -0.4], side);
+        end(g);
 
-        // The idol's gold spine and four round inlays below its split crown.
-        fill(g, 0xd8aa50);
-        polygon(g, r, [-0.16, -0.35, 0.16, -0.35, 0.16, 0.9, -0.16, 0.9]);
+        // Bright rims around dark holes remain readable at minimap size.
+        fill(g, 0xe4c77a);
         for (side in [-1, 1]) {
-            circle(g, side * 0.74 * r, -0.65 * r, 0.145 * r);
-            circle(g, side * 0.42 * r, -0.54 * r, 0.145 * r);
+            circle(g, side * 0.74 * r, -0.76 * r, 0.17 * r);
+            circle(g, side * 0.37 * r, -0.56 * r, 0.15 * r);
+        }
+        polygon(g, r, [-0.1, -0.35, 0.1, -0.35, 0.19, -0.13, 0.15, 1.01, -0.15, 1.01, -0.19, -0.13]);
+        end(g);
+        fill(g, 0x273b42);
+        for (side in [-1, 1]) {
+            circle(g, side * 0.74 * r, -0.76 * r, 0.105 * r);
+            circle(g, side * 0.37 * r, -0.56 * r, 0.085 * r);
         }
         end(g);
-        // Keep the split crown's center entirely gold, like the spine below.
-        fill(g, 0xe2b85f);
-        polygon(g, r, [-0.065, -0.94, 0.065, -0.94, 0.1, -0.24, -0.1, -0.24]);
+        fill(g, 0x9b793c);
+        for (y in [0.05, 0.35, 0.65])
+            polygon(g, r, [-0.15, y, 0, y + 0.11, 0.15, y, 0.15, y + 0.09, 0, y + 0.2, -0.15, y + 0.09]);
+        // Curved gold arms flank the column below the crown.
+        for (side in [-1, 1])
+            polygon(g, r, [0.23, -0.08, 0.47, 0.07, 0.66, -0.06, 0.61, 0.18, 0.44, 0.25, 0.23, 0.1], side);
         end(g);
-        // A broad stone foot gives the thicker column a substantial base.
-        fill(g, 0x636363);
-        polygon(g, r, [-0.62, 0.78, 0.62, 0.78, 0.62, 1, -0.62, 1]);
+        fill(g, 0xe4c77a);
+        for (side in [-1, 1])
+            polygon(g, r, [0.25, -0.08, 0.47, 0.07, 0.66, -0.06, 0.57, 0.1, 0.44, 0.15, 0.25, 0.04], side);
         end(g);
-
-        // Broader hands and shoulders remain legible at the default icon size.
-        fill(g, 0x555555);
-        polygon(g, r, [-0.72, -0.14, 0.72, -0.14, 0.61, 0.21, -0.61, 0.21]);
+        fill(g, 0x9db8c5);
+        polygon(g, r, [-0.38, 0.87, -0.25, 0.87, -0.25, 1.04, -0.38, 1.04]);
+        for (side in [-1, 1])
+            polygon(g, r, [0.2, -1.14, 0.29, -1.22, 0.92, -0.94, 0.94, -0.84, 0.3, -1.1], side);
         end(g);
-        fill(g, 0xbfbfbf);
-        polygon(g, r, [-0.68, -0.14, 0.68, -0.14, 0.61, 0.02, -0.61, 0.02]);
+        fill(g, 0xa7f3ff);
+        ellipse(g, r, 0, 1.11, 0.48, 0.06);
         end(g);
     }
 
     static function obeliskShape(g:Dynamic, r:Float):Void {
-        polygon(g, r, [-0.58, -0.35, 0.58, -0.35, 0.62, 1, -0.62, 1]);
-        // Separate convex pieces preserve the open split when triangulated.
+        polygon(g, r, [-0.4, -0.47, 0.4, -0.47, 0.4, 1.04, -0.4, 1.04]);
+        // Separate crown pieces preserve the open notch when triangulated.
         for (side in [-1, 1])
-            polygon(g, r, [-1, -0.83, -0.24, -1, -0.19, -0.8,
-                -0.25, -0.22, -0.84, -0.22, -1, -0.43], side);
+            polygon(g, r, [0.15, -1.13, 0.28, -1.26, 0.95, -0.97,
+                1.03, -0.8, 0.92, -0.39, 0.43, -0.28, 0.16, -0.4, 0.23, -0.72], side);
     }
 
     static function dungeon(g:Dynamic, r:Float):Void {
