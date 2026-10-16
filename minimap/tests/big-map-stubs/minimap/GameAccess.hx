@@ -27,10 +27,11 @@ class GameAccess {
     public static function current(type:String, name:String):Dynamic return globals[type + "." + name];
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
         if (type == "h2d.filter.Nothing" || type == "h2d.filter.Outline") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
-        var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
-        if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
+        var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" || type == "h2d.Bitmap" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
+        if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Bitmap", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
         var o:Dynamic = {nativeType: type, parent: parent, visible: true, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
         if (type == "h2d.Text") { o.font = args[0]; o.text = ""; }
+        if (type == "h2d.Bitmap") o.tile = args[0];
         created.push(o);
         return o;
     }
@@ -41,7 +42,7 @@ class GameAccess {
             var obj:Dynamic = {nativeType:component, parent:parent, visible:true, removed:false, x:0., y:0., scale:1.};
             var dom:Dynamic = {obj:obj, id:args[3].id}; obj.dom = dom;
             if (component == "button") obj.background = {shader:{}, color:{argb:0}, dom:{}, fill:0};
-            if (component == "text") obj.text = args[2][0];
+            if (component == "text") { obj.text = args[2][0]; obj.font = {size:14}; obj.styleClass = field(args[3], "class"); }
             created.push(obj); return dom;
         }
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
@@ -55,6 +56,7 @@ class GameAccess {
         }
         if (type == "HActivity" && name == "getPos") return args[0].position;
         if (type == "hxd.res.DefaultFont" && name == "get") return {size: 14};
+        if (type == "ui.BaseUI" && name == "getTile") return field(args[0], "tile");
         if (type == "st.event.Rift" && name == "getEvent") return null;
         if (type == "data.CodexData" && name == "isInCodex") return false;
         if (type == "HText") return field(args[0], "label") == null ? field(args[0], "id") : field(args[0], "label");
@@ -94,12 +96,14 @@ class GameAccess {
             default: throw "Filter " + name;
         };
         if (type == "h2d.Text") return switch name {
+            case "set_font": o.font = args[0]; null;
             case "set_text": o.text = args[0]; null;
             case "set_textColor": o.color = args[0]; null;
             case "get_textWidth": o.text.length * 7.;
             case "get_textHeight": 14.;
             default: throw "Text " + name;
         };
+        if (type == "h2d.Bitmap" && name == "set_tile") { o.tile = args[0]; return null; }
         if (type == "h2d.Interactive" && name == "isOver") return true;
         if (type == "h2d.Flow" && name == "getProperties") return {};
         if (type == "h2d.FlowProperties" && name == "set_isAbsolute") return null;

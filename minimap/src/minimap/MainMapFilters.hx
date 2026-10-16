@@ -15,8 +15,8 @@ class MainMapFilters {
             ["Activities", "Ascensions", "Dungeons", "Rifts", "Inactive rifts", "Completed activities"]),
         category("npcs", "NPCs", "npc", ["npc", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "soulWell"],
             ["NPCs", "Guild merchants", "Demon huntresses", "Spark recyclers", "Weapon upgrades", "Crafting stations", "Glory merchants", "Infusion crucibles", "Soul wells"]),
-        category("chests", "Chests", "chest", ["chest", "vaultChest", "recipeChest"], ["Chests", "Vault chests", "Recipe chests"]),
-        category("secretOrbs", "Secret orbs", "secretOrb", ["uncollected"], ["Uncollected secret orbs"])
+        category("chests", "Chests", "chest", [], []),
+        category("secretOrbs", "Secret orbs", "secretOrb", [], [])
     ];
     var source:MinimapSettings;
     var saved:Array<String>;
@@ -34,7 +34,7 @@ class MainMapFilters {
     public function bind(config:MinimapSettings):Void {
         if (source == config && saved == config.mainMapHiddenFilters) return;
         source = config;
-        if (config.mainMapHiddenFilters == null) config.mainMapHiddenFilters = ["activities:completed", "companions:collected"];
+        if (config.mainMapHiddenFilters == null) config.mainMapHiddenFilters = ["activities:completed", "companions:collected", "enemies:mastered"];
         saved = config.mainMapHiddenFilters;
         hidden = [];
         for (key in saved) if (key != null) hidden[key] = true;
@@ -66,7 +66,9 @@ class MainMapFilters {
         derived.showOre = enabled("ore"); derived.showPlants = enabled("plants");
         derived.showEnemies = enabled("enemies"); derived.showCompanions = enabled("companions");
         derived.showActivities = enabled("activities"); derived.showNpcs = enabled("npcs");
-        derived.showChests = enabled("chests"); derived.showSecretOrbs = enabled("secretOrbs") && enabled("secretOrbs", "uncollected");
+        // Retired chest/orb subfilter keys in older configs must not hide
+        // markers after their controls have been removed.
+        derived.showChests = enabled("chests"); derived.showSecretOrbs = enabled("secretOrbs");
         derived.hideCopper = !enabled("ore", "copper"); derived.hideIron = !enabled("ore", "iron");
         derived.hideTin = !enabled("ore", "tin"); derived.hideTungstene = !enabled("ore", "tungstene");
         derived.hideMadrigold = !enabled("plants", "madrigold"); derived.hideLavendula = !enabled("plants", "lavendula");
@@ -88,7 +90,6 @@ class MainMapFilters {
         case "companion": enabled("companions", point.sparkling == true ? "sparkling" : "regular");
         case "activity", "ascension", "dungeon": enabled("activities", point.kind);
         case "inactiveRift", "nextRift", "upcomingRift", "riftPortal": enabled("activities", "rifts");
-        case "chest", "vaultChest", "recipeChest": enabled("chests", point.kind);
         default: NpcMarkers.KINDS.indexOf(point.kind) < 0 || enabled("npcs", point.kind);
     };
 }

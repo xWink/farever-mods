@@ -138,7 +138,7 @@ class BigMapView {
         G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hideCaption(); });
         G.set(input, "onPush", (_:Dynamic) -> { if (filterBar != null) filterBar.closePopup(); });
-        bonusDungeon = new MainMapBonusDungeon(overlay);
+        bonusDungeon = new MainMapBonusDungeon(overlay, container);
         filterBar = new MainMapFilterBar(container, filters, markers.drawFilterIcon);
     }
 
@@ -233,8 +233,10 @@ class BigMapView {
         caption = G.create("h2d.Text", [font, overlay]);
         G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);
         G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
-        MapTextOutline.apply(caption, 2.0);
-        measurements = new HoverMeasurements(overlay, font, 1.5, 2.0);
+        // These objects are enlarged for the main map; a small local outline
+        // stays close to one display pixel instead of becoming a dark halo.
+        MapTextOutline.apply(caption, 0.75);
+        measurements = new HoverMeasurements(overlay, font, 1.5, 0.75);
     }
 
     function hideCaption():Void {
@@ -253,6 +255,7 @@ class BigMapView {
     public function dispose():Void {
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
         if (filterBar != null) try filterBar.dispose() catch (_:Dynamic) {}
+        if (bonusDungeon != null) try bonusDungeon.dispose() catch (_:Dynamic) {}
         for (object in [root, markerViewport, priorityRoot, priorityViewport, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
         if (window != null && G.field(window, "removed") != true) try {
             // Re-evaluate current native filters instead of restoring stale

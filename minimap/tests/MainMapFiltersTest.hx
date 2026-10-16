@@ -25,9 +25,15 @@ class MainMapFiltersTest {
         eq(derived.hideCopper, false, 'Independent resource default');
         eq(filters.enabled('activities', 'completed'), false, 'Completed activities default hidden');
         eq(filters.enabled('companions', 'collected'), false, 'Collected companions default hidden');
+        eq(derived.hideMasteredCodexEnemies, true, 'Codex mastery completed enemies default hidden');
+        var defaults = ['activities:completed', 'companions:collected', 'enemies:mastered'];
+        eq(config.mainMapHiddenFilters.join(','), defaults.join(','), 'Exactly the requested three default exclusions');
         var categoryFields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showNpcs', 'showChests', 'showSecretOrbs'];
         for (i in 0...MainMapFilters.CATEGORIES.length) {
             var category = MainMapFilters.CATEGORIES[i];
+            for (item in category.items)
+                eq(filters.enabled(category.key, item.key), defaults.indexOf(category.key + ':' + item.key) < 0,
+                    'Exact default for ' + category.key + ':' + item.key);
             eq(Reflect.field(filters.settings(), categoryFields[i]), true, category.label + ' default on');
             filters.setEnabled(category.key, null, false);
             eq(Reflect.field(filters.settings(), categoryFields[i]), false, category.label + ' category off');
@@ -56,7 +62,7 @@ class MainMapFiltersTest {
             {category:'activities', key:'dungeon', kinds:['dungeon']},
             {category:'activities', key:'rifts', kinds:['inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal']}
         ];
-        for (category in MainMapFilters.CATEGORIES) if (category.key == 'npcs' || category.key == 'chests')
+        for (category in MainMapFilters.CATEGORIES) if (category.key == 'npcs')
             for (item in category.items) subtypes.push({category:category.key, key:item.key, kinds:[item.key]});
         for (subtype in subtypes) {
             filters.setEnabled(subtype.category, subtype.key, false);
@@ -69,7 +75,13 @@ class MainMapFiltersTest {
         eq(filters.accepts({kind:'companion', sparkling:true, x:0, y:0, z:0}), false, 'Sparkling companion subfilter');
         eq(filters.accepts({kind:'companion', sparkling:false, x:0, y:0, z:0}), true, 'Normal companions remain visible');
         filters.setEnabled('secretOrbs', 'uncollected', false);
-        eq(filters.settings().showSecretOrbs, false, 'Orb checkbox reaches collector');
+        eq(filters.settings().showSecretOrbs, true, 'Retired orb preference cannot silently hide markers');
+        for (kind in ['chest', 'vaultChest', 'recipeChest']) {
+            filters.setEnabled('chests', kind, false);
+            eq(filters.accepts({kind:kind, x:0, y:0, z:0}), true, 'Retired chest preference cannot hide ' + kind);
+        }
+        for (category in MainMapFilters.CATEGORIES) if (category.key == 'chests' || category.key == 'secretOrbs')
+            eq(category.items.length, 0, category.label + ' has no subfilters');
         filters.setEnabled('ore', 'copper', false);
         filters.setEnabled('ore', null, false);
         var reloaded:MinimapSettings = haxe.Json.parse(haxe.Json.stringify(config));
@@ -78,6 +90,10 @@ class MainMapFiltersTest {
         reopened.setEnabled('ore', null, true);
         eq(reopened.settings().hideCopper, true, 'Subfilter survives category cycling and reload');
         eq(reloaded.showOre, false, 'Minimap state independently survives reload');
+        eq(reopened.settings().hideMasteredCodexEnemies, false, 'Explicit saved mastery preference is preserved on reload');
+        eq(reopened.settings().showSecretOrbs, true, 'Old orb exclusion stays retired after reload');
+        for (kind in ['chest', 'vaultChest', 'recipeChest'])
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old chest exclusion stays retired after reload: ' + kind);
         var oldSettings = reopened.settings();
         reloaded.markerScale = 150;
         eq(reopened.settings().markerScale, 150., 'Marker scale changes invalidate derived settings');

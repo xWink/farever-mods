@@ -154,8 +154,8 @@ class BigMapTest {
         eq(view.filterBar.buttons.length, 8, 'Eight main-map categories');
         eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
             window.scrollContainer.calculatedWidth / 2, 'Hover caption horizontally centered in map');
-        eq(view.caption.filter.size, 2., 'Caption has a thicker native outline');
-        eq(view.measurements.root.filter.size, 2., 'Measurement row has matching outline');
+        eq(view.caption.filter.size, 0.75, 'Caption has a small outline without a broad halo');
+        eq(view.measurements.root.filter.size, 0.75, 'Measurement row has matching small outline');
         eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
         for (key in ['hideCopper', 'hideVerticallyDistantMarkers']) c = change(c, key, true);
         for (key in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles', 'showActivities', 'showCompanions']) c = change(c, key, false);
@@ -167,6 +167,12 @@ class BigMapTest {
         eq(oreButton.minWidth, 48, 'Filter buttons are twenty percent larger');
         eq(oreButton.minHeight, 48, 'Filter buttons stay square');
         eq(view.filterBar.buttons[0].icon.scale, 1.35, 'Filter symbols are larger too');
+        for (button in view.filterBar.buttons) {
+            eq(button.icon.filter.resolutionScale, 2., 'Every filter symbol is supersampled');
+            eq(button.icon.filter.useScreenResolution, true, 'Button smoothing follows display resolution');
+            eq(button.icon.filter.smooth, true, 'Button symbols are smoothly downsampled');
+            eq(G.field(button.object, 'filter'), null, 'Small icon smoothing does not capture the full native button');
+        }
         eq(oreButton.background.fill, 0xFFE9D9BB, 'Native rounded background uses light parchment');
         oreButton.hasHover = true; oreButton.onOver();
         eq(oreButton.background.color.argb, 0xFFDED4C4, 'Hover darkens rather than flashing white');
@@ -239,8 +245,16 @@ class BigMapTest {
         view.filterBar.buttons[0].object.onRightClick();
         eq(view.filterBar.popup, null, 'Right-click same category closes popup');
         for (button in view.filterBar.buttons) {
-            button.object.onRightClick();
-            eq(view.filterBar.boxes.length, button.category.items.length, 'Every category builds its declared subfilters');
+            if (button.category.items.length > 0) {
+                button.object.onRightClick();
+                eq(view.filterBar.boxes.length, button.category.items.length, 'Category builds its declared subfilters');
+            } else {
+                view.filterBar.closePopup();
+                eq(G.field(button.object, 'onRightClick'), null, 'No right-click handler for ' + button.category.key);
+                eq(G.text(button.object.textTip).indexOf('Right-click'), -1, 'No obsolete submenu hint for ' + button.category.key);
+                view.filterBar.openPopup(button.category);
+                eq(view.filterBar.popup, null, 'Empty submenus cannot be opened');
+            }
         }
         view.filterBar.closePopup();
         eq(view.bonusDungeon.visible, false, 'Bonus card waits for character specialization');
@@ -252,9 +266,24 @@ class BigMapTest {
         eq(view.bonusDungeon.root.x, 12., 'Bonus card is at left edge');
         eq(view.bonusDungeon.root.y, G.number(window.scrollContainer.calculatedHeight) - 68, 'Bonus card is at bottom edge');
         eq(view.bonusDungeon.visible, true, 'Bonus is visible regardless of main-map activity filters');
+        eq(view.bonusDungeon.icon.visible, false, 'Missing icon data does not prevent the bonus name from showing');
+        var heroicTile:Dynamic = {width:96., height:96., source:'Dungeon_Heroic'};
+        var iconDefinitions:Map<String, Dynamic> = ['Dungeon_Heroic' => {gfx:{tile:heroicTile}}];
+        G.globals['Data.icon'] = {byId:iconDefinitions};
+        eq(view.bonusDungeon.fontSource.styleClass, 'bold-16', 'Bonus uses the native bold font style');
+        var boldFont:Dynamic = {size:16, name:'NativeBold'};
+        view.bonusDungeon.fontSource.font = boldFont;
+        view.update(window, c);
+        eq(view.bonusDungeon.nameText.font, boldFont, 'Delayed native styling updates the dungeon name font');
+        eq(view.bonusDungeon.title.font, boldFont, 'Heading also updates to native bold');
+        eq(view.bonusDungeon.nameText.scale, 18 / 16., 'Name retains requested display size after font change');
+        eq(view.bonusDungeon.nameText.smooth, true, 'Native text smoothly scales to fit');
         var reads = G.activityNameReads;
         view.bonusDungeon.nextSample = 0; view.update(window, c);
         eq(G.activityNameReads, reads, 'Unchanged bonus does not resolve dungeon name again');
+        eq(view.bonusDungeon.icon.tile, heroicTile, 'Bonus uses the exact native heroic icon asset');
+        eq(view.bonusDungeon.icon.visible, true, 'Delayed icon data becomes visible');
+        eq(view.bonusDungeon.icon.scale, 32 / 96., 'Full-resolution heroic asset is downsampled to card size');
         hero.specialization.bonusHeroicDungeon.activity = 'DungeonTwo';
         G.globals['activity:DungeonTwo'] = {id:'DungeonTwo', label:'The Honeyzabeth Dungeon'};
         view.bonusDungeon.nextSample = 0; view.update(window, c);
@@ -280,10 +309,12 @@ class BigMapTest {
         view.bonusDungeon.nextSample = 0; view.update(window, c);
         var oldRoot = view.root;
         var oldViewport = view.markerViewport;
+        var oldFontSource = view.bonusDungeon.fontSource;
         c = change(c, 'overrideBigMapMarkers', false); view.update(window, c);
         eq(view.root, null, 'Turning override off removes overlay');
         eq(oldRoot.removed, true, 'Old overlay detached');
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
+        eq(oldFontSource.removed, true, 'Hidden native font source is removed with the map overlay');
         eq(obelisk.alpha, 0.8, 'Original alpha restored');
         eq(nativeToggle.visible, true, 'Native filter toggles restored when override is disabled');
         eq(obelisk.visible, true, 'Native filters refreshed');

@@ -46,12 +46,21 @@ class MainMapFilterBar {
                 filters.setEnabled(category.key, null, !filters.enabled(category.key));
                 refresh();
             }]);
-            G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
-            G.call("ui.UIElement", "set_textTip", button, [category.label + "\nClick to show/hide. Right-click for filters."]);
+            var hasSubfilters = category.items.length > 0;
+            if (hasSubfilters) G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
+            G.call("ui.UIElement", "set_textTip", button, [category.label + "\nClick to show/hide."
+                + (hasSubfilters ? " Right-click for filters." : "")]);
             var icon = G.create("h2d.Graphics", [button]);
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
             G.call("h2d.Object", "setScale", icon, [1.35]);
             drawIcon(icon, category.icon);
+            // Supersample the small vector symbol, independent of map zoom.
+            // Smoothing a bitmap alone would not antialias its vector edges.
+            var antialias = G.create("h2d.filter.Nothing", []);
+            G.set(antialias, "smooth", true);
+            G.call("h2d.filter.Filter", "set_useScreenResolution", antialias, [true]);
+            G.call("h2d.filter.Filter", "set_resolutionScale", antialias, [2.0]);
+            G.call("h2d.Object", "set_filter", icon, [antialias]);
             var slash = G.create("h2d.Graphics", [button]);
             absolute(button, slash);
             // A light keyline keeps the dark slash legible over every icon.
@@ -118,6 +127,7 @@ class MainMapFilterBar {
     }
 
     function openPopup(category:MapFilterCategory):Void {
+        if (category.items.length == 0) return;
         if (popupCategory == category) { closePopup(); return; }
         closePopup();
         try buildPopup(category) catch (error:Dynamic) {
