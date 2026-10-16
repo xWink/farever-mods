@@ -7,6 +7,11 @@ import moresettings.EffectPolicy.RegionFilters;
 
 private typedef EffectOrigin = { var source:Dynamic; var beneficial:Bool; }
 private typedef SyncFrame = { var fx:Dynamic; var ctx:Dynamic; var visible:Bool; var flags:Int; }
+private enum abstract DiscoveryKind(Int) {
+    var Unit; var Skill; var Step; var Fx; var LinkFx; var Entity; var Projectile;
+    var ModelUnit; var Mesh; var ExpiredFx; var EndedSound;
+}
+private typedef DiscoveryWork = {var kind:DiscoveryKind; var items:Iterator<Dynamic>; var origin:EffectOrigin;}
 
 /** Only presentation objects are filtered; skills, hits and RPCs still run. */
 class AllyEffects {
@@ -18,13 +23,21 @@ class AllyEffects {
     static var origins:ObjectMap<Dynamic, EffectOrigin> = new ObjectMap();
     static var soundOrigins:ObjectMap<Dynamic, EffectOrigin> = new ObjectMap();
     static var friends:ObjectMap<Dynamic, Bool> = new ObjectMap();
-    static var rendererOrigins:ObjectMap<Dynamic, {fx:Dynamic, origin:EffectOrigin}> = new ObjectMap();
+    static var rendererOrigins:ObjectMap<Dynamic, Dynamic> = new ObjectMap();
+    static var renderersByFx:ObjectMap<Dynamic, Array<Dynamic>> = new ObjectMap();
     static var visibilityRestore:ObjectMap<Dynamic, Int> = new ObjectMap();
     static var rendererRestore:ObjectMap<Dynamic, Bool> = new ObjectMap();
     static var hiddenMeshes:ObjectMap<Dynamic, Bool> = new ObjectMap();
     static var scopes = new sys.thread.Tls<Array<EffectOrigin>>();
     static var syncFrames = new sys.thread.Tls<Array<SyncFrame>>();
     static var nextRefresh:Float = 0;
+    static var nextAdoption:Float = 0;
+    static var discovery:Array<DiscoveryWork>;
+    static var modelDiscovery:Array<DiscoveryWork>;
+    static var discoveryMeshes:ObjectMap<Dynamic, Bool>;
+    static var discoveredSkills:ObjectMap<Dynamic, Bool>;
+    static inline var DISCOVERY_BUDGET = 96;
+    static inline var ADOPTION_INTERVAL = 1.0;
     static var reported:Bool = false;
     public static var active(default, null):Bool = false;
 
@@ -33,7 +46,7 @@ class AllyEffects {
         filters = EffectPolicy.filters(config, region);
         active = EffectPolicy.effectsActive(filters);
         if (!filters.models) hiddenMeshes = new ObjectMap();
-        nextRefresh = 0;
+        restartDiscovery();
     }
 
     public static function update(app:Dynamic):Void {
@@ -52,37 +65,128 @@ class AllyEffects {
                 region = nextRegion;
                 filters = EffectPolicy.filters(config, region);
                 active = EffectPolicy.effectsActive(filters);
-                hiddenMeshes = new ObjectMap(); nextRefresh = 0;
+                hiddenMeshes = new ObjectMap(); restartDiscovery();
             }
             // Recover an abandoned presentation scope if the game threw while
             // creating an effect. Scope storage is per-thread for visual jobs.
             if (scopes.value != null && scopes.value.length > 0) scopes.value = [];
             var now = haxe.Timer.stamp();
-            if (hero == null || (!active && !filters.models) || now < nextRefresh) return;
-            nextRefresh = now + 0.2;
-            hiddenMeshes = new ObjectMap();
-            for (unit in G.array(G.field(layer, "units"))) {
-                if (filters.models && isA(unit, "ent.Hero") && ally(unit)) collectMeshes(G.field(unit, "unitView"));
-                if (!active) continue;
-                // This also adopts already-running buffs when a filter is
-                // enabled, and keeps effects on recipients attributed correctly.
-                if (own(playerSource(unit)) || ally(unit))
-                    for (skill in G.array(G.field(unit, "skills"))) adoptSkill(skill);
-                for (status in G.array(G.field(unit, "statuses"), true)) adoptSkill(status);
-                bindEntity(unit, G.field(unit, "crtAnimFx"));
+            if (hero == null || (!active && !filters.models)) return;
+            if (active && discovery == null && now >= nextAdoption) beginDiscovery(now);
+            if (filters.models && modelDiscovery == null && now >= nextRefresh) {
+                nextRefresh = now + 0.2;
+                modelDiscovery = [];
+                discoveryMeshes = new ObjectMap();
+                enqueue(ModelUnit, G.iterate(G.field(layer, "units")));
             }
-            if (active) {
-                for (area in G.array(G.field(layer, "areas"))) adoptEntity(area);
-                for (entity in G.array(G.field(layer, "entities")))
-                    if (isA(entity, "ent.Projectile")) adoptEntity(entity);
-                var expired:Array<Dynamic> = [];
-                for (fx in origins.keys()) if (G.field(fx, "removed") == true) expired.push(fx);
-                for (fx in expired) forget(fx);
-                var ended:Array<Dynamic> = [];
-                for (sound in soundOrigins.keys()) if (G.field(sound, "added") != true) ended.push(sound);
-                for (sound in ended) soundOrigins.remove(sound);
-            }
+            var deadline = haxe.Timer.stamp() + 0.001;
+            var both = discovery != null && modelDiscovery != null;
+            var budget = both ? DISCOVERY_BUDGET >> 1 : DISCOVERY_BUDGET;
+            // Model refreshes retain their own cadence even during a long FX sweep.
+            if (modelDiscovery != null) advanceDiscovery(true, budget, both ? deadline - 0.0005 : deadline);
+            if (discovery != null) advanceDiscovery(false, budget, deadline);
         } catch (e:Dynamic) fail(e);
+    }
+
+    static function restartDiscovery():Void {
+        discovery = null; modelDiscovery = null; discoveryMeshes = null; discoveredSkills = null;
+        nextRefresh = 0; nextAdoption = 0;
+    }
+
+    static function enqueue(kind:DiscoveryKind, items:Iterator<Dynamic>, ?value:EffectOrigin):Void {
+        var pending = kind == ModelUnit || kind == Mesh ? modelDiscovery : discovery;
+        pending.push({kind:kind, items:items, origin:value});
+    }
+
+    static function beginDiscovery(now:Float):Void {
+        discovery = [];
+        discoveredSkills = new ObjectMap();
+        nextAdoption = now + ADOPTION_INTERVAL;
+        enqueue(EndedSound, soundOrigins.keys());
+        enqueue(ExpiredFx, origins.keys());
+        enqueue(Projectile, G.iterate(G.field(layer, "entities")));
+        enqueue(Entity, G.iterate(G.field(layer, "areas")));
+        enqueue(Unit, G.iterate(G.field(layer, "units")));
+    }
+
+    static function advanceDiscovery(models:Bool, budget:Int, deadline:Float):Void {
+        // Creation/bind/detach hooks handle new effects immediately. This slower
+        // reconciliation finds already-running effects, including buffs applied
+        // to someone other than their caster. Lazy readers avoid scene snapshots.
+        // Bound both entries and elapsed work; large arrays/mesh trees resume on
+        // the next frame instead of being walked in one periodic burst.
+        var pending = models ? modelDiscovery : discovery;
+        for (_ in 0...budget) {
+            if (pending.length == 0) {
+                if (models) {
+                    hiddenMeshes = discoveryMeshes;
+                    modelDiscovery = null; discoveryMeshes = null;
+                } else {
+                    discovery = null; discoveredSkills = null;
+                }
+                return;
+            }
+            var work = pending[pending.length - 1];
+            if (work.items.hasNext()) discover(work.kind, work.items.next(), work.origin);
+            else pending.pop();
+            if (haxe.Timer.stamp() >= deadline) return;
+        }
+    }
+
+    static function discover(kind:DiscoveryKind, item:Dynamic, value:EffectOrigin):Void {
+        if (item == null) return;
+        switch kind {
+            case Unit:
+                if (G.field(item, "removed") == true) return;
+                if (own(playerSource(item)) || ally(item)) enqueue(Skill, G.iterate(G.field(item, "skills")));
+                enqueue(Skill, G.iterate(G.field(item, "statuses"), true));
+                var animFx = G.field(item, "crtAnimFx");
+                if (animFx != null && !origins.exists(animFx)) bindEntity(item, animFx);
+            case Skill:
+                if (G.field(item, "removed") == true || discoveredSkills.exists(item)) return;
+                discoveredSkills.set(item, true);
+                var source = origin(item);
+                if (source != null) enqueue(Step, G.iterate(G.field(item, "steps")), source);
+            case Step:
+                enqueue(Fx, G.iterate(G.field(item, "fxs")), value);
+                enqueue(Fx, G.iterate(G.field(item, "otherFxs")), value);
+                enqueue(LinkFx, G.iterate(G.field(item, "linkFxs")), value);
+            case Fx: adoptFx(item, value);
+            case LinkFx: adoptFx(G.field(item, "fx"), value);
+            case Projectile:
+                if (isA(item, "ent.Projectile")) discover(Entity, item, null);
+            case Entity:
+                if (G.field(item, "removed") == true) return;
+                var source = origin(entitySkill(item));
+                if (source == null) return;
+                adoptFx(G.field(item, "telegraphFx"), source);
+                adoptFx(G.field(item, "projFX"), source);
+                adoptFx(G.field(item, "groundFX"), source);
+                enqueue(Fx, G.iterate(G.field(item, "fxs")), source);
+            case ModelUnit:
+                if (G.field(item, "removed") != true && isA(item, "ent.Hero") && ally(item))
+                    discover(Mesh, G.field(item, "unitView"), null);
+            case Mesh:
+                // Ability meshes attached to a model have their own filters.
+                if (isA(item, "hrt.prefab.fx.FXAnimation")) return;
+                if (isA(item, "h3d.scene.Mesh")) {
+                    discoveryMeshes.set(item, true);
+                    // Hide newly discovered meshes immediately; retain the old
+                    // set until the sweep completes so existing models don't flash.
+                    hiddenMeshes.set(item, true);
+                }
+                enqueue(Mesh, G.iterate(G.field(item, "children")));
+            case ExpiredFx:
+                if (G.field(item, "removed") == true) forget(item);
+            case EndedSound:
+                if (G.field(item, "added") != true) soundOrigins.remove(item);
+        }
+    }
+
+    static function adoptFx(fx:Dynamic, value:EffectOrigin):Void {
+        // A sweep may span a pool reset/rebind. Its earlier skill attribution
+        // must never overwrite the newer caster captured by a lifecycle hook.
+        if (fx != null && !origins.exists(fx)) remember(fx, value);
     }
 
     static function findRegion(layer:Dynamic):String {
@@ -193,33 +297,25 @@ class AllyEffects {
     }
 
     static function remember(fx:Dynamic, value:EffectOrigin):Void {
-        if (fx == null || value == null) return;
-        var first = !origins.exists(fx);
+        if (fx == null || value == null || G.field(fx, "removed") == true) return;
+        var previous = origins.get(fx);
+        // Existing effects do not need their entire sub-FX tree rediscovered.
+        // New descendants inherit through sync/detach hooks; pool reuse forgets
+        // the old attribution before binding the new caster.
+        if (previous != null && previous.source == value.source && previous.beneficial == value.beneficial) return;
         origins.set(fx, value);
-        if (first) for (effect in G.array(G.field(fx, "effects"))) {
-            var instance = G.field(effect, "instance");
-            if (instance != null) rendererOrigins.set(instance, {fx: fx, origin: value});
+        if (previous == null) {
+            var instances:Array<Dynamic> = [];
+            for (effect in G.iterate(G.field(fx, "effects"))) {
+                var instance = G.field(effect, "instance");
+                if (instance == null || rendererOrigins.get(instance) == fx) continue;
+                rendererOrigins.set(instance, fx);
+                instances.push(instance);
+            }
+            if (instances.length > 0) renderersByFx.set(fx, instances);
         }
         // Detached sub-effects retain the same original caster.
-        for (child in G.array(G.field(fx, "subFXs"))) remember(child, value);
-    }
-
-    static function adoptSkill(skill:Dynamic):Void {
-        if (skill == null) return;
-        var value = origin(skill);
-        if (value == null) return;
-        for (step in G.array(G.field(skill, "steps"))) {
-            for (fx in G.array(G.field(step, "fxs"))) remember(fx, value);
-            for (fx in G.array(G.field(step, "otherFxs"))) remember(fx, value);
-            for (link in G.array(G.field(step, "linkFxs"))) remember(G.field(link, "fx"), value);
-        }
-    }
-
-    static function adoptEntity(entity:Dynamic):Void {
-        var value = origin(entitySkill(entity));
-        if (value == null) return;
-        for (name in ["telegraphFx", "projFX", "groundFX"]) remember(G.field(entity, name), value);
-        for (fx in G.array(G.field(entity, "fxs"))) remember(fx, value);
+        for (child in G.iterate(G.field(fx, "subFXs"))) remember(child, value);
     }
 
     static function hidden(value:EffectOrigin):Bool {
@@ -327,8 +423,8 @@ class AllyEffects {
 
     public static function beforeRenderer():Void {
         if (!active) return;
-        try for (instance => record in rendererOrigins) {
-            if (!hidden(record.origin) || G.field(record.fx, "removed") == true) continue;
+        try for (instance => fx in rendererOrigins) {
+            if (!hidden(origins.get(fx)) || G.field(fx, "removed") == true) continue;
             if (!rendererRestore.exists(instance)) rendererRestore.set(instance, G.field(instance, "enabled") == true);
             G.set(instance, "enabled", false);
         } catch (e:Dynamic) fail(e);
@@ -337,18 +433,6 @@ class AllyEffects {
     static function restoreRenderer():Void {
         for (instance => enabled in rendererRestore) try G.set(instance, "enabled", enabled) catch (e:Dynamic) fail(e);
         rendererRestore = new ObjectMap();
-    }
-
-    static function collectMeshes(root:Dynamic):Void {
-        if (root == null) return;
-        var pending = [root];
-        while (pending.length > 0) {
-            var node = pending.pop();
-            // Model hiding must not hide any abilities attached to that model.
-            if (isA(node, "hrt.prefab.fx.FXAnimation")) continue;
-            if (isA(node, "h3d.scene.Mesh")) hiddenMeshes.set(node, true);
-            for (child in G.array(G.field(node, "children"))) pending.push(child);
-        }
     }
 
     public static function hideMesh(mesh:Dynamic):Bool
@@ -363,9 +447,12 @@ class AllyEffects {
                 G.set(fx, "flags", (G.integer(G.field(fx, "flags")) & ~2) | visibilityRestore.get(fx));
             visibilityRestore.remove(fx);
         }
-        var expired:Array<Dynamic> = [];
-        for (instance => record in rendererOrigins) if (record.fx == fx) expired.push(instance);
-        for (instance in expired) {
+        var instances = renderersByFx.get(fx);
+        renderersByFx.remove(fx);
+        if (instances == null) return;
+        for (instance in instances) {
+            // A renderer instance can have been reassigned to another pooled FX.
+            if (rendererOrigins.get(instance) != fx) continue;
             if (rendererRestore.exists(instance)) G.set(instance, "enabled", rendererRestore.get(instance));
             rendererRestore.remove(instance); rendererOrigins.remove(instance);
         }
@@ -375,11 +462,12 @@ class AllyEffects {
         if (syncFrames.value != null) while (syncFrames.value.length > 0) restoreFrame(syncFrames.value.pop());
         afterRender();
         soundOrigins = new ObjectMap(); friends = new ObjectMap(); rendererOrigins = new ObjectMap();
+        renderersByFx = new ObjectMap();
         origins = new ObjectMap(); hiddenMeshes = new ObjectMap();
         scopes.value = []; syncFrames.value = [];
         hero = null; layer = null; region = ""; active = false;
         filters = {attacks: false, buffs: false, models: false, ownAttacks: false, ownBuffs: false};
-        NativeSkillFacts.clear(); nextRefresh = 0;
+        NativeSkillFacts.clear(); restartDiscovery();
     }
 
     static function fail(error:Dynamic):Void {

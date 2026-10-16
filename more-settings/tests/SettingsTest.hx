@@ -206,12 +206,21 @@ class SettingsTest {
     static function facts(damage:Bool, benefit:Bool, debuff:Bool, refs:Array<String>):SkillFacts
         return {damage: damage, beneficial: benefit, offensiveStatus: debuff, references: refs};
 
+    static function settlePresentation(app:Dynamic):Void {
+        AllyEffects.update(app);
+        var frames = 0;
+        while ((@:privateAccess AllyEffects.discovery != null) || (@:privateAccess AllyEffects.modelDiscovery != null)) {
+            if (++frames > 1000) throw "presentation discovery did not finish";
+            AllyEffects.update(app);
+        }
+    }
+
     static function presentation():Void {
         var c = SettingsData.defaults(); c.riftHideAllyAttacks = true; c.riftHideAllies = true;
         var layer:Dynamic = {isRift: true, config: {mapId: "World/Test"}, units: [], areas: [], entities: []};
         var self = player(layer, true); var friend = player(layer, false); var enemy = player(layer, false); enemy.enemy = true;
         layer.units = [self, friend, enemy];
-        AllyEffects.dispose(); AllyEffects.configure(c); AllyEffects.update({hero: self});
+        AllyEffects.dispose(); AllyEffects.configure(c); settlePresentation({hero: self});
         var damage:Dynamic = {props: {}, steps: [{effects: [{effect: 0}]}]};
         var heal:Dynamic = {props: {}, steps: [{effects: [{effect: 1}]}]};
         var allyAttack:Dynamic = {owner: friend, inf: damage};
@@ -303,7 +312,7 @@ class SettingsTest {
         self.skills = [{owner:self, inf:damage, steps:[{fxs:[runningFx]}]}];
         summon.skills = [{owner:summon, inf:damage, steps:[{fxs:[summonFx]}]}];
         layer.units = [self, friend, enemy, summon];
-        AllyEffects.dispose(); AllyEffects.configure(c); AllyEffects.update({hero:self});
+        AllyEffects.dispose(); AllyEffects.configure(c); settlePresentation({hero:self});
         eq(AllyEffects.active, true, "own-only settings activate creation and render hooks");
         checkExistingFx(runningFx, true, "enabling adopts an already-running own skill");
         checkExistingFx(summonFx, true, "enabling adopts an already-running own summon skill");

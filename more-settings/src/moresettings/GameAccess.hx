@@ -14,7 +14,9 @@ class GameAccess {
     }
     public static function number(value:Dynamic, fallback:Float = 0):Float {
         if (value == null) return fallback;
-        var n = Std.parseFloat(Std.string(value));
+        // Native Int/Float values need no formatting, allocation or parsing.
+        // Keep the fallback for strings from either HL module and other inputs.
+        var n:Float = Std.isOfType(value, Float) ? cast value : Std.parseFloat(Std.string(value));
         return Math.isFinite(n) ? n : fallback;
     }
     public static function integer(value:Dynamic, fallback:Int = 0):Int {
@@ -93,6 +95,14 @@ class GameAccess {
         var type = hl.Type.getDynamic(value).getTypeName();
         for (i in 0...count) out.push(call(type, "getDyn", value, [i]));
         return out;
+    }
+    /** Lazy traversal for discovery work spread across frames; never copy a game array. */
+    public static function iterate(value:Dynamic, proxy:Bool = false):Iterator<Dynamic> {
+        if (proxy) value = field(value, "array");
+        var count = integer(field(value, "length"));
+        if (count <= 0) return GameArrayIterator.empty;
+        var read = bind(hl.Type.getDynamic(value).getTypeName(), "getDyn");
+        return new GameArrayIterator(value, count, read);
     }
     public static function set(object:Dynamic, name:String, value:Dynamic):Void {
         if (object != null) HlxRuntime.setField(object, name, value);

@@ -15,6 +15,7 @@ class GameAccess {
     public static var releasedInput:String;
     public static var failRelease:Bool = false;
     public static var releaseReads:Int = 0;
+    public static var discoveryReads:Int = 0;
     public static function setCurrent(type:String, name:String, value:Dynamic):Void
         set(data, name, value);
     public static function bind(type:String, name:String):Array<Dynamic>->Dynamic {
@@ -55,6 +56,16 @@ class GameAccess {
         if (proxy) v = field(v, "array");
         if (field(v, "items") != null) return (cast v.items:Array<Dynamic>).copy();
         return v == null ? [] : cast v;
+    }
+    public static function iterate(v:Dynamic, proxy:Bool = false):Iterator<Dynamic> {
+        if (proxy) v = field(v, "array");
+        if (v == null) return GameArrayIterator.empty;
+        var items:Array<Dynamic> = field(v, "items") != null ? v.items : cast v;
+        if (items.length == 0) return GameArrayIterator.empty;
+        return new GameArrayIterator(v, items.length, args -> {
+            discoveryReads++;
+            return items[args[1]];
+        });
     }
     public static function isA(o:Dynamic, name:String):Bool {
         if (o == null) return false;

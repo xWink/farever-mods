@@ -9,6 +9,13 @@
 -cp ../shared/src
 -cp tests/stubs
 -cp tests
+-main EffectDiscoveryTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/stubs
+-cp tests
 -main PerformanceTest
 --interp
 --next

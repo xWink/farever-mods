@@ -68,6 +68,13 @@ jobs:
           cc -std=c11 -fPIC -shared -I ../.combat-hashlink/src tests/native/pipeline_pointer_test.c -L ../.combat-hashlink -lhl -o build/pipeline-return-test/pipeline_pointer_test.hdll
           haxe -cp ../.pipeline-hlx/hlx-runtime/src test-pipeline-return.hxml
           ../.combat-hashlink/hl build/pipeline-return-test/test.hl
+      - name: Test numeric reads without string allocations on HashLink
+        working-directory: more-settings
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink
+        run: |
+          haxe -cp src -cp ../.pipeline-hlx/hlx-runtime/src -cp tests -main GameAccessNumberTest -dce full -hl build/game-access-number-test.hl
+          ../.combat-hashlink/hl build/game-access-number-test.hl
       - name: Test damage-number styling on HashLink
         working-directory: more-settings
         env:
@@ -108,6 +115,8 @@ jobs:
         run: |
           haxe -cp src -cp ../shared/src -cp tests/stubs -cp tests -main SettingsTest -hl build/settings-test.hl
           ../.combat-hashlink/hl build/settings-test.hl
+          haxe -cp src -cp ../shared/src -cp tests/stubs -cp tests -main EffectDiscoveryTest -hl build/effect-discovery-test.hl
+          ../.combat-hashlink/hl build/effect-discovery-test.hl
       - name: Test incremental loading and pipeline lifecycle on HashLink
         working-directory: more-settings
         env:
