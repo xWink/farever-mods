@@ -1,7 +1,7 @@
 package minimap;
 
 import minimap.GameAccess as G;
-import minimap.MinimapMod.MinimapSettings;
+import minimap.MinimapSettings;
 
 private typedef MapTile = {
     var x:Int;

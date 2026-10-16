@@ -82,3 +82,9 @@
 -cp tests
 -main PlayerMarkersTest
 --interp
+--next
+-cp src
+-cp tests
+-cp tests/big-map-stubs
+-main BigMapTest
+--interp

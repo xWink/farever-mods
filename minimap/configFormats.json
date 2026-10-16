@@ -4,6 +4,8 @@
   "configs": [
     { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
+    { "key": "overrideBigMapMarkers", "type": "checkbox", "label": "Override big map markers" },
+    { "type": "title", "label": "Minimap" },
     { "key": "circular", "type": "checkbox", "label": "Circular minimap" },
     { "key": "leftCorner", "type": "checkbox", "label": "Show in left corner" },
     { "key": "showNorthIndicator", "type": "checkbox", "label": "Show north indicator" },

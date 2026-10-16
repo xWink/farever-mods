@@ -4,7 +4,33 @@ import hlx.runtime.ResolvedMember;
 
 /** All game objects stay in their original HL module; never cast game arrays to Array<Dynamic>. */
 class GameAccess {
+    static var classes:Map<String, String> = [];
     static var members:Map<String, ResolvedMember> = [];
+    public static function family(object:Dynamic):String {
+        var type = hl.Type.getDynamic(object);
+        var name = type.getTypeName();
+        if (classes.exists(name)) return classes[name];
+        var kind = "";
+        // HashLink returns HVoid (not null) after the root class. Only walk
+        // object types, or unrelated entities loop forever on the void sentinel.
+        while (type != null && type.kind == HObj) {
+            kind = switch type.getTypeName() {
+                case "ent.Hero": "player";
+                case "ent.Foe": "enemy";
+                case "ent.interactible.Gatherable": "gatherable";
+                case "ent.interactible.Chest": "chest";
+                case "ent.interactible.Npc", "ent.interactible.CraftStation",
+                    "ent.interactible.GearUpgradeStation", "ent.interactible.ScrapStation",
+                    "ent.interactible.InfusionStation", "ent.interactible.SoulwellStation": "npc";
+                default: "";
+            };
+            if (kind != "") break;
+            type = type.getSuper();
+        }
+        classes[name] = kind;
+        return kind;
+    }
+
     public static function field(object:Dynamic, name:String):Dynamic {
         if (object == null) return null;
         try return HlxRuntime.resolveField(object, name) catch (_:Dynamic) return null;

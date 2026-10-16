@@ -42,9 +42,25 @@ jobs:
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
-      - name: Test marker classification, visibility, and minimap positioning
+      - name: Test markers, shared big-map filters, lifecycle, and positioning
         working-directory: minimap
         run: haxe test.hxml
+      - uses: actions/checkout@v4
+        with:
+          repository: HaxeFoundation/hashlink
+          ref: 04a207d73816132b9f742867e8643f58b02a5afa
+          path: .minimap-hashlink
+          persist-credentials: false
+      - name: Build the HashLink test runtime
+        run: make -C .minimap-hashlink -j2 hl
+      - name: Test big-map integration on HashLink
+        working-directory: minimap
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.minimap-hashlink
+        run: |
+          mkdir -p build
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main BigMapTest -hl build/big-map-test.hl
+          ../.minimap-hashlink/hl build/big-map-test.hl
 
   build:
     needs: test

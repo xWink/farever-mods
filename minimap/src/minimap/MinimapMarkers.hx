@@ -1,27 +1,9 @@
 package minimap;
 
 import minimap.GameAccess as G;
-import minimap.MinimapMod.MinimapSettings;
+import minimap.MinimapSettings;
 import minimap.MarkerDetails.MarkerHover;
 import minimap.RiftMarkers.RiftPoint;
-
-private typedef MapPoint = {
-    var x:Float;
-    var y:Float;
-    var z:Float;
-    var kind:String;
-    var ?elevation:Int;
-    var ?heading:Float;
-    var ?sparkling:Bool;
-    var ?partyMember:Bool;
-    var ?friend:Bool;
-    var ?respawnUnlocked:Bool;
-    var ?eventElement:String;
-    var ?entity:Dynamic;
-    var ?inf:Dynamic;
-    var ?name:String;
-    var ?hasMarker:Bool;
-}
 
 private typedef ElevationMarker = {
     var root:Dynamic;
@@ -36,6 +18,10 @@ private typedef IconMarker = {
 
 /** Read-only map markers. Live entities are sampled five times a second. */
 class MinimapMarkers {
+    public var healthy(default, null):Bool = false;
+    public var revision(default, null):Int = 0;
+    public var points(get, never):Array<MapPoint>;
+    function get_points():Array<MapPoint> return hitPoints;
     var graphics:Dynamic;
     var playerIcons:Dynamic;
     var playerElevations:Dynamic;
@@ -66,7 +52,6 @@ class MinimapMarkers {
     var nextRefresh:Float = 0;
     var previousScale:Float = 0;
     var previousRadius:Float = 0;
-    var classes:Map<String, String> = [];
     var gatherKinds:Map<String, String> = [];
     var gatherFilters:Map<String, String> = [];
     var enemies = new EnemyMarkers();
@@ -116,9 +101,13 @@ class MinimapMarkers {
         var now = haxe.Timer.stamp();
         var nextLayer = G.field(hero, "layer");
         var nextMarkerScale = config.markerScale / 100;
-        var changed = previousConfig != config || previousScale != scale || previousRadius != radius
+        var changed = previousConfig != config || previousRadius != radius
             || lastHero != hero || layer != nextLayer || markerScale != nextMarkerScale;
-        if (!changed && now < nextRefresh) return;
+        if (!changed && now < nextRefresh) {
+            // Smooth big-map zoom changes transforms, not the 5 Hz world scan.
+            if (previousScale != scale) rescale(scale);
+            return;
+        }
         previousConfig = config; previousScale = scale; previousRadius = radius;
         markerScale = nextMarkerScale;
         lastHero = hero; layer = nextLayer;
@@ -128,7 +117,10 @@ class MinimapMarkers {
             refreshLandmarks();
             var points = collect(hero, config, x, y, radius + 12 * markerScale / scale);
             draw(points, scale);
+            healthy = true;
+            revision++;
         } catch (error:Dynamic) {
+            healthy = false;
             hitPoints = [];
             alertTargets = [];
             // An optional marker source must not take down the working map.
@@ -144,6 +136,14 @@ class MinimapMarkers {
                 trace("[Minimap] Markers: " + Std.string(error));
             }
         }
+    }
+
+    function rescale(scale:Float):Void {
+        previousScale = scale;
+        for (pool in [playerIconMarkers, mapIconMarkers, npcIconMarkers])
+            for (marker in pool) G.call("h2d.Object", "setScale", marker.icon, [markerScale / scale]);
+        for (pool in [playerElevationMarkers, mapElevationMarkers, npcElevationMarkers])
+            for (marker in pool) G.call("h2d.Object", "setScale", marker.root, [markerScale / scale]);
     }
 
     public function updateAlerts(config:MinimapSettings, x:Float, y:Float, size:Int, scale:Float, rotation:Float, rifts:RiftMarkers):Void {
@@ -595,30 +595,7 @@ class MinimapMarkers {
         default: false;
     };
 
-    function family(object:Dynamic):String {
-        var type = hl.Type.getDynamic(object);
-        var name = type.getTypeName();
-        if (classes.exists(name)) return classes[name];
-        var kind = "";
-        // HashLink returns HVoid (not null) after the root class. Only walk
-        // object types, or unrelated entities loop forever on the void sentinel.
-        while (type != null && type.kind == HObj) {
-            kind = switch type.getTypeName() {
-                case "ent.Hero": "player";
-                case "ent.Foe": "enemy";
-                case "ent.interactible.Gatherable": "gatherable";
-                case "ent.interactible.Chest": "chest";
-                case "ent.interactible.Npc", "ent.interactible.CraftStation",
-                    "ent.interactible.GearUpgradeStation", "ent.interactible.ScrapStation",
-                    "ent.interactible.InfusionStation", "ent.interactible.SoulwellStation": "npc";
-                default: "";
-            };
-            if (kind != "") break;
-            type = type.getSuper();
-        }
-        classes[name] = kind;
-        return kind;
-    }
+    static inline function family(object:Dynamic):String return G.family(object);
 
     static function near(px:Float, py:Float, x:Float, y:Float, radius:Float):Bool
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
@@ -953,7 +930,7 @@ class MinimapMarkers {
     function polygon(point:MapPoint, radius:Float, vertices:Array<Float>, angle:Float = 0):Void {
         var c = Math.cos(angle) * radius, s = Math.sin(angle) * radius;
         for (i in 0...Std.int(vertices.length / 2) + 1) {
-            var j = i * 2 % vertices.length;
+            var j = (i * 2) % vertices.length;
             var x = point.x + vertices[j] * c - vertices[j + 1] * s;
             var y = point.y + vertices[j] * s + vertices[j + 1] * c;
             G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", graphics, [x, y]);

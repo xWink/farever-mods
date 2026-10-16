@@ -2,7 +2,7 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-minimap.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=minimap%2F&expanded=true)
 
-A compact overworld minimap with a centered player arrow.
+A compact overworld minimap with a centered player arrow, plus matching markers on the main map.
 
 Targets the September 30 Live client. Requires HLX Core 0.0.8 or newer.
 
@@ -26,6 +26,7 @@ Install the **complete archive**, including the `implementation/` subfolder. Mis
 ## Highlights
 
 - A square or circular minimap using Farever's own map artwork.
+- Enabled-by-default main-map marker override with the same icons, marker scale, filters, and hover measurements.
 - Follows your position an arrow showing your character's facing direction.
 - Fixed orientation, character-following rotation, or camera-following rotation.
 - An outlined N and compass needle track north along the minimap edge.
@@ -107,9 +108,9 @@ Hover details are always enabled. The marker name stays on the first line, with 
 
 Secret orb tooltips always read **Secret Orb**. Sparkling companion alerts disappear whenever any part of the companion marker is visible, and reappear when it leaves the map. This follows zoom and rotation for both map shapes. Alerts still work when normal companion markers are disabled. Their alert arrows are solid yellow triangles, distinct from player arrows. Both sparkling companion markers and their alert arrows have yellow rings with transparent centres, letting the map show through around the pawprint or triangle. Their alert rings have no height arrows; ordinary markers retain their height indicators.
 
-**Show north indicator** is on by default in **General**. The north indicator stays at the top of a fixed map and follows north around the edge of a rotating map. It scales with the other markers. Compass and alert geometry is cached; movement updates only their transforms and visibility. Turning it off also frees its edge space for sparkling companion alerts.
+**Show north indicator** is on by default in **Minimap**. The north indicator stays at the top of a fixed map and follows north around the edge of a rotating map. It scales with the other markers. Compass and alert geometry is cached; movement updates only their transforms and visibility. Turning it off also frees its edge space for sparkling companion alerts.
 
-**Show clock/timer** follows the north setting in **General**, with dropdown options **None**, **Rift timer**, and **Clock**. **Rift timer** is the default; upgrading preserves the previous checkbox preference, with an unchecked **Show Rift timer** becoming **None**. **Clock** displays the computer's local time in 24-hour `HH:MM` format. Install the accompanying Better Mod Settings update for dropdown support.
+**Show clock/timer** follows the north setting in **Minimap**, with dropdown options **None**, **Rift timer**, and **Clock**. **Rift timer** is the default; upgrading preserves the previous checkbox preference, with an unchecked **Show Rift timer** becoming **None**. **Clock** displays the computer's local time in 24-hour `HH:MM` format. Install the accompanying Better Mod Settings update for dropdown support.
 
 Both visible modes use the game's explicit bold 16-pixel font with a dark shadow, and sit above the minimap with a slightly larger gap than the hover caption. The font stays consistent regardless of which HUD elements finish loading first. The `mm:ss` Rift countdown uses the native Rift event timer when available, otherwise the game's Rift frequency and synchronized server clock. A local top-of-the-hour fallback is used only if native timing is unavailable; fallback time never supplies a guessed portal location. The countdown advances to the next Rift when the current one opens.
 
@@ -123,7 +124,7 @@ With **Rift alerts** enabled (the default), both the clock and countdown turn re
 
 **Show in left corner** defaults to off, placing new installations on the right. Existing saved corner preferences are preserved.
 
-**X offset %** and **Y offset %** are in **General**, both defaulting to **0%**. X moves right from the left corner, or left from the right corner; Y always moves down. **50%** centers the minimap on that axis. **100%** reaches the opposite screen edge with the same 24 UI-pixel margin as the starting edge, including the map's border. Position updates with minimap size, window size, and UI scale. Both map shapes and their hover/zoom controls move together.
+**X offset %** and **Y offset %** are in **Minimap**, both defaulting to **0%**. X moves right from the left corner, or left from the right corner; Y always moves down. **50%** centers the minimap on that axis. **100%** reaches the opposite screen edge with the same 24 UI-pixel margin as the starting edge, including the map's border. Position updates with minimap size, window size, and UI scale. Both map shapes and their hover/zoom controls move together.
 
 The **Activities** section includes **Show activities**, **Hide completed activities** (on by default), **Hide ascensions**, **Hide dungeons**, and **Hide inactive Rift locations** (all three off by default). Completed ascensions and dungeons remain visible unless hidden with their own option. **Show activities** controls all activity markers, including Rifts. Ordinary activities follow **Hide completed activities**; Rifts follow their current event state instead. Markers use the game's world-map locations, including overworld entrances for instanced activities.
 
@@ -132,6 +133,16 @@ The **Activities** section includes **Show activities**, **Hide completed activi
 **Hide target dummies** is off by default in **Enemies**. Dummies have their own marker and use the game's native Dummy group, independent of their names or Codex progress. **Show enemies** controls them too. The former **Hide enemies without Codex entries** option has been removed; its old saved value no longer hides anything. Other enemies without Codex entries stay visible.
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings and Mod Update Alerts are mandatory dependencies.
+
+## Big map markers
+
+**General** contains **Enabled** and **Override big map markers**, both on by default. The previous General controls now appear immediately below in **Minimap**; saved preferences are unchanged.
+
+With the override enabled, the main overworld map uses the same marker collector, icons, height indicators, scale, and filters as the minimap. You can pan to static landmarks anywhere in the overworld. Live players, enemies, companions, resources, and chests remain limited to the entities the game sends to your client. Hover details appear inside the lower-left corner of the map.
+
+The native map still handles dragging, zooming, activity menus, obelisk travel, custom pins, zone names, death markers, and route graphics. The mod's marker filters control the replaced categories; the native filter buttons do not override those preferences. The **Minimap** category controls the small HUD only, including its compass, clock, and edge alerts.
+
+Turning off **Override big map markers** restores the original map immediately. **Enabled** controls both maps. Inside instances, the main map retains its native behavior so dungeon coordinates are not placed on the overworld. Marker updates run at five samples per second while the map is open; smooth zoom only rescales cached artwork. Closing or rebuilding the map removes the overlay, and a failed marker refresh restores the native markers.
 
 ## Map loading
 

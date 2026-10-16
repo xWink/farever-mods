@@ -4,61 +4,11 @@ import hlx.runtime.Bus;
 import hlx.runtime.ModConfig;
 import hlx.runtime.HlxPrefixResult;
 
-typedef MinimapSettings = {
-    var enabled:Bool;
-    var transparency:Int;
-    var zoom:Float;
-    var size:Int;
-    var markerScale:Float;
-    var rotateMap:Bool;
-    var followCamera:Bool;
-    var circular:Bool;
-    var leftCorner:Bool;
-    var showNorthIndicator:Bool;
-    var clockTimerMode:String;
-    // Retained only to import older configs; no longer exposed as a setting.
-    var showRiftTimer:Bool;
-    var riftAlerts:Bool;
-    var xOffset:Float;
-    var yOffset:Float;
-    var showPlayers:Bool;
-    var showPlants:Bool;
-    var showOre:Bool;
-    var showEnemies:Bool;
-    var hideCompletedCodexEnemies:Bool;
-    var hideMasteredCodexEnemies:Bool;
-    var hideTargetDummies:Bool;
-    var showCompanions:Bool;
-    var hideCollectedCompanions:Bool;
-    var sparklingCompanionAlerts:Bool;
-    var showRespawnPoints:Bool;
-    var showObelisks:Bool;
-    var showSoulstoneCircles:Bool;
-    var showNpcs:Bool;
-    var showChests:Bool;
-    var showSecretOrbs:Bool;
-    var hideVerticallyDistantMarkers:Bool;
-    var verticallyDistantThreshold:Float;
-    var showActivities:Bool;
-    var hideCompletedActivities:Bool;
-    var hideAscensions:Bool;
-    var hideDungeons:Bool;
-    var hideInactiveRifts:Bool;
-    var hideCopper:Bool;
-    var hideIron:Bool;
-    var hideTin:Bool;
-    var hideTungstene:Bool;
-    var hideMadrigold:Bool;
-    var hideLavendula:Bool;
-    var hideAncientThyme:Bool;
-    var hideZealotus:Bool;
-}
-
 @:build(hlx.runtime.Mod.build())
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
+        enabled: true, overrideBigMapMarkers: true, transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
@@ -72,6 +22,7 @@ class MinimapMod {
         hideMadrigold: false, hideLavendula: false, hideAncientThyme: false, hideZealotus: false
     };
     static var view:MinimapView;
+    static var bigMap:BigMapView;
     static var retryAt:Float = 0;
     static var reportedError:Bool = false;
     static var saveZoomAt:Float = 0;
@@ -80,6 +31,7 @@ class MinimapMod {
         normalize();
         config.save();
         view = new MinimapView();
+        bigMap = new BigMapView();
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             normalize();
@@ -130,9 +82,27 @@ class MinimapMod {
         }
     }
 
+    @:hlx.postfix(ui.win.MapWindow.update)
+    static function updateBigMap(instance:Dynamic, dt:Float, result:Void):Void {
+        if (bigMap != null) bigMap.update(instance, config);
+    }
+
+    @:hlx.prefix(ui.win.MapWindow.onRemove)
+    static function removeBigMap(instance:Dynamic):HlxPrefixResult<Void> {
+        if (bigMap != null) bigMap.remove(instance);
+        return Continue;
+    }
+
+    @:hlx.prefix(ui.win.MapWindow.buildMap)
+    static function rebuildBigMap(instance:Dynamic):HlxPrefixResult<Void> {
+        if (bigMap != null) bigMap.remove(instance);
+        return Continue;
+    }
+
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         saveZoom();
+        if (bigMap != null) bigMap.dispose();
         if (view != null) try view.dispose() catch (_:Dynamic) {}
         retryAt = 0;
         return Continue;

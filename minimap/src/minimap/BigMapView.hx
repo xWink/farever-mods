@@ -1,0 +1,209 @@
+package minimap;
+
+import minimap.GameAccess as G;
+
+/** The minimap's read-only markers, projected into the native overworld map. */
+class BigMapView {
+    static inline var LEVEL = "World/W1_Siagarta";
+    var window:Dynamic;
+    var world:Dynamic;
+    var hero:Dynamic;
+    var scroll:Dynamic;
+    var container:Dynamic;
+    var root:Dynamic;
+    var arrow:Dynamic;
+    var markers:MinimapMarkers;
+    var rifts:RiftMarkers;
+    var nativeMarkers:BigMapNativeMarkers;
+    var revision:Int = -1;
+    var nativeCount:Int = -1;
+    var tileScale:Float = 0;
+    var scale:Float = 0;
+    var ownScale:Float = 0;
+    var overlay:Dynamic;
+    var input:Dynamic;
+    var width:Float = 0;
+    var height:Float = 0;
+    var hovered:Bool = false;
+    var mouseX:Float = 0;
+    var mouseY:Float = 0;
+    var caption:Dynamic;
+    var shadow:Dynamic;
+    var measurements:HoverMeasurements;
+    var captionScale:Float = 1;
+    var captionKey:String = "";
+    var captionVisible:Bool = false;
+    var retryAt:Float = 0;
+    var reportedError:Bool = false;
+
+    public function new() {}
+
+    public function update(nextWindow:Dynamic, config:MinimapSettings):Void {
+        if (haxe.Timer.stamp() < retryAt) return;
+        try updateView(nextWindow, config) catch (error:Dynamic) {
+            dispose();
+            retryAt = haxe.Timer.stamp() + 10;
+            if (!reportedError) {
+                reportedError = true;
+                trace("[Minimap] Big map: " + Std.string(error));
+            }
+        }
+    }
+
+    function updateView(nextWindow:Dynamic, config:MinimapSettings):Void {
+        var nextHero = G.call("ui.BaseElement", "get_myHero", nextWindow);
+        var nextWorld = G.field(G.field(nextHero, "layer"), "world");
+        // Instance coordinates must not be projected onto the overworld.
+        if (!config.enabled || !config.overrideBigMapMarkers || nextHero == null
+            || G.field(nextHero, "removed") == true || G.text(G.field(nextWorld, "level")) != LEVEL
+            || G.field(nextWindow, "removed") == true) {
+            dispose();
+            return;
+        }
+        var nextScroll = G.field(nextWindow, "scroll");
+        var nextContainer = G.field(nextWindow, "scrollContainer");
+        if (nextScroll == null || nextContainer == null) { dispose(); return; }
+        if (window != nextWindow || scroll != nextScroll || container != nextContainer || hero != nextHero || world != nextWorld) {
+            dispose();
+            window = nextWindow; scroll = nextScroll; container = nextContainer; hero = nextHero; world = nextWorld;
+            create();
+        }
+        var nextTileScale = G.number(G.call("ui.win.MapWindow", "get_tileScale", window));
+        var zoom = G.number(G.field(window, "zoom"));
+        var nextScale = nextTileScale * zoom;
+        if (!Math.isFinite(nextScale) || nextScale <= 0) throw "Invalid map projection";
+        if (tileScale != nextTileScale) {
+            tileScale = nextTileScale;
+            G.call("h2d.Object", "setScale", root, [tileScale]);
+        }
+        scale = nextScale;
+        rifts.update(G.field(hero, "layer"), haxe.Timer.stamp());
+        // The entire map can be panned, not just the minimap's area around the
+        // hero. Static locations remain cached; live data still samples at 5 Hz.
+        markers.update(hero, config, 0, 0, Math.POSITIVE_INFINITY, scale, 0, rifts);
+        if (!markers.healthy) throw "Marker refresh failed";
+        var count = G.integer(G.field(G.field(window, "markers"), "length"));
+        if (revision != markers.revision || nativeCount != count) {
+            nativeMarkers.sample(window, markers.points, hero);
+            revision = markers.revision; nativeCount = count;
+        }
+        nativeMarkers.apply(window, tileScale, hero);
+        var newOwnScale = config.markerScale / 100 / scale;
+        if (ownScale != newOwnScale) {
+            ownScale = newOwnScale;
+            G.call("h2d.Object", "setScale", arrow, [ownScale]);
+        }
+        G.call("h2d.Object", "setPosition", arrow, [G.number(G.field(hero, "posx")), G.number(G.field(hero, "posy"))]);
+        G.call("h2d.Object", "set_rotation", arrow, [G.number(G.field(hero, "rotationZ"))]);
+        updateHover();
+    }
+
+    function create():Void {
+        root = G.create("h2d.Object", [null]);
+        // Inside the game's existing clip/scroll transform, below its pins and crosshair.
+        G.call("h2d.Layers", "add", scroll, [root, 15, null]);
+        var players = G.create("h2d.Object", [root]);
+        arrow = G.create("h2d.Graphics", [root]);
+        MinimapMarkers.drawPlayerArrow(arrow, 10, 0xfff3d6);
+        var foreground = G.create("h2d.Object", [root]);
+        markers = new MinimapMarkers(players, foreground, root, LEVEL);
+        rifts = new RiftMarkers(LEVEL);
+        nativeMarkers = new BigMapNativeMarkers();
+        overlay = G.create("h2d.Object", [container]);
+        var properties = G.call("h2d.Flow", "getProperties", container, [overlay]);
+        G.call("h2d.FlowProperties", "set_isAbsolute", properties, [true]);
+        G.set(properties, "horizontalAlign", null);
+        G.set(properties, "verticalAlign", null);
+        G.set(properties, "offsetX", 0);
+        G.set(properties, "offsetY", 0);
+        input = G.create("h2d.Interactive", [1.0, 1.0, overlay, null]);
+        G.set(input, "propagateEvents", true);
+        G.set(input, "onMove", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
+        G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hideCaption(); });
+    }
+
+    function trackMouse(event:Dynamic):Void {
+        mouseX = G.number(G.field(event, "relX"));
+        mouseY = G.number(G.field(event, "relY"));
+        hovered = mouseX >= 0 && mouseY >= 0 && mouseX < width && mouseY < height;
+    }
+
+    function updateHover():Void {
+        G.call("h2d.Object", "setPosition", overlay, [0., 0.]);
+        var w = G.number(G.field(container, "calculatedWidth")), h = G.number(G.field(container, "calculatedHeight"));
+        if (width != w || height != h) {
+            width = w; height = h;
+            G.set(input, "width", width);
+            G.set(input, "height", height);
+            captionKey = "";
+        }
+        if (!hovered || G.call("h2d.Interactive", "isOver", input) != true) { hideCaption(); return; }
+        // Use the displayed scroll transform, including smooth zoom and pan,
+        // rather than targetZoom or the rounded native mouse-world coordinates.
+        var x = (mouseX - G.number(G.field(scroll, "x"))) / scale;
+        var y = (mouseY - G.number(G.field(scroll, "y"))) / scale;
+        var hx = G.number(G.field(hero, "posx")), hy = G.number(G.field(hero, "posy"));
+        var target = markers.hoverAt(x, y, scale, hx, hy, hero);
+        if (target == null) { hideCaption(); return; }
+        var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: G.number(G.field(hero, "posz"), Math.NaN)});
+        var key = target.name + [for (part in details) part.direction + ":" + part.metres].join("|");
+        if (captionKey == key) return;
+        ensureCaption();
+        captionKey = key;
+        captionVisible = true;
+        for (text in [shadow, caption]) {
+            G.call("h2d.Text", "set_text", text, [target.name]);
+            G.call("h2d.Object", "set_visible", text, [true]);
+        }
+        var maxWidth = Math.max(1, Math.min(width - 24, 420));
+        var textScale = Math.min(captionScale, maxWidth / Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", caption))));
+        var textWidth = G.number(G.call("h2d.Text", "get_textWidth", caption)) * textScale;
+        for (text in [shadow, caption]) G.call("h2d.Object", "setScale", text, [textScale]);
+        G.call("h2d.Object", "setPosition", caption, [12 + (maxWidth - textWidth) / 2, height - 52]);
+        G.call("h2d.Object", "setPosition", shadow, [13 + (maxWidth - textWidth) / 2, height - 51]);
+        measurements.setValues(details);
+        measurements.place(12 + maxWidth / 2, height - 30, maxWidth);
+    }
+
+    function ensureCaption():Void {
+        if (caption != null) return;
+        var font = G.staticCall("hxd.res.DefaultFont", "get", []);
+        captionScale = 14 / Math.max(1, G.number(G.field(font, "size"), 14));
+        shadow = G.create("h2d.Text", [font, overlay]);
+        caption = G.create("h2d.Text", [font, overlay]);
+        G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);
+        G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
+        measurements = new HoverMeasurements(overlay, font);
+    }
+
+    function hideCaption():Void {
+        captionKey = "";
+        if (!captionVisible) return;
+        captionVisible = false;
+        for (text in [shadow, caption]) G.call("h2d.Object", "set_visible", text, [false]);
+        measurements.setValues([]);
+    }
+
+    public function remove(instance:Dynamic):Void {
+        if (window == instance) dispose();
+        retryAt = 0;
+    }
+
+    public function dispose():Void {
+        if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
+        for (object in [root, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
+        if (window != null && G.field(window, "removed") != true) try {
+            // Re-evaluate current native filters instead of restoring stale
+            // visibility from when the map was first opened.
+            G.call("ui.win.MapWindow", "refreshVisuals", window);
+            G.call("ui.win.MapWindow", "updateMapInfos", window);
+        } catch (_:Dynamic) {}
+        window = null; world = null; hero = null; scroll = null; container = null;
+        root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
+        overlay = null; input = null; caption = null; shadow = null; measurements = null;
+        revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
+        width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;
+    }
+}
