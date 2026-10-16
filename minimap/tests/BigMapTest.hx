@@ -225,13 +225,13 @@ class BigMapTest {
         eq(view.filterBar.buttons.length, 9, 'Nine main-map categories');
         eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
             window.scrollContainer.calculatedWidth / 2, 'Hover caption horizontally centered in map');
-        eq(view.caption.filter.size, 0.8, 'Caption has a compact solid outline without a broad halo');
+        eq(view.caption.filter.size, 1.0, 'Caption has a compact solid outline without a broad halo');
         eq(view.caption.font.nativeFont, true, 'Hover uses native smooth UI font');
         eq(view.caption.scale, 1., 'Native font retains 22 pixel caption size');
         eq(view.caption.smooth, true, 'Caption font is smoothed');
         eq(view.caption.filter.color, 0x000000, 'Caption outline is black');
         eq(view.caption.filter.alpha, 1., 'Caption outline has full opacity');
-        eq(view.measurements.root.filter.size, 0.8, 'Measurement row has matching compact outline');
+        eq(view.measurements.root.filter.size, 1.0, 'Measurement row has matching compact outline');
         eq(view.measurements.root.filter.alpha, 1., 'Measurement outline has matching opacity');
         eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
         eq([for (o in G.created) if (o.parent == view.overlay && o.nativeType == 'h2d.Text') o].length,
