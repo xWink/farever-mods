@@ -252,7 +252,7 @@ class BigMapView {
         G.set(caption, "smooth", true);
         // A tight, solid black border stays legible without an offset shadow.
         MapTextOutline.apply(caption, 1.0);
-        measurements = new HoverMeasurements(overlay, font, 1.5, 0.8, false);
+        measurements = new HoverMeasurements(overlay, font, 1.5, 1.0, false);
     }
 
     function hideCaption():Void {
