@@ -42,7 +42,7 @@ jobs:
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
-      - name: Test markers, independent main-map filters, lifecycle, and positioning
+      - name: Test markers, shared map filters, lifecycle, and positioning
         working-directory: minimap
         run: haxe test.hxml
       - uses: actions/checkout@v4
@@ -65,8 +65,8 @@ jobs:
           ../.minimap-hashlink/hl build/main-map-performance-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main MainMapControlsTest -hl build/main-map-controls-test.hl
           ../.minimap-hashlink/hl build/main-map-controls-test.hl
-          haxe -cp src -cp tests -cp tests/big-map-stubs -main MinimapFiltersTest -hl build/minimap-filters-test.hl
-          ../.minimap-hashlink/hl build/minimap-filters-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main SharedMapFiltersTest -hl build/shared-map-filters-test.hl
+          ../.minimap-hashlink/hl build/shared-map-filters-test.hl
 
   build:
     needs: test

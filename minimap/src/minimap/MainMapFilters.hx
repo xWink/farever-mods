@@ -3,8 +3,8 @@ package minimap;
 typedef MapSubfilter = {key:String, label:String};
 typedef MapFilterCategory = {key:String, label:String, icon:String, items:Array<MapSubfilter>};
 
-/** Main-map preferences never change the HUD's filter settings. */
-class MainMapFilters implements MapFilterPreferences {
+/** One saved set of category/subtype filters, with map-specific presentation. */
+class MainMapFilters {
     public static final CATEGORIES:Array<MapFilterCategory> = [
         category("ore", "Ore", "ore", ["copper", "iron", "tin", "tungstene"], ["Copper", "Iron", "Tin", "Tungstene"]),
         category("plants", "Plants", "plant", ["madrigold", "lavendula", "ancientThyme", "zealotus"], ["Madrigold", "Lavendula", "Ancient Thyme", "Zealotus"]),
@@ -21,6 +21,8 @@ class MainMapFilters implements MapFilterPreferences {
     var saved:Array<String>;
     var hidden:Map<String, Bool> = [];
     var derived:MinimapSettings;
+    var hudDerived:MinimapSettings;
+    var hudMarkerScale:Float = Math.NaN;
     var markerScale:Float = Math.NaN;
     var save:Void->Void;
     public var revision(default, null):Int = 0;
@@ -38,6 +40,7 @@ class MainMapFilters implements MapFilterPreferences {
         hidden = [];
         for (key in saved) if (key != null) hidden[key] = true;
         derived = null;
+        hudDerived = null;
         revision++;
     }
 
@@ -51,6 +54,7 @@ class MainMapFilters implements MapFilterPreferences {
         saved.sort(Reflect.compare);
         source.mainMapHiddenFilters = saved;
         derived = null;
+        hudDerived = null;
         revision++;
         if (save != null) save();
     }
@@ -64,24 +68,37 @@ class MainMapFilters implements MapFilterPreferences {
         derived.showPlayers = derived.showObelisks = derived.showRespawnPoints = derived.showSoulstoneCircles = true;
         derived.hideVerticallyDistantMarkers = false;
         derived.sparklingCompanionAlerts = false;
-        derived.showOre = enabled("ore"); derived.showPlants = enabled("plants");
-        derived.showEnemies = enabled("enemies"); derived.showCompanions = enabled("companions");
-        derived.showActivities = enabled("activities"); derived.showNpcs = enabled("npcs");
+        return applyFilters(derived);
+    }
+
+    /** Preserve HUD size, height filtering, protected categories, and alerts. */
+    public function minimapSettings():MinimapSettings {
+        if (hudDerived == null || hudMarkerScale != source.markerScale) {
+            hudMarkerScale = source.markerScale;
+            hudDerived = applyFilters(Reflect.copy(source));
+        }
+        return hudDerived;
+    }
+
+    function applyFilters(config:MinimapSettings):MinimapSettings {
+        config.showOre = enabled("ore"); config.showPlants = enabled("plants");
+        config.showEnemies = enabled("enemies"); config.showCompanions = enabled("companions");
+        config.showActivities = enabled("activities"); config.showNpcs = enabled("npcs");
         // Retired subfilter keys in older configs must not hide
         // markers after their controls have been removed.
-        derived.showChests = enabled("chests"); derived.showSecretOrbs = enabled("secretOrbs");
-        derived.hideCopper = !enabled("ore", "copper"); derived.hideIron = !enabled("ore", "iron");
-        derived.hideTin = !enabled("ore", "tin"); derived.hideTungstene = !enabled("ore", "tungstene");
-        derived.hideMadrigold = !enabled("plants", "madrigold"); derived.hideLavendula = !enabled("plants", "lavendula");
-        derived.hideAncientThyme = !enabled("plants", "ancientThyme"); derived.hideZealotus = !enabled("plants", "zealotus");
-        derived.hideCompletedCodexEnemies = !enabled("enemies", "completed");
-        derived.hideMasteredCodexEnemies = !enabled("enemies", "mastered");
-        derived.hideTargetDummies = !enabled("enemies", "targetDummy");
-        derived.hideCollectedCompanions = !enabled("companions", "collected");
-        derived.hideCompletedActivities = !enabled("activities", "completed");
-        derived.hideAscensions = !enabled("activities", "ascension"); derived.hideDungeons = !enabled("activities", "dungeon");
-        derived.hideInactiveRifts = !enabled("activities", "inactiveRifts");
-        return derived;
+        config.showChests = enabled("chests"); config.showSecretOrbs = enabled("secretOrbs");
+        config.hideCopper = !enabled("ore", "copper"); config.hideIron = !enabled("ore", "iron");
+        config.hideTin = !enabled("ore", "tin"); config.hideTungstene = !enabled("ore", "tungstene");
+        config.hideMadrigold = !enabled("plants", "madrigold"); config.hideLavendula = !enabled("plants", "lavendula");
+        config.hideAncientThyme = !enabled("plants", "ancientThyme"); config.hideZealotus = !enabled("plants", "zealotus");
+        config.hideCompletedCodexEnemies = !enabled("enemies", "completed");
+        config.hideMasteredCodexEnemies = !enabled("enemies", "mastered");
+        config.hideTargetDummies = !enabled("enemies", "targetDummy");
+        config.hideCollectedCompanions = !enabled("companions", "collected");
+        config.hideCompletedActivities = !enabled("activities", "completed");
+        config.hideAscensions = !enabled("activities", "ascension"); config.hideDungeons = !enabled("activities", "dungeon");
+        config.hideInactiveRifts = !enabled("activities", "inactiveRifts");
+        return config;
     }
 
     /** Subtypes not covered by the minimap's existing collection flags. */

@@ -10,7 +10,7 @@ class MinimapMod {
     static var config:MinimapSettings = {
         enabled: true, overrideBigMapMarkers: true, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
-        mainMapMarkerScale: 100, mainMapMovement: false, minimapHiddenFilters: [],
+        mainMapMarkerScale: 100, mainMapMovement: false,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         hideCompletedCodexEnemies: false, hideMasteredCodexEnemies: false, hideTargetDummies: false,
@@ -32,7 +32,7 @@ class MinimapMod {
     static function main():Void {
         normalize();
         config.save();
-        view = new MinimapView(() -> config.save());
+        view = new MinimapView();
         bigMap = new BigMapView(() -> config.save());
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
@@ -122,7 +122,10 @@ class MinimapMod {
     static function endMapInputs(instance:Dynamic, result:Void):Void mapControls.endInputs();
 
     @:hlx.postfix(lib.Input.getMove)
-    static function mapMoveInput(point:Dynamic, normalize:Dynamic, result:Dynamic):Dynamic
+    // The native optional Bool is a reference, not a Dynamic object. Using
+    // Dynamic here misreads its pointer and interrupts MapWindow.updateInputs
+    // before the window applies its smooth panning and zoom.
+    static function mapMoveInput(point:Dynamic, normalize:hl.Ref<Bool>, result:Dynamic):Dynamic
         return mapControls.filterMove(result);
 
     @:hlx.prefix(ui.win.MapWindow.clampTargetZoom)

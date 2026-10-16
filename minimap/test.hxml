@@ -109,5 +109,5 @@
 -cp src
 -cp tests
 -cp tests/big-map-stubs
--main MinimapFiltersTest
+-main SharedMapFiltersTest
 --interp

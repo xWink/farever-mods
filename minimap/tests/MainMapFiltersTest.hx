@@ -22,7 +22,7 @@ class MainMapFiltersTest {
         }
         eq(derived.hideVerticallyDistantMarkers, false, 'Main map never filters by height');
         eq(config.hideVerticallyDistantMarkers, true, 'Minimap height preference preserved');
-        eq(derived.hideCopper, false, 'Independent resource default');
+        eq(derived.hideCopper, false, 'Shared resource default');
         eq(filters.enabled('activities', 'completed'), false, 'Completed activities default hidden');
         eq(filters.enabled('companions', 'collected'), false, 'Collected companions default hidden');
         eq(derived.hideMasteredCodexEnemies, true, 'Codex mastery completed enemies default hidden');
@@ -95,7 +95,7 @@ class MainMapFiltersTest {
         eq(reopened.settings().showOre, false, 'Category survives serialized config reload');
         reopened.setEnabled('ore', null, true);
         eq(reopened.settings().hideCopper, true, 'Subfilter survives category cycling and reload');
-        eq(reloaded.showOre, false, 'Minimap state independently survives reload');
+        eq(reloaded.showOre, false, 'Legacy field does not replace saved shared filters');
         eq(reopened.settings().hideMasteredCodexEnemies, false, 'Explicit saved mastery preference is preserved on reload');
         eq(reopened.settings().showSecretOrbs, true, 'Old orb exclusion stays retired after reload');
         for (kind in ['chest', 'vaultChest', 'recipeChest'])

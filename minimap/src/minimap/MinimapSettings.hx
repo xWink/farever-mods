@@ -1,9 +1,8 @@
 package minimap;
 
 typedef MinimapSettings = {
-    /** Main-map-only disabled category/subfilter keys; absent in older configs. */
+    /** Shared category/subfilter exclusions; retain the key to preserve saved main-map choices. */
     var ?mainMapHiddenFilters:Array<String>;
-    var ?minimapHiddenFilters:Array<String>;
     var ?mainMapMarkerScale:Float;
     var ?mainMapMovement:Bool;
     var enabled:Bool;
