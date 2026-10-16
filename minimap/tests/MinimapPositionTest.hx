@@ -35,6 +35,18 @@ class MinimapPositionTest {
         close(P.percent(40.6), 41, "manual fractions normalize to whole percentages");
         close(P.percent(Math.NaN), 0, "invalid config returns to normal position");
         close(P.percent(Math.POSITIVE_INFINITY), 0, "infinite config returns to normal position");
+        for (left in [false, true]) for (offset in [0., 25., 50., 100.]) {
+            // Use a parsed config, as HLX does, so retiring a field is tested
+            // across serialization and a second startup too.
+            var config:minimap.MinimapSettings = haxe.Json.parse(haxe.Json.stringify({leftCorner:left, xOffset:offset}));
+            var before = P.axis(1920, 256, offset, !left);
+            P.migrateCorner(config);
+            close(P.axis(1920, 256, config.xOffset, true), before, "Retiring the corner switch preserves screen position");
+            close(Reflect.hasField(config, 'leftCorner') ? 1 : 0, 0, "Retired corner key is removed from saved config");
+            config = haxe.Json.parse(haxe.Json.stringify(config));
+            P.migrateCorner(config);
+            close(P.axis(1920, 256, config.xOffset, true), before, "Migration does not mirror the position again after reload");
+        }
         Sys.println('Minimap position tests passed ($checks checks)');
     }
 }

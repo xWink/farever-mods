@@ -18,23 +18,23 @@ class HoverMeasurements {
     var width:Float = 0;
     var displayScale:Float;
 
-    public function new(parent:Dynamic, font:Dynamic, displayScale:Float = 1, outline:Float = 0) {
+    public function new(parent:Dynamic, font:Dynamic, displayScale:Float = 1, outline:Float = 0, shadows:Bool = true) {
         this.displayScale = displayScale;
         root = G.create("h2d.Object", [parent]);
         if (outline > 0) MapTextOutline.apply(root, outline);
         fontScale = 12 / Math.max(1, G.number(G.field(font, "size"), 12));
         for (_ in 0...2) {
-            var shadow = G.create("h2d.Text", [font, root]);
+            var shadow = shadows ? G.create("h2d.Text", [font, root]) : null;
             var text = G.create("h2d.Text", [font, root]);
-            var arrowShadow = G.create("h2d.Graphics", [root]);
+            var arrowShadow = shadows ? G.create("h2d.Graphics", [root]) : null;
             var arrow = G.create("h2d.Graphics", [root]);
-            G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);
+            if (shadow != null) G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);
             G.call("h2d.Text", "set_textColor", text, [0xd0ccc2]);
-            for (object in [shadow, text]) G.call("h2d.Object", "setScale", object, [fontScale]);
+            for (object in [shadow, text]) if (object != null) G.call("h2d.Object", "setScale", object, [fontScale]);
             slots.push({text: text, shadow: shadow, arrow: arrow, arrowShadow: arrowShadow, direction: "", label: ""});
         }
         separator = G.create("h2d.Graphics", [root]);
-        for (shadow in [true, false]) {
+        for (shadow in (shadows ? [true, false] : [false])) {
             var offset = shadow ? 1 : 0;
             G.call("h2d.Graphics", "beginFill", separator, [shadow ? 0x171b24 : 0xd0ccc2, 1.]);
             G.call("h2d.Graphics", "drawCircle", separator, [offset, offset, 1., 8]);
@@ -49,7 +49,7 @@ class HoverMeasurements {
         var height = 12.;
         for (i in 0...slots.length) {
             var slot = slots[i], visible = i < count;
-            for (object in [slot.text, slot.shadow, slot.arrow, slot.arrowShadow])
+            for (object in [slot.text, slot.shadow, slot.arrow, slot.arrowShadow]) if (object != null)
                 G.call("h2d.Object", "set_visible", object, [visible]);
             if (!visible) continue;
             var value = values[i];
@@ -60,7 +60,7 @@ class HoverMeasurements {
             }
             var label = value.metres + " m";
             if (slot.label != label) {
-                for (text in [slot.shadow, slot.text]) G.call("h2d.Text", "set_text", text, [label]);
+                for (text in [slot.shadow, slot.text]) if (text != null) G.call("h2d.Text", "set_text", text, [label]);
                 slot.label = label;
             }
             height = Math.max(height, G.number(G.call("h2d.Text", "get_textHeight", slot.text)) * fontScale);
@@ -91,6 +91,7 @@ class HoverMeasurements {
     }
 
     public static function drawArrow(graphics:Dynamic, direction:String, color:Int):Void {
+        if (graphics == null) return;
         G.call("h2d.Graphics", "clear", graphics);
         var coords:Array<Float> = switch direction {
             case "horizontal": [0, 6, 4, 2, 4, 5, 8, 5, 8, 2, 12, 6, 8, 10, 8, 7, 4, 7, 4, 10];
@@ -109,5 +110,5 @@ class HoverMeasurements {
     }
 
     static function position(object:Dynamic, x:Float, y:Float):Void
-        G.call("h2d.Object", "setPosition", object, [x, y]);
+        if (object != null) G.call("h2d.Object", "setPosition", object, [x, y]);
 }

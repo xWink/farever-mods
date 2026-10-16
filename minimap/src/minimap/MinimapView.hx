@@ -147,7 +147,7 @@ class MinimapView {
         var outerSize = size + BORDER * 2;
         var screenWidth = G.number(G.call("h2d.Flow", "get_innerWidth", root));
         var screenHeight = G.number(G.call("h2d.Flow", "get_innerHeight", root));
-        var nextX = MinimapPosition.axis(screenWidth, outerSize, config.xOffset, !config.leftCorner);
+        var nextX = MinimapPosition.axis(screenWidth, outerSize, config.xOffset, true);
         var nextY = MinimapPosition.axis(screenHeight, outerSize, config.yOffset);
         if (panelX != nextX || panelY != nextY) {
             panelX = nextX; panelY = nextY;

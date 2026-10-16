@@ -12,7 +12,8 @@ typedef MinimapSettings = {
     var rotateMap:Bool;
     var followCamera:Bool;
     var circular:Bool;
-    var leftCorner:Bool;
+    /** Legacy import only; converted to xOffset and removed before saving. */
+    var ?leftCorner:Bool;
     var showNorthIndicator:Bool;
     var clockTimerMode:String;
     // Retained only to import older configs; no longer exposed as a setting.

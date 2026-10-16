@@ -62,8 +62,6 @@ class MainMapFiltersTest {
             {category:'activities', key:'dungeon', kinds:['dungeon']},
             {category:'activities', key:'rifts', kinds:['inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal']}
         ];
-        for (category in MainMapFilters.CATEGORIES) if (category.key == 'npcs')
-            for (item in category.items) subtypes.push({category:category.key, key:item.key, kinds:[item.key]});
         for (subtype in subtypes) {
             filters.setEnabled(subtype.category, subtype.key, false);
             for (kind in subtype.kinds) eq(filters.accepts({kind:kind, x:0, y:0, z:0}), false, 'Subtype actually hides ' + kind);
@@ -80,7 +78,15 @@ class MainMapFiltersTest {
             filters.setEnabled('chests', kind, false);
             eq(filters.accepts({kind:kind, x:0, y:0, z:0}), true, 'Retired chest preference cannot hide ' + kind);
         }
-        for (category in MainMapFilters.CATEGORIES) if (category.key == 'chests' || category.key == 'secretOrbs')
+        for (kind in minimap.NpcMarkers.KINDS) {
+            filters.setEnabled('npcs', kind, false);
+            eq(filters.accepts({kind:kind, x:0, y:0, z:0}), true, 'Retired NPC preference cannot hide ' + kind);
+        }
+        eq(filters.settings().showNpcs, true, 'All NPC services share the enabled category');
+        filters.setEnabled('npcs', null, false);
+        eq(filters.settings().showNpcs, false, 'NPC category can still hide all NPC services');
+        filters.setEnabled('npcs', null, true);
+        for (category in MainMapFilters.CATEGORIES) if (['npcs', 'chests', 'secretOrbs'].indexOf(category.key) >= 0)
             eq(category.items.length, 0, category.label + ' has no subfilters');
         filters.setEnabled('ore', 'copper', false);
         filters.setEnabled('ore', null, false);
@@ -94,6 +100,8 @@ class MainMapFiltersTest {
         eq(reopened.settings().showSecretOrbs, true, 'Old orb exclusion stays retired after reload');
         for (kind in ['chest', 'vaultChest', 'recipeChest'])
             eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old chest exclusion stays retired after reload: ' + kind);
+        for (kind in minimap.NpcMarkers.KINDS)
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old NPC exclusion stays retired after reload: ' + kind);
         var oldSettings = reopened.settings();
         reloaded.markerScale = 150;
         eq(reopened.settings().markerScale, 150., 'Marker scale changes invalidate derived settings');

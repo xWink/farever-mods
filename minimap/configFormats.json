@@ -7,7 +7,6 @@
     { "key": "overrideBigMapMarkers", "type": "checkbox", "label": "Override main map markers" },
     { "type": "title", "label": "Minimap" },
     { "key": "circular", "type": "checkbox", "label": "Circular minimap" },
-    { "key": "leftCorner", "type": "checkbox", "label": "Show in left corner" },
     { "key": "showNorthIndicator", "type": "checkbox", "label": "Show north indicator" },
     { "key": "clockTimerMode", "type": "dropdown", "label": "Show clock/timer", "options": ["None", "Rift timer", "Clock"] },
     { "key": "riftAlerts", "type": "checkbox", "label": "Rift alerts" },

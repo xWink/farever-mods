@@ -48,6 +48,7 @@ class MinimapMod {
         config.size = Std.int(Math.max(160, Math.min(400, config.size)));
         config.markerScale = Math.isFinite(config.markerScale) ? Math.max(50, Math.min(200, config.markerScale)) : 100;
         config.verticallyDistantThreshold = MarkerDetails.threshold(config.verticallyDistantThreshold);
+        MinimapPosition.migrateCorner(config);
         config.xOffset = MinimapPosition.percent(config.xOffset);
         config.yOffset = MinimapPosition.percent(config.yOffset);
     }

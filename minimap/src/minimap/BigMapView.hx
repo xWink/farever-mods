@@ -35,7 +35,6 @@ class BigMapView {
     var mouseX:Float = 0;
     var mouseY:Float = 0;
     var caption:Dynamic;
-    var shadow:Dynamic;
     var measurements:HoverMeasurements;
     var captionScale:Float = 1;
     var captionKey:String = "";
@@ -204,10 +203,8 @@ class BigMapView {
         ensureCaption();
         captionKey = key;
         captionVisible = true;
-        for (text in [shadow, caption]) {
-            G.call("h2d.Text", "set_text", text, [target.name]);
-            G.call("h2d.Object", "set_visible", text, [true]);
-        }
+        G.call("h2d.Text", "set_text", caption, [target.name]);
+        G.call("h2d.Object", "set_visible", caption, [true]);
         var maxWidth = Math.max(1, Math.min(width - 32, 640));
         var footerOffset = 0.;
         if (bonusDungeon.visible) {
@@ -218,9 +215,8 @@ class BigMapView {
         }
         var textScale = Math.min(captionScale, maxWidth / Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", caption))));
         var textWidth = G.number(G.call("h2d.Text", "get_textWidth", caption)) * textScale;
-        for (text in [shadow, caption]) G.call("h2d.Object", "setScale", text, [textScale]);
+        G.call("h2d.Object", "setScale", caption, [textScale]);
         G.call("h2d.Object", "setPosition", caption, [(width - textWidth) / 2, height - 72 - footerOffset]);
-        G.call("h2d.Object", "setPosition", shadow, [(width - textWidth) / 2 + 1, height - 71 - footerOffset]);
         measurements.setValues(details);
         measurements.place(width / 2, height - 40 - footerOffset, maxWidth);
     }
@@ -229,21 +225,19 @@ class BigMapView {
         if (caption != null) return;
         var font = G.staticCall("hxd.res.DefaultFont", "get", []);
         captionScale = 22 / Math.max(1, G.number(G.field(font, "size"), 14));
-        shadow = G.create("h2d.Text", [font, overlay]);
         caption = G.create("h2d.Text", [font, overlay]);
-        G.call("h2d.Text", "set_textColor", shadow, [0x171b24]);
         G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
         // These objects are enlarged for the main map; a small local outline
         // stays close to one display pixel instead of becoming a dark halo.
         MapTextOutline.apply(caption, 0.75);
-        measurements = new HoverMeasurements(overlay, font, 1.5, 0.75);
+        measurements = new HoverMeasurements(overlay, font, 1.5, 0.75, false);
     }
 
     function hideCaption():Void {
         captionKey = "";
         if (!captionVisible) return;
         captionVisible = false;
-        for (text in [shadow, caption]) G.call("h2d.Object", "set_visible", text, [false]);
+        G.call("h2d.Object", "set_visible", caption, [false]);
         measurements.setValues([]);
     }
 
@@ -266,7 +260,7 @@ class BigMapView {
         window = null; world = null; hero = null; scroll = null; container = null;
         bonusDungeon = null; filterBar = null; priorityRoot = null; priorityViewport = null;
         markerViewport = null; root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
-        overlay = null; input = null; caption = null; shadow = null; measurements = null;
+        overlay = null; input = null; caption = null; measurements = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
         width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;
     }

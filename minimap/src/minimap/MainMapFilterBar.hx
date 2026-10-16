@@ -48,8 +48,6 @@ class MainMapFilterBar {
             }]);
             var hasSubfilters = category.items.length > 0;
             if (hasSubfilters) G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
-            G.call("ui.UIElement", "set_textTip", button, [category.label + "\nClick to show/hide."
-                + (hasSubfilters ? " Right-click for filters." : "")]);
             var icon = G.create("h2d.Graphics", [button]);
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
             G.call("h2d.Object", "setScale", icon, [1.35]);
@@ -99,7 +97,9 @@ class MainMapFilterBar {
         revision = filters.revision;
         for (button in buttons) {
             var on = filters.enabled(button.category.key);
-            G.call("ui.UIElement", "set_selected", button.object, [on]);
+            // Keep the native inset border in both states. The slash alone
+            // communicates disabled categories; selection is purely styling.
+            G.call("ui.UIElement", "set_selected", button.object, [true]);
             G.call("h2d.Object", "set_visible", button.slash, [!on]);
         }
         if (popupCategory != null) for (box in boxes)
@@ -158,13 +158,24 @@ class MainMapFilterBar {
         position(heading, 14, 12);
         G.call("domkit.Properties", "addClass", G.field(heading, "dom"), ["bold-16"]);
         G.call("h2d.Text", "set_textColor", heading, [0x5b4334]);
-        var close = node("button", popup, ["X"], "mainMapFilterClose");
+        var close = node("button", popup, [""], "mainMapFilterClose");
         size(close, 28, 28); position(close, 246, 8);
+        // A centered vector cross does not depend on the button font's bearings
+        // or the native label flow's baseline/padding.
+        var cross = G.create("h2d.Graphics", [close]);
+        absolute(close, cross); position(cross, 14, 14);
+        G.call("h2d.Graphics", "lineStyle", cross, [2., 0xfff3e1, 1.]);
+        for (direction in [-1., 1.]) {
+            G.call("h2d.Graphics", "moveTo", cross, [-5., -5. * direction]);
+            G.call("h2d.Graphics", "lineTo", cross, [5., 5. * direction]);
+        }
         G.call("ui.UIElement", "set_onClick", close, [closePopup]);
         for (i in 0...category.items.length) {
             var item = category.items[i];
             var box = node("check-box", popup, [item.label], "mainMapSubfilter_" + item.key);
             size(box, 260, 28); position(box, 12, 44 + i * 32);
+            G.call("domkit.Properties", "initStyle", G.field(box, "dom"), ["padding-left", 8]);
+            G.call("h2d.Flow", "set_paddingLeft", box, [8]);
             G.call("ui.comp.CheckBox", "set_selected", box, [filters.enabled(category.key, item.key)]);
             G.set(box, "onValueChange", (value:Bool) -> filters.setEnabled(category.key, item.key, value));
             boxes.push({key:item.key, object:box});

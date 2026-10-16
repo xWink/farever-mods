@@ -157,6 +157,12 @@ class BigMapTest {
         eq(view.caption.filter.size, 0.75, 'Caption has a small outline without a broad halo');
         eq(view.measurements.root.filter.size, 0.75, 'Measurement row has matching small outline');
         eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
+        eq([for (o in G.created) if (o.parent == view.overlay && o.nativeType == 'h2d.Text') o].length,
+            1, 'Hover caption has no duplicate shadow text');
+        for (slot in view.measurements.slots) {
+            eq(slot.shadow, null, 'Main-map distance has no offset text shadow');
+            eq(slot.arrowShadow, null, 'Main-map distance arrow has no offset shadow');
+        }
         for (key in ['hideCopper', 'hideVerticallyDistantMarkers']) c = change(c, key, true);
         for (key in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles', 'showActivities', 'showCompanions']) c = change(c, key, false);
         view.update(window, c);
@@ -168,6 +174,7 @@ class BigMapTest {
         eq(oreButton.minHeight, 48, 'Filter buttons stay square');
         eq(view.filterBar.buttons[0].icon.scale, 1.35, 'Filter symbols are larger too');
         for (button in view.filterBar.buttons) {
+            eq(G.field(button.object, 'textTip'), null, 'Filter toggle has no hover tooltip');
             eq(button.icon.filter.resolutionScale, 2., 'Every filter symbol is supersampled');
             eq(button.icon.filter.useScreenResolution, true, 'Button smoothing follows display resolution');
             eq(button.icon.filter.smooth, true, 'Button symbols are smoothly downsampled');
@@ -182,6 +189,7 @@ class BigMapTest {
         eq(oreButton.background.color.argb, 0xFFFFFFFF, 'Leaving restores the base parchment color');
         oreButton.onClick(); view.update(window, c);
         eq(view.filterBar.buttons[0].slash.visible, true, 'Disabled category shows diagonal slash');
+        eq(oreButton.selected, true, 'Native inset border remains selected when the category is disabled');
         eq(view.filterBar.buttons[0].icon.alpha, 1., 'Disabled category keeps its full-color icon');
         eq(kinds(view).indexOf('ore'), -1, 'Left click disables main-map category');
         eq(c.showOre, true, 'Main-map category does not change minimap category');
@@ -191,6 +199,11 @@ class BigMapTest {
         eq(view.filterBar.buttons[0].slash.visible, false, 'Enabled category hides slash');
         oreButton.onRightClick();
         eq(view.filterBar.boxes.length, 4, 'Ore popup has exactly four checkboxes');
+        for (row in view.filterBar.boxes) eq(row.object.paddingLeft, 8, 'Checkbox has an inset within its row');
+        var close = [for (o in G.created) if (G.field(G.field(o, 'dom'), 'id') == 'mainMapFilterClose' && o.parent == view.filterBar.popup) o][0];
+        var cross = [for (o in G.created) if (o.parent == close && o.nativeType == 'h2d.Graphics') o][0];
+        eq(cross.x, 14., 'Close cross is horizontally centered in its 28-pixel button');
+        eq(cross.y, 14., 'Close cross is vertically centered in its 28-pixel button');
         eq([for (box in view.filterBar.boxes) box.key].join(','), 'copper,iron,tin,tungstene', 'Ore subfilters');
         var box = view.filterBar.boxes[0].object;
         box.onValueChange(false); view.update(window, c);
@@ -251,7 +264,6 @@ class BigMapTest {
             } else {
                 view.filterBar.closePopup();
                 eq(G.field(button.object, 'onRightClick'), null, 'No right-click handler for ' + button.category.key);
-                eq(G.text(button.object.textTip).indexOf('Right-click'), -1, 'No obsolete submenu hint for ' + button.category.key);
                 view.filterBar.openPopup(button.category);
                 eq(view.filterBar.popup, null, 'Empty submenus cannot be opened');
             }
@@ -283,6 +295,7 @@ class BigMapTest {
         eq(G.activityNameReads, reads, 'Unchanged bonus does not resolve dungeon name again');
         eq(view.bonusDungeon.icon.tile, heroicTile, 'Bonus uses the exact native heroic icon asset');
         eq(view.bonusDungeon.icon.visible, true, 'Delayed icon data becomes visible');
+        eq(view.bonusDungeon.icon.color.argb, 0xff91ef6b, 'Neutral heroic atlas is tinted green');
         eq(view.bonusDungeon.icon.scale, 32 / 96., 'Full-resolution heroic asset is downsampled to card size');
         hero.specialization.bonusHeroicDungeon.activity = 'DungeonTwo';
         G.globals['activity:DungeonTwo'] = {id:'DungeonTwo', label:'The Honeyzabeth Dungeon'};

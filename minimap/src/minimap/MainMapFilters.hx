@@ -13,8 +13,7 @@ class MainMapFilters {
         category("companions", "Companions", "companion", ["regular", "sparkling", "collected"], ["Regular companions", "Sparkling companions", "Collected companions"]),
         category("activities", "Activities", "activity", ["activity", "ascension", "dungeon", "rifts", "inactiveRifts", "completed"],
             ["Activities", "Ascensions", "Dungeons", "Rifts", "Inactive rifts", "Completed activities"]),
-        category("npcs", "NPCs", "npc", ["npc", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "soulWell"],
-            ["NPCs", "Guild merchants", "Demon huntresses", "Spark recyclers", "Weapon upgrades", "Crafting stations", "Glory merchants", "Infusion crucibles", "Soul wells"]),
+        category("npcs", "NPCs", "npc", [], []),
         category("chests", "Chests", "chest", [], []),
         category("secretOrbs", "Secret orbs", "secretOrb", [], [])
     ];
@@ -66,7 +65,7 @@ class MainMapFilters {
         derived.showOre = enabled("ore"); derived.showPlants = enabled("plants");
         derived.showEnemies = enabled("enemies"); derived.showCompanions = enabled("companions");
         derived.showActivities = enabled("activities"); derived.showNpcs = enabled("npcs");
-        // Retired chest/orb subfilter keys in older configs must not hide
+        // Retired subfilter keys in older configs must not hide
         // markers after their controls have been removed.
         derived.showChests = enabled("chests"); derived.showSecretOrbs = enabled("secretOrbs");
         derived.hideCopper = !enabled("ore", "copper"); derived.hideIron = !enabled("ore", "iron");
@@ -90,6 +89,6 @@ class MainMapFilters {
         case "companion": enabled("companions", point.sparkling == true ? "sparkling" : "regular");
         case "activity", "ascension", "dungeon": enabled("activities", point.kind);
         case "inactiveRift", "nextRift", "upcomingRift", "riftPortal": enabled("activities", "rifts");
-        default: NpcMarkers.KINDS.indexOf(point.kind) < 0 || enabled("npcs", point.kind);
+        default: true;
     };
 }

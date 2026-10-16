@@ -4,6 +4,12 @@ package minimap;
 class MinimapPosition {
     public static inline var MARGIN = 24.0;
 
+    /** Retire the old corner switch without moving an existing minimap. */
+    public static function migrateCorner(config:MinimapSettings):Void {
+        if (config.leftCorner == true) config.xOffset = 100 - percent(config.xOffset);
+        Reflect.deleteField(config, "leftCorner");
+    }
+
     public static function percent(value:Float):Int {
         return Math.isFinite(value) ? Math.round(Math.max(0, Math.min(100, value))) : 0;
     }

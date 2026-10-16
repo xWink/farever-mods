@@ -89,6 +89,8 @@ class MainMapBonusDungeon {
         background = G.create("h2d.Graphics", [root]);
         icon = G.create("h2d.Bitmap", [null, root]);
         G.set(icon, "smooth", true);
+        // The atlas is neutral: the heroic presentation needs its green tint.
+        G.call("h3d.Vector4Impl", "setColor", G.field(icon, "color"), [0xff91ef6b]);
         G.call("h2d.Object", "set_visible", icon, [false]);
         // Use the game's bold font rather than enlarging the fallback bitmap
         // font. Keep the style source alive for delayed CSS/locale changes.

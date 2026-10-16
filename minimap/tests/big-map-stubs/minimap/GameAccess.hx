@@ -31,7 +31,7 @@ class GameAccess {
         if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Bitmap", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
         var o:Dynamic = {nativeType: type, parent: parent, visible: true, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
         if (type == "h2d.Text") { o.font = args[0]; o.text = ""; }
-        if (type == "h2d.Bitmap") o.tile = args[0];
+        if (type == "h2d.Bitmap") { o.tile = args[0]; o.color = {argb:0xffffffff}; }
         created.push(o);
         return o;
     }
