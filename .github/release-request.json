@@ -1,7 +1,7 @@
 {
   "project": "minimap",
-  "version": "2.0.0",
-  "commit": "e947d167abf5924960aa84db3d92b7bc8a6fdfe1",
-  "notes": "- The main game map is now enhanced by the minimap markers and filters!\n- The main map now has filter toggle buttons on the side for control of what you see in both the main map and minimap.\n- The current Heroic Bonus Dungeon is now visible at the bottom left corner of the main map.\n- Hovering a map marker shows the marker details and distance, just like with the minimap.\n- Added a new option to rescale main map markers.\n- Added a new option to allow character movement while the main map is open.\n- Removed filter settings in the mod settings menu, as they are all controlled from the main map now.\n",
+  "version": "2.0.1",
+  "commit": "551f73a9f6bb8759c6f465e437b866654ff5264f",
+  "notes": "- Added player filter toggles\n- Improved Obelisk fast-travel UI\n- Minor appearance improvements to hover-text and Obelisk markers\n",
   "dry_run": false
 }
