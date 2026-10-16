@@ -72,6 +72,14 @@ class BigMapTest {
         var pin = nativeMarker(window, 16, 0, 0);
         var label = nativeMarker(window, 10, 0, 0);
         var death = nativeMarker(window, 22, 0, 0);
+        var obeliskTip = () -> 'Native obelisk tooltip';
+        var ownTip = () -> 'Native own-player tooltip';
+        var otherTip = () -> 'Native other-player tooltip';
+        var activityTip = () -> 'Native activity tooltip';
+        obelisk.content.getTip = obeliskTip; obelisk.content.showTipOnOver = true;
+        own.content.getTip = ownTip; own.content.showTipOnOver = true;
+        other.content.getTip = otherTip; other.content.showTipOnOver = true;
+        activity.content.getTip = activityTip; activity.content.showTipOnOver = true;
         var nativeToggle:Dynamic = {visible:true, removed:false};
         window.filterButtons = [nativeToggle];
         window.scrollContainer.dom = {obj:window.scrollContainer};
@@ -102,6 +110,14 @@ class BigMapTest {
         eq(obelisk.alpha, 0., 'No duplicate original icon');
         eq(obelisk.visible, true, 'Visible obelisk retains hit target');
         eq(obelisk.content.onClick, click, 'Native travel action untouched');
+        eq(obelisk.content.getTip, null, 'Native obelisk tooltip provider suppressed');
+        eq(own.content.getTip, null, 'Native own-player tooltip provider suppressed');
+        eq(obelisk.content.showTipOnOver, false, 'Obelisk hover does not open a native tooltip');
+        eq(own.content.showTipOnOver, false, 'Own-player hover does not open a native tooltip');
+        eq(obelisk.content.tipHidden, true, 'Already-visible obelisk tooltip is dismissed');
+        eq(own.content.tipHidden, true, 'Already-visible own-player tooltip is dismissed');
+        eq(other.content.getTip, otherTip, 'Other-player tooltip retained');
+        eq(activity.content.getTip, activityTip, 'Activity tooltip retained');
         eq(completed.visible, false, 'Completed activity cannot be clicked through an invisible marker');
         eq(npc.x, 15400., 'NPC click target follows loaded position instead of prefab');
         for (m in [pin, label, death]) { eq(m.alpha, 0.8, 'Map-only artwork preserved'); eq(m.visible, true, 'Map-only target preserved'); }
@@ -193,11 +209,25 @@ class BigMapTest {
             eq(slot.shadow, null, 'Main-map distance has no offset text shadow');
             eq(slot.arrowShadow, null, 'Main-map distance arrow has no offset shadow');
         }
+        hero.name = 'Me';
+        var savedX = window.scroll.x, savedY = window.scroll.y;
+        window.scroll.x = 350 - 9000. * view.scale; window.scroll.y = 300 - 7000. * view.scale;
+        view.update(window, c); view.trackMouse({relX:350., relY:300.}); view.update(window, c);
+        eq(view.caption.text, 'tower', 'Custom obelisk hover caption remains available');
+        window.scroll.x = 350 - hero.posx * view.scale; window.scroll.y = 300 - hero.posy * view.scale;
+        view.update(window, c); view.trackMouse({relX:350., relY:300.}); view.update(window, c);
+        eq(view.caption.text, 'Me', 'Custom own-player hover caption remains available');
+        window.scroll.x = savedX; window.scroll.y = savedY;
+        window.nearClickableMarker = npc;
         for (key in ['hideCopper', 'hideVerticallyDistantMarkers']) c = change(c, key, true);
         for (key in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles', 'showActivities', 'showCompanions']) c = change(c, key, false);
         view.update(window, c);
-        eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'Minimap preferences do not hide main-map markers');
-        eq(npc.visible, true, 'Vertical distance never hides main-map markers or their native actions');
+        eq(kinds(view), 'activity,companion,obelisk,ore,player,respawn', 'Only the shared height filter hides a distant marker');
+        eq(npc.visible, false, 'Height-hidden main-map marker also loses native click target');
+        eq(window.nearClickableMarker, null, 'Height-hidden marker is removed from native selection');
+        eq(npc.content.tipHidden, true, 'Height-hidden marker cannot retain a stale native tooltip');
+        c = change(c, 'hideVerticallyDistantMarkers', false); view.update(window, c);
+        eq(npc.visible, true, 'Disabling shared height filter restores native action');
         for (m in [own, other, obelisk, respawn]) eq(m.visible, true, 'Always-visible landmarks and players retain native actions');
         var oreButton = view.filterBar.buttons[0].object;
         eq(oreButton.minWidth, 48, 'Filter buttons are twenty percent larger');
@@ -224,8 +254,8 @@ class BigMapTest {
         eq(oreButton.selected, true, 'Native inset border remains selected when the category is disabled');
         eq(view.filterBar.buttons[0].icon.alpha, 1., 'Disabled category keeps its full-color icon');
         eq(kinds(view).indexOf('ore'), -1, 'Left click disables main-map category');
-        eq(c.showOre, true, 'Main-map category does not change minimap category');
-        eq(c.hideCopper, true, 'Main-map category does not change minimap resource preference');
+        eq(c.showOre, true, 'Legacy category flag is no longer authoritative');
+        eq(c.hideCopper, true, 'Legacy resource flag is no longer authoritative');
         oreButton.onClick(); view.update(window, c);
         eq(kinds(view).indexOf('ore') >= 0, true, 'Second click restores category');
         eq(view.filterBar.buttons[0].slash.visible, false, 'Enabled category hides slash');
@@ -245,7 +275,7 @@ class BigMapTest {
         eq(saves, 3, 'Each actual change saves once');
         oreButton.onClick(); oreButton.onClick(); view.update(window, c);
         eq(kinds(view).indexOf('ore'), -1, 'Cycling category preserves subfilters');
-        eq(c.mainMapHiddenFilters.indexOf('ore:copper') >= 0, true, 'Main-map filter persisted independently');
+        eq(c.mainMapHiddenFilters.indexOf('ore:copper') >= 0, true, 'Shared filter preference persisted');
         var popup = view.filterBar.popup;
         view.input.onPush({});
         eq(popup.removed, true, 'Clicking outside closes popup');
@@ -364,6 +394,9 @@ class BigMapTest {
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
         eq(oldFontSource.removed, true, 'Hidden native font source is removed with the map overlay');
         eq(obelisk.alpha, 0.8, 'Original alpha restored');
+        eq(obelisk.content.getTip, obeliskTip, 'Disabling enhancement restores native obelisk tooltip');
+        eq(own.content.getTip, ownTip, 'Disabling enhancement restores own-player tooltip');
+        eq(obelisk.content.showTipOnOver, true, 'Disabling enhancement restores native hover behavior');
         eq(nativeToggle.visible, true, 'Native filter toggles restored when override is disabled');
         eq(obelisk.visible, true, 'Native filters refreshed');
         eq(npc.x, 15000., 'Original native position restored');
@@ -373,6 +406,8 @@ class BigMapTest {
         view.remove(window);
         eq(oldRoot.removed, true, 'Closing/rebuilding map detaches overlay');
         eq(obelisk.alpha, 0.8, 'Closing/rebuilding restores originals');
+        eq(obelisk.content.getTip, obeliskTip, 'Closing restores obelisk tooltip provider');
+        eq(own.content.getTip, ownTip, 'Closing restores own-player tooltip provider');
         view.update(window, c); oldRoot = view.root;
         world.level = 'Dungeon'; view.update(window, c);
         eq(oldRoot.removed, true, 'Instance transition clears overworld overlay');

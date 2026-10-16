@@ -3,10 +3,13 @@ package minimap;
 import minimap.GameAccess as G;
 
 private typedef NativeMarker = {
-    marker:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>
+    marker:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>, tip:Null<NativeMarkerTip>
+};
+private typedef NativeMarkerTip = {
+    content:Dynamic, getTip:Dynamic, showTipOnOver:Bool
 };
 
-/** Keep the game's existing click/tooltip targets under the replacement artwork. */
+/** Keep native click targets, with selected tooltips replaced by our hover text. */
 class BigMapNativeMarkers {
     var originals:haxe.ds.ObjectMap<Dynamic, NativeMarker> = new haxe.ds.ObjectMap();
 
@@ -49,9 +52,12 @@ class BigMapNativeMarkers {
             else continue;
             var record = originals.get(marker);
             if (record == null) record = {marker: marker, alpha: G.number(G.field(marker, "alpha"), 1),
-                visible: G.field(marker, "visible") == true, point: null};
+                visible: G.field(marker, "visible") == true, point: null, tip: null};
             record.point = point;
             current.set(marker, record);
+            // The native providers live on content, not on the marker itself.
+            // Keep the interactive and click callbacks intact for obelisk travel.
+            suppressTip(record, layer == 15 || (layer == 20 && player == hero));
         }
         for (marker => record in originals) if (!current.exists(marker)) restore(record);
         originals = current;
@@ -96,7 +102,32 @@ class BigMapNativeMarkers {
         }
     }
 
+    function suppressTip(record:NativeMarker, suppress:Bool):Void {
+        var content = G.field(record.marker, "content");
+        if (record.tip != null && (!suppress || record.tip.content != content)) restoreTip(record);
+        if (!suppress || content == null) return;
+        var provider = G.field(content, "getTip");
+        var onOver = G.field(content, "showTipOnOver") == true;
+        var changed = record.tip == null || provider != null || onOver;
+        if (record.tip == null) record.tip = {content:content, getTip:provider, showTipOnOver:onOver};
+        else if (provider != null) record.tip.getTip = provider;
+        if (provider != null) G.set(content, "getTip", null);
+        if (onOver) G.set(content, "showTipOnOver", false);
+        if (changed) G.call("ui.UIElement", "hideTip", content);
+    }
+
+    function restoreTip(record:NativeMarker):Void {
+        var tip = record.tip;
+        if (tip == null) return;
+        if (G.field(tip.content, "removed") != true) {
+            G.set(tip.content, "getTip", tip.getTip);
+            G.set(tip.content, "showTipOnOver", tip.showTipOnOver);
+        }
+        record.tip = null;
+    }
+
     function restore(record:NativeMarker):Void {
+        restoreTip(record);
         if (G.field(record.marker, "removed") == true) return;
         G.set(record.marker, "alpha", record.alpha);
         G.call("ui.UIElement", "set_visible", record.marker, [record.visible]);

@@ -18,9 +18,9 @@ class MainMapFiltersTest {
         eq(derived == filters.settings(), true, 'Repeated frames reuse derived config');
         for (key in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles']) {
             eq(Reflect.field(derived, key), true, 'Always-visible main-map category ' + key);
-            eq(Reflect.field(config, key), false, 'Minimap preference preserved ' + key);
+            eq(Reflect.field(config, key), false, 'Legacy source value does not disable required category ' + key);
         }
-        eq(derived.hideVerticallyDistantMarkers, false, 'Main map never filters by height');
+        eq(derived.hideVerticallyDistantMarkers, true, 'Shared height filter applies to main map');
         eq(config.hideVerticallyDistantMarkers, true, 'Minimap height preference preserved');
         eq(derived.hideCopper, false, 'Shared resource default');
         eq(filters.enabled('activities', 'completed'), false, 'Completed activities default hidden');

@@ -65,13 +65,11 @@ class MainMapFilters {
         derived = Reflect.copy(source);
         markerScale = scale;
         derived.markerScale = scale;
-        derived.showPlayers = derived.showObelisks = derived.showRespawnPoints = derived.showSoulstoneCircles = true;
-        derived.hideVerticallyDistantMarkers = false;
         derived.sparklingCompanionAlerts = false;
         return applyFilters(derived);
     }
 
-    /** Preserve HUD size, height filtering, protected categories, and alerts. */
+    /** Preserve HUD size and alerts; visibility rules are shared with the main map. */
     public function minimapSettings():MinimapSettings {
         if (hudDerived == null || hudMarkerScale != source.markerScale) {
             hudMarkerScale = source.markerScale;
@@ -81,6 +79,9 @@ class MainMapFilters {
     }
 
     function applyFilters(config:MinimapSettings):MinimapSettings {
+        // These categories have no toggle on either map. Ignore legacy hidden
+        // preferences while still applying the shared height filter afterward.
+        config.showPlayers = config.showObelisks = config.showRespawnPoints = config.showSoulstoneCircles = true;
         config.showOre = enabled("ore"); config.showPlants = enabled("plants");
         config.showEnemies = enabled("enemies"); config.showCompanions = enabled("companions");
         config.showActivities = enabled("activities"); config.showNpcs = enabled("npcs");

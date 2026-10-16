@@ -54,11 +54,11 @@ class SharedMapFiltersTest {
         main.setEnabled('companions', 'sparkling', false); hud.bind(c);
         eq(hud.accepts({kind:'companion', sparkling:true, x:0, y:0, z:0}), false, 'Shared sparkling subtype');
         for (field in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles']) {
-            eq(Reflect.field(hud.minimapSettings(), field), false, 'Minimap-specific landmark/player preference ' + field);
+            eq(Reflect.field(hud.minimapSettings(), field), true, 'Retired minimap toggle cannot hide category ' + field);
             eq(Reflect.field(main.settings(), field), true, 'Main-map protected category ' + field);
         }
         eq(hud.minimapSettings().hideVerticallyDistantMarkers, true, 'Minimap retains height filter');
-        eq(main.settings().hideVerticallyDistantMarkers, false, 'Main map never filters by height');
+        eq(main.settings().hideVerticallyDistantMarkers, true, 'Main map uses shared height filter');
         eq(hud.minimapSettings().sparklingCompanionAlerts, true, 'Separate minimap guidance setting retained');
         eq(hud.minimapSettings().riftAlerts, true, 'Separate Rift alerts retained');
         eq(hud.minimapSettings().markerScale, 110., 'Minimap retains its own scale');
@@ -92,12 +92,34 @@ class SharedMapFiltersTest {
         main.setEnabled('ore', 'iron', false); hud.bind(c);
         markers.update(hero, hud.minimapSettings(), 0, 0, 100, 1, 0, rifts);
         eq(markers.points.filter(p -> p.kind == 'ore').length, 0, 'Shared subtype removes minimap ore');
+        // Both renderers use the same height rule and threshold. Test the
+        // actual collector so hidden points cannot become hover targets.
+        main.setEnabled('ore', 'iron', true); hud.bind(c);
+        layer.interactibles[0].posz = 30.;
+        var full = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta'); full.pointFilter = main.accepts;
+        full.update(hero, main.settings(), 0, 0, Math.POSITIVE_INFINITY, 1, 0, rifts);
+        markers.update(hero, hud.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(full.points.length, 1, 'Main-map marker exactly at threshold stays visible');
+        eq(markers.points.length, 1, 'Minimap marker exactly at threshold stays visible');
+        layer.interactibles[0].posz = 31.;
+        full.nextRefresh = markers.nextRefresh = 0;
+        full.update(hero, main.settings(), 0, 0, Math.POSITIVE_INFINITY, 1, 0, rifts);
+        markers.update(hero, hud.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(full.points.length, 0, 'Main-map marker above threshold is hidden');
+        eq(markers.points.length, 0, 'Minimap marker above threshold is hidden');
+        eq(full.hitPoints.length, 0, 'Hidden main-map markers have no hover target');
+        c = Reflect.copy(c); c.verticallyDistantThreshold = 31.; main.bind(c); hud.bind(c);
+        full.update(hero, main.settings(), 0, 0, Math.POSITIVE_INFINITY, 1, 0, rifts);
+        markers.update(hero, hud.minimapSettings(), 0, 0, 100, 1, 0, rifts);
+        eq(full.points.length, 1, 'Threshold update restores main-map marker');
+        eq(markers.points.length, 1, 'Threshold update restores minimap marker');
+        main.setEnabled('ore', 'iron', false);
         bar.dispose();
         var reloaded:MinimapSettings = haxe.Json.parse(haxe.Json.stringify(c)); hud.bind(reloaded);
         eq(hud.minimapSettings().hideIron, true, 'Shared preferences survive restart without opening map');
         eq(hud.enabled('enemies', 'regular'), false, 'Extra subtype survives restart');
-        reloaded = Reflect.copy(reloaded); reloaded.showPlayers = true; hud.bind(reloaded);
-        eq(hud.minimapSettings().showPlayers, true, 'Remaining BMS controls refresh through config reload');
+        reloaded = Reflect.copy(reloaded); reloaded.hideVerticallyDistantMarkers = false; hud.bind(reloaded);
+        eq(hud.minimapSettings().hideVerticallyDistantMarkers, false, 'Remaining BMS controls refresh through config reload');
         Sys.println('Shared map filters: $checks checks passed.');
     }
 }
