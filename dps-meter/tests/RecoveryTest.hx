@@ -80,6 +80,14 @@ class RecoveryTest {
         check(!LogRetention.expired(0, 10) && !LogRetention.expired(Math.NaN, 10) && !LogRetention.expired(10, 10) && LogRetention.expired(9, 10), "Invalid and boundary timestamps are preserved");
         var config = MeterConfig.defaults();
         check(config.autoDeleteLogs && config.logRetentionMonths == 12 && config.meterScale == 100, "Restored defaults match the working build");
+        for (scale in [50, 75, 100, 125, 150]) {
+            config.meterScale = scale; MeterConfig.normalize(config);
+            check(config.meterScale == scale, "Requested UI scale is preserved");
+        }
+        config.meterScale = 0; MeterConfig.normalize(config);
+        check(config.meterScale == 50, "UI scale lower bound");
+        config.meterScale = 200; MeterConfig.normalize(config);
+        check(config.meterScale == 150, "Old oversized UI scale migrates to new upper bound");
         var root = "build/recovery-retention-" + Std.random(0x3fffffff), worker = new LogUploader(root);
         var now = Date.fromString("2026-10-15 12:00:00");
         worker.setRetention(false, 12); worker.prune(now);

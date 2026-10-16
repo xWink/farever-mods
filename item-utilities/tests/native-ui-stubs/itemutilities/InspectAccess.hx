@@ -6,6 +6,7 @@ class InspectAccess {
     public static var geometryCalls = 0;
     public static var optionsBuilds = 0;
     public static var lastDialog:Dynamic;
+    public static function isA(object:Dynamic, type:String):Bool return object != null && object.type == type;
     public static function array(value:Dynamic):Array<Dynamic> return value == null ? [] : cast value;
     public static function text(value:Dynamic, fallback:String = ""):String return value == null ? fallback : Std.string(value);
     public static function field(object:Dynamic, name:String):Dynamic return object == null ? null : Reflect.field(object, name);
@@ -39,6 +40,14 @@ class InspectAccess {
             case "h3d.Vector4Impl.toColor": value.value;
             case "shiro.ui.DynamicBackgroundShader.get_backgroundColor": value.backgroundColor;
             case "shiro.ui.DynamicBackground.set_background": value.shader.backgroundColor.value=args[0]; null;
+            case "h2d.Flow.set_horizontalSpacing": value.horizontalSpacing=args[0]; null;
+            case "h2d.Flow.addChildAt":
+                var child:Dynamic=args[0];
+                if (child.parent != null) child.parent.children.remove(child);
+                value.children.insert(args[1],child); child.parent=value; null;
+            case "ui.comp.Spinner.set_value":
+                value.value=Std.int(Math.max(value.min, Math.min(value.max, args[0])));
+                value.inputText=Std.string(value.value); null;
             case "h2d.Object.addChildAt":
                 throw "Base Object insertion bypasses native Flow layout bookkeeping";
             case "hl.types.ArrayObj.slice": (cast value:Array<Dynamic>).slice(args[0],args[1]);

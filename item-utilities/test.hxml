@@ -110,3 +110,11 @@
 -cp tests
 -main NativePresetRenameTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests/native-ui-stubs
+-cp tests
+-main InventoryControlsTest
+--interp

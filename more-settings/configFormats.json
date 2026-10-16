@@ -39,6 +39,15 @@
       "label": "Hide UI hotkey"
     },
     {
+      "key": "fieldOfView",
+      "type": "slider",
+      "label": "Field of view (%)",
+      "min": 50,
+      "max": 150,
+      "step": 5,
+      "tooltip": {"enabled": true, "tooltipText": "Adjusts the gameplay camera's field of view. 100% keeps the game's default, including its sprint effect."}
+    },
+    {
       "type": "title",
       "label": "Combat"
     },

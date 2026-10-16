@@ -15,8 +15,20 @@ class SettingsTest {
     }
 
     static function main():Void {
-        bossHealth(); hideUiBinding(); policy(); classification(); presentation(); ownPresentation();
+        cameraFov(); bossHealth(); hideUiBinding(); policy(); classification(); presentation(); ownPresentation();
         Sys.println('More Settings: $checks checks passed.');
+    }
+
+    static function cameraFov():Void {
+        var c = SettingsData.defaults();
+        eq(c.fieldOfView, 100, "FOV defaults to unchanged gameplay camera");
+        c.fieldOfView = 0; SettingsData.normalize(c); eq(c.fieldOfView, 50, "FOV lower bound");
+        c.fieldOfView = 200; SettingsData.normalize(c); eq(c.fieldOfView, 150, "FOV upper bound");
+        eq(moresettings.CameraFov.adjust(60, 0, 100), 60, "Default FOV unchanged");
+        eq(moresettings.CameraFov.adjust(60, 0, 125), 75, "Gameplay FOV scaled");
+        eq(moresettings.CameraFov.adjust(68, 0, 125), 85, "Native sprint FOV still contributes");
+        eq(moresettings.CameraFov.adjust(40, 40, 150), 40, "Explicit camera override preserved");
+        eq(moresettings.CameraFov.adjust(130, 0, 150), 179, "Projection stays below 180 degrees");
     }
 
     static function bossHealth():Void {

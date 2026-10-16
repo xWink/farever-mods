@@ -59,6 +59,12 @@ class MoreSettingsMod {
         });
     }
 
+    @:hlx.postfix(client.GameCamera.getTargetFov)
+    static function adjustFieldOfView(instance:Dynamic, result:Float):Float {
+        // Explicit cinematic/ability overrides keep their native framing.
+        return CameraFov.adjust(result, G.number(G.field(instance, "overrideFov")), config.fieldOfView);
+    }
+
     @:hlx.prefix(HText.cleanPlayerText)
     static function cleanPlayerText(text:String):HlxPrefixResult<String> {
         return config.disableProfanityFilter ? SkipWith(StringTools.htmlEscape(text)) : Continue;

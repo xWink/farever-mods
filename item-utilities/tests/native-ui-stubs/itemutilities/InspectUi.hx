@@ -3,9 +3,9 @@ package itemutilities;
 class InspectUi {
     public static function escape(text:String):String
         return StringTools.replace(StringTools.replace(StringTools.htmlEscape(text), "[", "&#91;"), "$", "&#36;");
-    public static function node(kind:String, parent:Dynamic, args:Array<Dynamic>, id:String):Dynamic {
+    public static function node(kind:String, parent:Dynamic, args:Array<Dynamic>, id:String, ?layout:String):Dynamic {
         var object = InspectAccess.object(kind,parent.obj);
-        object.id=id;
+        object.id=id; object.layout=layout; object.text=args.length>0 ? args[0] : "";
         // The game sizes this child independently of the dropdown wrapper.
         if (kind == "dropdown") {
             object.select=InspectAccess.object("element",object);

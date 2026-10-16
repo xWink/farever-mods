@@ -181,6 +181,11 @@ class NativeUtilityUi {
                     if (PresetSlots.valid(index)) entry.select(index);
                 }
             });
+            G.call("ui.UIElement", "set_onRightClick", G.field(entry.selector, "select"), [() -> {
+                if (!live(entry) || entry.rename == null || G.call("ui.comp.Dropdown", "isOpen", entry.selector) == true) return;
+                var index = G.integer(G.field(entry.selector, "selectedIndex"), -1);
+                if (PresetSlots.valid(index)) entry.rename(index);
+            }]);
             entry.save = node("button", entry.root, ["Set"]);
             attach(entry.root, entry.save);
             G.call("ui.UIElement", "set_onClick", entry.save, [() -> {

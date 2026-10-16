@@ -12,7 +12,7 @@
     {"type": "title", "label": "DPS Meter"},
     {"key": "hideOutOfCombat", "type": "checkbox", "label": "Hide when out of combat"},
     {"key": "hideDelay", "type": "slider", "label": "Hiding delay (seconds)", "min": 0, "max": 10, "step": 1},
-    {"key": "meterScale", "type": "slider", "label": "UI scale (%)", "min": 100, "max": 200, "step": 5},
+    {"key": "meterScale", "type": "slider", "label": "UI scale (%)", "min": 50, "max": 150, "step": 5},
     {"key": "transparency", "type": "slider", "label": "Transparency", "min": 0, "max": 100, "step": 1},
     {"key": "toggleHotkey", "type": "keybinding", "modifiers": true, "label": "Show or hide meter hotkey"},
     {"key": "unlockHotkey", "type": "keybinding", "modifiers": true, "label": "Lock or unlock window hotkey", "tooltip": {"enabled": true, "tooltipText": "Enable or disable movement of DPS Meter and Fight History window"}},

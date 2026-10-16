@@ -267,10 +267,10 @@ class ItemUtilitiesMod {
     static inline var LOCK_RECONCILE_INTERVAL = 0.2;
     static inline var DEPOSIT_CRAFTING = 0;
     static inline var DEPOSIT_ALL = 1;
-    static inline var DEPOSIT_FOOD = 2;
-    static inline var DEPOSIT_CONSUMABLE = 3;
-    static inline var DEPOSIT_DEMON_ENCHANTMENT = 4;
-    static inline var DEPOSIT_MISC = 5;
+    static inline var DEPOSIT_FOOD_CONSUMABLE = 2;
+    static inline var DEPOSIT_COLLECTIBLE = 3;
+    static inline var DEPOSIT_DEMONIC = 4;
+    static inline var DEPOSIT_EQUIPMENT = 5;
 
     static function main():Void {
         if (ConfigMigration.importLegacy())
@@ -509,6 +509,11 @@ class ItemUtilitiesMod {
             inventoryComps.push(instance);
         selectPlayerInventoryComp();
         selectScrapInventoryComp();
+    }
+
+    @:hlx.postfix(ui.win.NumberInput.init)
+    static function addStackFractions(instance:Dynamic, result:Void):Void {
+        try StackFractions.attach(instance, () -> enabled) catch (error:Dynamic) logLockError("stack fractions", error);
     }
 
     @:hlx.postfix(ui.win.InventorySlot.init)
@@ -954,14 +959,14 @@ class ItemUtilitiesMod {
         if (sortButton == null || !isUiVisible(sortButton))
             return;
 
-        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -228, 0, 32, 30), DEPOSIT_MISC,
-            "misc", " Deposit miscellaneous ");
-        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -190, 0, 32, 30), DEPOSIT_DEMON_ENCHANTMENT,
-            "demon", " Deposit demon enchantment ");
-        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -152, 0, 32, 30), DEPOSIT_CONSUMABLE,
-            "consumable", " Deposit consumable ");
-        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -114, 0, 32, 30), DEPOSIT_FOOD,
-            "food", " Deposit food ");
+        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -228, 0, 32, 30), DEPOSIT_EQUIPMENT,
+            "equipment", " Deposit equipment ");
+        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -190, 0, 32, 30), DEPOSIT_DEMONIC,
+            "demon", " Update demonic items ");
+        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -152, 0, 32, 30), DEPOSIT_COLLECTIBLE,
+            "collectible", " Deposit collectible ");
+        drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -114, 0, 32, 30), DEPOSIT_FOOD_CONSUMABLE,
+            "food", " Deposit food/consumable ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -76, 0, 32, 30), DEPOSIT_CRAFTING,
             "materials", " Deposit crafting components ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -38, 0, 32, 30), DEPOSIT_ALL,
@@ -2525,17 +2530,7 @@ class ItemUtilitiesMod {
     static function matchesDepositMode(item:Dynamic):Bool {
         if (item == null || isItemLocked(item) || isItemJunk(item))
             return false;
-        return switch (depositMode) {
-            case DEPOSIT_ALL: true;
-            case DEPOSIT_FOOD: isItemType(item, "Food");
-            case DEPOSIT_CONSUMABLE:
-                isItemType(item, "Consumable") && !isItemType(item, "Food")
-                    && !isDemonEnchantment(item);
-            case DEPOSIT_DEMON_ENCHANTMENT: isDemonEnchantment(item);
-            case DEPOSIT_MISC:
-                isItemType(item, "Misc") && !isDemonEnchantment(item);
-            default: isCraftingComponent(item);
-        };
+        return DepositItems.matches(depositMode, type -> isItemType(item, type));
     }
 
     static function isDemonEnchantment(item:Dynamic):Bool {

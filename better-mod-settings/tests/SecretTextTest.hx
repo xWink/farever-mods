@@ -43,6 +43,10 @@ class SecretTextTest {
         eq(eye.obj.flowProperties.isAbsolute, false, "Eye stays inside the measured row");
         eq(NativeSecretText.display(input, input.text), "******", "New settings mask secrets");
         eq(hasPupil(eye), false, "New eye is closed");
+        eq((cast eye.obj.graphic.commands:Array<String>).filter(x -> x == "moveTo").length, 4, "Closed eye has three lashes");
+        eye.obj.btnText = {textColor:0x70574B};
+        NativeSecretText.refreshColors();
+        eq(eye.obj.graphic.lineColor, eye.obj.btnText.textColor, "Eye matches native button text");
         eq(eye.obj.textTip, null, "Closed eye has no tooltip");
         eq(eye.parent, parent, "Eye stays in the textbox row");
         eq(Reflect.field(eye.styles, "fill-width"), false, "Eye does not stretch the row");
@@ -51,6 +55,11 @@ class SecretTextTest {
         click(eye);
         eq(NativeSecretText.display(input, input.text), "aB 123", "First click reveals the original value");
         eq(hasPupil(eye), true, "Revealed eye has its pupil");
+        eq((cast eye.obj.graphic.commands:Array<String>).filter(x -> x == "moveTo").length, 4, "Open eye retains the three lashes");
+        eye.obj.btnText.textColor = 0x896E60;
+        NativeSecretText.refreshColors();
+        eq(eye.obj.graphic.lineColor, 0x896E60, "Eye tracks native hover colour");
+        eq(hasPupil(eye), true, "Theme refresh preserves reveal state");
         eq(eye.obj.textTip, null, "Open eye has no tooltip");
         eq(NativeSecretText.display(other, other.text), "******", "Revealing one secret leaves others hidden");
         click(eye);

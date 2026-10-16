@@ -7,12 +7,13 @@ private typedef SecretControl = {
     var button:Dynamic;
     var graphic:Dynamic;
     var revealed:Bool;
+    var color:Int;
 }
 
 /** Per-textbox display state. Never replaces the editable or persisted value. */
 class NativeSecretText {
     static inline var BUTTON_SIZE = 34;
-    static inline var ICON_COLOR = 0x4B2313;
+    static inline var ICON_COLOR = 0x70574B;
     static var controls:ObjectMap<Dynamic, SecretControl> = new ObjectMap();
     static var members:Map<String, hlx.runtime.ResolvedMember> = [];
 
@@ -61,7 +62,7 @@ class NativeSecretText {
         call("h2d.Object", "set_filter", graphic, [filter]);
 
         // A newly constructed settings window can never inherit a revealed eye.
-        var control:SecretControl = {input: input, button: button, graphic: graphic, revealed: false};
+        var control:SecretControl = {input: input, button: button, graphic: graphic, revealed: false, color: ICON_COLOR};
         controls.set(input, control);
         call("ui.UIElement", "set_onClick", button, [function():Void {
             // Ignore callbacks belonging to a discarded settings window.
@@ -125,12 +126,24 @@ class NativeSecretText {
         HlxRuntime.setField(control.input, "calcDone", false);
         HlxRuntime.setField(control.input, "splitLines", null);
         HlxRuntime.setField(control.input, "cursorXIndex", -1);
-        drawEye(control.graphic, control.revealed);
+        drawEye(control.graphic, control.revealed, control.color);
     }
 
-    static function drawEye(graphic:Dynamic, revealed:Bool):Void {
+    /** Native button text supplies the theme and hover/disabled colour. */
+    public static function refreshColors():Void {
+        for (control in controls) {
+            var text = HlxRuntime.resolveField(control.button, "btnText");
+            if (text == null) continue;
+            var color:Dynamic = HlxRuntime.resolveField(text, "textColor");
+            if (color == null || color == control.color) continue;
+            control.color = color;
+            drawEye(control.graphic, control.revealed, control.color);
+        }
+    }
+
+    static function drawEye(graphic:Dynamic, revealed:Bool, color:Int):Void {
         call("h2d.Graphics", "clear", graphic, []);
-        call("h2d.Graphics", "lineStyle", graphic, [1.8, ICON_COLOR, 1.0]);
+        call("h2d.Graphics", "lineStyle", graphic, [1.8, color, 1.0]);
         call("h2d.Graphics", "moveTo", graphic, [2.0, 11.0]);
         // Lower eyelid, shared by the closed eye and the open-eye outline.
         for (i in 1...17) {
@@ -142,11 +155,12 @@ class NativeSecretText {
                 var t = i / 16;
                 call("h2d.Graphics", "lineTo", graphic, [22 - 20 * t, 11 - 6 * Math.sin(Math.PI * t)]);
             }
-            call("h2d.Graphics", "beginFill", graphic, [ICON_COLOR, 1.0]);
+            call("h2d.Graphics", "beginFill", graphic, [color, 1.0]);
             call("h2d.Graphics", "drawCircle", graphic, [12.0, 11.0, 2.8, 24]);
             call("h2d.Graphics", "endFill", graphic, []);
-        } else {
-            // Closed eyelid with three lashes, no pupil.
+        }
+        // Keep the same three lashes in both states.
+        {
             for (t in [0.2, 0.5, 0.8]) {
                 var x = 2 + 20 * t;
                 var y = 11 + 6 * Math.sin(Math.PI * t);

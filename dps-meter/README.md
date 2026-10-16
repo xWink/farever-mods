@@ -45,7 +45,7 @@ files are imported into history once for compatibility, without uploading them.
 
 - **Live party DPS:** Damage, DPS, and team contribution with class-colored bars and clickable skill breakdowns using game skill names and each skill's share of that player's damage.
 - **Summon tracking:** Minion damage credited to its owner and the skill that summoned it.
-- **Native, customizable window:** Move, resize, lock, and scroll the meter, with optional automatic hiding and a smooth fade. The **UI scale (%)** slider enlarges the whole meter from 100% to 200%. A large gold corner grip marks the unlocked state; dragging and resizing respect the selected scale.
+- **Native, customizable window:** Move, resize, lock, and scroll the meter, with optional automatic hiding and a smooth fade. The **UI scale (%)** slider scales the whole meter from 50% to 150%, with a default of 100%. A large gold corner grip marks the unlocked state; dragging and resizing respect the selected scale.
 - **Controller focus:** The live meter stays out of controller navigation so it does not take focus from the game's menu controls. Its buttons, charts, dragging, and resizing remain mouse-operated; full controller navigation is not implemented.
 - **Rift tracking and recaps:** Separate gate and boss phases covering all players present, with both charts in one post-rift recap.
 - **Fight history:** Save Boss Dungeons, Classic Dungeons, World Bosses, and **Target Dummies**; choose an attempt by date, character, party size, duration, and your DPS, then reopen its player and skill charts. Other unclassified combat is not saved; existing Other history remains available.

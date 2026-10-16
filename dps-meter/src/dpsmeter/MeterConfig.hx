@@ -92,7 +92,7 @@ class MeterConfig {
         if (config.historyY != null && !Math.isFinite(config.historyY)) config.historyY = null;
         if (config.readyCheckX != null && !Math.isFinite(config.readyCheckX)) config.readyCheckX = null;
         if (config.readyCheckY != null && !Math.isFinite(config.readyCheckY)) config.readyCheckY = null;
-        config.meterScale = Std.int(Math.max(100, Math.min(200, config.meterScale)));
+        config.meterScale = Std.int(Math.max(50, Math.min(150, config.meterScale)));
         config.logRetentionMonths = LogRetention.months(config.logRetentionMonths);
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));
         config.width = Std.int(Math.max(360, Math.min(1200, config.width)));

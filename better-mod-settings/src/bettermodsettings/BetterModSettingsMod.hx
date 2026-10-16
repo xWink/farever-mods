@@ -161,6 +161,7 @@ class BetterModSettingsMod {
                 captureInput.finish();
             }
         }
+        NativeSecretText.refreshColors();
         if (captureInput.blocking && !captureInput.capturing)
             captureInput.update(keyFrame());
         return Continue;

@@ -81,6 +81,14 @@ class NativeUtilityIcons {
                 fill(g, 0xC391E1, [10.5,7, 14,10, 16,8, 17.5,4.5,
                     18,9, 15.5,12.5, 10.5,21, 5.5,12.5, 3,9,
                     3.5,4.5, 5,8, 7,10]);
+            case "equipment":
+                // Tunic silhouette for armour, weapons and wearable gear.
+                fill(g, 0xBFD3DE, [7,5, 9,7, 12,7, 14,5, 19,9, 16,13,
+                    14,11, 14,21, 7,21, 7,11, 5,13, 2,9]);
+            case "collectible":
+                // A golden star for learned and collected unlocks.
+                fill(g, 0xE8BA72, [10.5,3, 13,9, 19.5,9, 14.5,13.5,
+                    16.5,20, 10.5,16, 4.5,20, 6.5,13.5, 1.5,9, 8,9]);
             case "misc":
                 // Minimal circle / square / triangle for miscellaneous items.
                 circle(g, 0xD8BE92, 6.5,7.5,3);

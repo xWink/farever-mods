@@ -27,6 +27,7 @@ typedef MoreSettingsConfig = {
     var waitForParty:Bool;
     var leaveDungeonButton:Bool;
     var hideUiKey:Dynamic;
+    var fieldOfView:Int;
     var riftHideAllyAttacks:Bool;
     var riftHideAllyBuffs:Bool;
     var riftHideAllies:Bool;
@@ -69,6 +70,7 @@ class SettingsData {
         performanceDiagnostics: false,
         waitForParty: true,
         leaveDungeonButton: true,
+        fieldOfView: 100,
         hideUiKey: 113, // hxd.Key.F2
         riftHideAllyAttacks: false, riftHideAllyBuffs: false, riftHideAllies: false,
         riftHideOwnAttacks: false, riftHideOwnBuffs: false,
@@ -80,6 +82,7 @@ class SettingsData {
 
     public static function normalize(config:MoreSettingsConfig):Void {
         // Preserve legacy keys and validate Farever-style modifier bindings.
+        config.fieldOfView = Std.int(Math.max(50, Math.min(150, config.fieldOfView)));
         config.hideUiKey = Hotkey.normalize(config.hideUiKey, 113);
         config.socialInteractKey = Hotkey.normalize(config.socialInteractKey);
         config.skillProcAlertSize = Std.int(Math.max(50, Math.min(200, config.skillProcAlertSize)));

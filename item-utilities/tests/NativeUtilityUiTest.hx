@@ -107,6 +107,11 @@ class NativeUtilityUiTest {
         check(dropdown.options[0].name=="Raid &lt;fire&gt;", "Names are literal text, not FmtText markup");
         check(dropdown.selectText.useEllipsis && dropdown.selectText.maxWidthText==92,
             "Long labels stay inside the closed dropdown beside Set");
+        dropdown.select.onRightClick();
+        check(renamed==2 && dropdown.listWindow==null && applied==0 && saved==0,
+            "Closed dropdown renames current selection without opening or applying it");
+        renamed=-1; dropdown.listWindow=G.object("dropdown-list",scene);
+        dropdown.select.onRightClick(); check(renamed==-1,"Closed-button shortcut ignores an open dropdown");
         for (slot in 0...5) {
             dropdown.listWindow=G.object("dropdown-list",scene);
             dropdown.items[slot].onRightClick();

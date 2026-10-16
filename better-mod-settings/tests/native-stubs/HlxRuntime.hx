@@ -25,6 +25,7 @@ class HlxRuntime {
             else {
                 var commands:Array<Dynamic> = Reflect.field(object, "commands");
                 commands.push(member.method);
+                if (member.method == "lineStyle") Reflect.setField(object, "lineColor", args[2]);
             }
             return null;
         }
