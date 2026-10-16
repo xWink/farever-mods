@@ -88,6 +88,11 @@ class MinimapMod {
         if (bigMap != null) bigMap.update(instance, config);
     }
 
+    @:hlx.postfix(ui.win.MapWindow.refreshVisuals)
+    static function refreshBigMap(instance:Dynamic, result:Void):Void {
+        if (bigMap != null) bigMap.refreshNative(instance);
+    }
+
     @:hlx.prefix(ui.win.MapWindow.onRemove)
     static function removeBigMap(instance:Dynamic):HlxPrefixResult<Void> {
         if (bigMap != null) bigMap.remove(instance);
@@ -103,7 +108,7 @@ class MinimapMod {
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         saveZoom();
-        if (bigMap != null) bigMap.dispose();
+        if (bigMap != null) bigMap.release();
         if (view != null) try view.dispose() catch (_:Dynamic) {}
         retryAt = 0;
         return Continue;

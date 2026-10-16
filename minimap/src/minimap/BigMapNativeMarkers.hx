@@ -10,7 +10,10 @@ private typedef NativeMarker = {
 class BigMapNativeMarkers {
     var originals:haxe.ds.ObjectMap<Dynamic, NativeMarker> = new haxe.ds.ObjectMap();
 
+    var corrections:Array<NativeMarker> = [];
+    var dirty:Bool = true;
     public function new() {}
+    public function invalidate():Void dirty = true;
 
     public function sample(window:Dynamic, points:Array<MapPoint>, hero:Dynamic):Void {
         var byId:Map<String, MapPoint> = [];
@@ -52,27 +55,44 @@ class BigMapNativeMarkers {
         }
         for (marker => record in originals) if (!current.exists(marker)) restore(record);
         originals = current;
+        corrections = [];
+        for (record in originals) {
+            var point = record.point;
+            if (point == null) continue;
+            var position = G.field(record.marker, "worldPos");
+            // Native offscreen cursors can be clamped to the viewport edge.
+            // Keep those and relocated targets aligned with our world artwork.
+            if (point.kind == "player" || G.field(position, "x") != point.x || G.field(position, "y") != point.y
+                || G.call("ui.win.map.MapMarker", "get_showOffscreen", record.marker) == true)
+                corrections.push(record);
+        }
+        dirty = true;
     }
 
     public function apply(window:Dynamic, tileScale:Float, hero:Dynamic):Void {
-        for (record in originals) {
+        if (dirty) {
+            dirty = false;
+            for (record in originals) {
+                var marker = record.marker, point = record.point;
+                if (G.field(marker, "removed") == true) continue;
+                // Preserve the native action; invisible filtered markers cannot be clicked.
+                if (G.field(marker, "alpha") != 0.) G.set(marker, "alpha", 0.);
+                if (G.field(marker, "visible") != (point != null))
+                    G.call("ui.UIElement", "set_visible", marker, [point != null]);
+                if (point == null && G.field(window, "nearClickableMarker") == marker) {
+                    G.call("ui.UIElement", "hideTip", G.field(marker, "content"));
+                    G.set(window, "nearClickableMarker", null);
+                }
+            }
+        }
+        for (record in corrections) {
             var marker = record.marker, point = record.point;
             if (G.field(marker, "removed") == true) continue;
-            // Alpha hides artwork without disabling the original activity menu
-            // or obelisk travel action. Filtered-out targets cannot be clicked.
-            G.set(marker, "alpha", 0.0);
-            G.call("ui.UIElement", "set_visible", marker, [point != null]);
-            if (point != null) {
-                var own = point.entity == hero;
-                var x = own ? G.number(G.field(hero, "posx")) : point.x;
-                var y = own ? G.number(G.field(hero, "posy")) : point.y;
-                // Ascensions use the minimap's checkpoint, and loaded NPCs can
-                // move away from their prefab. Keep hit targets on the new icon.
-                G.call("h2d.Object", "setPosition", marker, [x * tileScale, y * tileScale]);
-            } else if (G.field(window, "nearClickableMarker") == marker) {
-                G.call("ui.UIElement", "hideTip", G.field(marker, "content"));
-                G.set(window, "nearClickableMarker", null);
-            }
+            var own = point.entity == hero;
+            var x = (own ? G.number(G.field(hero, "posx")) : point.x) * tileScale;
+            var y = (own ? G.number(G.field(hero, "posy")) : point.y) * tileScale;
+            if (G.field(marker, "x") != x || G.field(marker, "y") != y)
+                G.call("h2d.Object", "setPosition", marker, [x, y]);
         }
     }
 
@@ -85,5 +105,6 @@ class BigMapNativeMarkers {
     public function dispose():Void {
         for (record in originals) restore(record);
         originals = new haxe.ds.ObjectMap();
+        corrections = []; dirty = true;
     }
 }

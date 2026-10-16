@@ -2,7 +2,12 @@ package minimap;
 
 /** Native-only boundary; BigMapView and the complete marker collector/renderer run unchanged. */
 class GameAccess {
-    public static var globals:Map<String, Dynamic> = [];
+    public static var globals:Map<String, Dynamic> = ["h3d.mat.TextureFlags.Target" => "Target", "hxd.PixelFormat.RGBA" => "RGBA", "h2d.BlendMode.AlphaAdd" => "AlphaAdd",
+        "h3d.mat.TextureFlags.MipMapped" => "MipMapped", "h3d.mat.MipMap.Linear" => "Linear"];
+    public static var bakes:Int = 0;
+    public static var positionWrites:Int = 0;
+    public static var visibilityWrites:Int = 0;
+    public static var failBake:Bool = false;
     public static var created:Array<Dynamic> = [];
     public static var failGraphics:Bool = false;
     public static var arraysRead:Int = 0;
@@ -26,6 +31,11 @@ class GameAccess {
     }
     public static function current(type:String, name:String):Dynamic return globals[type + "." + name];
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
+        if (type == "h3d.mat.Texture") {
+            if (args.length != 4 || args[3] != "RGBA" || (cast args[2]:Array<Dynamic>).indexOf("Target") < 0) throw "Invalid texture arguments";
+            var texture:Dynamic = {nativeType:type, width:args[0], height:args[1], disposed:false};
+            created.push(texture); return texture;
+        }
         if (type == "h2d.filter.Nothing" || type == "h2d.filter.Outline") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
         var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" || type == "h2d.Bitmap" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
         if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Bitmap", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
@@ -44,6 +54,10 @@ class GameAccess {
             if (component == "button") obj.background = {shader:{}, color:{argb:0}, dom:{}, fill:0};
             if (component == "text") { obj.text = args[2][0]; obj.font = {size:14}; obj.styleClass = field(args[3], "class"); }
             created.push(obj); return dom;
+        }
+        if (type == "h2d.Tile" && name == "fromTexture") {
+            if (args.length != 1) throw "Tile argument count";
+            return {texture:args[0], width:args[0].width, height:args[0].height};
         }
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
         if (type == "HData" && name == "checkStatus") return true;
@@ -64,6 +78,26 @@ class GameAccess {
     }
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (args == null) args = [];
+        if (type == "hl.types.ArrayObj") return switch name {
+            case "slice": (cast o:Array<Dynamic>).slice(args[0], args[1]);
+            case "pushDyn": (cast o:Array<Dynamic>).push(args[0]);
+            default: throw "Array " + name;
+        };
+        if (type == "h3d.mat.Texture") return switch name {
+            case "clear": o.clearColor = args[0]; null;
+            case "checkMipMapGen":
+                if (args.length != 2 || args[0] != 0 || args[1] != 0 || o.baked != true) throw "Invalid mipmap generation";
+                o.mipmaps = true; null;
+            case "set_mipMap": o.mipMap = args[0]; null;
+            case "preventAutoDispose": o.retained = true; null;
+            case "dispose": o.disposed = true; null;
+            default: throw "Texture " + name;
+        };
+        if (type == "h2d.Tile") return switch name {
+            case "scaleToSize": o.width = args[0]; o.height = args[1]; null;
+            case "setCenterRatio": o.dx = -o.width * args[0]; o.dy = -o.height * args[1]; null;
+            default: throw "Tile " + name;
+        };
         if (type == "h2d.Graphics") {
             if (failGraphics) throw "Graphics unavailable";
             if (["clear", "beginFill", "endFill", "lineStyle", "moveTo", "lineTo", "drawCircle", "drawRect", "drawEllipse", "drawRoundedRect"].indexOf(name) < 0) throw "Graphics " + name;
@@ -71,13 +105,18 @@ class GameAccess {
         }
         if (type == "h2d.Object" || type == "ui.UIElement" && name == "set_visible") {
             switch name {
+                case "drawTo":
+                    if (args.length != 1 || args[0].clearColor != 0) throw "Invalid bake";
+                    if (failBake) throw "Texture bake failed";
+                    bakes++; args[0].baked = true;
                 case "addChild": args[0].parent = o;
                 case "set_filter": o.filter = args[0];
                 case "setScale": o.scale = args[0];
-                case "setPosition": o.x = args[0]; o.y = args[1];
+                case "setPosition": positionWrites++; o.x = args[0]; o.y = args[1];
                 case "set_rotation": o.rotation = args[0];
-                case "set_visible": o.visible = args[0];
+                case "set_visible": visibilityWrites++; o.visible = args[0];
                 case "remove": o.parent = null; o.removed = true;
+                case "onRemove": o.removed = true;
                 default: throw "Object " + name;
             }
             return null;
@@ -111,6 +150,7 @@ class GameAccess {
         if (type == "h2d.Layers" && name == "getChildLayer") return args[0].layer;
         if (type == "ui.BaseElement" && name == "get_myHero") return o.hero;
         if (type == "ui.UIElement" && name == "hideTip") { o.tipHidden = true; return null; }
+        if (type == "ui.win.map.MapMarker" && name == "get_showOffscreen") return field(o, "showOffscreen") == true;
         if (type == "ui.win.MapWindow") return switch name {
             case "get_tileScale": o.tileScale;
             case "refreshVisuals":
@@ -118,7 +158,7 @@ class GameAccess {
                 for (m in (cast o.markers:Array<Dynamic>)) m.visible = m.nativeVisible;
                 null;
             case "updateMapInfos":
-                for (m in (cast o.markers:Array<Dynamic>)) { m.x = m.worldPos.x * o.tileScale; m.y = m.worldPos.y * o.tileScale; }
+                for (m in (cast o.markers:Array<Dynamic>)) { m.x = field(m, "showOffscreen") == true ? -999. : m.worldPos.x * o.tileScale; m.y = m.worldPos.y * o.tileScale; }
                 null;
             default: throw "MapWindow " + name;
         };

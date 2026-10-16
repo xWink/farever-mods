@@ -30,13 +30,14 @@ class MainMapFilterBar {
     var revision:Int = -1;
     var width:Float = 0;
     var height:Float = 0;
+    var bottom:Float = -1;
 
-    public function new(container:Dynamic, filters:MainMapFilters, drawIcon:(Dynamic, String)->Void) {
+    public function new(container:Dynamic, filters:MainMapFilters, createIcon:(Dynamic, String)->Dynamic) {
         this.container = container; this.filters = filters;
-        try build(drawIcon) catch (error:Dynamic) { dispose(); throw error; }
+        try build(createIcon) catch (error:Dynamic) { dispose(); throw error; }
     }
 
-    function build(drawIcon:(Dynamic, String)->Void):Void {
+    function build(createIcon:(Dynamic, String)->Dynamic):Void {
         root = node("flow", container, [], "minimapMainFilters");
         for (i in 0...MainMapFilters.CATEGORIES.length) {
             var category = MainMapFilters.CATEGORIES[i];
@@ -48,17 +49,9 @@ class MainMapFilterBar {
             }]);
             var hasSubfilters = category.items.length > 0;
             if (hasSubfilters) G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
-            var icon = G.create("h2d.Graphics", [button]);
+            var icon = createIcon(button, category.icon);
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
             G.call("h2d.Object", "setScale", icon, [1.35]);
-            drawIcon(icon, category.icon);
-            // Supersample the small vector symbol, independent of map zoom.
-            // Smoothing a bitmap alone would not antialias its vector edges.
-            var antialias = G.create("h2d.filter.Nothing", []);
-            G.set(antialias, "smooth", true);
-            G.call("h2d.filter.Filter", "set_useScreenResolution", antialias, [true]);
-            G.call("h2d.filter.Filter", "set_resolutionScale", antialias, [2.0]);
-            G.call("h2d.Object", "set_filter", icon, [antialias]);
             var slash = G.create("h2d.Graphics", [button]);
             absolute(button, slash);
             // A light keyline keeps the dark slash legible over every icon.
@@ -82,14 +75,17 @@ class MainMapFilterBar {
             for (button in G.array(source)) if (button != null) nativeButtons.set(button, G.field(button, "visible") != false);
         }
         // Native refreshes may run while the window is open.
-        for (button in nativeButtons.keys()) G.call("ui.UIElement", "set_visible", button, [false]);
-        width = w; height = h;
-        var availableHeight = Math.max(1, height - bottomInset);
-        var scale = Math.max(0.25, Math.min(1, (availableHeight - 24) / BAR_HEIGHT));
-        G.call("h2d.Object", "setScale", root, [scale]);
-        position(root, 12, Math.max(12, (availableHeight - BAR_HEIGHT * scale) / 2));
+        for (button in nativeButtons.keys()) if (G.field(button, "visible") != false)
+            G.call("ui.UIElement", "set_visible", button, [false]);
+        if (width != w || height != h || bottom != bottomInset) {
+            width = w; height = h; bottom = bottomInset;
+            var availableHeight = Math.max(1, height - bottomInset);
+            var scale = Math.max(0.25, Math.min(1, (availableHeight - 24) / BAR_HEIGHT));
+            G.call("h2d.Object", "setScale", root, [scale]);
+            position(root, 12, Math.max(12, (availableHeight - BAR_HEIGHT * scale) / 2));
+            placePopup();
+        }
         for (button in buttons) styleButton(button);
-        placePopup();
         if (revision != filters.revision) refresh();
     }
 

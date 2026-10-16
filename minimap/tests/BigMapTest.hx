@@ -64,7 +64,7 @@ class BigMapTest {
         var obelisk = nativeMarker(window, 15, 9000, 7000); obelisk.element = {id: 'tower'};
         var click = () -> {}; obelisk.content.onClick = click;
         var respawn = nativeMarker(window, 14, 8000, 6000); window.respawnPoints.set('spawn', respawn);
-        var activity = nativeMarker(window, 13, 7000, 5000); activity.activity = {id: 'task'};
+        var activity = nativeMarker(window, 13, 7000, 5000); activity.activity = {id: 'task'}; activity.showOffscreen = true;
         var completed = nativeMarker(window, 13, 6000, 4000); completed.activity = {id: 'done'};
         var npc = nativeMarker(window, 13, 7500, 6000); npc.activity = {id: 'npc'};
         var own = nativeMarker(window, 20, 0, 0); own.hero = hero;
@@ -86,9 +86,13 @@ class BigMapTest {
         eq(view.root.scale, 1., 'World coordinates include current map tile scale and zoom');
         eq(view.markerViewport.width, 1000, 'Smoothing bounds use visible map width');
         eq(view.markerViewport.height, 800, 'Smoothing bounds use visible map height');
-        eq(view.markerViewport.filter.smooth, true, 'Supersampled artwork is smoothly downsampled');
-        eq(view.markerViewport.filter.useScreenResolution, true, 'Sampling follows actual display resolution');
-        eq(view.markerViewport.filter.resolutionScale, 2., 'Twice the resolution on each axis');
+        eq(G.field(view.markerViewport, 'filter'), null, 'No per-frame marker-layer render target');
+        eq(G.field(view.priorityViewport, 'filter'), null, 'No per-frame priority-layer render target');
+        eq(view.arrow.nativeType, 'h2d.Bitmap', 'Own arrow uses cached high-resolution artwork');
+        eq(view.arrow.tile.texture.width, 256, 'Sharp cached icon has eight samples per local pixel');
+        eq(view.arrow.tile.width, 32., 'Texture resolution does not enlarge icons');
+        eq(view.arrow.tile.dx, -16., 'Cached icon stays centered');
+        eq(view.markers.hitPoints.length, 0, 'Offscreen world points have no artwork or hover targets');
         eq(G.field(view.root, 'filter'), null, 'Never filter the unbounded world root');
         eq(G.field(window.scroll, 'filter'), null, 'Map terrain is not supersampled');
         eq(view.markers.markerScale, 1.5, 'Main-map size reduced by 25 percent, preserving smoothing');
@@ -107,16 +111,16 @@ class BigMapTest {
         var before = view.markers.revision;
         view.markers.nextRefresh = haxe.Timer.stamp() + 100;
         var arrays = G.arraysRead;
-        window.zoom = 2.; window.scroll.x = -800.; window.scroll.y = 100.;
+        window.zoom = 2.; window.scroll.x = 500 - 7700. * 4; window.scroll.y = 400 - 6000. * 4;
         view.update(window, c);
         eq(view.markers.revision, before, 'Smooth zoom does not rescan world entities');
         eq(G.arraysRead, arrays, 'Smooth zoom does not allocate source arrays');
-        eq(view.markers.mapIconMarkers[0].icon.scale, 0.375, 'Icons keep constant display size while zooming');
+        eq(view.markers.npcIconMarkers[0].icon.scale, 0.375, 'Icons keep constant display size while zooming');
         eq(view.arrow.scale, 0.375, 'Own arrow uses same scale');
         eq(view.markers.npcElevationMarkers[0].root.scale, 0.375, 'Height indicators use the same larger size');
         for (zoom in [0.125, 0.5, 1., 2., 8.]) {
             window.zoom = zoom;
-            window.scroll.x = -90000. * zoom; window.scroll.y = 25000. * zoom;
+            window.scroll.x = 500 - 10000. * zoom * 2; window.scroll.y = 400 - 5000. * zoom * 2;
             view.update(window, c);
             var viewport = view.markerViewport, root = view.root;
             var sx = G.number(window.scroll.x), sy = G.number(window.scroll.y);
@@ -150,6 +154,26 @@ class BigMapTest {
         view.trackMouse({relX: window.scroll.x + ore.x * view.scale, relY: window.scroll.y + ore.y * view.scale});
         view.update(window, c);
         eq(view.caption.text, 'Copper', 'Big-map hover resolves shared marker name');
+        view.markers.nextRefresh = haxe.Timer.stamp() + 100;
+        var idleHover = view.hoverState, idleProjection = view.projection;
+        var idleBakes = G.bakes, idlePositions = G.positionWrites, idleVisibility = G.visibilityWrites;
+        for (_ in 0...30) view.update(window, c);
+        eq(view.hoverState, idleHover, 'Stationary hover reuses the previous search and measurements');
+        eq(view.projection, idleProjection, 'Stationary projection is not rebuilt');
+        eq(G.bakes, idleBakes, 'Stationary frames bake no icon textures');
+        eq(G.positionWrites, idlePositions, 'Stationary frames rewrite no object positions');
+        eq(G.visibilityWrites, idleVisibility, 'Stationary frames rewrite no visibility');
+        // Simulate the real native update before our postfix, including a visual refresh.
+        G.call('ui.win.MapWindow', 'refreshVisuals', window);
+        view.refreshNative(window);
+        G.call('ui.win.MapWindow', 'updateMapInfos', window);
+        view.update(window, c);
+        eq(completed.visible, false, 'Native filter refresh is corrected without waiting for a world scan');
+        eq(npc.x, 15400., 'Relocated NPC target is corrected after each native position reset');
+        eq(activity.x, 14000., 'Clamped native targets also stay on the replacement artwork');
+        eq(obelisk.x, 18000., 'Unchanged landmarks keep their native projection');
+        eq(G.bakes, idleBakes, 'Native refresh does not rebake artwork');
+
         eq(nativeToggle.visible, false, 'Native filter toggles hidden while override is active');
         eq(view.filterBar.buttons.length, 8, 'Eight main-map categories');
         eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
@@ -175,9 +199,10 @@ class BigMapTest {
         eq(view.filterBar.buttons[0].icon.scale, 1.35, 'Filter symbols are larger too');
         for (button in view.filterBar.buttons) {
             eq(G.field(button.object, 'textTip'), null, 'Filter toggle has no hover tooltip');
-            eq(button.icon.filter.resolutionScale, 2., 'Every filter symbol is supersampled');
-            eq(button.icon.filter.useScreenResolution, true, 'Button smoothing follows display resolution');
-            eq(button.icon.filter.smooth, true, 'Button symbols are smoothly downsampled');
+            eq(button.icon.nativeType, 'h2d.Bitmap', 'Filter symbol uses shared cached artwork');
+            eq(button.icon.tile.texture.width, 256, 'Filter symbol is high resolution');
+            eq(button.icon.smooth, true, 'Filter symbols are smoothly downsampled');
+            eq(G.field(button.icon, 'filter'), null, 'Filter symbols have no per-frame smoothing pass');
             eq(G.field(button.object, 'filter'), null, 'Small icon smoothing does not capture the full native button');
         }
         eq(oreButton.background.fill, 0xFFE9D9BB, 'Native rounded background uses light parchment');
@@ -220,6 +245,7 @@ class BigMapTest {
         eq(view.filterBar.popup, null, 'Popup reference cleared');
         friend.party = true; friend.name = 'Party'; hero.name = 'Me';
         friend.posx = 7700.; friend.posy = 6000.;
+        window.scroll.x = 400 - 7700. * view.scale; window.scroll.y = 300 - 6000. * view.scale;
         view.markers.nextRefresh = 0; view.update(window, c);
         eq(view.priorityViewport.layer, 26, 'Player priority layer is above every native marker');
         eq(view.markers.partyIcons.parent, view.priorityRoot, 'Party icons use priority layer');
@@ -250,7 +276,9 @@ class BigMapTest {
         baseline.riftAlertPosition = {x:edgeParty.x, y:edgeParty.y, point:{id:'rift', kind:'inactiveRift', x:0, y:0, z:0}};
         eq(baseline.alertHoverAt(edgeParty.x, edgeParty.y).name, 'Party', 'Party edge hover wins over overlapping Rift');
         var savedFilters = c.mainMapHiddenFilters.copy();
+        var reopenBakes = G.bakes;
         view.remove(window); view.update(window, c);
+        eq(G.bakes, reopenBakes, 'Map reopen reuses all previously encountered icon appearances');
         eq(c.mainMapHiddenFilters.join(','), savedFilters.join(','), 'Reopening the map retains independent choices');
         eq(kinds(view).indexOf('ore'), -1, 'Reopened map still filters copper');
         view.filterBar.buttons[0].object.onRightClick();
@@ -346,14 +374,16 @@ class BigMapTest {
         c = change(c, 'enabled', false); view.update(window, c);
         eq(view.root, null, 'Master Enabled also controls big map');
         view.update(window, config());
-        G.failGraphics = true;
-        view.markers.nextRefresh = 0;
-        view.markers.mapIconMarkers[0].key = 'force redraw';
+        // Force an uncached appearance to exercise the native fallback.
+        view.release();
+        G.failBake = true;
         view.update(window, config());
         eq(view.root, null, 'Render failure falls back to native map');
         eq(obelisk.alpha, 0.8, 'Render failure restores original markers');
         eq(obelisk.visible, true, 'Render failure leaves travel available');
         eq(nativeToggle.visible, true, 'Render failure also restores native filter controls');
+        G.failBake = false;
+        view.release();
         Sys.println('Big map: ' + checks + ' checks passed.');
     }
 }

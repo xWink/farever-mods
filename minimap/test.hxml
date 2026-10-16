@@ -93,3 +93,9 @@
 -cp tests
 -main MainMapFiltersTest
 --interp
+--next
+-cp src
+-cp tests
+-cp tests/big-map-stubs
+-main MainMapPerformanceTest
+--interp

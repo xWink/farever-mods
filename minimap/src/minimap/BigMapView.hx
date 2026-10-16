@@ -19,6 +19,9 @@ class BigMapView {
     var filterBar:MainMapFilterBar;
     var bonusDungeon:MainMapBonusDungeon;
     var arrow:Dynamic;
+    var iconCache:MainMapIconCache;
+    var projection:Null<{x:Float, y:Float, width:Int, height:Int, zoom:Float, scale:Float}>;
+    var hoverState:Null<{x:Float, y:Float, hx:Float, hy:Float, hz:Float, revision:Int, bonusWidth:Float, bonusVisible:Bool}>;
     var markers:MinimapMarkers;
     var rifts:RiftMarkers;
     var nativeMarkers:BigMapNativeMarkers;
@@ -85,6 +88,7 @@ class BigMapView {
         rifts.update(G.field(hero, "layer"), haxe.Timer.stamp());
         // The entire map can be panned, not just the minimap's area around the
         // hero. Static locations remain cached; live data still samples at 5 Hz.
+        markers.setViewport(projection.x, projection.y, projection.width, projection.height);
         markers.update(hero, filters.settings(), 0, 0, Math.POSITIVE_INFINITY, scale, 0, rifts);
         if (!markers.healthy) throw "Marker refresh failed";
         var count = G.integer(G.field(G.field(window, "markers"), "length"));
@@ -98,8 +102,11 @@ class BigMapView {
             ownScale = newOwnScale;
             G.call("h2d.Object", "setScale", arrow, [ownScale]);
         }
-        G.call("h2d.Object", "setPosition", arrow, [G.number(G.field(hero, "posx")), G.number(G.field(hero, "posy"))]);
-        G.call("h2d.Object", "set_rotation", arrow, [G.number(G.field(hero, "rotationZ"))]);
+        var hx = G.number(G.field(hero, "posx")), hy = G.number(G.field(hero, "posy"));
+        if (G.field(arrow, "x") != hx || G.field(arrow, "y") != hy)
+            G.call("h2d.Object", "setPosition", arrow, [hx, hy]);
+        var heading = G.number(G.field(hero, "rotationZ"));
+        if (G.field(arrow, "rotation") != heading) G.call("h2d.Object", "set_rotation", arrow, [heading]);
         var mapWidth = G.number(G.field(container, "calculatedWidth")), mapHeight = G.number(G.field(container, "calculatedHeight"));
         bonusDungeon.update(hero, mapWidth, mapHeight);
         filterBar.update(window, mapWidth, mapHeight, bonusDungeon.visible ? 76 : 0);
@@ -107,20 +114,20 @@ class BigMapView {
     }
 
     function create():Void {
-        // Keep the native layer order, but bound smoothing to the visible map.
-        // Filtering the world-sized root would allocate an enormous render target.
+        // Masks clip the two native layers; sharpness comes from shared small
+        // icon textures, without any per-frame offscreen layer rendering.
+        if (iconCache == null) iconCache = new MainMapIconCache(G.field(window, "markers"));
         markerViewport = createViewport(15);
         priorityViewport = createViewport(26);
         root = G.create("h2d.Object", [markerViewport]);
         priorityRoot = G.create("h2d.Object", [priorityViewport]);
         var players = G.create("h2d.Object", [root]);
         var foreground = G.create("h2d.Object", [root]);
-        markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE, priorityRoot);
+        markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE, priorityRoot, iconCache);
         markers.ownFirst = true;
         markers.pointFilter = filters.accepts;
         // After the party layer, above every native and replacement marker.
-        arrow = G.create("h2d.Graphics", [priorityRoot]);
-        MinimapMarkers.drawPlayerArrow(arrow, 10, 0xfff3d6);
+        arrow = iconCache.bitmap(priorityRoot, "own", g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xfff3d6));
         rifts = new RiftMarkers(LEVEL);
         nativeMarkers = new BigMapNativeMarkers();
         overlay = G.create("h2d.Object", [container]);
@@ -135,21 +142,16 @@ class BigMapView {
         G.set(input, "onMove", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
-        G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hideCaption(); });
+        G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hoverState = null; hideCaption(); });
         G.set(input, "onPush", (_:Dynamic) -> { if (filterBar != null) filterBar.closePopup(); });
         bonusDungeon = new MainMapBonusDungeon(overlay, container);
-        filterBar = new MainMapFilterBar(container, filters, markers.drawFilterIcon);
+        filterBar = new MainMapFilterBar(container, filters, markers.createFilterIcon);
     }
 
     function createViewport(layer:Int):Dynamic {
         var viewport = G.create("h2d.Mask", [1, 1, null]);
         try {
             G.call("h2d.Layers", "add", scroll, [viewport, layer, null]);
-            var antialias = G.create("h2d.filter.Nothing", []);
-            G.set(antialias, "smooth", true);
-            G.call("h2d.filter.Filter", "set_useScreenResolution", antialias, [true]);
-            G.call("h2d.filter.Filter", "set_resolutionScale", antialias, [2.0]);
-            G.call("h2d.Object", "set_filter", viewport, [antialias]);
         } catch (error:Dynamic) {
             G.call("h2d.Object", "remove", viewport);
             throw error;
@@ -161,6 +163,9 @@ class BigMapView {
         var w = Std.int(Math.ceil(G.number(G.field(container, "calculatedWidth"))));
         var h = Std.int(Math.ceil(G.number(G.field(container, "calculatedHeight"))));
         var x = G.number(G.field(scroll, "x")), y = G.number(G.field(scroll, "y"));
+        if (projection != null && projection.x == x && projection.y == y && projection.width == w
+            && projection.height == h && projection.zoom == zoom && projection.scale == scale) return;
+        projection = {x:x, y:y, width:w, height:h, zoom:zoom, scale:scale};
         // Both layers stay viewport-sized, regardless of world zoom/panning.
         for (viewport in [markerViewport, priorityViewport]) {
             G.set(viewport, "width", w); G.set(viewport, "height", h);
@@ -180,23 +185,30 @@ class BigMapView {
     }
 
     function updateHover():Void {
-        G.call("h2d.Object", "setPosition", overlay, [0., 0.]);
+        if (G.field(overlay, "x") != 0. || G.field(overlay, "y") != 0.)
+            G.call("h2d.Object", "setPosition", overlay, [0., 0.]);
         var w = G.number(G.field(container, "calculatedWidth")), h = G.number(G.field(container, "calculatedHeight"));
         if (width != w || height != h) {
             width = w; height = h;
             G.set(input, "width", width);
             G.set(input, "height", height);
-            captionKey = "";
+            captionKey = ""; hoverState = null;
         }
-        if (!hovered || filterBar.contains(mouseX, mouseY) || G.call("h2d.Interactive", "isOver", input) != true) { hideCaption(); return; }
+        if (!hovered || filterBar.contains(mouseX, mouseY) || G.call("h2d.Interactive", "isOver", input) != true) { hoverState = null; hideCaption(); return; }
         // Use the displayed scroll transform, including smooth zoom and pan,
         // rather than targetZoom or the rounded native mouse-world coordinates.
-        var x = (mouseX - G.number(G.field(scroll, "x"))) / scale;
-        var y = (mouseY - G.number(G.field(scroll, "y"))) / scale;
+        var x = (mouseX - projection.x) / scale;
+        var y = (mouseY - projection.y) / scale;
         var hx = G.number(G.field(hero, "posx")), hy = G.number(G.field(hero, "posy"));
+        var hz = G.number(G.field(hero, "posz"), Math.NaN);
+        if (hoverState != null && hoverState.x == x && hoverState.y == y && hoverState.hx == hx && hoverState.hy == hy
+            && hoverState.hz == hz && hoverState.revision == markers.viewRevision
+            && hoverState.bonusWidth == bonusDungeon.width && hoverState.bonusVisible == bonusDungeon.visible) return;
+        hoverState = {x:x, y:y, hx:hx, hy:hy, hz:hz, revision:markers.viewRevision,
+            bonusWidth:bonusDungeon.width, bonusVisible:bonusDungeon.visible};
         var target = markers.hoverAt(x, y, scale, hx, hy, hero);
         if (target == null) { hideCaption(); return; }
-        var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: G.number(G.field(hero, "posz"), Math.NaN)});
+        var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: hz});
         var key = target.name + [for (part in details) part.direction + ":" + part.metres].join("|")
             + "|bonus:" + bonusDungeon.visible + ":" + bonusDungeon.width;
         if (captionKey == key) return;
@@ -246,6 +258,17 @@ class BigMapView {
         retryAt = 0;
     }
 
+    public function refreshNative(instance:Dynamic):Void {
+        if (window == instance && nativeMarkers != null) nativeMarkers.invalidate();
+    }
+
+    /** Keep reusable icon textures across map closes, release them with the game. */
+    public function release():Void {
+        dispose();
+        if (iconCache != null) iconCache.dispose();
+        iconCache = null;
+    }
+
     public function dispose():Void {
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
         if (filterBar != null) try filterBar.dispose() catch (_:Dynamic) {}
@@ -261,6 +284,7 @@ class BigMapView {
         bonusDungeon = null; filterBar = null; priorityRoot = null; priorityViewport = null;
         markerViewport = null; root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
         overlay = null; input = null; caption = null; measurements = null;
+        projection = null; hoverState = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
         width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;
     }
