@@ -159,14 +159,13 @@ class NativeSecretText {
             call("h2d.Graphics", "drawCircle", graphic, [12.0, 11.0, 2.8, 24]);
             call("h2d.Graphics", "endFill", graphic, []);
         }
-        // Keep the same three lashes in both states.
-        {
-            for (t in [0.2, 0.5, 0.8]) {
-                var x = 2 + 20 * t;
-                var y = 11 + 6 * Math.sin(Math.PI * t);
-                call("h2d.Graphics", "moveTo", graphic, [x, y]);
-                call("h2d.Graphics", "lineTo", graphic, [x + (t - 0.5) * 7, y + 4]);
-            }
+        // Open lashes extend above the upper lid; closed lashes point down.
+        var lashDirection = revealed ? -1 : 1;
+        for (t in [0.2, 0.5, 0.8]) {
+            var x = 2 + 20 * t;
+            var y = 11 + lashDirection * 6 * Math.sin(Math.PI * t);
+            call("h2d.Graphics", "moveTo", graphic, [x, y]);
+            call("h2d.Graphics", "lineTo", graphic, [x + (t - 0.5) * 7, y + lashDirection * 4]);
         }
     }
 

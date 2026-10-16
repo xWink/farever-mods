@@ -962,11 +962,11 @@ class ItemUtilitiesMod {
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -228, 0, 32, 30), DEPOSIT_EQUIPMENT,
             "equipment", " Deposit equipment ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -190, 0, 32, 30), DEPOSIT_DEMONIC,
-            "demon", " Update demonic items ");
+            "demon", " Deposit demonic items ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -152, 0, 32, 30), DEPOSIT_COLLECTIBLE,
-            "collectible", " Deposit collectible ");
+            "collectible", " Deposit collectibles ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -114, 0, 32, 30), DEPOSIT_FOOD_CONSUMABLE,
-            "food", " Deposit food/consumable ");
+            "food", " Deposit food/consumables ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -76, 0, 32, 30), DEPOSIT_CRAFTING,
             "materials", " Deposit crafting components ");
         drawBankDepositButton(sortButton, NativeUiLayout.rect(sortButton, -38, 0, 32, 30), DEPOSIT_ALL,
