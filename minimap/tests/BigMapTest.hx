@@ -7,6 +7,7 @@ import minimap.GameAccess as G;
 @:access(minimap.MinimapMarkers)
 @:access(minimap.MainMapFilterBar)
 @:access(minimap.HoverMeasurements)
+@:access(minimap.MainMapBonusDungeon)
 class BigMapTest {
     static var checks = 0;
     static function eq(a:Dynamic, b:Dynamic, message:String):Void {
@@ -163,12 +164,25 @@ class BigMapTest {
         eq(npc.visible, true, 'Vertical distance never hides main-map markers or their native actions');
         for (m in [own, other, obelisk, respawn]) eq(m.visible, true, 'Always-visible landmarks and players retain native actions');
         var oreButton = view.filterBar.buttons[0].object;
+        eq(oreButton.minWidth, 48, 'Filter buttons are twenty percent larger');
+        eq(oreButton.minHeight, 48, 'Filter buttons stay square');
+        eq(view.filterBar.buttons[0].icon.scale, 1.35, 'Filter symbols are larger too');
+        eq(oreButton.background.fill, 0xFFE9D9BB, 'Native rounded background uses light parchment');
+        oreButton.hasHover = true; oreButton.onOver();
+        eq(oreButton.background.color.argb, 0xFFDED4C4, 'Hover darkens rather than flashing white');
+        oreButton.pushed = 'left'; view.update(window, c);
+        eq(oreButton.background.color.argb, 0xFFC1B39E, 'Press has a darker native-style response');
+        oreButton.pushed = null; oreButton.hasHover = false; oreButton.onOut();
+        eq(oreButton.background.color.argb, 0xFFFFFFFF, 'Leaving restores the base parchment color');
         oreButton.onClick(); view.update(window, c);
+        eq(view.filterBar.buttons[0].slash.visible, true, 'Disabled category shows diagonal slash');
+        eq(view.filterBar.buttons[0].icon.alpha, 1., 'Disabled category keeps its full-color icon');
         eq(kinds(view).indexOf('ore'), -1, 'Left click disables main-map category');
         eq(c.showOre, true, 'Main-map category does not change minimap category');
         eq(c.hideCopper, true, 'Main-map category does not change minimap resource preference');
         oreButton.onClick(); view.update(window, c);
         eq(kinds(view).indexOf('ore') >= 0, true, 'Second click restores category');
+        eq(view.filterBar.buttons[0].slash.visible, false, 'Enabled category hides slash');
         oreButton.onRightClick();
         eq(view.filterBar.boxes.length, 4, 'Ore popup has exactly four checkboxes');
         eq([for (box in view.filterBar.boxes) box.key].join(','), 'copper,iron,tin,tungstene', 'Ore subfilters');
@@ -229,6 +243,41 @@ class BigMapTest {
             eq(view.filterBar.boxes.length, button.category.items.length, 'Every category builds its declared subfilters');
         }
         view.filterBar.closePopup();
+        eq(view.bonusDungeon.visible, false, 'Bonus card waits for character specialization');
+        hero.specialization = {bonusHeroicDungeon:{activity:'DungeonOne'}};
+        G.globals['activity:DungeonOne'] = {id:'DungeonOne', label:'The Sanguine Chapel'};
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.nameText.text, 'The Sanguine Chapel', 'Bonus card uses localized assigned dungeon name');
+        eq(view.bonusDungeon.title.text, 'Heroic bonus dungeon', 'Bonus card identifies the reward');
+        eq(view.bonusDungeon.root.x, 12., 'Bonus card is at left edge');
+        eq(view.bonusDungeon.root.y, G.number(window.scrollContainer.calculatedHeight) - 68, 'Bonus card is at bottom edge');
+        eq(view.bonusDungeon.visible, true, 'Bonus is visible regardless of main-map activity filters');
+        var reads = G.activityNameReads;
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(G.activityNameReads, reads, 'Unchanged bonus does not resolve dungeon name again');
+        hero.specialization.bonusHeroicDungeon.activity = 'DungeonTwo';
+        G.globals['activity:DungeonTwo'] = {id:'DungeonTwo', label:'The Honeyzabeth Dungeon'};
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.nameText.text, 'The Honeyzabeth Dungeon', 'Replicated bonus change updates while map stays open');
+        hero.specialization.bonusHeroicDungeon = null;
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.nameText.text, 'None assigned', 'No assignment clears the old dungeon');
+        hero.specialization.bonusHeroicDungeon = {activity:'PendingDefinition'};
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.visible, false, 'Missing definition never displays a stale dungeon or internal ID');
+        G.globals['activity:PendingDefinition'] = {id:'PendingDefinition', label:'Ready Dungeon'};
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.nameText.text, 'Ready Dungeon', 'Delayed game definition retries correctly');
+        G.failActivityLookup = true;
+        hero.specialization.bonusHeroicDungeon.activity = 'DungeonOne';
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.visible, false, 'Unavailable bonus API hides only its card');
+        eq(view.root != null, true, 'Optional bonus data failure leaves markers and filters working');
+        G.failActivityLookup = false;
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
+        eq(view.bonusDungeon.visible, true, 'Bonus indicator recovers after optional data failure');
+        hero.specialization = null;
+        view.bonusDungeon.nextSample = 0; view.update(window, c);
         var oldRoot = view.root;
         var oldViewport = view.markerViewport;
         c = change(c, 'overrideBigMapMarkers', false); view.update(window, c);

@@ -17,6 +17,7 @@ class BigMapView {
     var root:Dynamic;
     var filters:MainMapFilters;
     var filterBar:MainMapFilterBar;
+    var bonusDungeon:MainMapBonusDungeon;
     var arrow:Dynamic;
     var markers:MinimapMarkers;
     var rifts:RiftMarkers;
@@ -100,7 +101,9 @@ class BigMapView {
         }
         G.call("h2d.Object", "setPosition", arrow, [G.number(G.field(hero, "posx")), G.number(G.field(hero, "posy"))]);
         G.call("h2d.Object", "set_rotation", arrow, [G.number(G.field(hero, "rotationZ"))]);
-        filterBar.update(window, G.number(G.field(container, "calculatedWidth")), G.number(G.field(container, "calculatedHeight")));
+        var mapWidth = G.number(G.field(container, "calculatedWidth")), mapHeight = G.number(G.field(container, "calculatedHeight"));
+        bonusDungeon.update(hero, mapWidth, mapHeight);
+        filterBar.update(window, mapWidth, mapHeight, bonusDungeon.visible ? 76 : 0);
         updateHover();
     }
 
@@ -135,6 +138,7 @@ class BigMapView {
         G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hideCaption(); });
         G.set(input, "onPush", (_:Dynamic) -> { if (filterBar != null) filterBar.closePopup(); });
+        bonusDungeon = new MainMapBonusDungeon(overlay);
         filterBar = new MainMapFilterBar(container, filters, markers.drawFilterIcon);
     }
 
@@ -194,7 +198,8 @@ class BigMapView {
         var target = markers.hoverAt(x, y, scale, hx, hy, hero);
         if (target == null) { hideCaption(); return; }
         var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: G.number(G.field(hero, "posz"), Math.NaN)});
-        var key = target.name + [for (part in details) part.direction + ":" + part.metres].join("|");
+        var key = target.name + [for (part in details) part.direction + ":" + part.metres].join("|")
+            + "|bonus:" + bonusDungeon.visible + ":" + bonusDungeon.width;
         if (captionKey == key) return;
         ensureCaption();
         captionKey = key;
@@ -204,13 +209,20 @@ class BigMapView {
             G.call("h2d.Object", "set_visible", text, [true]);
         }
         var maxWidth = Math.max(1, Math.min(width - 32, 640));
+        var footerOffset = 0.;
+        if (bonusDungeon.visible) {
+            var available = width - 2 * (bonusDungeon.width + 28);
+            // Keep the caption centered without covering the bonus card.
+            if (available >= 220) maxWidth = Math.min(maxWidth, available);
+            else footerOffset = 60;
+        }
         var textScale = Math.min(captionScale, maxWidth / Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", caption))));
         var textWidth = G.number(G.call("h2d.Text", "get_textWidth", caption)) * textScale;
         for (text in [shadow, caption]) G.call("h2d.Object", "setScale", text, [textScale]);
-        G.call("h2d.Object", "setPosition", caption, [(width - textWidth) / 2, height - 72]);
-        G.call("h2d.Object", "setPosition", shadow, [(width - textWidth) / 2 + 1, height - 71]);
+        G.call("h2d.Object", "setPosition", caption, [(width - textWidth) / 2, height - 72 - footerOffset]);
+        G.call("h2d.Object", "setPosition", shadow, [(width - textWidth) / 2 + 1, height - 71 - footerOffset]);
         measurements.setValues(details);
-        measurements.place(width / 2, height - 40, maxWidth);
+        measurements.place(width / 2, height - 40 - footerOffset, maxWidth);
     }
 
     function ensureCaption():Void {
@@ -249,7 +261,7 @@ class BigMapView {
             G.call("ui.win.MapWindow", "updateMapInfos", window);
         } catch (_:Dynamic) {}
         window = null; world = null; hero = null; scroll = null; container = null;
-        filterBar = null; priorityRoot = null; priorityViewport = null;
+        bonusDungeon = null; filterBar = null; priorityRoot = null; priorityViewport = null;
         markerViewport = null; root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
         overlay = null; input = null; caption = null; shadow = null; measurements = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;

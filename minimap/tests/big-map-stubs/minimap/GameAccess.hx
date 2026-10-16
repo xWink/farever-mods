@@ -7,6 +7,8 @@ class GameAccess {
     public static var failGraphics:Bool = false;
     public static var arraysRead:Int = 0;
     public static var restored:Int = 0;
+    public static var activityNameReads:Int = 0;
+    public static var failActivityLookup:Bool = false;
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, v:Dynamic):Void Reflect.setField(o, name, v);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
@@ -38,6 +40,7 @@ class GameAccess {
             var parent = field(args[1], "obj");
             var obj:Dynamic = {nativeType:component, parent:parent, visible:true, removed:false, x:0., y:0., scale:1.};
             var dom:Dynamic = {obj:obj, id:args[3].id}; obj.dom = dom;
+            if (component == "button") obj.background = {shader:{}, color:{argb:0}, dom:{}, fill:0};
             if (component == "text") obj.text = args[2][0];
             created.push(obj); return dom;
         }
@@ -45,11 +48,16 @@ class GameAccess {
         if (type == "HData" && name == "checkStatus") return true;
         if (name == "isOfType") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
         if (type == "HActivity" && name == "allFiltered") return globals["activities"];
+        if (type == "HActivity" && name == "getInf") {
+            activityNameReads++;
+            if (failActivityLookup) throw "Activity definitions unavailable";
+            return globals["activity:" + args[0]];
+        }
         if (type == "HActivity" && name == "getPos") return args[0].position;
         if (type == "hxd.res.DefaultFont" && name == "get") return {size: 14};
         if (type == "st.event.Rift" && name == "getEvent") return null;
         if (type == "data.CodexData" && name == "isInCodex") return false;
-        if (type == "HText") return field(args[0], "id");
+        if (type == "HText") return field(args[0], "label") == null ? field(args[0], "id") : field(args[0], "label");
         throw "Static " + type + "." + name;
     }
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
@@ -72,6 +80,8 @@ class GameAccess {
             }
             return null;
         }
+        if (type == "shiro.ui.DynamicBackground" && name == "set_background") { o.fill = args[0]; return null; }
+        if (type == "h3d.Vector4Impl" && name == "setColor") { o.argb = args[0]; return null; }
         if (type == "domkit.Properties") return null;
         if (type == "ui.UIElement" || type == "ui.comp.CheckBox") {
             if (StringTools.startsWith(name, "set_")) { Reflect.setField(o, name.substr(4), args[0]); return null; }

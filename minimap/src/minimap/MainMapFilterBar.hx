@@ -3,13 +3,26 @@ package minimap;
 import minimap.GameAccess as G;
 import minimap.MainMapFilters.MapFilterCategory;
 
+private typedef MapFilterButton = {
+    category:MapFilterCategory, object:Dynamic, icon:Dynamic, slash:Dynamic,
+    background:Dynamic, tint:Int
+};
+
 /** Native buttons and checkboxes, confined to the map that owns them. */
 class MainMapFilterBar {
+    static inline var BUTTON_SIZE = 48;
+    static inline var BUTTON_STEP = 54;
+    static inline var BAR_HEIGHT = 7 * BUTTON_STEP + BUTTON_SIZE;
+    static inline var POPUP_X = 72;
+    static inline var BACKGROUND = 0xFFE9D9BB;
+    static inline var NORMAL_TINT = 0xFFFFFFFF;
+    static inline var HOVER_TINT = 0xFFDED4C4;
+    static inline var PRESSED_TINT = 0xFFC1B39E;
     var container:Dynamic;
     var root:Dynamic;
     var popup:Dynamic;
     var popupCategory:MapFilterCategory;
-    var buttons:Array<{category:MapFilterCategory, object:Dynamic, icon:Dynamic}> = [];
+    var buttons:Array<MapFilterButton> = [];
     var boxes:Array<{key:String, object:Dynamic}> = [];
     var nativeButtons = new haxe.ds.ObjectMap<Dynamic, Bool>();
     var nativeSource:Dynamic;
@@ -28,7 +41,7 @@ class MainMapFilterBar {
         for (i in 0...MainMapFilters.CATEGORIES.length) {
             var category = MainMapFilters.CATEGORIES[i];
             var button = node("button", root, [""], "mainMapFilter_" + category.key);
-            size(button, 40, 40); position(button, 0, i * 46);
+            size(button, BUTTON_SIZE, BUTTON_SIZE); position(button, 0, i * BUTTON_STEP);
             G.call("ui.UIElement", "set_onClick", button, [() -> {
                 filters.setEnabled(category.key, null, !filters.enabled(category.key));
                 refresh();
@@ -36,13 +49,26 @@ class MainMapFilterBar {
             G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
             G.call("ui.UIElement", "set_textTip", button, [category.label + "\nClick to show/hide. Right-click for filters."]);
             var icon = G.create("h2d.Graphics", [button]);
-            absolute(button, icon); position(icon, 20, 20);
+            absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
+            G.call("h2d.Object", "setScale", icon, [1.35]);
             drawIcon(icon, category.icon);
-            buttons.push({category:category, object:button, icon:icon});
+            var slash = G.create("h2d.Graphics", [button]);
+            absolute(button, slash);
+            // A light keyline keeps the dark slash legible over every icon.
+            for (outline in [true, false]) {
+                G.call("h2d.Graphics", "lineStyle", slash, [outline ? 6. : 3., outline ? 0xf8efdf : 0x75453d, 1.]);
+                G.call("h2d.Graphics", "moveTo", slash, [11., 37.]);
+                G.call("h2d.Graphics", "lineTo", slash, [37., 11.]);
+            }
+            G.call("h2d.Object", "set_visible", slash, [false]);
+            var entry:MapFilterButton = {category:category, object:button, icon:icon, slash:slash, background:null, tint:0};
+            buttons.push(entry);
+            G.call("ui.UIElement", "set_onOver", button, [() -> styleButton(entry)]);
+            G.call("ui.UIElement", "set_onOut", button, [() -> styleButton(entry)]);
         }
     }
 
-    public function update(window:Dynamic, w:Float, h:Float):Void {
+    public function update(window:Dynamic, w:Float, h:Float, bottomInset:Float = 0):Void {
         var source = G.field(window, "filterButtons");
         if (source != nativeSource) {
             restoreNative(); nativeSource = source;
@@ -51,9 +77,11 @@ class MainMapFilterBar {
         // Native refreshes may run while the window is open.
         for (button in nativeButtons.keys()) G.call("ui.UIElement", "set_visible", button, [false]);
         width = w; height = h;
-        var scale = Math.max(0.25, Math.min(1, (height - 24) / 362));
+        var availableHeight = Math.max(1, height - bottomInset);
+        var scale = Math.max(0.25, Math.min(1, (availableHeight - 24) / BAR_HEIGHT));
         G.call("h2d.Object", "setScale", root, [scale]);
-        position(root, 12, Math.max(12, (height - 362 * scale) / 2));
+        position(root, 12, Math.max(12, (availableHeight - BAR_HEIGHT * scale) / 2));
+        for (button in buttons) styleButton(button);
         placePopup();
         if (revision != filters.revision) refresh();
     }
@@ -63,10 +91,30 @@ class MainMapFilterBar {
         for (button in buttons) {
             var on = filters.enabled(button.category.key);
             G.call("ui.UIElement", "set_selected", button.object, [on]);
-            G.set(button.icon, "alpha", on ? 1. : 0.3);
+            G.call("h2d.Object", "set_visible", button.slash, [!on]);
         }
         if (popupCategory != null) for (box in boxes)
             G.call("ui.comp.CheckBox", "set_selected", box.object, [filters.enabled(popupCategory.key, box.key)]);
+    }
+
+    function styleButton(button:MapFilterButton):Void {
+        var background = G.field(button.object, "background");
+        if (background == null || G.field(background, "shader") == null) return;
+        if (background != button.background) {
+            button.background = background;
+            button.tint = 0;
+            // Keep the native rounded border and smoothing. Override the
+            // background's own color so selected/hover CSS cannot flash white.
+            var dom = G.field(background, "dom");
+            if (dom != null) G.call("domkit.Properties", "initStyle", dom, ["background", BACKGROUND]);
+            G.call("shiro.ui.DynamicBackground", "set_background", background, [BACKGROUND]);
+        }
+        var tint = G.field(button.object, "pushed") != null ? PRESSED_TINT
+            : G.field(button.object, "hasHover") == true ? HOVER_TINT : NORMAL_TINT;
+        if (tint != button.tint) {
+            G.call("h3d.Vector4Impl", "setColor", G.field(background, "color"), [tint]);
+            button.tint = tint;
+        }
     }
 
     function openPopup(category:MapFilterCategory):Void {
@@ -117,19 +165,19 @@ class MainMapFilterBar {
     function placePopup():Void {
         if (popup == null) return;
         var h = 56 + popupCategory.items.length * 32;
-        var scale = Math.max(0.25, Math.min(1, Math.min((height - 24) / h, (width - 80) / 286)));
+        var scale = Math.max(0.25, Math.min(1, Math.min((height - 24) / h, (width - POPUP_X - 12) / 286)));
         G.call("h2d.Object", "setScale", popup, [scale]);
-        position(popup, 64, Math.max(12, Math.min(height - h * scale - 12, G.number(G.field(root, "y")))));
+        position(popup, POPUP_X, Math.max(12, Math.min(height - h * scale - 12, G.number(G.field(root, "y")))));
     }
 
     public function contains(x:Float, y:Float):Bool {
         var s = G.number(G.field(root, "scaleX"), G.number(G.field(root, "scale"), 1));
         var ry = G.number(G.field(root, "y"));
-        if (x >= 12 && x <= 12 + 40 * s && y >= ry && y <= ry + 362 * s) return true;
+        if (x >= 12 && x <= 12 + BUTTON_SIZE * s && y >= ry && y <= ry + BAR_HEIGHT * s) return true;
         if (popup == null) return false;
         var ps = G.number(G.field(popup, "scaleX"), G.number(G.field(popup, "scale"), 1));
         var py = G.number(G.field(popup, "y"));
-        return x >= 64 && x <= 64 + 286 * ps && y >= py && y <= py + (56 + popupCategory.items.length * 32) * ps;
+        return x >= POPUP_X && x <= POPUP_X + 286 * ps && y >= py && y <= py + (56 + popupCategory.items.length * 32) * ps;
     }
 
     public function closePopup():Void {
