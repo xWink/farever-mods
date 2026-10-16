@@ -90,6 +90,8 @@ class NativeTimeline {
         if (sourceId != me && targetId != me) return null;
         var e = CombatTimeline.event(kind, sourceId, targetId, G.text(G.field(skill, "kind")));
         e.sourceName = name(owner.source); e.targetName = name(target);
+        var targetKind = G.text(G.field(target, "kind"));
+        if (targetKind != "") e.targetKind = targetKind;
         if (skill != null) {
             var origin = G.call(hl.Type.getDynamic(skill).getTypeName(), "getSourceSkill", skill);
             e.origin = G.text(G.field(origin, "kind"));

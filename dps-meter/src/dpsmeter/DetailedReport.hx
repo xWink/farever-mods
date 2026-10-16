@@ -5,6 +5,7 @@ import dpsmeter.FightHistory;
 
 /** Pure worker-side filtering, paging, graph bins, and observed status intervals. */
 class DetailedReport {
+    static inline var TIDAL_TOTEMS = "@unit:Totem_Tidal";
     public static inline var PAGE_SIZE = 6;
     public static inline var MAX_PAGE_SIZE = 16;
     public static inline var ROW_HEIGHT = 54;
@@ -58,7 +59,9 @@ class DetailedReport {
                 if (use == null && e.related == null && queue != null && queue.length > 0)
                     use = e.outcome == "Start" ? queue[0] : queue[queue.length - 1];
                 if (use != null) {
-                    if (e.kind == "skill_context" && e.target != "") { use.target = e.target; use.targetName = e.targetName; }
+                    if (e.kind == "skill_context" && e.target != "") {
+                        use.target = e.target; use.targetName = e.targetName; use.targetKind = e.targetKind;
+                    }
                     if (e.kind == "skill_context" && text(use.item) == "" && text(e.item) != "") {
                         use.item = e.item; use.itemName = e.itemName;
                     }
@@ -74,6 +77,24 @@ class DetailedReport {
         return result;
     }
     static function text(v:Dynamic):String return v == null ? "" : Std.string(v);
+    static function targetGroups(events:Array<TimelineEvent>, me:String):Map<String, String> {
+        var groups:Map<String, String> = [];
+        for (e in events) {
+            var id = text(e.target), kind = text(e.targetKind);
+            if (id == "" || id == me) continue;
+            // New recordings identify the unit independently of localization.
+            // Older sidecars only have the displayed name (or its native fallback).
+            if (kind == "Totem_Tidal" || (kind == "" && (e.targetName == "Tidal Totem" || e.targetName == "Totem_Tidal")))
+                groups[id] = TIDAL_TOTEMS;
+        }
+        return groups;
+    }
+    static function targetKey(e:TimelineEvent, groups:Map<String, String>):String {
+        var id = text(e.target);
+        return groups.exists(id) ? groups[id] : id;
+    }
+    static function targetName(e:TimelineEvent, groups:Map<String, String>):String
+        return targetKey(e, groups) == TIDAL_TOTEMS ? "Tidal Totem" : text(e.targetName);
     public static function matches(e:TimelineEvent, me:String, filter:String, ?metadata:Map<String, {kind:String, hidden:Bool}>):Bool {
         // Samples are internal state, not player actions or combat outcomes.
         // Retain them in saved recordings without cluttering any event view.
@@ -118,6 +139,7 @@ class DetailedReport {
         var all = initial.concat(events);
         all.sort(TimelineStore.compare);
         var visible = attachUses(all);
+        var groupedTargets = targetGroups(all, me);
         var pageSize = request.eventPageSize == null ? PAGE_SIZE : Std.int(Math.max(1, Math.min(MAX_PAGE_SIZE, request.eventPageSize)));
         var skill = text(request.eventSkill), filter = text(request.eventFilter);
         var source = text(request.eventSource), target = text(request.eventTarget);
@@ -132,13 +154,14 @@ class DetailedReport {
             if (e.kind == "recording_gap" || e.kind == "recording_stopped" || (e.kind == "recording_started" && e.time > 0)) incomplete = true;
             if (matches(e, me, "", request.statusMetadata)) {
                 addActor(sources, text(e.source), text(e.sourceName), me, "source");
-                addActor(targets, text(e.target), text(e.targetName), me, "target");
+                addActor(targets, targetKey(e, groupedTargets), targetName(e, groupedTargets), me, "target");
             }
             if (source != "" && (source == "@none" ? text(e.source) != "" : e.source != source)) continue;
-            if (target != "" && (target == "@none" ? e.target != "" : e.target != target)) continue;
+            if (target != "" && (target == "@none" ? e.target != "" : targetKey(e, groupedTargets) != target)) continue;
             if (!matches(e, me, filter, request.statusMetadata) || (skill != "" && e.skill != skill && e.origin != skill)) continue;
             if (search != "" && (e.skill + " " + text(e.skillName) + " " + text(e.sourceName) + " " + text(e.targetName)
-                + " " + text(e.item) + " " + text(e.itemName) + " " + e.kind + " " + text(e.outcome)).toLowerCase().indexOf(search) < 0) continue;
+                + " " + targetName(e, groupedTargets) + " " + text(e.item) + " " + text(e.itemName)
+                + " " + e.kind + " " + text(e.outcome)).toLowerCase().indexOf(search) < 0) continue;
             filtered.push(e);
         }
         var page = request.page;
@@ -182,18 +205,19 @@ class DetailedReport {
         }
         var maximum = 0.0; for (v in bins) maximum = Math.max(maximum, v);
         response.graph = {metric:metric, bins:bins, step:width, end:end, max:maximum, hasHp:hasHp, knownHp:knownHp};
-        response.lanes = lanes(all, end, me, skill, metric, request.statusMetadata);
+        response.lanes = lanes(all, end, me, skill, metric, groupedTargets, request.statusMetadata);
         return response;
     }
-    static function lanes(events:Array<TimelineEvent>, end:Float, me:String, skill:String, metric:String, ?metadata:Map<String, {kind:String, hidden:Bool}>):Array<Dynamic> {
+    static function lanes(events:Array<TimelineEvent>, end:Float, me:String, skill:String, metric:String,
+        targetGroups:Map<String, String>, ?metadata:Map<String, {kind:String, hidden:Bool}>):Array<Dynamic> {
         var active:Map<String, TimelineEvent> = [];
         var grouped:Map<String, Dynamic> = [];
         function interval(e:TimelineEvent, stop:Float):Void {
             if (e.skill == "" || (skill != "" && e.skill != skill && e.origin != skill)) return;
             if ((metric == "buffs" || metric == "debuffs") && statusCategory(e, metadata) != (metric == "buffs" ? "buff" : "debuff")) return;
-            var key = e.skill + ":" + e.target;
+            var key = e.skill + ":" + targetKey(e, targetGroups);
             if (!grouped.exists(key)) grouped[key] = {skill:e.skill, name:text(e.skillName) != "" ? e.skillName : e.skill,
-                target:e.target == me ? "You" : text(e.targetName), intervals:[]};
+                target:e.target == me ? "You" : targetName(e, targetGroups), intervals:[]};
             var intervals:Array<Dynamic> = grouped[key].intervals;
             if (stop > Math.max(0, e.time)) intervals.push({start:Math.max(0, e.time), end:Math.min(end, stop)});
         }
@@ -208,6 +232,19 @@ class DetailedReport {
             } else if (!active.exists(e.instance)) active[e.instance] = e;
         }
         for (e in active) interval(e, end);
+        // Overlapping totems share one lane; show the union of their observed
+        // status intervals without combining the underlying status instances.
+        for (key => lane in grouped) if (StringTools.endsWith(key, ":" + TIDAL_TOTEMS)) {
+            var intervals:Array<Dynamic> = lane.intervals;
+            intervals.sort((a,b) -> Reflect.compare(a.start, b.start));
+            var merged:Array<Dynamic> = [];
+            for (span in intervals) {
+                var prior:Dynamic = merged.length == 0 ? null : merged[merged.length - 1];
+                if (prior != null && span.start <= prior.end) prior.end = Math.max(prior.end, span.end);
+                else merged.push(span);
+            }
+            lane.intervals = merged;
+        }
         var result = [for (lane in grouped) lane];
         result.sort((a,b) -> Reflect.compare(a.name, b.name));
         return result;

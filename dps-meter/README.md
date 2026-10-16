@@ -133,6 +133,12 @@ and searching update only the table; the graph is retained until its metric,
 fight, size, or font changes. Buff/debuff names, targets, and time labels use
 larger text with stronger contrast.
 
+All Tidal Totems share one target-filter entry and one lane per status in the
+detailed report. Selecting that target includes every summoned totem while
+preserving individual events, timestamps, and amounts. Existing recordings named
+"Tidal Totem" are also grouped; new recordings use the unit kind regardless of
+the game's language. Other targets with matching names remain separate.
+
 Other players' effects are included when they involve you, including incoming
 heals, shields, and buffs. This is a personal timeline: it does not record other
 players' attacks on other targets or their skill-use/proc history. The existing

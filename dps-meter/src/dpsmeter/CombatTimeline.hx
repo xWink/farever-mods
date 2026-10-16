@@ -3,7 +3,7 @@ package dpsmeter;
 /** Only primitive, detached data crosses the recording/worker boundary. */
 typedef TimelineEvent = {
     seq:Int, time:Float, kind:String, source:String, target:String, skill:String,
-    ?sourceName:String, ?targetName:String, ?skillName:String, ?origin:String, ?instance:String,
+    ?sourceName:String, ?targetName:String, ?targetKind:String, ?skillName:String, ?origin:String, ?instance:String,
     ?amount:Float, ?before:Float, ?after:Float, ?critical:Bool, ?lethal:Bool, ?damageType:String,
     ?outcome:String, ?stacks:Int, ?duration:Float, ?estimated:Bool, ?hits:Int,
     ?cause:String, ?related:Int, ?statusType:String, ?hiddenStatus:Bool, ?useDuration:Float,

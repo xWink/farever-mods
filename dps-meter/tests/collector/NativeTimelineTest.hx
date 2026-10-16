@@ -146,6 +146,15 @@ class NativeTimelineTest {
         recorder.use(hero, joinedSkill); recorder.stopped(joinedSkill, "Start");
         check(rows("skill_end").filter(e -> e.skill == "Joined").length == 0,
             "An unobserved previous use cannot lend its ending to the new use");
+        var totem:Dynamic = {__uid:"totem1", name:"Totem de maree", kind:"Totem_Tidal"};
+        var firstTotem = recorder.hit("damage", hero, totem, skill);
+        totem.__uid = "totem2";
+        var nextTotem = recorder.hit("damage", hero, totem, skill);
+        check(firstTotem.target == "totem1" && nextTotem.target == "totem2"
+            && firstTotem.targetKind == "Totem_Tidal" && nextTotem.targetKind == "Totem_Tidal",
+            "Native recording keeps each summon UID and its shared unit kind independently of the translated name");
+        var emptyTarget = recorder.hit("skill_use", hero, null, skill);
+        check(emptyTarget.target == "" && emptyTarget.targetKind == null, "Unresolved targets do not invent a unit kind");
         hero.statuses.array = [shield]; shield.duration = 10; shield.shieldAmount = 100;
         config.detailedCombatLogs = false; recorder.update(hero, now + 4);
         recorder.use(hero, dash); check(rows("dodge_use").length == 1, "Disabled detailed recording emits no actions");

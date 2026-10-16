@@ -98,6 +98,7 @@ class TimelineTest {
         workerOrdering(dir + "/worker");
         gaps();
         presentation();
+        tidalTotems();
         remove(dir);
         Sys.println('Detailed timeline: $checks checks passed');
     }
@@ -234,6 +235,80 @@ class TimelineTest {
         check(consume.item == null && DetailedReport.label(cast report.rows[0]) == "ITEM USED", "Item display enrichment retains raw archived data and a distinct action label");
         data.events = [consume]; r.eventSearch = ""; report = DetailedReport.query(data, r);
         check(report.rows[0].item == null, "Older generic item uses never invent a specific consumed item");
+    }
+    static function tidalTotems():Void {
+        function event(seq:Int, target:String, name:String, ?kind:String):TimelineEvent {
+            var e = CombatTimeline.event("damage", "me", target, "Hit");
+            e.seq = seq; e.time = seq; e.targetName = name; e.targetKind = kind; e.amount = seq * 10;
+            return e;
+        }
+        var events = [event(1, "totem1", "Totem de maree", "Totem_Tidal"),
+            event(2, "totem2", "Tidal Totem", "Totem_Tidal"), event(3, "totem3", "Tidal Totem"),
+            event(4, "totem4", "Totem_Tidal"), event(5, "totem1", ""),
+            event(6, "foe1", "Enemy", "Goblin"), event(7, "foe2", "Enemy", "Goblin"),
+            event(8, "otherTotem", "Light Totem", "Totem_Light"), event(9, "impostor", "Tidal Totem", "Goblin")];
+        events[4].source = "ally";
+        var use = CombatTimeline.event("skill_use", "me", "", "Cast"); use.seq = 10; use.time = 10;
+        var context = CombatTimeline.event("skill_context", "me", "totem5", "Cast"); context.seq = 11; context.time = 10.1;
+        context.related = 10; context.targetName = "Tidal Totem"; context.targetKind = "Totem_Tidal";
+        events.push(use); events.push(context);
+        var data:Dynamic = {me:"me", initial:[], events:events, duration:12};
+        var original = haxe.Json.stringify(data);
+        var r = request(); r.eventPageSize = 16;
+        var report = DetailedReport.query(data, r);
+        var choices:Array<Dynamic> = report.targets;
+        var group = choices.filter(c -> c.value == "@unit:Totem_Tidal");
+        check(group.length == 1 && choices.length == 6, "Every Tidal Totem shares one choice; other targets keep separate identities");
+        check(!Lambda.exists(choices, c -> ["totem1", "totem2", "totem3", "totem4", "totem5"].indexOf(c.value) >= 0),
+            "No individual totem entries remain in the target dropdown");
+        check(Lambda.exists(choices, c -> c.value == "foe1" && c.name == "Enemy (1)")
+            && Lambda.exists(choices, c -> c.value == "foe2" && c.name == "Enemy (2)"), "Other same-name enemies remain distinct");
+        var allGraph = haxe.Json.stringify(report.graph);
+        r.eventTarget = group[0].value; report = DetailedReport.query(data, r);
+        var rows:Array<TimelineEvent> = report.rows;
+        check(report.total == 6 && [for (e in rows) e.seq].join(",") == "1,2,3,4,5,10",
+            "The combined target finds all summons, old recordings, unnamed events and resolved skill uses in order");
+        check(rows[0].target == "totem1" && rows[1].target == "totem2" && rows[5].targetKind == "Totem_Tidal",
+            "Presentation retains original entity IDs and attaches target kind to the skill-use row");
+        check(rows[0].amount == 10 && rows[1].amount == 20 && rows[2].amount == 30 && rows[3].amount == 40,
+            "Grouping targets neither merges damage events nor changes their values");
+        check(haxe.Json.stringify(report.graph) == allGraph, "Target grouping does not change full-fight graph totals");
+        r.eventSource = "ally";
+        check(DetailedReport.query(data, r).total == 1, "Source filters combine with the grouped target");
+        r.eventSource = ""; r.eventSearch = "tidal totem";
+        check(DetailedReport.query(data, r).total == 6, "Searching the group name also finds translated and unnamed totem events");
+        r.eventSearch = ""; r.eventFilter = "actions";
+        check(DetailedReport.query(data, r).total == 1, "Event-category filters still apply to all grouped totems");
+        r.eventFilter = ""; r.eventPageSize = 2;
+        var paged:Array<Int> = [];
+        for (page in 0...3) {
+            r.page = page; report = DetailedReport.query(data, r);
+            for (e in (cast report.rows:Array<TimelineEvent>)) paged.push(e.seq);
+        }
+        check(paged.join(",") == "1,2,3,4,5,10", "Paging the combined target loses or duplicates no events");
+        check(haxe.Json.stringify(data) == original, "Target grouping never rewrites the saved timeline");
+
+        var initial = event(20, "totem1", "Tidal Totem"); initial.kind = "status_present";
+        initial.skill = "Buff"; initial.instance = "one"; initial.time = -1;
+        var second:TimelineEvent = Reflect.copy(initial); second.target = "totem2"; second.instance = "two"; second.time = 1;
+        var firstEnd:TimelineEvent = Reflect.copy(initial); firstEnd.kind = "status_removed"; firstEnd.time = 2;
+        var secondEnd:TimelineEvent = Reflect.copy(second); secondEnd.kind = "status_removed"; secondEnd.time = 3;
+        var later:TimelineEvent = Reflect.copy(initial); later.target = "totem3"; later.instance = "three"; later.time = 5;
+        var other:TimelineEvent = Reflect.copy(initial); other.target = "foe1"; other.targetName = "Enemy"; other.instance = "other";
+        data.initial = [initial, other]; data.events = [second, firstEnd, secondEnd, later]; data.duration = 6;
+        r = request(); report = DetailedReport.query(data, r);
+        var lanes:Array<Dynamic> = report.lanes;
+        var totemLane = lanes.filter(l -> l.target == "Tidal Totem");
+        check(lanes.length == 2 && totemLane.length == 1, "Tidal Totems share one status lane while other targets remain separate");
+        var spans:Array<Dynamic> = totemLane[0].intervals;
+        check(spans.length == 2 && spans[0].start == 0 && spans[0].end == 3 && spans[1].start == 5 && spans[1].end == 6,
+            "Grouped status uptime joins overlaps while preserving gaps and each instance's removal");
+        data.initial = []; data.events = [event(1, "me", "Tidal Totem"), event(2, "", "Tidal Totem")];
+        r.eventTarget = "@none"; report = DetailedReport.query(data, r);
+        check(report.total == 1 && report.rows[0].target == "", "No-target events retain their own filter");
+        choices = report.targets;
+        check(Lambda.exists(choices, c -> c.value == "me" && c.name == "You")
+            && !Lambda.exists(choices, c -> c.value == "@unit:Totem_Tidal"), "The player and missing targets cannot be grouped as summons");
     }
     static function pairedStorage(root:String):Void {
         var fail = false;
