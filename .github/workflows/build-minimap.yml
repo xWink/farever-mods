@@ -42,7 +42,7 @@ jobs:
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
-      - name: Test markers, shared big-map filters, lifecycle, and positioning
+      - name: Test markers, independent main-map filters, lifecycle, and positioning
         working-directory: minimap
         run: haxe test.hxml
       - uses: actions/checkout@v4

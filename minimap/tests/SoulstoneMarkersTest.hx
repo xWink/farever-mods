@@ -36,6 +36,13 @@ class SoulstoneMarkersTest {
         G.itemReads = 0;
         SoulstoneMarkers.isCircle({props: {}});
         eq(G.itemReads, 0, "ordinary landmarks do not look up items");
+        G.units["Demon_Z1_Claws_Soulstone"] = {name:"Belzebeat"};
+        var named:Dynamic = circle([{item:"Soulstone_Z1_1"}]);
+        named.props.dispenser = {targetUnit:"Demon_Z1_Claws_Soulstone"};
+        eq(SoulstoneMarkers.name(named), "Belzebeat Soulstone", "name uses the summoned boss, not the circle text or internal ID");
+        G.items["Soulstone_Z1_1"].name = "Belzebeat Soulstone";
+        eq(SoulstoneMarkers.name(circle([{item:"Soulstone_Z1_1"}])), "Belzebeat Soulstone", "item name fallback for missing dispenser");
+        eq(SoulstoneMarkers.name(null), "Soulstone", "missing definition has readable fallback");
         Sys.println('Soulstone marker tests passed ($checks checks)');
     }
 }

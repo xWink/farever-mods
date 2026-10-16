@@ -24,7 +24,7 @@ class GameAccess {
     }
     public static function current(type:String, name:String):Dynamic return globals[type + "." + name];
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
-        if (type == "h2d.filter.Nothing") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
+        if (type == "h2d.filter.Nothing" || type == "h2d.filter.Outline") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
         var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
         if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
         var o:Dynamic = {nativeType: type, parent: parent, visible: true, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
@@ -33,6 +33,14 @@ class GameAccess {
         return o;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "domkit.Properties" && name == "createNew") {
+            var component:String = args[0];
+            var parent = field(args[1], "obj");
+            var obj:Dynamic = {nativeType:component, parent:parent, visible:true, removed:false, x:0., y:0., scale:1.};
+            var dom:Dynamic = {obj:obj, id:args[3].id}; obj.dom = dom;
+            if (component == "text") obj.text = args[2][0];
+            created.push(obj); return dom;
+        }
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
         if (type == "HData" && name == "checkStatus") return true;
         if (name == "isOfType") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
@@ -53,6 +61,7 @@ class GameAccess {
         }
         if (type == "h2d.Object" || type == "ui.UIElement" && name == "set_visible") {
             switch name {
+                case "addChild": args[0].parent = o;
                 case "set_filter": o.filter = args[0];
                 case "setScale": o.scale = args[0];
                 case "setPosition": o.x = args[0]; o.y = args[1];
@@ -63,6 +72,12 @@ class GameAccess {
             }
             return null;
         }
+        if (type == "domkit.Properties") return null;
+        if (type == "ui.UIElement" || type == "ui.comp.CheckBox") {
+            if (StringTools.startsWith(name, "set_")) { Reflect.setField(o, name.substr(4), args[0]); return null; }
+        }
+        if (type == "h2d.Flow" && StringTools.startsWith(name, "set_")) { Reflect.setField(o, name.substr(4), args[0]); return null; }
+        if (type == "h2d.filter.Outline") { Reflect.setField(o, name.substr(4), args[0]); return null; }
         if (type == "h2d.filter.Filter") return switch name {
             case "set_useScreenResolution": o.useScreenResolution = args[0]; null;
             case "set_resolutionScale": o.resolutionScale = args[0]; null;

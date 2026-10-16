@@ -88,3 +88,8 @@
 -cp tests/big-map-stubs
 -main BigMapTest
 --interp
+--next
+-cp src
+-cp tests
+-main MainMapFiltersTest
+--interp

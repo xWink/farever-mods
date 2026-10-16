@@ -22,6 +22,12 @@ class MinimapMarkers {
     public var revision(default, null):Int = 0;
     public var points(get, never):Array<MapPoint>;
     function get_points():Array<MapPoint> return hitPoints;
+    public var pointFilter:MapPoint->Bool;
+    public var ownFirst:Bool = false;
+    var partyIcons:Dynamic;
+    var partyElevations:Dynamic;
+    var partyIconMarkers:Array<IconMarker> = [];
+    var partyElevationMarkers:Array<ElevationMarker> = [];
     var graphics:Dynamic;
     var playerIcons:Dynamic;
     var playerElevations:Dynamic;
@@ -40,6 +46,7 @@ class MinimapMarkers {
     final sizeMultiplier:Float;
     var heroHeight:Float = Math.NaN;
     var alertLayer:Dynamic;
+    var partyAlertLayer:Dynamic;
     var alertTargets:Array<MapPoint> = [];
     var alertArrows:Array<IconMarker> = [];
     var alertPositions:Array<{x:Float, y:Float, point:MapPoint}> = [];
@@ -75,18 +82,26 @@ class MinimapMarkers {
     static var reportedError:Bool = false;
     static final DRAW_ORDER = ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "vaultChest", "recipeChest", "companion", "enemy", "boss", "targetDummy", "respawn", "obelisk", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal"].concat(NpcMarkers.KINDS);
 
-    public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String, sizeMultiplier:Float = 1) {
+    public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String, sizeMultiplier:Float = 1, ?priorityParent:Dynamic) {
         this.level = level;
         this.sizeMultiplier = sizeMultiplier;
-        // Players and their height arrows sit below the local cursor. All other
-        // markers sit above it, with NPCs retaining the highest normal priority.
+        // Ordinary players stay below landmarks. Party members get a separate
+        // foreground layer on both maps, above services and other markers.
         playerIcons = G.create("h2d.Object", [parent]);
         playerElevations = G.create("h2d.Object", [parent]);
         mapIcons = G.create("h2d.Object", [foreground]);
         mapElevations = G.create("h2d.Object", [foreground]);
         npcIcons = G.create("h2d.Object", [foreground]);
         npcElevations = G.create("h2d.Object", [foreground]);
+        partyIcons = G.create("h2d.Object", [priorityParent == null ? foreground : priorityParent]);
+        partyElevations = G.create("h2d.Object", [priorityParent == null ? foreground : priorityParent]);
         alertLayer = G.create("h2d.Object", [overlay]);
+        partyAlertLayer = G.create("h2d.Object", [overlay]);
+    }
+
+    public function setPartyParent(parent:Dynamic):Void {
+        G.call("h2d.Object", "addChild", parent, [partyIcons]);
+        G.call("h2d.Object", "addChild", parent, [partyElevations]);
     }
 
     public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float, rotation:Float, rifts:RiftMarkers):Void {
@@ -96,6 +111,7 @@ class MinimapMarkers {
             for (marker in mapIconMarkers) if (!marker.directional)
                 G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
             for (marker in npcIconMarkers) G.call("h2d.Object", "set_rotation", marker.icon, [-rotation]);
+            for (marker in partyElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in playerElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in mapElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
             for (marker in npcElevationMarkers) G.call("h2d.Object", "set_rotation", marker.root, [-rotation]);
@@ -118,6 +134,7 @@ class MinimapMarkers {
         try {
             refreshLandmarks();
             var points = collect(hero, config, x, y, radius + 12 * markerScale / scale);
+            if (pointFilter != null) points = points.filter(pointFilter);
             draw(points, scale);
             healthy = true;
             revision++;
@@ -126,6 +143,8 @@ class MinimapMarkers {
             hitPoints = [];
             alertTargets = [];
             // An optional marker source must not take down the working map.
+            trimIcons(partyIconMarkers, 0);
+            trimElevations(partyElevationMarkers, 0);
             trimIcons(playerIconMarkers, 0);
             trimElevations(playerElevationMarkers, 0);
             trimIcons(mapIconMarkers, 0);
@@ -142,9 +161,9 @@ class MinimapMarkers {
 
     function rescale(scale:Float):Void {
         previousScale = scale;
-        for (pool in [playerIconMarkers, mapIconMarkers, npcIconMarkers])
+        for (pool in [playerIconMarkers, partyIconMarkers, mapIconMarkers, npcIconMarkers])
             for (marker in pool) G.call("h2d.Object", "setScale", marker.icon, [markerScale / scale]);
-        for (pool in [playerElevationMarkers, mapElevationMarkers, npcElevationMarkers])
+        for (pool in [playerElevationMarkers, partyElevationMarkers, mapElevationMarkers, npcElevationMarkers])
             for (marker in pool) G.call("h2d.Object", "setScale", marker.root, [markerScale / scale]);
     }
 
@@ -170,6 +189,7 @@ class MinimapMarkers {
             var marker = alertArrows[i], arrow = marker.icon;
             var key = party ? "party" : "companion";
             if (marker.key != key) {
+                G.call("h2d.Object", "addChild", party ? partyAlertLayer : alertLayer, [arrow]);
                 G.call("h2d.Graphics", "clear", arrow);
                 if (party) LandmarkIcons.alertArrow(arrow, 9, LandmarkIcons.PLAYER_COLOR, LandmarkIcons.PARTY_COLOR);
                 else drawAlertArrow(arrow);
@@ -194,9 +214,16 @@ class MinimapMarkers {
     }
 
     public function alertHoverAt(x:Float, y:Float):Null<MarkerHover> {
+        var i = alertPositions.length;
+        while (i > 0) {
+            var alert = alertPositions[--i];
+            if (alert.point.partyMember == true && nearCursor(x, y, alert.x, alert.y, 12 * markerScale)
+                && G.field(alert.point.entity, "removed") != true)
+                return MarkerDetails.hover(markerName(alert.point), alert.point);
+        }
         if (riftAlertPosition != null && nearCursor(x, y, riftAlertPosition.x, riftAlertPosition.y, 12 * markerScale))
             return MarkerDetails.hover(RiftMarkers.name(riftAlertPosition.point.kind), riftAlertPosition.point);
-        var i = alertPositions.length;
+        i = alertPositions.length;
         while (i > 0) {
             var alert = alertPositions[--i];
             if (nearCursor(x, y, alert.x, alert.y, 12 * markerScale) && G.field(alert.point.entity, "removed") != true)
@@ -647,13 +674,15 @@ class MinimapMarkers {
         while (pool.length > count) G.call("h2d.Object", "remove", pool.pop().root);
     }
 
-    public function hoverAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic):Null<MarkerHover> {
-        var checkHero = true;
+    public function hoverAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic, partyOnly:Bool = false):Null<MarkerHover> {
+        if (ownFirst && !partyOnly && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
+        var checkHero = !ownFirst;
         var i = hitPoints.length;
-        // Reverse draw order: other markers, then our cursor, then other players.
+        // Reverse visual priority, including the separate party layer.
         while (i > 0) {
             var point = hitPoints[--i];
-            if (checkHero && point.kind == "player") {
+            if (partyOnly && point.partyMember != true) return null;
+            if (checkHero && point.kind == "player" && point.partyMember != true) {
                 checkHero = false;
                 if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
             }
@@ -668,7 +697,7 @@ class MinimapMarkers {
             if (point.entity != null && G.field(point.entity, "removed") == true) continue;
             return MarkerDetails.hover(markerName(point), point);
         }
-        return checkHero && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale) ? heroHover(hero, heroX, heroY) : null;
+        return !partyOnly && checkHero && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale) ? heroHover(hero, heroX, heroY) : null;
     }
 
     function heroHover(hero:Dynamic, x:Float, y:Float):MarkerHover
@@ -680,6 +709,10 @@ class MinimapMarkers {
     }
 
     function markerName(point:MapPoint):String {
+        if (point.kind == "soulstone") {
+            if (point.name == null) point.name = SoulstoneMarkers.name(point.inf);
+            return point.name;
+        }
         if (point.kind == "secretOrb") return "Secret Orb";
         if (point.kind == "recipeChest") return "Recipe Chest";
         if (point.kind == "respawn") return RespawnMarkers.name(point.respawnUnlocked == true);
@@ -709,7 +742,7 @@ class MinimapMarkers {
             case "chest": "Chest";
             case "vaultChest": "Vault Chest";
             case "obelisk": "Obelisk";
-            case "soulstone": "Soulstone summoning circle";
+            case "soulstone": "Soulstone";
             case "bank": "Guild Merchant";
             case "demon": "Demon Huntress";
             case "recycler": "Spark Recycler";
@@ -736,16 +769,23 @@ class MinimapMarkers {
 
     function draw(points:Array<MapPoint>, scale:Float):Void {
         hitPoints = [];
-        // All Rift states draw above enemies; services retain top priority.
+        // Rifts and services overlay ordinary entities; party members draw last.
         for (kind in DRAW_ORDER) {
-            for (point in points) if (point.kind == kind) {
+            for (point in points) if (point.kind == kind && point.partyMember != true) {
                 point.elevation = elevationDirection(point.z, heroHeight);
                 hitPoints.push(point);
             }
         }
-        var playerPoints = [for (point in hitPoints) if (point.kind == "player") point];
+        var partyPoints = [for (point in points) if (point.partyMember == true) point];
+        for (point in partyPoints) {
+            point.elevation = elevationDirection(point.z, heroHeight);
+            hitPoints.push(point);
+        }
+        var playerPoints = [for (point in hitPoints) if (point.kind == "player" && point.partyMember != true) point];
         var mapPoints = [for (point in hitPoints) if (point.kind != "player" && !isNpc(point.kind)) point];
         var npcPoints = [for (point in hitPoints) if (isNpc(point.kind)) point];
+        updateIcons(partyPoints, partyIconMarkers, partyIcons, scale);
+        updateElevations([for (point in partyPoints) if (point.elevation != 0) point], partyElevationMarkers, partyElevations, scale);
         updateIcons(playerPoints, playerIconMarkers, playerIcons, scale);
         updateIcons(mapPoints, mapIconMarkers, mapIcons, scale);
         updateIcons(npcPoints, npcIconMarkers, npcIcons, scale);
@@ -784,6 +824,13 @@ class MinimapMarkers {
 
     function trimIcons(pool:Array<IconMarker>, count:Int):Void {
         while (pool.length > count) G.call("h2d.Object", "remove", pool.pop().icon);
+    }
+
+    public function drawFilterIcon(target:Dynamic, kind:String):Void {
+        var previous = graphics;
+        graphics = target;
+        drawIcon({kind:kind, x:0, y:0, z:0, heading:0});
+        graphics = previous;
     }
 
     function drawIcon(point:MapPoint):Void {

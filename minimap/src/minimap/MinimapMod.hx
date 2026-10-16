@@ -8,7 +8,7 @@ import hlx.runtime.HlxPrefixResult;
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, overrideBigMapMarkers: true, transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
+        enabled: true, overrideBigMapMarkers: true, mainMapHiddenFilters: ["activities:completed", "companions:collected"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
@@ -31,7 +31,7 @@ class MinimapMod {
         normalize();
         config.save();
         view = new MinimapView();
-        bigMap = new BigMapView();
+        bigMap = new BigMapView(() -> config.save());
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             normalize();

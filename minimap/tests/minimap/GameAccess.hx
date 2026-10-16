@@ -6,6 +6,7 @@ class GameAccess {
     public static var eventStatusCalls:Int = 0;
     public static var definitions:Map<String, Dynamic> = [];
     public static var completionReads:Int = 0;
+    public static var units:Map<String, Dynamic> = [];
     public static var items:Map<String, Dynamic> = [];
     public static var itemReads:Int = 0;
     public static var graphicsCalls:Int = 0;
@@ -67,6 +68,8 @@ class GameAccess {
     }
 
     public static function current(type:String, name:String):Dynamic {
+        if (type == "Data" && name == "unit") return {byId:units};
+        if (type == "ETextKind" && name == "Name") return "Name";
         if (type == "_Data.Unit_group_Impl_" && name == "Dummy") {
             dummyGroupReads++;
             return dummyGroup;
@@ -79,6 +82,14 @@ class GameAccess {
     }
 
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "HText" && name == "unit") {
+            if (args.length != 2) throw "Unit name requires two arguments";
+            return field(args[0], "name");
+        }
+        if (type == "HText" && name == "item") {
+            if (args.length != 3 || args[2] != null) throw "Item name requires optional flags slot";
+            return field(args[0], "name");
+        }
         if (name == "checkStatus") {
             if (type != "HData" || args.length != 1) throw "Unavailable release-status API";
             return args[0] == null || args[0] == 3;

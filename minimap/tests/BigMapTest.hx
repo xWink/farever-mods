@@ -5,6 +5,8 @@ import minimap.GameAccess as G;
 
 @:access(minimap.BigMapView)
 @:access(minimap.MinimapMarkers)
+@:access(minimap.MainMapFilterBar)
+@:access(minimap.HoverMeasurements)
 class BigMapTest {
     static var checks = 0;
     static function eq(a:Dynamic, b:Dynamic, message:String):Void {
@@ -69,7 +71,11 @@ class BigMapTest {
         var pin = nativeMarker(window, 16, 0, 0);
         var label = nativeMarker(window, 10, 0, 0);
         var death = nativeMarker(window, 22, 0, 0);
-        var view = new BigMapView(), c = config();
+        var nativeToggle:Dynamic = {visible:true, removed:false};
+        window.filterButtons = [nativeToggle];
+        window.scrollContainer.dom = {obj:window.scrollContainer};
+        var saves = 0;
+        var view = new BigMapView(() -> saves++), c = config();
         view.update(window, c);
         eq(view.root != null, true, 'Overlay created with real shared marker collector');
         eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'All enabled marker categories, including far-away locations');
@@ -84,7 +90,7 @@ class BigMapTest {
         eq(view.markerViewport.filter.resolutionScale, 2., 'Twice the resolution on each axis');
         eq(G.field(view.root, 'filter'), null, 'Never filter the unbounded world root');
         eq(G.field(window.scroll, 'filter'), null, 'Map terrain is not supersampled');
-        eq(view.markers.markerScale, 2., 'Main-map marker size is doubled');
+        eq(view.markers.markerScale, 1.5, 'Main-map size reduced by 25 percent, preserving smoothing');
         eq(view.input.propagateEvents, true, 'Drag/zoom/click events continue to native map');
         eq(view.input.width, 1000., 'Input uses map viewport, not sidebar');
         eq(obelisk.alpha, 0., 'No duplicate original icon');
@@ -104,9 +110,9 @@ class BigMapTest {
         view.update(window, c);
         eq(view.markers.revision, before, 'Smooth zoom does not rescan world entities');
         eq(G.arraysRead, arrays, 'Smooth zoom does not allocate source arrays');
-        eq(view.markers.mapIconMarkers[0].icon.scale, 0.5, 'Icons keep constant display size while zooming');
-        eq(view.arrow.scale, 0.5, 'Own arrow uses same scale');
-        eq(view.markers.npcElevationMarkers[0].root.scale, 0.5, 'Height indicators use the same larger size');
+        eq(view.markers.mapIconMarkers[0].icon.scale, 0.375, 'Icons keep constant display size while zooming');
+        eq(view.arrow.scale, 0.375, 'Own arrow uses same scale');
+        eq(view.markers.npcElevationMarkers[0].root.scale, 0.375, 'Height indicators use the same larger size');
         for (zoom in [0.125, 0.5, 1., 2., 8.]) {
             window.zoom = zoom;
             window.scroll.x = -90000. * zoom; window.scroll.y = 25000. * zoom;
@@ -123,7 +129,7 @@ class BigMapTest {
                 sy + view.scale * -15678., 'World Y projection matches native map');
             eq(viewport.width, 1000, 'Distant panning cannot enlarge smoothing target');
             eq(viewport.height, 800, 'Zoom cannot enlarge smoothing target');
-            eq(zoom * vs * rs * G.number(view.markers.mapIconMarkers[0].icon.scale), 2.,
+            eq(zoom * vs * rs * G.number(view.markers.mapIconMarkers[0].icon.scale), 1.5,
                 'Marker display size stays constant throughout zoom');
         }
         window.scrollContainer.calculatedWidth = 757.5;
@@ -132,30 +138,97 @@ class BigMapTest {
         eq(view.markerViewport.width, 758, 'Fractional resized viewport rounds up for complete coverage');
         eq(view.markerViewport.height, 604, 'Resized height updates smoothing bounds');
         var ore = view.markers.points.filter(p -> p.kind == 'ore')[0];
-        var edge = view.markers.hoverAt(ore.x + 12 / view.scale, ore.y, view.scale, 100, 200, hero);
+        var edge = view.markers.hoverAt(ore.x + 8 / view.scale, ore.y, view.scale, 100, 200, hero);
         eq(edge != null, true, 'Hover area reaches the enlarged marker edge');
         eq(edge.name, 'Copper', 'Enlarged hover selects the right marker');
         c = change(c, 'markerScale', 150.); view.update(window, c);
-        eq(view.markers.markerScale, 3., 'Existing marker-size setting applies to larger main-map baseline');
-        eq(view.arrow.scale * view.scale, 3., 'Own arrow follows marker-size setting');
+        eq(view.markers.markerScale, 2.25, 'Existing marker-size setting applies to larger main-map baseline');
+        eq(view.arrow.scale * view.scale, 2.25, 'Own arrow follows marker-size setting');
         // Hover uses displayed pan/zoom, not the minimap centre or target zoom.
         window.scroll.x = 500 - ore.x * view.scale; window.scroll.y = 400 - ore.y * view.scale;
         view.trackMouse({relX: window.scroll.x + ore.x * view.scale, relY: window.scroll.y + ore.y * view.scale});
         view.update(window, c);
         eq(view.caption.text, 'Copper', 'Big-map hover resolves shared marker name');
-        c = change(c, 'hideCopper', true); view.update(window, c);
-        eq(kinds(view).indexOf('ore'), -1, 'Per-resource filter shared');
-        c = change(c, 'showPlayers', false); view.update(window, c);
-        eq(other.visible, false, 'Other-player filter also removes native hit target');
-        eq(own.visible, true, 'Own cursor remains enabled');
-        c = change(c, 'hideVerticallyDistantMarkers', true); view.update(window, c);
-        eq(npc.visible, false, 'Height filter also removes native NPC target');
-        c = change(c, 'showObelisks', false); view.update(window, c);
-        eq(obelisk.visible, false, 'Obelisk filter shared');
-        c = change(c, 'showActivities', false); view.update(window, c);
-        eq(activity.visible, false, 'Activity filter shared');
-        c = change(c, 'showCompanions', false); view.update(window, c);
-        eq(kinds(view), 'respawn', 'All shared filters combined');
+        eq(nativeToggle.visible, false, 'Native filter toggles hidden while override is active');
+        eq(view.filterBar.buttons.length, 8, 'Eight main-map categories');
+        eq(G.number(view.caption.x) + G.number(view.caption.scale) * G.number(G.call('h2d.Text', 'get_textWidth', view.caption)) / 2,
+            window.scrollContainer.calculatedWidth / 2, 'Hover caption horizontally centered in map');
+        eq(view.caption.filter.size, 2., 'Caption has a thicker native outline');
+        eq(view.measurements.root.filter.size, 2., 'Measurement row has matching outline');
+        eq(view.measurements.root.scale, 1.5, 'Measurement row is larger');
+        for (key in ['hideCopper', 'hideVerticallyDistantMarkers']) c = change(c, key, true);
+        for (key in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles', 'showActivities', 'showCompanions']) c = change(c, key, false);
+        view.update(window, c);
+        eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'Minimap preferences do not hide main-map markers');
+        eq(npc.visible, true, 'Vertical distance never hides main-map markers or their native actions');
+        for (m in [own, other, obelisk, respawn]) eq(m.visible, true, 'Always-visible landmarks and players retain native actions');
+        var oreButton = view.filterBar.buttons[0].object;
+        oreButton.onClick(); view.update(window, c);
+        eq(kinds(view).indexOf('ore'), -1, 'Left click disables main-map category');
+        eq(c.showOre, true, 'Main-map category does not change minimap category');
+        eq(c.hideCopper, true, 'Main-map category does not change minimap resource preference');
+        oreButton.onClick(); view.update(window, c);
+        eq(kinds(view).indexOf('ore') >= 0, true, 'Second click restores category');
+        oreButton.onRightClick();
+        eq(view.filterBar.boxes.length, 4, 'Ore popup has exactly four checkboxes');
+        eq([for (box in view.filterBar.boxes) box.key].join(','), 'copper,iron,tin,tungstene', 'Ore subfilters');
+        var box = view.filterBar.boxes[0].object;
+        box.onValueChange(false); view.update(window, c);
+        eq(kinds(view).indexOf('ore'), -1, 'Copper checkbox filters actual main-map resource');
+        eq(oreButton.selected, true, 'Unchecking a subtype keeps category enabled');
+        eq(box.selected, false, 'Checkbox reflects saved subtype state');
+        eq(saves, 3, 'Each actual change saves once');
+        oreButton.onClick(); oreButton.onClick(); view.update(window, c);
+        eq(kinds(view).indexOf('ore'), -1, 'Cycling category preserves subfilters');
+        eq(c.mainMapHiddenFilters.indexOf('ore:copper') >= 0, true, 'Main-map filter persisted independently');
+        var popup = view.filterBar.popup;
+        view.input.onPush({});
+        eq(popup.removed, true, 'Clicking outside closes popup');
+        eq(view.filterBar.popup, null, 'Popup reference cleared');
+        friend.party = true; friend.name = 'Party'; hero.name = 'Me';
+        friend.posx = 7700.; friend.posy = 6000.;
+        view.markers.nextRefresh = 0; view.update(window, c);
+        eq(view.priorityViewport.layer, 26, 'Player priority layer is above every native marker');
+        eq(view.markers.partyIcons.parent, view.priorityRoot, 'Party icons use priority layer');
+        eq(view.arrow.parent, view.priorityRoot, 'Own arrow uses priority layer');
+        eq(G.created.indexOf(view.arrow) > G.created.indexOf(view.markers.partyIcons), true, 'Own arrow draws above party');
+        eq(view.markers.hoverAt(7700, 6000, view.scale, hero.posx, hero.posy, hero).name, 'Party', 'Party hover takes priority over NPC');
+        hero.posx = 7700.; hero.posy = 6000.; view.update(window, c);
+        eq(view.markers.hoverAt(7700, 6000, view.scale, 7700, 6000, hero).name, 'Me', 'Own main-map hover takes priority over party');
+        var miniConfig = config();
+        var miniForeground = {};
+        baseline = new MinimapMarkers({}, miniForeground, {}, 'World/W1_Siagarta');
+        baseline.update(hero, miniConfig, 7700, 6000, 100, 1, 0, view.rifts);
+        eq(baseline.partyIcons.parent, miniForeground, 'Minimap party shares foreground transform');
+        eq(G.created.indexOf(baseline.partyIcons) > G.created.indexOf(baseline.npcIcons), true, 'Minimap party draws over NPCs');
+        eq(baseline.hoverAt(7700, 6000, 1, 7700, 6000, hero).name, 'Party', 'Minimap party hover is highest priority');
+        var top = {};
+        baseline.setPartyParent(top);
+        eq(baseline.partyIcons.parent, top, 'Minimap can raise party icons above edge alerts');
+        eq(baseline.partyElevations.parent, top, 'Party height indicators follow the priority layer');
+        eq(baseline.hoverAt(7700, 6000, 1, 7700, 6000, hero, true).name, 'Party', 'Party-only hover precedes edge alerts');
+        eq(baseline.hoverAt(0, 0, 1, 0, 0, hero, true), null, 'Party-only pass never selects our cursor');
+        friend.posx = 9000.;
+        baseline.nextRefresh = 0;
+        baseline.update(hero, miniConfig, 7700, 6000, 100, 1, 0, view.rifts);
+        baseline.updateAlerts(miniConfig, 7700, 6000, 250, 1, 0, view.rifts);
+        eq(baseline.alertArrows[0].icon.parent, baseline.partyAlertLayer, 'Party edge arrow uses a higher layer than other alerts');
+        var edgeParty = baseline.alertPositions[0];
+        baseline.riftAlertPosition = {x:edgeParty.x, y:edgeParty.y, point:{id:'rift', kind:'inactiveRift', x:0, y:0, z:0}};
+        eq(baseline.alertHoverAt(edgeParty.x, edgeParty.y).name, 'Party', 'Party edge hover wins over overlapping Rift');
+        var savedFilters = c.mainMapHiddenFilters.copy();
+        view.remove(window); view.update(window, c);
+        eq(c.mainMapHiddenFilters.join(','), savedFilters.join(','), 'Reopening the map retains independent choices');
+        eq(kinds(view).indexOf('ore'), -1, 'Reopened map still filters copper');
+        view.filterBar.buttons[0].object.onRightClick();
+        eq(view.filterBar.boxes[0].object.selected, false, 'Reopened popup reflects saved checkbox');
+        view.filterBar.buttons[0].object.onRightClick();
+        eq(view.filterBar.popup, null, 'Right-click same category closes popup');
+        for (button in view.filterBar.buttons) {
+            button.object.onRightClick();
+            eq(view.filterBar.boxes.length, button.category.items.length, 'Every category builds its declared subfilters');
+        }
+        view.filterBar.closePopup();
         var oldRoot = view.root;
         var oldViewport = view.markerViewport;
         c = change(c, 'overrideBigMapMarkers', false); view.update(window, c);
@@ -163,6 +236,7 @@ class BigMapTest {
         eq(oldRoot.removed, true, 'Old overlay detached');
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
         eq(obelisk.alpha, 0.8, 'Original alpha restored');
+        eq(nativeToggle.visible, true, 'Native filter toggles restored when override is disabled');
         eq(obelisk.visible, true, 'Native filters refreshed');
         eq(npc.x, 15000., 'Original native position restored');
         c = config(); view.update(window, c);
@@ -186,6 +260,7 @@ class BigMapTest {
         eq(view.root, null, 'Render failure falls back to native map');
         eq(obelisk.alpha, 0.8, 'Render failure restores original markers');
         eq(obelisk.visible, true, 'Render failure leaves travel available');
+        eq(nativeToggle.visible, true, 'Render failure also restores native filter controls');
         Sys.println('Big map: ' + checks + ' checks passed.');
     }
 }

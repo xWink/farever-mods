@@ -16,9 +16,12 @@ class HoverMeasurements {
     var count:Int = 0;
     var fontScale:Float;
     var width:Float = 0;
+    var displayScale:Float;
 
-    public function new(parent:Dynamic, font:Dynamic) {
+    public function new(parent:Dynamic, font:Dynamic, displayScale:Float = 1, outline:Float = 0) {
+        this.displayScale = displayScale;
         root = G.create("h2d.Object", [parent]);
+        if (outline > 0) MapTextOutline.apply(root, outline);
         fontScale = 12 / Math.max(1, G.number(G.field(font, "size"), 12));
         for (_ in 0...2) {
             var shadow = G.create("h2d.Text", [font, root]);
@@ -82,7 +85,7 @@ class HoverMeasurements {
 
     public function place(centerX:Float, y:Float, maxWidth:Float):Void {
         if (count == 0) return;
-        var scale = Math.min(1, maxWidth / Math.max(1, width));
+        var scale = Math.min(displayScale, maxWidth / Math.max(1, width));
         G.call("h2d.Object", "setScale", root, [scale]);
         position(root, centerX - width * scale / 2, y);
     }
