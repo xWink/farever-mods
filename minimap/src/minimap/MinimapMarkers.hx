@@ -42,6 +42,8 @@ class MinimapMarkers {
     }
     public var pointFilter:MapPoint->Bool;
     public var ownFirst:Bool = false;
+    public var showOwn:Bool = true;
+    public var obeliskScale:Float = 1;
     var partyIcons:Dynamic;
     var partyElevations:Dynamic;
     var partyIconMarkers:Array<IconMarker> = [];
@@ -271,7 +273,7 @@ class MinimapMarkers {
             var dx = (target.x - x) * scale, dy = (target.y - y) * scale;
             var c = Math.cos(rotation), s = Math.sin(rotation);
             var sx = dx * c - dy * s, sy = dx * s + dy * c;
-            var hasMarker = config.showActivities && !MarkerDetails.hidden(target.z, heroHeight,
+            var hasMarker = !MarkerDetails.hidden(target.z, heroHeight,
                 config.hideVerticallyDistantMarkers, config.verticallyDistantThreshold);
             visible = MinimapGeometry.showAlert(hasMarker, sx, sy, size, config.circular,
                 (markerRadius(target.kind) + 1) * markerScale);
@@ -508,7 +510,8 @@ class MinimapMarkers {
             // character has actually completed this orb's interaction.
             if (!SecretOrbMarkers.collected(progress, id)) points.push(point);
         }
-        if (config.showActivities) {
+        {
+            // Dungeons and rifts remain available even with Activities off.
             refreshActivities();
             var events = G.field(layer, "worldEvents");
             for (point in activities) {
@@ -706,8 +709,8 @@ class MinimapMarkers {
     }
 
     public function hoverAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic, partyOnly:Bool = false):Null<MarkerHover> {
-        if (ownFirst && !partyOnly && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
-        var checkHero = !ownFirst;
+        if (showOwn && ownFirst && !partyOnly && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
+        var checkHero = showOwn && !ownFirst;
         var i = hitPoints.length;
         // Reverse visual priority, including the separate party layer.
         while (i > 0) {
@@ -717,7 +720,7 @@ class MinimapMarkers {
                 checkHero = false;
                 if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
             }
-            var r = (markerRadius(point.kind) + (outlinedPlayer(point) ? 4.5 : point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
+            var r = (markerRadius(point.kind) * (point.kind == "obelisk" ? obeliskScale : 1) + (outlinedPlayer(point) ? 4.5 : point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
             var hit = nearCursor(x, y, point.x, point.y, r);
             if (!hit && point.elevation != null && point.elevation != 0) {
                 var offset = elevationOffset(point) * markerScale / scale;
@@ -868,7 +871,7 @@ class MinimapMarkers {
                 marker.key = key;
             }
             marker.directional = point.kind == "player";
-            transform(marker, marker.icon, point.x, point.y, markerScale / scale, marker.directional ? point.heading : -mapRotation);
+            transform(marker, marker.icon, point.x, point.y, markerScale * (point.kind == "obelisk" ? obeliskScale : 1) / scale, marker.directional ? point.heading : -mapRotation);
         }
     }
 

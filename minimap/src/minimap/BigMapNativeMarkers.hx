@@ -18,7 +18,7 @@ class BigMapNativeMarkers {
     public function new() {}
     public function invalidate():Void dirty = true;
 
-    public function sample(window:Dynamic, points:Array<MapPoint>, hero:Dynamic):Void {
+    public function sample(window:Dynamic, points:Array<MapPoint>, hero:Dynamic, fastTravel:Bool = false):Void {
         var byId:Map<String, MapPoint> = [];
         var byEntity:haxe.ds.ObjectMap<Dynamic, MapPoint> = new haxe.ds.ObjectMap();
         var respawns:haxe.ds.ObjectMap<Dynamic, MapPoint> = new haxe.ds.ObjectMap();
@@ -32,7 +32,7 @@ class BigMapNativeMarkers {
                 if (marker != null) respawns.set(marker, point);
             }
         }
-        byEntity.set(hero, {kind: "player", entity: hero,
+        if (!fastTravel) byEntity.set(hero, {kind: "player", entity: hero,
             x: G.number(G.field(hero, "posx")), y: G.number(G.field(hero, "posy")),
             z: G.number(G.field(hero, "posz"), Math.NaN)});
 
@@ -49,6 +49,7 @@ class BigMapNativeMarkers {
             else if (layer == 14) point = respawns.get(marker);
             else if (layer == 15 && element != null) point = byId[G.text(G.field(element, "id"))];
             else if (layer == 20 && player != null) point = byEntity.get(player);
+            else if (fastTravel && (layer == 16 || layer == 22)) point = null; // Pins and death markers.
             else continue;
             var record = originals.get(marker);
             if (record == null) record = {marker: marker, alpha: G.number(G.field(marker, "alpha"), 1),

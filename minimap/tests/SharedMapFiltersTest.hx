@@ -6,6 +6,7 @@ import minimap.GameAccess as G;
 
 @:access(minimap.MainMapFilterBar)
 @:access(minimap.MinimapMarkers)
+@:access(minimap.RiftMarkers)
 class SharedMapFiltersTest {
     static var checks = 0;
     static function eq(a:Dynamic, b:Dynamic, why:String):Void {
@@ -50,7 +51,7 @@ class SharedMapFiltersTest {
         eq(hud.accepts({kind:'enemy', x:0, y:0, z:0}), false, 'Minimap uses shared regular-enemy subtype');
         eq(hud.accepts({kind:'boss', x:0, y:0, z:0}), true, 'Bosses retain their own subtype');
         main.setEnabled('activities', 'rifts', false); hud.bind(c);
-        eq(hud.accepts({kind:'riftPortal', x:0, y:0, z:0}), false, 'Minimap uses shared Rift subtype');
+        eq(hud.accepts({kind:'riftPortal', x:0, y:0, z:0}), true, 'Retired Rift subtype cannot hide minimap rifts');
         main.setEnabled('companions', 'sparkling', false); hud.bind(c);
         eq(hud.accepts({kind:'companion', sparkling:true, x:0, y:0, z:0}), false, 'Shared sparkling subtype');
         for (field in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles']) {
@@ -120,6 +121,20 @@ class SharedMapFiltersTest {
         eq(hud.enabled('enemies', 'regular'), false, 'Extra subtype survives restart');
         reloaded = Reflect.copy(reloaded); reloaded.hideVerticallyDistantMarkers = false; hud.bind(reloaded);
         eq(hud.minimapSettings().hideVerticallyDistantMarkers, false, 'Remaining BMS controls refresh through config reload');
+        G.globals['HActivity.allActivities'] = new Map<String, Dynamic>();
+        G.globals['activities'] = [{inf:{id:'Dungeon'}, prefab:{}, position:{x:2., y:2., z:0.}},
+            {inf:{id:'ordinary'}, prefab:{}, position:{x:3., y:3., z:0.}}];
+        rifts.points = [{id:'active', kind:'riftPortal', x:4., y:4., z:0.}];
+        rifts.inactive = [{id:'inactive', kind:'inactiveRift', x:5., y:5., z:0.}];
+        reloaded.mainMapHiddenFilters = ['activities', 'activities:dungeon', 'activities:rifts', 'activities:inactiveRifts'];
+        hud.bind(reloaded);
+        for (settings in [hud.settings(), hud.minimapSettings()]) {
+            var travel = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta'); travel.pointFilter = hud.accepts;
+            travel.update(hero, settings, 0, 0, 100, 1, 0, rifts);
+            for (kind in ['dungeon', 'riftPortal', 'inactiveRift'])
+                eq(travel.points.filter(p -> p.kind == kind).length, 1, 'Collector retains protected destination ' + kind);
+            eq(travel.points.filter(p -> p.kind == 'activity').length, 0, 'Activities off still hides ordinary activities');
+        }
         Sys.println('Shared map filters: $checks checks passed.');
     }
 }

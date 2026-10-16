@@ -88,6 +88,34 @@ class BigMapTest {
         view.update(window, c);
         eq(view.root != null, true, 'Overlay created with real shared marker collector');
         eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'All enabled marker categories, including far-away locations');
+        window.selector = true;
+        view.update(window, c);
+        eq(kinds(view), 'obelisk', 'Travel hides ordinary players and unrelated markers');
+        eq(view.arrow.visible, false, 'Travel shows only the requested marker types');
+        eq(own.visible, false, 'Own hidden native marker cannot intercept clicks');
+        eq(other.visible, false, 'Unrelated player native target hidden');
+        eq(pin.visible, false, 'Travel hides native pins');
+        eq(death.visible, false, 'Travel hides death marker');
+        eq(obelisk.visible, true, 'Obelisk travel destination remains clickable');
+        eq(obelisk.content.onClick, click, 'Obelisk travel callback preserved');
+        eq(view.markers.obeliskScale, 1.5, 'Obelisks are 50 percent larger only in travel');
+        for (kind in ['dungeon', 'soulstone', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
+            eq(BigMapView.travelPoint({kind:kind, x:0, y:0, z:0}), true, 'Travel retains ' + kind);
+        eq(BigMapView.travelPoint({kind:'player', partyMember:true, x:0, y:0, z:0}), true, 'Travel retains party');
+        eq(BigMapView.travelPoint({kind:'player', friend:true, x:0, y:0, z:0}), true, 'Travel retains friends');
+        // Put the obelisk onscreen to check actual icon size and smooth zoom.
+        window.scroll.x = -8500.; window.scroll.y = -6500.;
+        view.update(window, c);
+        eq(view.markers.mapIconMarkers[0].icon.scale, 2.25, 'Travel obelisk actual rendered size');
+        window.zoom = 1.; window.scroll.x = -17500.; window.scroll.y = -13500.;
+        view.update(window, c);
+        eq(view.markers.mapIconMarkers[0].icon.scale, 1.125, 'Travel obelisk retains enlargement during smooth zoom');
+        window.zoom = 0.5; window.scroll.x = 13.; window.scroll.y = 27.;
+        window.selector = false;
+        view.update(window, c);
+        eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'Normal map restored after leaving travel');
+        eq(view.markers.obeliskScale, 1., 'Normal map uses normal obelisk size');
+        eq(view.arrow.visible, true, 'Normal map restores own arrow');
         eq(view.markerViewport.parent, window.scroll, 'Smoothing retains native marker layer order');
         eq(view.markerViewport.layer, 15, 'Custom pins and crosshair still draw above markers');
         eq(view.root.parent, view.markerViewport, 'World artwork is inside bounded smoothing viewport');

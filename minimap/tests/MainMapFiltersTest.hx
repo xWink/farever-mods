@@ -58,9 +58,7 @@ class MainMapFiltersTest {
             {category:'enemies', key:'targetDummy', kinds:['targetDummy']},
             {category:'companions', key:'regular', kinds:['companion']},
             {category:'activities', key:'activity', kinds:['activity']},
-            {category:'activities', key:'ascension', kinds:['ascension']},
-            {category:'activities', key:'dungeon', kinds:['dungeon']},
-            {category:'activities', key:'rifts', kinds:['inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal']}
+            {category:'activities', key:'ascension', kinds:['ascension']}
         ];
         for (subtype in subtypes) {
             filters.setEnabled(subtype.category, subtype.key, false);
@@ -109,6 +107,16 @@ class MainMapFiltersTest {
         eq(reopened.settings().markerScale, 170., 'Main-map scale changes invalidate derived settings');
         eq(reloaded.markerScale, 150., 'Main-map slider preserves minimap size');
         eq(reopened.settings() != oldSettings, true, 'Collector receives new config for rescaling');
+        reloaded.mainMapHiddenFilters = ['activities', 'activities:dungeon', 'activities:rifts', 'activities:inactiveRifts'];
+        reopened.bind(reloaded);
+        for (settings in [reopened.settings(), reopened.minimapSettings()]) {
+            eq(settings.hideDungeons, false, 'Legacy dungeon hiding is ignored');
+            eq(settings.hideInactiveRifts, false, 'Legacy inactive-rift hiding is ignored');
+        }
+        for (kind in ['dungeon', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Activities off cannot hide ' + kind);
+        for (category in MainMapFilters.CATEGORIES) if (category.key == 'activities')
+            eq([for (item in category.items) item.key].join(','), 'activity,ascension,completed', 'Travel filter controls removed');
         var before = saves;
         filters.setEnabled('ore', 'copper', false);
         eq(saves, before, 'No-op changes do not save again');

@@ -7,6 +7,7 @@ class BigMapView {
     static inline var LEVEL = "World/W1_Siagarta";
     static inline var MARKER_SIZE = 1.5;
     var window:Dynamic;
+    var fastTravel:Bool = false;
     var world:Dynamic;
     var hero:Dynamic;
     var scroll:Dynamic;
@@ -73,8 +74,10 @@ class BigMapView {
         var nextScroll = G.field(nextWindow, "scroll");
         var nextContainer = G.field(nextWindow, "scrollContainer");
         if (nextScroll == null || nextContainer == null) { dispose(); return; }
-        if (window != nextWindow || scroll != nextScroll || container != nextContainer || hero != nextHero || world != nextWorld) {
+        var nextFastTravel = G.call("ui.win.MapWindow", "isSelector", nextWindow) == true;
+        if (fastTravel != nextFastTravel || window != nextWindow || scroll != nextScroll || container != nextContainer || hero != nextHero || world != nextWorld) {
             dispose();
+            fastTravel = nextFastTravel;
             window = nextWindow; scroll = nextScroll; container = nextContainer; hero = nextHero; world = nextWorld;
             create();
         }
@@ -93,7 +96,7 @@ class BigMapView {
         if (!markers.healthy) throw "Marker refresh failed";
         var count = G.integer(G.field(G.field(window, "markers"), "length"));
         if (revision != markers.revision || nativeCount != count) {
-            nativeMarkers.sample(window, markers.points, hero);
+            nativeMarkers.sample(window, markers.points, hero, fastTravel);
             revision = markers.revision; nativeCount = count;
         }
         nativeMarkers.apply(window, tileScale, hero);
@@ -125,9 +128,12 @@ class BigMapView {
         var foreground = G.create("h2d.Object", [root]);
         markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE, priorityRoot, iconCache);
         markers.ownFirst = true;
-        markers.pointFilter = filters.accepts;
+        markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point));
+        markers.obeliskScale = fastTravel ? 1.5 : 1.;
+        markers.showOwn = !fastTravel;
         // After the party layer, above every native and replacement marker.
         arrow = iconCache.bitmap(priorityRoot, "own", g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xfff3d6));
+        G.call("h2d.Object", "set_visible", arrow, [!fastTravel]);
         rifts = new RiftMarkers(LEVEL);
         nativeMarkers = new BigMapNativeMarkers();
         overlay = G.create("h2d.Object", [container]);
@@ -147,6 +153,13 @@ class BigMapView {
         bonusDungeon = new MainMapBonusDungeon(overlay, container);
         filterBar = new MainMapFilterBar(container, filters, markers.createFilterIcon);
     }
+
+    /** ObeliskFly is the native selector mode; normal map highlights are not selectors. */
+    static function travelPoint(point:MapPoint):Bool return switch point.kind {
+        case "player": point.partyMember == true || point.friend == true;
+        case "obelisk", "soulstone", "dungeon", "inactiveRift", "nextRift", "upcomingRift", "riftPortal": true;
+        default: false;
+    };
 
     function createViewport(layer:Int):Dynamic {
         var viewport = G.create("h2d.Mask", [1, 1, null]);

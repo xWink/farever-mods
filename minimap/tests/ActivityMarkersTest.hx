@@ -51,6 +51,7 @@ class ActivityMarkersTest {
                         else if (inf == ascension) expected = config.hideAscensions;
                         else expected = config.hideCompletedActivities && state == 2;
                     }
+                    if (inf == dungeon) expected = config.hideDungeons;
                     G.completionReads = 0;
                     equal(ActivityMarkers.hidden(kind, inf, progress, config), expected,
                         inf.id + " toggles=" + bits + " progress=" + state);

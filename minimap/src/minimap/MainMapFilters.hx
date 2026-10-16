@@ -11,8 +11,8 @@ class MainMapFilters {
         category("enemies", "Enemies", "enemy", ["regular", "boss", "targetDummy", "completed", "mastered"],
             ["Regular enemies", "Bosses and elites", "Target dummies", "Codex XP reward completed", "Codex mastery completed"]),
         category("companions", "Companions", "companion", ["regular", "sparkling", "collected"], ["Regular companions", "Sparkling companions", "Collected companions"]),
-        category("activities", "Activities", "activity", ["activity", "ascension", "dungeon", "rifts", "inactiveRifts", "completed"],
-            ["Activities", "Ascensions", "Dungeons", "Rifts", "Inactive rifts", "Completed activities"]),
+        category("activities", "Activities", "activity", ["activity", "ascension", "completed"],
+            ["Activities", "Ascensions", "Completed activities"]),
         category("npcs", "NPCs", "npc", [], []),
         category("chests", "Chests", "chest", [], []),
         category("secretOrbs", "Secret orbs", "secretOrb", [], [])
@@ -97,8 +97,8 @@ class MainMapFilters {
         config.hideTargetDummies = !enabled("enemies", "targetDummy");
         config.hideCollectedCompanions = !enabled("companions", "collected");
         config.hideCompletedActivities = !enabled("activities", "completed");
-        config.hideAscensions = !enabled("activities", "ascension"); config.hideDungeons = !enabled("activities", "dungeon");
-        config.hideInactiveRifts = !enabled("activities", "inactiveRifts");
+        config.hideAscensions = !enabled("activities", "ascension"); config.hideDungeons = false;
+        config.hideInactiveRifts = false;
         return config;
     }
 
@@ -107,8 +107,8 @@ class MainMapFilters {
         case "enemy": enabled("enemies", "regular");
         case "boss", "targetDummy": enabled("enemies", point.kind);
         case "companion": enabled("companions", point.sparkling == true ? "sparkling" : "regular");
-        case "activity", "ascension", "dungeon": enabled("activities", point.kind);
-        case "inactiveRift", "nextRift", "upcomingRift", "riftPortal": enabled("activities", "rifts");
+        case "activity", "ascension": enabled("activities", point.kind);
+        case "dungeon", "inactiveRift", "nextRift", "upcomingRift", "riftPortal": true;
         default: true;
     };
 }

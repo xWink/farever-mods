@@ -20,9 +20,9 @@ class ActivityMarkers {
     }
 
     public static function hidden(kind:String, inf:Dynamic, progress:Dynamic, config:ActivityVisibility):Bool {
+        if (kind == "dungeon") return config.hideDungeons;
         if (!config.showActivities) return true;
         if (kind == "ascension") return config.hideAscensions;
-        if (kind == "dungeon") return config.hideDungeons;
         // Repeatable destinations do not need a completion lookup at all.
         return config.hideCompletedActivities && progress != null
             // A null difficulty asks whether this activity was completed at any
