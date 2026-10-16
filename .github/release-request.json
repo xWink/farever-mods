@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.0",
-  "commit": "b4d2a0ea9da94b186af41346ac910acd09122149",
-  "notes": "- Logs are now uploaded to fareverly.com instead of fareverlogs.fr.\n- You will need to sign in with Steam for an API key to securely upload your fight logs.\n- Added a setting to prune old logs to reduce space consumption. Enabled by default, 1 year old logs are deleted.\n- Added new event filter in Detailed Reports to filter by target.\n- Reduced delay between the full team being ready and the countdown starting in Ready Check.\n- Logs for Rift Gates now includes the number of gates closed.\n- DPS Meter window now has a more obvious indicator that it's unlocked.\n- Added new setting to adjust the scale of the UI components in the DPS Meter.\n- DPS vs. Healing meter toggle now applies universally to all windows\n",
+  "project": "more-settings",
+  "version": "1.19.1",
+  "commit": "1d269e0d1b526612f10fec41c98e2234633c19d7",
+  "notes": "Performance optimization",
   "dry_run": false
 }
