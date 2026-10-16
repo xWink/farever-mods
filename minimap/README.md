@@ -134,15 +134,15 @@ The **Activities** section includes **Show activities**, **Hide completed activi
 
 Settings use HLX's native persistence at `hlx/config/minimap/config.json`. Better Mod Settings and Mod Update Alerts are mandatory dependencies.
 
-## Big map markers
+## Main map markers
 
-**General** contains **Enabled** and **Override big map markers**, both on by default. The previous General controls now appear immediately below in **Minimap**; saved preferences are unchanged.
+**General** contains **Enabled** and **Override main map markers**, both on by default. The previous General controls now appear immediately below in **Minimap**; saved preferences are unchanged.
 
-With the override enabled, the main overworld map uses the same marker collector, icons, height indicators, scale, and filters as the minimap. You can pan to static landmarks anywhere in the overworld. Live players, enemies, companions, resources, and chests remain limited to the entities the game sends to your client. Hover details appear inside the lower-left corner of the map.
+With the override enabled, the main overworld map uses the same marker collector, icons, height indicators, and filters as the minimap. Main-map markers are twice the minimap size at the same **Marker scale %**, with matching hover areas. Their vector artwork uses 2× screen-resolution supersampling and smooth downsampling to reduce jagged edges. Smoothing is limited to a single viewport-sized marker layer; the map artwork is rendered normally. You can pan to static landmarks anywhere in the overworld. Live players, enemies, companions, resources, and chests remain limited to the entities the game sends to your client. Hover details appear inside the lower-left corner of the map.
 
 The native map still handles dragging, zooming, activity menus, obelisk travel, custom pins, zone names, death markers, and route graphics. The mod's marker filters control the replaced categories; the native filter buttons do not override those preferences. The **Minimap** category controls the small HUD only, including its compass, clock, and edge alerts.
 
-Turning off **Override big map markers** restores the original map immediately. **Enabled** controls both maps. Inside instances, the main map retains its native behavior so dungeon coordinates are not placed on the overworld. Marker updates run at five samples per second while the map is open; smooth zoom only rescales cached artwork. Closing or rebuilding the map removes the overlay, and a failed marker refresh restores the native markers.
+Turning off **Override main map markers** restores the original map immediately. **Enabled** controls both maps. Inside instances, the main map retains its native behavior so dungeon coordinates are not placed on the overworld. Marker updates run at five samples per second while the map is open; smooth zoom only rescales cached artwork. Closing or rebuilding the map removes the overlay, and a failed marker refresh restores the native markers.
 
 ## Map loading
 

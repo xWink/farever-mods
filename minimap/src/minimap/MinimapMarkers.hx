@@ -37,6 +37,7 @@ class MinimapMarkers {
     var npcElevationMarkers:Array<ElevationMarker> = [];
     var mapRotation:Float = 0;
     var markerScale:Float = 1;
+    final sizeMultiplier:Float;
     var heroHeight:Float = Math.NaN;
     var alertLayer:Dynamic;
     var alertTargets:Array<MapPoint> = [];
@@ -74,8 +75,9 @@ class MinimapMarkers {
     static var reportedError:Bool = false;
     static final DRAW_ORDER = ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "vaultChest", "recipeChest", "companion", "enemy", "boss", "targetDummy", "respawn", "obelisk", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal"].concat(NpcMarkers.KINDS);
 
-    public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String) {
+    public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String, sizeMultiplier:Float = 1) {
         this.level = level;
+        this.sizeMultiplier = sizeMultiplier;
         // Players and their height arrows sit below the local cursor. All other
         // markers sit above it, with NPCs retaining the highest normal priority.
         playerIcons = G.create("h2d.Object", [parent]);
@@ -100,7 +102,7 @@ class MinimapMarkers {
         }
         var now = haxe.Timer.stamp();
         var nextLayer = G.field(hero, "layer");
-        var nextMarkerScale = config.markerScale / 100;
+        var nextMarkerScale = config.markerScale / 100 * sizeMultiplier;
         var changed = previousConfig != config || previousRadius != radius
             || lastHero != hero || layer != nextLayer || markerScale != nextMarkerScale;
         if (!changed && now < nextRefresh) {

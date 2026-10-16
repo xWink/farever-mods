@@ -5,11 +5,13 @@ import minimap.GameAccess as G;
 /** The minimap's read-only markers, projected into the native overworld map. */
 class BigMapView {
     static inline var LEVEL = "World/W1_Siagarta";
+    static inline var MARKER_SIZE = 2.0;
     var window:Dynamic;
     var world:Dynamic;
     var hero:Dynamic;
     var scroll:Dynamic;
     var container:Dynamic;
+    var markerViewport:Dynamic;
     var root:Dynamic;
     var arrow:Dynamic;
     var markers:MinimapMarkers;
@@ -72,11 +74,9 @@ class BigMapView {
         var zoom = G.number(G.field(window, "zoom"));
         var nextScale = nextTileScale * zoom;
         if (!Math.isFinite(nextScale) || nextScale <= 0) throw "Invalid map projection";
-        if (tileScale != nextTileScale) {
-            tileScale = nextTileScale;
-            G.call("h2d.Object", "setScale", root, [tileScale]);
-        }
+        tileScale = nextTileScale;
         scale = nextScale;
+        updateProjection(zoom);
         rifts.update(G.field(hero, "layer"), haxe.Timer.stamp());
         // The entire map can be panned, not just the minimap's area around the
         // hero. Static locations remain cached; live data still samples at 5 Hz.
@@ -88,7 +88,7 @@ class BigMapView {
             revision = markers.revision; nativeCount = count;
         }
         nativeMarkers.apply(window, tileScale, hero);
-        var newOwnScale = config.markerScale / 100 / scale;
+        var newOwnScale = config.markerScale / 100 * MARKER_SIZE / scale;
         if (ownScale != newOwnScale) {
             ownScale = newOwnScale;
             G.call("h2d.Object", "setScale", arrow, [ownScale]);
@@ -99,14 +99,21 @@ class BigMapView {
     }
 
     function create():Void {
-        root = G.create("h2d.Object", [null]);
-        // Inside the game's existing clip/scroll transform, below its pins and crosshair.
-        G.call("h2d.Layers", "add", scroll, [root, 15, null]);
+        // Keep the native layer order, but bound smoothing to the visible map.
+        // Filtering the world-sized root would allocate an enormous render target.
+        markerViewport = G.create("h2d.Mask", [1, 1, null]);
+        G.call("h2d.Layers", "add", scroll, [markerViewport, 15, null]);
+        var antialias = G.create("h2d.filter.Nothing", []);
+        G.set(antialias, "smooth", true);
+        G.call("h2d.filter.Filter", "set_useScreenResolution", antialias, [true]);
+        G.call("h2d.filter.Filter", "set_resolutionScale", antialias, [2.0]);
+        G.call("h2d.Object", "set_filter", markerViewport, [antialias]);
+        root = G.create("h2d.Object", [markerViewport]);
         var players = G.create("h2d.Object", [root]);
         arrow = G.create("h2d.Graphics", [root]);
         MinimapMarkers.drawPlayerArrow(arrow, 10, 0xfff3d6);
         var foreground = G.create("h2d.Object", [root]);
-        markers = new MinimapMarkers(players, foreground, root, LEVEL);
+        markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE);
         rifts = new RiftMarkers(LEVEL);
         nativeMarkers = new BigMapNativeMarkers();
         overlay = G.create("h2d.Object", [container]);
@@ -122,6 +129,20 @@ class BigMapView {
         G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hideCaption(); });
+    }
+
+    function updateProjection(zoom:Float):Void {
+        var w = Std.int(Math.ceil(G.number(G.field(container, "calculatedWidth"))));
+        var h = Std.int(Math.ceil(G.number(G.field(container, "calculatedHeight"))));
+        G.set(markerViewport, "width", w);
+        G.set(markerViewport, "height", h);
+        var x = G.number(G.field(scroll, "x")), y = G.number(G.field(scroll, "y"));
+        // Cancel the scroll transform for the viewport, then reapply it inside.
+        // Its filter stays viewport-sized at every zoom and panning position.
+        G.call("h2d.Object", "setScale", markerViewport, [1 / zoom]);
+        G.call("h2d.Object", "setPosition", markerViewport, [-x / zoom, -y / zoom]);
+        G.call("h2d.Object", "setScale", root, [scale]);
+        G.call("h2d.Object", "setPosition", root, [x, y]);
     }
 
     function trackMouse(event:Dynamic):Void {
@@ -193,7 +214,7 @@ class BigMapView {
 
     public function dispose():Void {
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
-        for (object in [root, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
+        for (object in [root, markerViewport, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
         if (window != null && G.field(window, "removed") != true) try {
             // Re-evaluate current native filters instead of restoring stale
             // visibility from when the map was first opened.
@@ -201,7 +222,7 @@ class BigMapView {
             G.call("ui.win.MapWindow", "updateMapInfos", window);
         } catch (_:Dynamic) {}
         window = null; world = null; hero = null; scroll = null; container = null;
-        root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
+        markerViewport = null; root = null; arrow = null; markers = null; rifts = null; nativeMarkers = null;
         overlay = null; input = null; caption = null; shadow = null; measurements = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
         width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;

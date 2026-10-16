@@ -24,8 +24,9 @@ class GameAccess {
     }
     public static function current(type:String, name:String):Dynamic return globals[type + "." + name];
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
-        var parent:Dynamic = type == "h2d.Text" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
-        if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Interactive"].indexOf(type) < 0) throw "Constructor " + type;
+        if (type == "h2d.filter.Nothing") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
+        var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
+        if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
         var o:Dynamic = {nativeType: type, parent: parent, visible: true, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
         if (type == "h2d.Text") { o.font = args[0]; o.text = ""; }
         created.push(o);
@@ -52,6 +53,7 @@ class GameAccess {
         }
         if (type == "h2d.Object" || type == "ui.UIElement" && name == "set_visible") {
             switch name {
+                case "set_filter": o.filter = args[0];
                 case "setScale": o.scale = args[0];
                 case "setPosition": o.x = args[0]; o.y = args[1];
                 case "set_rotation": o.rotation = args[0];
@@ -61,6 +63,11 @@ class GameAccess {
             }
             return null;
         }
+        if (type == "h2d.filter.Filter") return switch name {
+            case "set_useScreenResolution": o.useScreenResolution = args[0]; null;
+            case "set_resolutionScale": o.resolutionScale = args[0]; null;
+            default: throw "Filter " + name;
+        };
         if (type == "h2d.Text") return switch name {
             case "set_text": o.text = args[0]; null;
             case "set_textColor": o.color = args[0]; null;
