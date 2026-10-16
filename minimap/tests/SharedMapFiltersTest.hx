@@ -28,7 +28,7 @@ class SharedMapFiltersTest {
         var container:Dynamic = {dom:null}; container.dom = {obj:container};
         var bar = new MainMapFilterBar(container, main, (parent, kind) -> G.create('h2d.Graphics', [parent]));
         bar.update({filterButtons:[]}, 1000, 800);
-        var fields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showNpcs', 'showChests', 'showSecretOrbs', 'showPlayers'];
+        var fields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showPlayers', 'showNpcs', 'showChests', 'showSecretOrbs'];
         for (i in 0...bar.buttons.length) {
             var button = bar.buttons[i];
             main.setEnabled(button.category.key, null, true);

@@ -28,7 +28,7 @@ class MainMapFiltersTest {
         eq(derived.hideMasteredCodexEnemies, true, 'Codex mastery completed enemies default hidden');
         var defaults = ['activities:completed', 'companions:collected', 'enemies:mastered', 'players:regular'];
         eq(config.mainMapHiddenFilters.join(','), defaults.join(','), 'Default exclusions include ordinary players');
-        var categoryFields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showNpcs', 'showChests', 'showSecretOrbs', 'showPlayers'];
+        var categoryFields = ['showOre', 'showPlants', 'showEnemies', 'showCompanions', 'showActivities', 'showPlayers', 'showNpcs', 'showChests', 'showSecretOrbs'];
         for (i in 0...MainMapFilters.CATEGORIES.length) {
             var category = MainMapFilters.CATEGORIES[i];
             for (item in category.items)

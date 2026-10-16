@@ -13,10 +13,10 @@ class MainMapFilters {
         category("companions", "Companions", "companion", ["regular", "sparkling", "collected"], ["Regular companions", "Sparkling companions", "Collected companions"]),
         category("activities", "Activities", "activity", ["activity", "ascension", "completed"],
             ["Activities", "Ascensions", "Completed activities"]),
+        category("players", "Players", "player", ["regular", "party", "friends"], ["Players", "Party members", "Friends"]),
         category("npcs", "NPCs", "npc", [], []),
         category("chests", "Chests", "chest", [], []),
-        category("secretOrbs", "Secret orbs", "secretOrb", [], []),
-        category("players", "Players", "player", ["regular", "party", "friends"], ["Players", "Party members", "Friends"])
+        category("secretOrbs", "Secret orbs", "secretOrb", [], [])
     ];
     var source:MinimapSettings;
     var saved:Array<String>;
