@@ -251,7 +251,7 @@ class BigMapView {
         G.call("h2d.Text", "set_textColor", caption, [0xfff3d6]);
         G.set(caption, "smooth", true);
         // A tight, solid black border stays legible without an offset shadow.
-        MapTextOutline.apply(caption, 0.8);
+        MapTextOutline.apply(caption, 1.0);
         measurements = new HoverMeasurements(overlay, font, 1.5, 0.8, false);
     }
 
