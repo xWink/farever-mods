@@ -30,8 +30,11 @@ class MainMapPerformanceTest {
         eq(markers.hitPoints.length, 10, 'Only viewport markers become hover targets');
         eq(markers.mapIconMarkers.length, 10, 'Only ten of a thousand markers create artwork');
         eq(G.bakes, 1, 'A thousand identical markers share one texture');
-        eq(markers.mapIconMarkers[0].icon.tile.texture.mipmaps, true, 'Smaller display scales reuse generated mipmaps');
-        eq(markers.mapIconMarkers[0].icon.tile.texture.mipMap, 'Linear', 'Downsampling blends mip levels smoothly');
+        var texture = markers.mapIconMarkers[0].icon.tile.texture;
+        eq((cast texture.flags:Array<Dynamic>).join(','), 'Target', 'Cached textures allocate no mipmap chain');
+        eq(G.field(texture, 'mipMap'), null, 'No mipmap sampling is enabled on unsupported renderers');
+        eq(texture.width, 256, 'Removing mipmaps preserves the high-resolution artwork');
+        eq(markers.mapIconMarkers[0].icon.smooth, true, 'Ordinary smooth filtering remains enabled');
         eq(markers.mapIconMarkers[0].icon.tile, markers.mapIconMarkers[9].icon.tile, 'Texture sharing is by appearance');
         var transforms = G.positionWrites;
         markers.draw(points, 1);

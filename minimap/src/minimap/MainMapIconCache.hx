@@ -13,19 +13,17 @@ class MainMapIconCache {
     var flags:Dynamic;
     var format:Dynamic;
     var blend:Dynamic;
-    var mipMap:Dynamic;
 
     public function new(nativeArray:Dynamic) {
         flags = G.call("hl.types.ArrayObj", "slice", nativeArray, [0, 0]);
         var target = G.current("h3d.mat.TextureFlags", "Target");
-        var mipmapped = G.current("h3d.mat.TextureFlags", "MipMapped");
         format = G.current("hxd.PixelFormat", "RGBA");
         blend = G.current("h2d.BlendMode", "AlphaAdd");
-        mipMap = G.current("h3d.mat.MipMap", "Linear");
-        if (flags == null || target == null || mipmapped == null || format == null || blend == null || mipMap == null)
+        if (flags == null || target == null || format == null || blend == null)
             throw "Map icon texture API unavailable";
+        // Mipmap APIs exist on renderers that cannot generate them. Allocate a
+        // single-level target and use the bitmap's smooth filtering instead.
         G.call("hl.types.ArrayObj", "pushDyn", flags, [target]);
-        G.call("hl.types.ArrayObj", "pushDyn", flags, [mipmapped]);
     }
 
     public function tile(key:String, draw:Dynamic->Void):Dynamic {
@@ -43,10 +41,6 @@ class MainMapIconCache {
             G.call("h3d.mat.Texture", "clear", texture, [0, null, null]);
             G.call("h2d.Object", "drawTo", holder, [texture]);
             geometryReleased = true;
-            // Generate once, so small display sizes average the high-resolution
-            // artwork instead of sampling just four distant source pixels.
-            G.call("h3d.mat.Texture", "checkMipMapGen", texture, [0, 0]);
-            G.call("h3d.mat.Texture", "set_mipMap", texture, [mipMap]);
             cached = G.staticCall("h2d.Tile", "fromTexture", [texture]);
             G.call("h2d.Tile", "scaleToSize", cached, [SIZE * 1., SIZE * 1.]);
             G.call("h2d.Tile", "setCenterRatio", cached, [0.5, 0.5]);

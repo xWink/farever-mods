@@ -33,7 +33,7 @@ class GameAccess {
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
         if (type == "h3d.mat.Texture") {
             if (args.length != 4 || args[3] != "RGBA" || (cast args[2]:Array<Dynamic>).indexOf("Target") < 0) throw "Invalid texture arguments";
-            var texture:Dynamic = {nativeType:type, width:args[0], height:args[1], disposed:false};
+            var texture:Dynamic = {nativeType:type, width:args[0], height:args[1], flags:(cast args[2]:Array<Dynamic>).copy(), disposed:false};
             created.push(texture); return texture;
         }
         if (type == "h2d.filter.Nothing" || type == "h2d.filter.Outline") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
@@ -86,8 +86,8 @@ class GameAccess {
         if (type == "h3d.mat.Texture") return switch name {
             case "clear": o.clearColor = args[0]; null;
             case "checkMipMapGen":
-                if (args.length != 2 || args[0] != 0 || args[1] != 0 || o.baked != true) throw "Invalid mipmap generation";
-                o.mipmaps = true; null;
+                // The method and enums exist even on unsupported renderers.
+                throw "Mipmaps auto generation is not supported on this platform";
             case "set_mipMap": o.mipMap = args[0]; null;
             case "preventAutoDispose": o.retained = true; null;
             case "dispose": o.disposed = true; null;
