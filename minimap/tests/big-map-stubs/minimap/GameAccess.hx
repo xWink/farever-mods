@@ -32,6 +32,10 @@ class GameAccess {
         return v == null ? [] : cast v;
     }
     public static function current(type:String, name:String):Dynamic return globals[type + "." + name];
+    public static function enumBit(type:String, name:String):Int {
+        if (type == "ui.win.WindowFlags" && name == "AllowKeyboardInput") return 4;
+        throw "Unknown flag " + type + "." + name;
+    }
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
         if (type == "h3d.mat.Texture") {
             if (args.length != 4 || args[3] != "RGBA" || (cast args[2]:Array<Dynamic>).indexOf("Target") < 0) throw "Invalid texture arguments";
@@ -61,6 +65,7 @@ class GameAccess {
             if (args.length != 1) throw "Tile argument count";
             return {texture:args[0], width:args[0].width, height:args[0].height};
         }
+        if (type == "gamepad.Pad" && name == "get_active") return globals["padActive"] == true;
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
         if (type == "HData" && name == "checkStatus") return true;
         if (name == "isOfType") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
@@ -80,6 +85,7 @@ class GameAccess {
     }
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (args == null) args = [];
+        if (type == "ui.win.BaseWindow" && name == "set_windowFlags") { o.windowFlags = args[0]; return args[0]; }
         if (type == "hl.types.ArrayObj") return switch name {
             case "slice": (cast o:Array<Dynamic>).slice(args[0], args[1]);
             case "pushDyn": (cast o:Array<Dynamic>).push(args[0]);
@@ -172,6 +178,8 @@ class GameAccess {
         if (type == "ui.UIElement" && name == "hideTip") { o.tipHidden = true; return null; }
         if (type == "ui.win.map.MapMarker" && name == "get_showOffscreen") return field(o, "showOffscreen") == true;
         if (type == "ui.win.MapWindow") return switch name {
+            case "isSelector": field(o, "selector") == true;
+            case "clampTargetZoom": o.targetZoom = Math.max(0.5, Math.min(2., number(o.targetZoom))); null;
             case "get_tileScale": o.tileScale;
             case "refreshVisuals":
                 restored++;

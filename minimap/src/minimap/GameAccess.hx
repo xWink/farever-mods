@@ -73,6 +73,11 @@ class GameAccess {
         if (t == null) throw "Game type unavailable: " + type;
         return HlxRuntime.constructInstanceByName(t, args.length, args);
     }
+    public static function enumBit(type:String, name:String):Int {
+        var value = current(type, name);
+        if (value == null) throw "Game flag unavailable: " + type + "." + name;
+        return 1 << Type.enumIndex(value);
+    }
     public static function array(value:Dynamic, proxy:Bool = false):Array<Dynamic> {
         if (proxy) value = field(value, "array");
         var out:Array<Dynamic> = [];

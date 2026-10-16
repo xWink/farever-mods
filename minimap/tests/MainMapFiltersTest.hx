@@ -104,7 +104,10 @@ class MainMapFiltersTest {
             eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old NPC exclusion stays retired after reload: ' + kind);
         var oldSettings = reopened.settings();
         reloaded.markerScale = 150;
-        eq(reopened.settings().markerScale, 150., 'Marker scale changes invalidate derived settings');
+        eq(reopened.settings().markerScale, 100., 'Minimap scale does not affect main-map size');
+        reloaded.mainMapMarkerScale = 170;
+        eq(reopened.settings().markerScale, 170., 'Main-map scale changes invalidate derived settings');
+        eq(reloaded.markerScale, 150., 'Main-map slider preserves minimap size');
         eq(reopened.settings() != oldSettings, true, 'Collector receives new config for rescaling');
         var before = saves;
         filters.setEnabled('ore', 'copper', false);

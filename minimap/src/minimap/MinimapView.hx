@@ -38,6 +38,10 @@ class MinimapView {
     var partyPivot:Dynamic;
     var partyTerrain:Dynamic;
     var markers:MinimapMarkers;
+    var filters:MinimapFilters;
+    var filterBar:MainMapFilterBar;
+    var filterIcons:MainMapIconCache;
+    var filterRevision:Int = -1;
     var compass:MinimapCompass;
     var rifts:RiftMarkers;
     var riftText:Dynamic;
@@ -82,9 +86,10 @@ class MinimapView {
     var cached:Array<MapTile> = [];
     var generation:Int = 0;
 
-    public function new() {}
+    public function new(?save:Void->Void) filters = new MinimapFilters(save);
 
     public function update(app:Dynamic, config:MinimapSettings):Void {
+        filters.bind(config);
         var nextWorld = G.field(app, "world");
         var ui = G.current("ui.BaseUI", "current");
         if (nextWorld != world || ui != owner) dispose();
@@ -121,6 +126,7 @@ class MinimapView {
             G.set(panel, "alpha", 1 - transparency / 100);
             // A fully invisible map must not consume wheel input.
             G.call("h2d.Object", "set_visible", input, [transparency < 100]);
+            filterBar.setVisible(transparency < 100);
             if (transparency == 100) { hovered = false; setHoverCaption(""); }
         }
         var newScale = config.zoom / 100 * 2; // Two UI pixels per world unit at 100%.
@@ -147,8 +153,9 @@ class MinimapView {
         var outerSize = size + BORDER * 2;
         var screenWidth = G.number(G.call("h2d.Flow", "get_innerWidth", root));
         var screenHeight = G.number(G.call("h2d.Flow", "get_innerHeight", root));
-        var nextX = MinimapPosition.axis(screenWidth, outerSize, config.xOffset, true);
-        var nextY = MinimapPosition.axis(screenHeight, outerSize, config.yOffset);
+        var margin = MainMapFilterBar.HUD_MARGIN;
+        var nextX = MinimapPosition.axis(screenWidth, outerSize + margin * 2, config.xOffset, true) + margin;
+        var nextY = MinimapPosition.axis(screenHeight, outerSize + margin * 2, config.yOffset) + margin;
         if (panelX != nextX || panelY != nextY) {
             panelX = nextX; panelY = nextY;
             hovered = false;
@@ -156,6 +163,11 @@ class MinimapView {
         }
         // A native Flow reflow can move absolute children; reapply after measuring it.
         position(panel, panelX, panelY);
+        filterBar.updateMinimap(panelX, panelY, size, circular, screenWidth, screenHeight);
+        if (filterRevision != filters.revision) {
+            filterRevision = filters.revision;
+            markers.invalidate();
+        }
         // A rotating square needs enough tiles/markers to cover its diagonal.
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
@@ -235,6 +247,7 @@ class MinimapView {
         npcPivot = G.create("h2d.Object", [mask]);
         npcTerrain = G.create("h2d.Object", [npcPivot]);
         markers = new MinimapMarkers(terrain, npcTerrain, mask, LEVEL);
+        markers.pointFilter = filters.accepts;
         compass = new MinimapCompass(mask);
         partyPivot = G.create("h2d.Object", [mask]);
         partyTerrain = G.create("h2d.Object", [partyPivot]);
@@ -248,12 +261,18 @@ class MinimapView {
         G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
         G.set(input, "onOut", (_:Dynamic) -> { hovered = false; setHoverCaption(""); });
+        G.set(input, "onPush", (_:Dynamic) -> { if (filterBar != null) filterBar.closePopup(); });
         G.set(input, "onWheel", (event:Dynamic) -> {
             trackMouse(event);
             if (!hovered || G.field(panel, "visible") != true) return;
             G.set(event, "propagate", false);
             MinimapMod.adjustZoom(G.number(G.field(event, "wheelDelta")));
         });
+        filterIcons = new MainMapIconCache(G.field(owner, "windows"));
+        // The outer HUD root is a plain Flow. Use gameRoot's DOM to construct
+        // native styled controls, then parent them into our existing HUD layer.
+        filterBar = new MainMapFilterBar(G.field(owner, "gameRoot"), filters,
+            (parent, kind) -> filterIcons.bitmap(parent, kind, g -> markers.drawFilterIcon(g, kind)), panel);
     }
 
     function trackMouse(event:Dynamic):Void {
@@ -564,10 +583,16 @@ class MinimapView {
         G.call("h2d.Object", "setPosition", object, [x, y]);
     function show(visible:Bool):Void {
         if (panel != null) G.call("h2d.Object", "set_visible", panel, [visible]);
-        if (!visible) { hovered = false; setHoverCaption(""); }
+        if (!visible) {
+            hovered = false; setHoverCaption("");
+            if (filterBar != null) filterBar.closePopup();
+        }
     }
 
     public function dispose():Void {
+        if (filterBar != null) filterBar.dispose();
+        if (filterIcons != null) filterIcons.dispose();
+        filterBar = null; filterIcons = null; filterRevision = -1;
         // The hidden font source belongs to gameRoot's DOM, outside our panel.
         if (riftFontSource != null) G.call("h2d.Object", "remove", riftFontSource);
         if (panel != null) {

@@ -123,6 +123,8 @@ class MinimapMarkers {
         G.call("h2d.Object", "addChild", parent, [partyElevations]);
     }
 
+    public function invalidate():Void nextRefresh = 0;
+
     public function update(hero:Dynamic, config:MinimapSettings, x:Float, y:Float, radius:Float, scale:Float, rotation:Float, rifts:RiftMarkers):Void {
         this.rifts = rifts;
         if (mapRotation != rotation) {

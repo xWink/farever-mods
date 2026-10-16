@@ -4,7 +4,7 @@ typedef MapSubfilter = {key:String, label:String};
 typedef MapFilterCategory = {key:String, label:String, icon:String, items:Array<MapSubfilter>};
 
 /** Main-map preferences never change the HUD's filter settings. */
-class MainMapFilters {
+class MainMapFilters implements MapFilterPreferences {
     public static final CATEGORIES:Array<MapFilterCategory> = [
         category("ore", "Ore", "ore", ["copper", "iron", "tin", "tungstene"], ["Copper", "Iron", "Tin", "Tungstene"]),
         category("plants", "Plants", "plant", ["madrigold", "lavendula", "ancientThyme", "zealotus"], ["Madrigold", "Lavendula", "Ancient Thyme", "Zealotus"]),
@@ -56,9 +56,11 @@ class MainMapFilters {
     }
 
     public function settings():MinimapSettings {
-        if (derived != null && markerScale == source.markerScale) return derived;
+        var scale = source.mainMapMarkerScale == null ? 100. : source.mainMapMarkerScale;
+        if (derived != null && markerScale == scale) return derived;
         derived = Reflect.copy(source);
-        markerScale = source.markerScale;
+        markerScale = scale;
+        derived.markerScale = scale;
         derived.showPlayers = derived.showObelisks = derived.showRespawnPoints = derived.showSoulstoneCircles = true;
         derived.hideVerticallyDistantMarkers = false;
         derived.sparklingCompanionAlerts = false;

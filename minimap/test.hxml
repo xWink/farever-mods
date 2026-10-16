@@ -99,3 +99,15 @@
 -cp tests/big-map-stubs
 -main MainMapPerformanceTest
 --interp
+--next
+-cp src
+-cp tests
+-cp tests/big-map-stubs
+-main MainMapControlsTest
+--interp
+--next
+-cp src
+-cp tests
+-cp tests/big-map-stubs
+-main MinimapFiltersTest
+--interp

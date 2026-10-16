@@ -97,7 +97,7 @@ class BigMapView {
             revision = markers.revision; nativeCount = count;
         }
         nativeMarkers.apply(window, tileScale, hero);
-        var newOwnScale = config.markerScale / 100 * MARKER_SIZE / scale;
+        var newOwnScale = filters.settings().markerScale / 100 * MARKER_SIZE / scale;
         if (ownScale != newOwnScale) {
             ownScale = newOwnScale;
             G.call("h2d.Object", "setScale", arrow, [ownScale]);

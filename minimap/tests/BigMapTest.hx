@@ -148,7 +148,9 @@ class BigMapTest {
         eq(edge != null, true, 'Hover area reaches the enlarged marker edge');
         eq(edge.name, 'Copper', 'Enlarged hover selects the right marker');
         c = change(c, 'markerScale', 150.); view.update(window, c);
-        eq(view.markers.markerScale, 2.25, 'Existing marker-size setting applies to larger main-map baseline');
+        eq(view.markers.markerScale, 1.5, 'Minimap marker scale no longer changes the main map');
+        c = change(c, 'mainMapMarkerScale', 150.); view.update(window, c);
+        eq(view.markers.markerScale, 2.25, 'Main-map marker slider applies to its own baseline');
         eq(view.arrow.scale * view.scale, 2.25, 'Own arrow follows marker-size setting');
         // Hover uses displayed pan/zoom, not the minimap centre or target zoom.
         window.scroll.x = 500 - ore.x * view.scale; window.scroll.y = 400 - ore.y * view.scale;

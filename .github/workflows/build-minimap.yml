@@ -63,6 +63,10 @@ jobs:
           ../.minimap-hashlink/hl build/big-map-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main MainMapPerformanceTest -hl build/main-map-performance-test.hl
           ../.minimap-hashlink/hl build/main-map-performance-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main MainMapControlsTest -hl build/main-map-controls-test.hl
+          ../.minimap-hashlink/hl build/main-map-controls-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main MinimapFiltersTest -hl build/minimap-filters-test.hl
+          ../.minimap-hashlink/hl build/minimap-filters-test.hl
 
   build:
     needs: test
