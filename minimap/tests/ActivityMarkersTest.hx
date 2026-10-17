@@ -42,6 +42,33 @@ class ActivityMarkersTest {
         }
         equal(ActivityMarkers.icon(definition("BossNamedPuzzle")), "activity", "Names do not identify artwork");
         equal(ActivityMarkers.icon(null), "activity", "Unknown activities keep generic artwork");
+        // Synthetic atlas cells exercise native icon matching without relying on
+        // encounter names or fixed coordinates from a particular game version.
+        var bossGfx = {file:"UI/icons/activities.png", size:128, x:0, y:0};
+        G.definitions["Boss"].gfx = bossGfx;
+        G.definitions["WorldElite"].gfx = bossGfx;
+        G.definitions["WorldCamp"].gfx = {file:bossGfx.file, size:128, x:1, y:0};
+        ActivityMarkers.prepareIcons();
+        var variant:Dynamic = definition("DifferentEncounterFamily", "WorldCamp");
+        variant.gfx = bossGfx;
+        equal(ActivityMarkers.icon(variant), "boss", "Native boss icon overrides non-boss activity ancestry");
+        equal(ActivityMarkers.kind(variant), "activity", "Icon override preserves activity filtering");
+        var independent:Dynamic = definition("IndependentEncounter");
+        independent.gfx = {file:"UI\\icons\\activities.png", size:128, x:0, y:0, width:1, height:1};
+        equal(ActivityMarkers.icon(independent), "boss", "Unrelated ancestry with equivalent atlas rectangle matches");
+        independent.gfx = {file:bossGfx.file, size:128, x:1, y:0};
+        equal(ActivityMarkers.icon(independent), "battle", "Different cells in the same atlas stay distinct");
+        independent.gfx = {file:bossGfx.file, size:128, x:0, y:0, width:2};
+        equal(ActivityMarkers.icon(independent), "activity", "Different atlas crop is not the boss icon");
+        independent.gfx = {file:"Other/icons.png", size:128, x:0, y:0};
+        equal(ActivityMarkers.icon(independent), "activity", "Coordinates in another atlas do not match");
+        G.definitions["WorldCamp"].gfx = bossGfx;
+        ActivityMarkers.prepareIcons();
+        equal(ActivityMarkers.icon(variant), "activity", "Ambiguous shared placeholder cannot imply boss artwork");
+        G.definitions["Boss"].gfx = G.definitions["WorldElite"].gfx = {file:bossGfx.file, size:128, x:5, y:2};
+        ActivityMarkers.prepareIcons();
+        independent.gfx = G.definitions["Boss"].gfx;
+        equal(ActivityMarkers.icon(independent), "boss", "Rebuilding follows updated native atlas coordinates");
 
         // Exercise all four visibility toggles with incomplete, complete, and
         // temporarily unavailable progress (such as during character loading).

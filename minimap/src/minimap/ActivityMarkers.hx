@@ -11,15 +11,45 @@ typedef ActivityVisibility = {
 
 /** Shared classification for world activities and instanced entrances. */
 class ActivityMarkers {
-    /** Artwork follows native activity ancestry, independently of filtering. */
+    static final STYLES = [
+        {type:"Boss", icon:"boss"}, {type:"WorldElite", icon:"boss"},
+        {type:"ChestOrb", icon:"orbChest"}, {type:"TimerCollectRun", icon:"orbRace"},
+        {type:"ArenaChest", icon:"ambushChest"},
+        {type:"WorldCamp", icon:"battle"}, {type:"FightStone", icon:"battle"}
+    ];
+    static var artwork:Map<String, String> = [];
+
+    /** Rebuild with the activity cache; atlas coordinates may change between game versions. */
+    public static function prepareIcons():Void {
+        artwork = [];
+        for (entry in STYLES) {
+            var inf = G.staticCall("HActivity", "getInf", [entry.type]);
+            var key = gfxKey(G.field(inf, "gfx"));
+            if (key == "") continue;
+            // A shared placeholder is not enough to identify an activity.
+            if (artwork.exists(key) && artwork[key] != entry.icon) artwork[key] = "activity";
+            else artwork[key] = entry.icon;
+        }
+    }
+
+    static function gfxKey(gfx:Dynamic):String {
+        var file = G.text(G.field(gfx, "file"));
+        var size = G.number(G.field(gfx, "size"));
+        if (file == "" || size <= 0) return "";
+        // Include the full atlas rectangle: unrelated cells share the same file.
+        return StringTools.replace(file, "\\", "/").toLowerCase() + ":"
+            + G.number(G.field(gfx, "x")) * size + ":" + G.number(G.field(gfx, "y")) * size + ":"
+            + G.number(G.field(gfx, "width"), 1) * size + ":" + G.number(G.field(gfx, "height"), 1) * size;
+    }
+
+    /** Match the icon used by ActivityMarker.getTile before considering ancestry. */
     public static function icon(inf:Dynamic):String {
         if (inf == null) return "activity";
-        for (entry in [
-            {type:"Boss", icon:"boss"}, {type:"WorldElite", icon:"boss"},
-            {type:"ChestOrb", icon:"orbChest"}, {type:"TimerCollectRun", icon:"orbRace"},
-            {type:"ArenaChest", icon:"ambushChest"},
-            {type:"WorldCamp", icon:"battle"}, {type:"FightStone", icon:"battle"}
-        ]) if (G.staticCall("HActivity", "isOfType", [inf, entry.type]) == true) return entry.icon;
+        var key = gfxKey(G.field(inf, "gfx"));
+        if (key != "" && artwork.exists(key)) return artwork[key];
+        // Preserve existing artwork when a native icon is absent or unfamiliar.
+        for (entry in STYLES)
+            if (G.staticCall("HActivity", "isOfType", [inf, entry.type]) == true) return entry.icon;
         return "activity";
     }
 

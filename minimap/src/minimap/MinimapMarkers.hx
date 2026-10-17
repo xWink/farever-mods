@@ -547,6 +547,7 @@ class MinimapMarkers {
         activitySource = source; activityOrbSource = orbs; activityOrbCount = count;
         activities = [];
         if (source == null) return;
+        ActivityMarkers.prepareIcons();
         // Use the native world map's released activity definitions and marker
         // positions. Resolve prefab positions once, not on each marker refresh.
         for (definition in G.array(G.staticCall("HActivity", "allFiltered", [level]))) {
