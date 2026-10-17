@@ -61,6 +61,12 @@ class BigMapTest {
             {family: 'npc', enabled: true, kind: 'npc', posx: 7700., posy: 6000., posz: 25., inf: {id: 'npc', props: {}}}];
         var window:Dynamic = {hero: hero, scroll: {x: 13., y: 27.}, scrollContainer: {calculatedWidth: 1000., calculatedHeight: 800.},
             children:[{font:{size:22, nativeFont:true}}], markers: [], respawnPoints: new Map<String, Dynamic>(), tileScale: 2., zoom: 0.5, removed: false};
+        var nativeMoves = 0, nativePushes = 0, nativePins = 0;
+        var nativeMove = (_:Dynamic) -> nativeMoves++;
+        var nativePush = (_:Dynamic) -> nativePushes++;
+        var nativeRightClick = () -> nativePins++;
+        var nativeInput:Dynamic = {width:1000., height:800., propagateEvents:false, onMove:nativeMove, onPush:nativePush};
+        window.mapContainer = {interactive:nativeInput, onRightClick:nativeRightClick};
         var obelisk = nativeMarker(window, 15, 9000, 7000); obelisk.element = {id: 'tower'};
         var click = () -> {}; obelisk.content.onClick = click;
         var respawn = nativeMarker(window, 14, 8000, 6000); window.respawnPoints.set('spawn', respawn);
@@ -68,6 +74,9 @@ class BigMapTest {
         var completed = nativeMarker(window, 13, 6000, 4000); completed.activity = {id: 'done'};
         var npc = nativeMarker(window, 13, 7500, 6000); npc.activity = {id: 'npc'};
         var own = nativeMarker(window, 20, 0, 0); own.hero = hero;
+        own.content.alpha = 0.9;
+        own.camera = {visible:true, alpha:1., rotation:0.25};
+        G.set(own.camera, "parent", own);
         var other = nativeMarker(window, 20, 6000, 3000); other.hero = friend;
         var pin = nativeMarker(window, 16, 0, 0);
         var label = nativeMarker(window, 10, 0, 0);
@@ -91,14 +100,19 @@ class BigMapTest {
         window.selector = true;
         view.update(window, c);
         eq(kinds(view), 'obelisk', 'Travel hides ordinary players and unrelated markers');
-        eq(view.arrow.visible, false, 'Travel shows only the requested marker types');
-        eq(own.visible, false, 'Own hidden native marker cannot intercept clicks');
+        eq(view.arrow.visible, true, 'Travel keeps our own player marker');
+        eq(own.visible, true, 'Travel keeps the native camera cone parent visible');
+        eq(own.alpha, 0.8, 'Travel preserves camera cone parent opacity');
+        eq(own.content.alpha, 0., 'Travel hides only the duplicate native player icon');
+        eq(own.camera.rotation, 0.25, 'Travel keeps native camera direction');
         eq(other.visible, false, 'Unrelated player native target hidden');
         eq(pin.visible, false, 'Travel hides native pins');
         eq(death.visible, false, 'Travel hides death marker');
         eq(obelisk.visible, true, 'Obelisk travel destination remains clickable');
         eq(obelisk.content.onClick, click, 'Obelisk travel callback preserved');
         eq(view.markers.obeliskScale, 1.5, 'Obelisks are 50 percent larger only in travel');
+        hero.name = 'Me';
+        eq(view.markers.hoverAt(hero.posx, hero.posy, view.scale, hero.posx, hero.posy, hero).name, 'Me', 'Travel retains own-player hover text');
         for (kind in ['dungeon', 'soulstone', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
             eq(BigMapView.travelPoint({kind:kind, x:0, y:0, z:0}), false, 'Travel hides ' + kind);
         eq(BigMapView.travelPoint({kind:'player', partyMember:true, x:0, y:0, z:0}), false, 'Travel hides party');
@@ -140,6 +154,10 @@ class BigMapTest {
         eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'Normal map restored after leaving travel');
         eq(view.markers.obeliskScale, 1., 'Normal map uses normal obelisk size');
         eq(view.arrow.visible, true, 'Normal map restores own arrow');
+        eq(own.alpha, 0.8, 'Main map preserves camera cone parent opacity');
+        eq(own.content.alpha, 0., 'Main map hides only the duplicate native player icon');
+        own.camera.rotation = 1.25; view.update(window, c);
+        eq(own.camera.rotation, 1.25, 'Native camera direction changes remain intact');
         eq(view.markerViewport.parent, window.scroll, 'Smoothing retains native marker layer order');
         eq(view.markerViewport.layer, 15, 'Custom pins and crosshair still draw above markers');
         eq(view.root.parent, view.markerViewport, 'World artwork is inside bounded smoothing viewport');
@@ -157,8 +175,24 @@ class BigMapTest {
         eq(G.field(view.root, 'filter'), null, 'Never filter the unbounded world root');
         eq(G.field(window.scroll, 'filter'), null, 'Map terrain is not supersampled');
         eq(view.markers.markerScale, 1.5, 'Main-map size reduced by 25 percent, preserving smoothing');
-        eq(view.input.propagateEvents, true, 'Drag/zoom/click events continue to native map');
-        eq(view.input.width, 1000., 'Input uses map viewport, not sidebar');
+        eq(view.input, nativeInput, 'Hover observes the existing native map input');
+        eq(view.input.propagateEvents, false, 'Native event propagation stays unchanged');
+        eq(window.mapContainer.onRightClick, nativeRightClick, 'Native pin placement callback stays unchanged');
+        view.input.onMove({relX:321., relY:234.});
+        eq(nativeMoves, 1, 'Original map move handler runs');
+        eq(view.mouseX, 321., 'Native input coordinates reach hover tracking');
+        nativeInput.absX = 50.; view.overlay.absX = 20.;
+        nativeInput.absY = 70.; view.overlay.absY = 30.;
+        view.input.onMove({relX:321., relY:234.});
+        eq(view.mouseX, 351., 'Hover transforms native input coordinates into the overlay');
+        eq(view.mouseY, 274., 'Hover transforms vertical coordinates into the overlay');
+        nativeInput.absX = 0.; view.overlay.absX = 0.;
+        nativeInput.absY = 0.; view.overlay.absY = 0.;
+        window.mapContainer.onRightClick();
+        eq(nativePins, 1, 'Native pin placement remains callable');
+        eq(G.created.filter(o -> G.field(o, 'nativeType') == 'h2d.Interactive' && G.field(o, 'parent') == view.overlay).length,
+            0, 'No overlay input can block the native top-interactive guard');
+        eq(view.input.width, 1000., 'Native input size stays unchanged');
         eq(obelisk.alpha, 0., 'No duplicate original icon');
         eq(obelisk.visible, true, 'Visible obelisk retains hit target');
         eq(obelisk.content.onClick, click, 'Native travel action untouched');
@@ -333,6 +367,7 @@ class BigMapTest {
         eq(c.mainMapHiddenFilters.indexOf('ore:copper') >= 0, true, 'Shared filter preference persisted');
         var popup = view.filterBar.popup;
         view.input.onPush({});
+        eq(nativePushes, 1, "Native drag handler still runs");
         eq(popup.removed, true, 'Clicking outside closes popup');
         eq(view.filterBar.popup, null, 'Popup reference cleared');
         friend.party = true; friend.name = 'Party'; hero.name = 'Me';
@@ -450,7 +485,11 @@ class BigMapTest {
         eq(oldRoot.removed, true, 'Old overlay detached');
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
         eq(oldFontSource.removed, true, 'Hidden native font source is removed with the map overlay');
+        eq(nativeInput.onMove, nativeMove, 'Original move handler restored on disable');
+        eq(nativeInput.onPush, nativePush, 'Original push handler restored on disable');
         eq(obelisk.alpha, 0.8, 'Original alpha restored');
+        eq(own.content.alpha, 0.9, 'Disabling restores original native player icon opacity');
+        eq(own.alpha, 0.8, 'Disabling preserves native camera parent opacity');
         eq(obelisk.content.getTip, obeliskTip, 'Disabling mod restores native obelisk tooltip');
         eq(own.content.getTip, ownTip, 'Disabling mod restores own-player tooltip');
         eq(obelisk.content.showTipOnOver, true, 'Disabling mod restores native hover behavior');

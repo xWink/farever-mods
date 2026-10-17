@@ -33,6 +33,8 @@ class BigMapView {
     var ownScale:Float = 0;
     var overlay:Dynamic;
     var input:Dynamic;
+    var inputPoint:Dynamic;
+    var inputHandlers:Array<{name:String, original:Dynamic, wrapper:Dynamic}> = [];
     var width:Float = 0;
     var height:Float = 0;
     var hovered:Bool = false;
@@ -113,6 +115,7 @@ class BigMapView {
         var mapWidth = G.number(G.field(container, "calculatedWidth")), mapHeight = G.number(G.field(container, "calculatedHeight"));
         bonusDungeon.update(hero, mapWidth, mapHeight);
         filterBar.update(window, mapWidth, mapHeight, bonusDungeon.visible ? 76 : 0);
+        observeNativeInput();
         updateHover();
     }
 
@@ -130,12 +133,10 @@ class BigMapView {
         markers.ownFirst = true;
         markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point));
         markers.obeliskScale = fastTravel ? 1.5 : 1.;
-        markers.showOwn = !fastTravel;
         // Travel destinations must stay visible and clickable regardless of elevation.
         markers.ignoreHeightFilter = fastTravel;
         // After the party layer, above every native and replacement marker.
         arrow = iconCache.bitmap(priorityRoot, "own", g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xfff3d6));
-        G.call("h2d.Object", "set_visible", arrow, [!fastTravel]);
         rifts = new RiftMarkers(LEVEL);
         nativeMarkers = new BigMapNativeMarkers();
         overlay = G.create("h2d.Object", [container]);
@@ -145,13 +146,6 @@ class BigMapView {
         G.set(properties, "verticalAlign", null);
         G.set(properties, "offsetX", 0);
         G.set(properties, "offsetY", 0);
-        input = G.create("h2d.Interactive", [1.0, 1.0, overlay, null]);
-        G.set(input, "propagateEvents", true);
-        G.set(input, "onMove", (event:Dynamic) -> trackMouse(event));
-        G.set(input, "onCheck", (event:Dynamic) -> trackMouse(event));
-        G.set(input, "onOver", (event:Dynamic) -> trackMouse(event));
-        G.set(input, "onOut", (_:Dynamic) -> { hovered = false; hoverState = null; hideCaption(); });
-        G.set(input, "onPush", (_:Dynamic) -> { if (filterBar != null) filterBar.closePopup(); });
         bonusDungeon = new MainMapBonusDungeon(overlay, container);
         filterBar = new MainMapFilterBar(container, filters, markers.createFilterIcon);
     }
@@ -189,9 +183,44 @@ class BigMapView {
         }
     }
 
+    function observeNativeInput():Void {
+        var source = G.field(G.field(window, "mapContainer"), "interactive");
+        if (source == input) return;
+        restoreNativeInput();
+        input = source;
+        if (input == null) return;
+        inputPoint = G.call("h2d.Object", "localToGlobal", input, [null]);
+        // An extra map-sized Interactive blocks the native right-click pin menu's
+        // getTopInteractive check, even with propagateEvents. Observe its own input.
+        for (name in ["onMove", "onCheck", "onOver", "onOut", "onPush"]) {
+            var original = G.field(input, name);
+            var wrapper = (event:Dynamic) -> {
+                if (name == "onOut") { hovered = false; hoverState = null; hideCaption(); }
+                else if (name == "onPush") { if (filterBar != null) filterBar.closePopup(); }
+                else trackMouse(event);
+                if (original != null) Reflect.callMethod(source, original, [event]);
+            };
+            inputHandlers.push({name:name, original:original, wrapper:wrapper});
+            G.set(input, name, wrapper);
+        }
+    }
+
+    function restoreNativeInput():Void {
+        for (handler in inputHandlers)
+            if (G.field(input, handler.name) == handler.wrapper) G.set(input, handler.name, handler.original);
+        inputHandlers = [];
+        input = null; inputPoint = null;
+        hovered = false; hoverState = null;
+    }
+
     function trackMouse(event:Dynamic):Void {
-        mouseX = G.number(G.field(event, "relX"));
-        mouseY = G.number(G.field(event, "relY"));
+        if (inputPoint == null) return;
+        G.set(inputPoint, "x", G.number(G.field(event, "relX")));
+        G.set(inputPoint, "y", G.number(G.field(event, "relY")));
+        G.call("h2d.Object", "localToGlobal", input, [inputPoint]);
+        G.call("h2d.Object", "globalToLocal", overlay, [inputPoint]);
+        mouseX = G.number(G.field(inputPoint, "x"));
+        mouseY = G.number(G.field(inputPoint, "y"));
         hovered = mouseX >= 0 && mouseY >= 0 && mouseX < width && mouseY < height;
     }
 
@@ -201,11 +230,9 @@ class BigMapView {
         var w = G.number(G.field(container, "calculatedWidth")), h = G.number(G.field(container, "calculatedHeight"));
         if (width != w || height != h) {
             width = w; height = h;
-            G.set(input, "width", width);
-            G.set(input, "height", height);
             captionKey = ""; hoverState = null;
         }
-        if (!hovered || filterBar.contains(mouseX, mouseY) || G.call("h2d.Interactive", "isOver", input) != true) { hoverState = null; hideCaption(); return; }
+        if (input == null || !hovered || filterBar.contains(mouseX, mouseY) || G.call("h2d.Interactive", "isOver", input) != true) { hoverState = null; hideCaption(); return; }
         // Use the displayed scroll transform, including smooth zoom and pan,
         // rather than targetZoom or the rounded native mouse-world coordinates.
         var x = (mouseX - projection.x) / scale;
@@ -282,6 +309,7 @@ class BigMapView {
     }
 
     public function dispose():Void {
+        restoreNativeInput();
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
         if (filterBar != null) try filterBar.dispose() catch (_:Dynamic) {}
         if (bonusDungeon != null) try bonusDungeon.dispose() catch (_:Dynamic) {}

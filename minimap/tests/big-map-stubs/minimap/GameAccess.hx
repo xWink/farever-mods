@@ -119,6 +119,15 @@ class GameAccess {
         }
         if (type == "h2d.Object" || type == "ui.UIElement" && name == "set_visible") {
             switch name {
+                case "localToGlobal":
+                    if (args[0] == null) args[0] = {x:0., y:0.};
+                    args[0].x += number(field(o, "absX"));
+                    args[0].y += number(field(o, "absY"));
+                    return args[0];
+                case "globalToLocal":
+                    args[0].x -= number(field(o, "absX"));
+                    args[0].y -= number(field(o, "absY"));
+                    return args[0];
                 case "get_numChildren": return field(o, "children") == null ? 0 : o.children.length;
                 case "getChildAt": return o.children[args[0]];
                 case "drawTo":

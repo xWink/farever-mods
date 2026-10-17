@@ -3,7 +3,7 @@ package minimap;
 import minimap.GameAccess as G;
 
 private typedef NativeMarker = {
-    marker:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>, tip:Null<NativeMarkerTip>
+    marker:Dynamic, artwork:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>, tip:Null<NativeMarkerTip>
 };
 private typedef NativeMarkerTip = {
     content:Dynamic, getTip:Dynamic, showTipOnOver:Bool
@@ -32,7 +32,7 @@ class BigMapNativeMarkers {
                 if (marker != null) respawns.set(marker, point);
             }
         }
-        if (!fastTravel) byEntity.set(hero, {kind: "player", entity: hero,
+        byEntity.set(hero, {kind: "player", entity: hero,
             x: G.number(G.field(hero, "posx")), y: G.number(G.field(hero, "posy")),
             z: G.number(G.field(hero, "posz"), Math.NaN)});
 
@@ -51,9 +51,18 @@ class BigMapNativeMarkers {
             else if (layer == 20 && player != null) point = byEntity.get(player);
             else if (fastTravel && (layer == 16 || layer == 22)) point = null; // Pins and death markers.
             else continue;
+            // The native camera cone is a sibling of the player's content icon.
+            // Keep its parent visible so native camera rotation/zoom still apply.
+            var content = G.field(marker, "content");
+            var artwork = player == hero && G.field(marker, "camera") != null && content != null ? content : marker;
             var record = originals.get(marker);
-            if (record == null) record = {marker: marker, alpha: G.number(G.field(marker, "alpha"), 1),
+            if (record == null) record = {marker: marker, artwork: artwork, alpha: G.number(G.field(artwork, "alpha"), 1),
                 visible: G.field(marker, "visible") == true, point: null, tip: null};
+            else if (record.artwork != artwork) {
+                G.set(record.artwork, "alpha", record.alpha);
+                record.artwork = artwork;
+                record.alpha = G.number(G.field(artwork, "alpha"), 1);
+            }
             record.point = point;
             current.set(marker, record);
             // The native providers live on content, not on the marker itself.
@@ -83,7 +92,7 @@ class BigMapNativeMarkers {
                 var marker = record.marker, point = record.point;
                 if (G.field(marker, "removed") == true) continue;
                 // Preserve the native action; invisible filtered markers cannot be clicked.
-                if (G.field(marker, "alpha") != 0.) G.set(marker, "alpha", 0.);
+                if (G.field(record.artwork, "alpha") != 0.) G.set(record.artwork, "alpha", 0.);
                 if (G.field(marker, "visible") != (point != null))
                     G.call("ui.UIElement", "set_visible", marker, [point != null]);
                 if (point == null && G.field(window, "nearClickableMarker") == marker) {
@@ -130,7 +139,7 @@ class BigMapNativeMarkers {
     function restore(record:NativeMarker):Void {
         restoreTip(record);
         if (G.field(record.marker, "removed") == true) return;
-        G.set(record.marker, "alpha", record.alpha);
+        G.set(record.artwork, "alpha", record.alpha);
         G.call("ui.UIElement", "set_visible", record.marker, [record.visible]);
     }
 
