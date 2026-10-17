@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.3",
+  "project": "minimap",
+  "version": "2.0.3",
   "commit": "3428bdd0ba419645820d454c3623f18e73fe3b19",
-  "notes": "- Fixed an issue where attacks with delayed damage (e.g. Brood Leap) registered the delayed damage as additional casts of the skill.\n",
+  "notes": "- Major improvements to activity marker appearances.\n",
   "dry_run": false
 }
