@@ -47,8 +47,10 @@ class HistoryTest {
     static function sample():Fight {
         var f = new Fight(10); f.startedAt = Date.fromString("2026-09-14 13:20:30").getTime();
         f.me = "me"; f.bossName = "The Guardian"; f.category = HistoryCategory.WORLD;
+        f.recordCast(profile(), "Strike", 1);
         f.add(hit(10, 100.5), profile());
         var critical = hit(12, 250, true); critical.critical = true;
+        f.recordCast(profile(), "Strike", 2);
         f.add(critical, profile()); f.add(hit(14, 500, false, false, "ally"), profile("ally", false));
         f.last = 20; f.closed = 20; return f;
     }

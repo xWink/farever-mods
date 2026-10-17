@@ -13,6 +13,7 @@ typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
     ?damageType:String, ?affinity:String, ?targetDummy:Bool,
+    ?activation:Int,
     ?estimatedHealing:Bool, ?unknownHealing:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool,
     ?timeline:CombatTimeline.TimelineEvent
 };
@@ -32,8 +33,6 @@ class SkillStats {
         hits++;
         if (e.critical) crits++;
         if (e.kill) kills++;
-        // The original estimates casts from per-player/per-skill hit gaps.
-        if (lastHit < 0 || e.time - lastHit > 0.350) casts++;
         lastHit = e.time;
     }
     public function json(id:String, duration:Float):Dynamic {
@@ -58,15 +57,36 @@ class PlayerStats {
     public var crits:Int = 0;
     public var kills:Int = 0;
     public var skills:Map<String, SkillStats> = [];
+    public var castCounts:Map<String, Int> = [];
+    public var castSerials:Map<String, Int> = [];
     public var weapons:Array<WeaponInfo> = [];
     public var info:PlayerInfo;
     public function new(info:PlayerInfo) this.info = info;
+    public function recordCast(skill:String, serial:Int):Void {
+        if (skill == "" || serial <= 0 || (castSerials.exists(skill) && serial <= castSerials[skill])) return;
+        castSerials[skill] = serial;
+        var count = (castCounts.exists(skill) ? castCounts[skill] : 0) + 1;
+        castCounts[skill] = count;
+        if (skills.exists(skill)) skills[skill].casts = count;
+        if (healingSkills.exists(skill)) {
+            healing.casts += count - healingSkills[skill].casts;
+            healingSkills[skill].casts = count;
+        }
+    }
     public function add(e:DamageEvent, info:PlayerInfo):Void {
         this.info = info;
+        // An opening hit may create the fight after its activation. Carry only
+        // an observed activation; a hit without one never invents a cast.
+        if (e.activation != null) recordCast(e.skill, e.activation);
+        var castCount = castCounts.exists(e.skill) ? castCounts[e.skill] : 0;
         if (e.effect == 1) {
             heal += e.amount; healing.add(e);
             var id = e.skill == "" ? "Unknown healing" : e.skill;
-            if (!healingSkills.exists(id)) healingSkills[id] = new HealingStats();
+            if (!healingSkills.exists(id)) {
+                healingSkills[id] = new HealingStats();
+                healingSkills[id].casts = castCount;
+                healing.casts += castCount;
+            }
             healingSkills[id].add(e);
             return; // Healing must never alter damage hits, crits, skills or gear snapshots.
         }
@@ -83,6 +103,7 @@ class PlayerStats {
         }
         if (e.effect != 1 && e.skill != "") {
             if (!skills.exists(e.skill)) skills[e.skill] = new SkillStats();
+            skills[e.skill].casts = castCount;
             skills[e.skill].add(e);
         }
     }
@@ -171,6 +192,10 @@ class Fight {
         if (e.effect != 1 && e.kill && e.target != "") killedTargets[e.target] = true;
         last = e.time;
     }
+    public function recordCast(info:PlayerInfo, skill:String, serial:Int):Void {
+        if (!players.exists(info.uid)) players[info.uid] = new PlayerStats(info);
+        players[info.uid].recordCast(skill, serial);
+    }
     public function finishOutcome():Void {
         // Boss attempts require that boss's death. Killing its adds is not a
         // victory. Ordinary combats succeed only when all observed foes died.
@@ -212,6 +237,7 @@ class Fight {
         result.me = me; result.meName = meName; result.meClass = meClass; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
             var next = new PlayerStats(p.info);
+            next.castCounts = p.castCounts.copy(); next.castSerials = p.castSerials.copy();
             next.damage = p.damage; next.heal = p.heal; next.hits = p.hits;
             next.damageBreakdown = p.damageBreakdown.copy();
             next.healing = p.healing.copy(); next.healingRecorded = p.healingRecorded;
@@ -245,6 +271,30 @@ class Fight {
 
 /** Encounter tracking and report data. */
 class CombatModel {
+    var activations:Map<String, Map<String, Int>> = [];
+    public function activation(source:String, skill:String):Int {
+        var uses = activations[source];
+        return uses != null && uses.exists(skill) ? uses[skill] : 0;
+    }
+    public function recordCast(source:String, skill:String):Void {
+        var info = profiles[source];
+        if (info == null || skill == "") return;
+        var serial = activation(source, skill) + 1;
+        if (!activations.exists(source)) activations[source] = new Map<String, Int>();
+        activations[source][skill] = serial;
+        var fights:Array<Fight> = [];
+        var member = source == me || party.exists(source);
+        var intro = phrixesUid != "" && phrixesPhase < 2;
+        if (member) {
+            fights.push(session);
+            var active = intro ? phrixesIntro : rift != null ? rift.healingFight() : current != null ? current : pendingFight;
+            if (active != null && active.closed == 0) fights.push(active);
+        }
+        if (rift == null && !intro && boss != null && boss.closed == 0 && (member || boss.participants.exists(source)))
+            if (fights.indexOf(boss) < 0) fights.push(boss);
+        // Starts update counters only: no damage, hit, fight creation or timer advance.
+        for (fight in fights) fight.recordCast(info, skill, serial);
+    }
     // Damage and the replicated combat entry can arrive in either order.
     // Buffer opening hits without running a clock before combat is confirmed.
     static inline var ENTRY_DAMAGE_SECONDS:Float = 0.5;
@@ -293,6 +343,7 @@ class CombatModel {
         drainHistory(now, true);
         rift = null;
         profiles = []; party = []; me = ""; current = null; lastCombat = null;
+        activations = [];
         session = new Fight(now, gameVersion); boss = null; lastBoss = null;
         lastKillSource = ""; lastKillAmount = -1; difficulty = -1; activityId = "";
         activityCategory = "Other";

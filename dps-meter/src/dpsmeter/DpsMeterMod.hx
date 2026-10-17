@@ -167,6 +167,8 @@ class DpsMeterMod {
         startConfig:Dynamic):HlxPrefixResult<Dynamic> {
         // The accepted start boundary also covers automatically started skills,
         // and precedes instant effects that run before Hero.onSkillUse.
+        if (collector != null) try collector.skillUse(instance, sourceContext)
+            catch (error:Dynamic) trace("[DPS Meter] Cast capture: " + Std.string(error));
         if (timeline != null) try timeline.use(G.field(instance, "owner"), instance, target) catch (error:Dynamic) timeline.report(error);
         return Continue;
     }

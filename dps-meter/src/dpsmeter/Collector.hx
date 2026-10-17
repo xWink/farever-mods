@@ -101,6 +101,15 @@ class Collector {
             }
         }
     }
+    public function skillUse(skill:Dynamic, sourceContext:Dynamic):Void {
+        if (!config.enabled || hero == null || skill == null || sourceContext != null
+            || G.field(skill, "simulatingServer") == true) return;
+        // Child/status/summon starts are consequences, not another activation.
+        if (NativeCasts.origin(skill) != skill) return;
+        var owner = G.field(skill, "owner");
+        if (profile(owner) == null) return;
+        model.recordCast(G.uid(owner), G.text(G.field(skill, "kind")));
+    }
     public function combatEnter(uid:String, now:Float):Void {
         if (uid == model.me) refreshPhrixes(now);
         model.onCombatEnter(uid, now);
@@ -218,6 +227,7 @@ class Collector {
     }
     function healingSource(source:Dynamic, skill:Dynamic, fallbackUid:String = ""):Null<{uid:String, skill:Dynamic}> {
         var resolved = NativeHealing.owner(source, skill);
+        resolved.skill = NativeCasts.origin(resolved.skill);
         source = resolved.source;
         var uid = G.uid(source);
         if (uid == "" || uid == "0") uid = fallbackUid;
@@ -242,6 +252,7 @@ class Collector {
             owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), amount);
         e.critical = G.field(result, "_critical") == true;
         e.timeline = observation;
+        e.activation = model.activation(e.source, e.skill);
         var key = NativeHealing.key(rawSkill, G.integer(G.field(result, "stepIdx")));
         healingCapture.heal(e, owner == null ? null : model.captureHealing(owner.uid), key, true);
     }
@@ -259,6 +270,7 @@ class Collector {
             owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
         e.unknownHealing = estimate == null;
         e.timeline = observation;
+        e.activation = model.activation(e.source, e.skill);
         var key = NativeHealing.key(rawSkill, G.integer(G.field(G.field(hit, "step"), "index")));
         healingCapture.heal(e, owner == null ? null : model.captureHealing(owner.uid), key, false);
     }
@@ -277,7 +289,7 @@ class Collector {
         var blocker = G.text(G.field(damage, "blocker"));
         if (blocker == "InvulnerableHit" || blocker == "DamageDodge") return;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
-        var skill = gamecompat.HitSkill.read(damage, G.field);
+        var skill = NativeCasts.origin(gamecompat.HitSkill.read(damage, G.field));
         var uid = G.text(G.field(damage, "weakSource"));
         if (uid == "" || uid == "0") uid = G.uid(source);
         var summoner = G.field(source, "summonOwner");
@@ -344,6 +356,7 @@ class Collector {
         model.record({time: now, source: uid, amount: G.number(G.field(damage, "_amount")),
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
             effect: effect, skill: skillId, damageType: damageType, affinity: affinity,
+            activation: model.activation(uid, skillId),
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
             targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,

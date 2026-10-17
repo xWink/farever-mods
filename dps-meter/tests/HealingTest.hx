@@ -19,6 +19,7 @@ class HealingTest {
     };
     static function main():Void {
         var fight = new Fight(10, "0.3.0.test"); fight.me = "me";
+        fight.recordCast(profile("me"), "Mixed", 1);
         fight.add(event(10, "me", false, 100), profile("me"));
         fight.add(event(11, "me", true, 500), profile("me"));
         fight.add(event(11.1, "me", true, 500), profile("me"));

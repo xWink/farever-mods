@@ -30,7 +30,6 @@ class HealingStats {
         if (e.estimatedHealing == true) estimatedHits++;
         if (e.unknownHealing == true) unknownOutputHits++;
         if (e.unattributedHealing == true) unattributedHits++;
-        if (lastHit < 0 || e.time - lastHit > .350) casts++;
         lastHit = e.time;
     }
     public function copy():HealingStats {
