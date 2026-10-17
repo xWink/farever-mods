@@ -18,7 +18,7 @@ on:
       - '.github/workflows/_build-mod.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: build-trade-and-marketplace-${{ github.ref }}

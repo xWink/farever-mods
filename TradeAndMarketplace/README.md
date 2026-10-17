@@ -23,7 +23,7 @@ No ImGui dependency. This is an initial testing build, not a published release.
    open. The incoming request popup alone does not lock the recipient's controls.
 4. Your backpack opens beside Trade automatically. Drag items onto **Your offer**, or right-click them to
    add/remove them. Right-click an offered item, or drag it out of your offer,
-   to remove it. You can offer six items/stacks in a 3-by-2 grid. Right-click offers a whole
+   to remove it. You can offer six items/stacks in a single row per offer. Right-click offers a whole
    stack; native split-stack dragging preserves the selected count. You can
    rearrange items between backpack slots normally. During a trade, the inventory
    key/HUD bag button opens the backpack without replacing the trade window.
@@ -74,6 +74,15 @@ Positioning and input locks improve reliability for cooperating clients; they
 cannot enforce honesty against an altered mod or disconnection.
 Native drops still scatter within a cone, rather than landing at an exact point.
 Both players must install this build and restart the game.
+
+## Solo UI preview
+
+Press **F8** while playing to open or close a local trade preview. The binding is
+configurable in Better Mod Settings. Your offer appears above the sample partner
+offer; add/remove your items normally and click Accept to preview both acceptance
+badges. Preview mode never sends trade whispers or drops, picks up, or exchanges
+items. It cannot open during a real trade. Empty slots have no plus sign, and the
+slot and acceptance badge corners use smoother rounded geometry.
 
 ## Implementation
 

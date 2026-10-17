@@ -8,3 +8,10 @@
 -cp tests/exchange-stubs
 -main ExchangeTest
 --interp
+
+--next
+-cp src
+-cp tests
+-cp tests/preview-stubs
+-main PreviewTest
+--interp

@@ -91,11 +91,23 @@ class TradeFrame {
     public static function ink(text:Dynamic,color:Int):Void { G.call("h2d.Text","set_textColor",text,[color]); style(text,"color",color); }
     public static function graphic(parent:Dynamic):Dynamic { var g = G.create("h2d.Graphics",[parent]); absolute(parent,g); return g; }
     public static function rounded(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,color:Int,alpha = 1.0):Void {
+        if (r > 0) {
+            // A subpixel fringe avoids the stair-stepped edge of a hard polygon.
+            // It adds no render target or per-frame blur pass.
+            fillShape(g,x-0.55,y-0.55,w+1.1,h+1.1,r+0.55,color,alpha*0.18);
+            fillShape(g,x-0.25,y-0.25,w+0.5,h+0.5,r+0.25,color,alpha*0.45);
+        }
+        fillShape(g,x,y,w,h,r,color,alpha);
+    }
+    static function fillShape(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,color:Int,alpha:Float):Void {
         var c:hl.Ref<Int> = color, a:hl.Ref<Float> = alpha;
         G.call("h2d.Graphics","beginFill",g,[c,a]);
-        if (r > 0) G.call("h2d.Graphics","drawRoundedRect",g,[x,y,w,h,r,null]); else G.call("h2d.Graphics","drawRect",g,[x,y,w,h]);
+        var segments = 24, count:hl.Ref<Int> = segments;
+        if (r > 0) G.call("h2d.Graphics","drawRoundedRect",g,[x,y,w,h,r,count]);
+        else G.call("h2d.Graphics","drawRect",g,[x,y,w,h]);
         G.call("h2d.Graphics","endFill",g);
     }
+
     public function intact():Bool return window != null && G.field(window,"parent") != null && G.field(window,"removed") != true && bodyIntact(body,container);
     public function point(x:Float,y:Float,?relative:Dynamic):{x:Float,y:Float} {
         var p = HlxRuntime.allocInstance(HlxRuntime.resolveType("h2d.col.PointImpl")); G.set(p,"x",x); G.set(p,"y",y);

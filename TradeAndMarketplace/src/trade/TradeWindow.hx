@@ -28,7 +28,9 @@ class TradeWindow {
     var ghost:Dynamic;
     var slotViews:Array<{background:Dynamic,color:Int,empty:Bool,disabled:Bool}> = [];
     static inline var WIDTH = 612;
-    static inline var HEIGHT = 432;
+    static inline var HEIGHT = 560;
+    static inline var PANEL_WIDTH = 568;
+    static inline var PANEL_HEIGHT = 96;
     public function new(controller:TradeController) this.controller = controller;
     public function shown():Bool return frame != null && frame.intact();
     public function blocksClosing(window:Dynamic):Bool return frame != null && window == frame.window && controller.state != null && controller.state.closingLocked();
@@ -61,7 +63,7 @@ class TradeWindow {
         setText(status,message); G.call("ui.comp.FmtText","updateScale",status);
         var bounds = G.call("h2d.Object","getBounds",status,[status,null]);
         var min = G.number(G.field(bounds,"yMin")), max = G.number(G.field(bounds,"yMax")), sy = G.number(G.field(status,"scaleY"),1);
-        position(status,20,68+266+(47-(max-min)*sy)/2-min*sy-52);
+        position(status,20,408+(47-(max-min)*sy)/2-min*sy);
         if (lastAccepted != s.accepted) {
             G.call("ui.comp.Button","setText",acceptButton,[s.accepted ? "Unaccept" : "Accept trade"]);
             setClass(acceptButton,s.accepted ? "unaccept" : "accept"); lastAccepted = s.accepted;
@@ -72,41 +74,38 @@ class TradeWindow {
         frame.layout(inventoryWindow()); updateDrag(); marks.update(inventoryWindow(),controller.inv,s);
     }
     function build(ui:Dynamic):Void {
-        frame = new TradeFrame(ui,"Trade with "+controller.peerName,WIDTH,HEIGHT,controller.cancelByUser);
+        frame = new TradeFrame(ui,controller.previewMode ? "Trade preview" : "Trade with "+controller.peerName,WIDTH,HEIGHT,controller.cancelByUser);
         var c = frame.container, bg = graphic(c);
-        rounded(bg,6,20,284,262,8,15260877); rounded(bg,306,20,284,262,8,15260877);
-        textAt(c,"Your offer",20,31,204,true); textAt(c,controller.peerName+"'s offer",320,31,204,true);
-        selfCount = textAt(c,"0 / 6",228,31,52); peerCount = textAt(c,"0 / 6",528,31,52);
-        selfBadge = graphic(c); position(selfBadge,14,56); peerBadge = graphic(c); position(peerBadge,314,56);
-        selfStatus = textAt(c,"",40,62,230,true); peerStatus = textAt(c,"",340,62,230,true);
-        yours = panel(14,94); theirs = panel(314,94);
-        status = textAt(c,"",20,282,556);
-        acceptButton = frame.button("Accept trade",324,329,258,controller.accept,"accept");
-        cancelButton = frame.button("Cancel",14,329,128,controller.cancelByUser,"cancel");
+        rounded(bg,6,20,584,188,8,15260877); rounded(bg,6,220,584,188,8,15260877);
+        textAt(c,"Your offer",20,31,450,true); textAt(c,controller.peerName+"'s offer",20,231,450,true);
+        selfCount = textAt(c,"0 / 6",528,31,52); peerCount = textAt(c,"0 / 6",528,231,52);
+        selfBadge = graphic(c); position(selfBadge,14,56); peerBadge = graphic(c); position(peerBadge,14,256);
+        selfStatus = textAt(c,"",40,62,530,true); peerStatus = textAt(c,"",40,262,530,true);
+        yours = panel(14,94); theirs = panel(14,294);
+        status = textAt(c,"",20,408,556);
+        acceptButton = frame.button("Accept trade",324,455,258,controller.accept,"accept");
+        cancelButton = frame.button("Cancel",14,455,128,controller.cancelByUser,"cancel");
         lastOffer = lastStatuses = ""; lastAccepted = null; tooltipFailed = false; showInventory();
     }
     function panel(x:Int,y:Int):Dynamic {
-        var o = G.field(node("element",G.field(frame.container,"dom"),[],"tradePanel"+x),"obj");
-        absolute(frame.container,o); padding(o,0); size(o,268,178); position(o,x,y); G.call("ui.UIElement","set_onClick",o,[()->{}]); return o;
+        var o = G.field(node("element",G.field(frame.container,"dom"),[],"tradePanel"+x+"_"+y),"obj");
+        absolute(frame.container,o); padding(o,0); size(o,PANEL_WIDTH,PANEL_HEIGHT); position(o,x,y); G.call("ui.UIElement","set_onClick",o,[()->{}]); return o;
     }
     function badge(graphic:Dynamic,label:Dynamic,text:String,accepted:Bool):Void {
-        G.call("h2d.Graphics","clear",graphic); rounded(graphic,0,0,268,28,5,accepted ? 4154186 : 14273207);
+        G.call("h2d.Graphics","clear",graphic); rounded(graphic,0,0,PANEL_WIDTH,28,5,accepted ? 4154186 : 14273207);
         rounded(graphic,11,11,6,6,3,accepted ? 12445103 : 10191981); setText(label,text); ink(label,accepted ? 16187376 : 6969158);
     }
     function paintSlot(slot:{background:Dynamic,color:Int,empty:Bool,disabled:Bool}):Void {
         var g = slot.background; G.call("h2d.Graphics","clear",g);
         rounded(g,0,2,80,80,7,4601647,0.15); rounded(g,0,0,80,80,7,slot.disabled ? 10262933 : slot.color);
         rounded(g,2,2,76,76,5,slot.disabled ? 12170929 : slot.empty ? 13022367 : 3683900);
-        if (slot.empty) {
-            rounded(g,32,39,16,2,0,slot.disabled ? 10854812 : 10192754);
-            if (!slot.disabled) rounded(g,39,32,2,16,0,10192754);
-        }
+
     }
     function render(parent:Dynamic,items:Array<TradeItem>,own:Bool):Void {
         for (c in children(parent)) G.call("h2d.Object","remove",c);
         for (index in 0...6) {
             var row = G.field(node("element",G.field(parent,"dom"),[],"tradeSlot"+index),"obj");
-            absolute(parent,row); padding(row,0); size(row,80,80); position(row,6+(index%3)*88,Std.int(index/3)*92);
+            absolute(parent,row); padding(row,0); size(row,80,80); position(row,14+index*92,0);
             var empty = index >= items.length, item = empty ? null : items[index];
             var slot = {background:graphic(row),empty:empty,color:empty ? 10127480 : item.color,disabled:!controller.state.editable()};
             slotViews.push(slot); paintSlot(slot); G.call("ui.UIElement","set_onClick",row,[()->{}]);
@@ -142,7 +141,7 @@ class TradeWindow {
         if (ghost != null) position(ghost,p.x-22,p.y-22);
         if (G.staticCall("hxd.Key","isDown",[0]) != true) {
             var p = frame.mouse(yours);
-            if (ghost != null && (p.x < 0 || p.y < 0 || p.x > 268 || p.y > 178)) controller.remove(dragUid);
+            if (ghost != null && (p.x < 0 || p.y < 0 || p.x > PANEL_WIDTH || p.y > PANEL_HEIGHT)) controller.remove(dragUid);
             dragUid = ""; clearGhost();
         }
     }
