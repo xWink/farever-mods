@@ -1,7 +1,7 @@
 {
-  "project": "minimap",
-  "version": "2.0.2",
-  "commit": "51960d8f5ddf8dde79122f2269d582ab879cdc4d",
-  "notes": "- Fixed an issue where markers couldn't be placed on the enhanced main map\n- Fixed an issue where the player marker was not visible when looking at the fast-travel map\n",
+  "project": "dps-meter",
+  "version": "1.11.2",
+  "commit": "4610b7bd611c72dde0952f1546d5e65e769c7a21",
+  "notes": "- Added missing icon for enchants in damage breakdowns and detailed reports\n- Changed bar graphs in detailed reports to line graphs\n",
   "dry_run": false
 }
