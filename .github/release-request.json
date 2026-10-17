@@ -1,7 +1,7 @@
 {
-  "project": "item-utilities",
-  "version": "1.15.0",
-  "commit": "edbf13a3a05278198595df08c84fd4808af99a8b",
-  "notes": "- Added renaming currently equipped preset by right-clicking the dropdown\n- Adjusted bank deposit buttons to cover more categories\n- Added new buttons in the stack-splitting popup to quickly split the stack in 1/2 or 1/4",
+  "project": "minimap",
+  "version": "2.0.2",
+  "commit": "51960d8f5ddf8dde79122f2269d582ab879cdc4d",
+  "notes": "- Fixed an issue where markers couldn't be placed on the enhanced main map\n- Fixed an issue where the player marker was not visible when looking at the fast-travel map\n",
   "dry_run": false
 }
