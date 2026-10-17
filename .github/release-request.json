@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.1",
+  "project": "item-utilities",
+  "version": "1.15.0",
   "commit": "edbf13a3a05278198595df08c84fd4808af99a8b",
-  "notes": "- Adjusted UI scale slider to allow 50% to 150% scale",
+  "notes": "- Added renaming currently equipped preset by right-clicking the dropdown\n- Adjusted bank deposit buttons to cover more categories\n- Added new buttons in the stack-splitting popup to quickly split the stack in 1/2 or 1/4",
   "dry_run": false
 }
