@@ -7,7 +7,7 @@ class ExchangeTest {
     static function check(value:Bool,message:String):Void { checks++; if (!value) throw message; }
     static function item(uid:String,count:Int = 1):TradeItem return {uid:uid,kind:"Copper",count:count,name:"Copper",detail:"",color:0,fingerprint:"fp",preview:null};
     static function session(leader = true):TradeSession {
-        var s = new TradeSession("alice"); s.id = "test"; s.peer = "bob"; s.phase = "exchanging"; s.leader = leader; s.deadline = 5; return s;
+        var s = new TradeSession("alice"); s.id = "test"; s.peer = "bob"; s.phase = "exchanging"; s.leader = leader; s.deadline = 10; return s;
     }
     static function main() {
         var s = session(), inv = new TradeInventory(); s.mine = [item("own",2)];
@@ -38,6 +38,7 @@ class ExchangeTest {
         check(bad.phase == "cancelled","Mismatched ground item cancels before pickup");
         var stalled = session(), si = new TradeInventory(); stalled.mine = [item("own")]; si.stack = {index:0,item:{fingerprint:"fp"},count:1};
         var se = new TradeExchange(stalled,si,()->""); se.update(0); se.update(5);
+        check(stalled.phase == "exchanging", "Unconfirmed drop survives the old five-second limit"); se.update(10);
         check(stalled.phase == "cancelled" && si.requests == 1,"Unconfirmed drop times out without retry");
         var stale = session(), sti = new TradeInventory(); stale.mine = [item("own")]; sti.stack = {index:0,item:{fingerprint:"fp"},count:1};
         var ste = new TradeExchange(stale,sti,()->""); ste.update(0); stale.id = "replacement"; sti.reply(false);
@@ -46,6 +47,18 @@ class ExchangeTest {
         li.stack = {index:0,item:{fingerprint:"fp"},count:1}; li.dropAllowed = false;
         var le = new TradeExchange(locked,li,()->""); le.update(0);
         check(locked.phase == "cancelled" && li.requests == 0,"Lock added after acceptance prevents any drop request");
+        var fast = session(), qi = new TradeInventory(); fast.theirs = [item("first"),item("second")];
+        var qe = new TradeExchange(fast,qi,()->""), picked:Array<String> = [];
+        qi.ground = [for (id in ["first","second"]) {
+            __uid:id,count:1,item:{fingerprint:"fp"},distance:1.0,
+            getInteractRange:()->5.0,canInteract:(_:Dynamic)->true,allowedToLoot:(_:Dynamic)->true,
+            canRequestInteraction:(_:Dynamic)->true,
+            requestInteraction:(_:Dynamic,reply:Bool->Void)->{picked.push(id); reply(true);}
+        }];
+        for (id in ["first","second"]) qe.announced({key:fast.key(),item:id,drop:id},0);
+        qe.update(0); qe.update(0.06);
+        check(picked.length == 2,"Confirmed pickups have no artificial half-second pause");
+        check(!fast.received,"Faster pickup still requires inventory replication");
         Sys.println("Exchange safety checks passed: "+checks);
     }
 }

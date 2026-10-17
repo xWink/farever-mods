@@ -5,6 +5,7 @@ class GameAccess {
     public static var app:Dynamic;
     public static var lines:Array<Dynamic> = [];
     public static var ui:Dynamic = {get_chat: function() return {messages: {}}};
+    public static function set(o:Dynamic,k:String,v:Dynamic):Void Reflect.setField(o,k,v);
     public static function field(o:Dynamic, k:String):Dynamic return o == null ? null : Reflect.field(o, k);
     public static function text(o:Dynamic, fallback = ""):String return o == null ? fallback : Std.string(o);
     public static function integer(o:Dynamic, fallback = 0):Int return o == null ? fallback : Std.int(o);

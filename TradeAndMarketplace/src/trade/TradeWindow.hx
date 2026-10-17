@@ -75,6 +75,7 @@ class TradeWindow {
     }
     function build(ui:Dynamic):Void {
         frame = new TradeFrame(ui,"Trade with "+controller.peerName,WIDTH,HEIGHT,controller.cancelByUser);
+        var saved = TradeMod.tradePosition(); frame.x = saved.x; frame.y = saved.y; frame.onMoved = TradeMod.saveTradePosition;
         var c = frame.container, bg = graphic(c);
         rounded(bg,6,20,584,188,8,15260877); rounded(bg,6,220,584,188,8,15260877);
         textAt(c,"Your offer",20,31,450,true); textAt(c,controller.peerName+"'s offer",20,231,450,true);

@@ -33,8 +33,9 @@ class TradeFrame {
         if (blockInputs) names = names.concat(["BlockInputs","BlockSkills"]);
         for (name in names) flags |= 1 << Type.enumIndex(G.enumeration("ui.win.WindowFlags",name));
         G.call("ui.win.BaseWindow","set_windowFlags",window,[flags]); G.call("ui.win.BaseWindow","rebuild",window);
-        root = G.field(ui,"root");
-        G.call("h2d.Flow","addChildAt",root,[window,G.call("h2d.Object","get_numChildren",root)]);
+        // Use the native window layer, below HUD item dragging and the cursor.
+        G.call("ui.GameUI","attachWindow",ui,[window]);
+        root = G.field(window,"parent");
         G.call("ui.BaseUI","displayWindow",ui,[window,null]); absolute(root,window); padding(window,0); size(window,width,height);
         for (child in children(window)) if (G.field(child,"bgMask") != null) {
             absolute(window,child); padding(child,0); size(child,width,height); position(child,0,0);
@@ -147,7 +148,10 @@ class TradeFrame {
         G.call("h2d.Interactive","stopDrag",dragSurface); if (onMoved != null) onMoved(x,y);
     }
     public function dispose():Void {
-        finishDrag(); var old = window; window = null;
+        finishDrag();
+        // Persist the displayed (clamped) position even when closed without a drag.
+        if (window != null && onMoved != null) onMoved(G.number(G.field(window,"x")),G.number(G.field(window,"y")));
+        var old = window; window = null;
         if (old != null) G.call("ui.BaseUI","removeWindow",ui,[old]);
         root = body = container = header = title = closeButton = dragSurface = null;
     }

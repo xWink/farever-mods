@@ -28,8 +28,11 @@ class OracleTest {
         if (haxe.Json.stringify(a) != haxe.Json.stringify(local(b))) throw label+": "+haxe.Json.stringify(a)+" != "+haxe.Json.stringify(local(b));
     }
     static function snapshot(s:Dynamic):Dynamic {
-        var fields = ["self","peer","id","phase","leader","mine","theirs","revision","peerRevision","ack","accepted","peerAccepted","received","peerReceived","error","changed","deadline","outbox"];
-        return [for (f in fields) local(Reflect.field(s,f))];
+        var fields = ["self","peer","id","phase","leader","mine","theirs","revision","peerRevision","ack","accepted","peerAccepted","received","peerReceived","error","changed","outbox"];
+        // The ten-second watchdog deliberately differs from the five-second reference.
+        // Deadline behavior is covered by ProtocolTest; normalize only its user-facing wording.
+        var values = [for (f in fields) local(Reflect.field(s,f))];
+        return haxe.Json.parse(StringTools.replace(haxe.Json.stringify(values),"Trade stalled for 10 seconds.","Trade stalled for 5 seconds."));
     }
     static function item():TradeItem return {uid:"42",kind:"Copper",count:3,name:"Copper",detail:"Metal",color:0xabcdef,fingerprint:"fingerprint",preview:null};
     static function main() {
@@ -70,7 +73,9 @@ class OracleTest {
                         if (seed%2 == 0) { pair.t.receive(pair.s.self,packet,now); call(pair.rt,"receive",[pair.s.self,remote(packet),now]); }
                     }
                 }
-                a.tick(now); call(ra,"tick",[now]); b.tick(now); call(rb,"tick",[now]);
+                // Advance the new watchdog's test clock by its intentional five-second extension.
+                a.tick(now+(a.closingLocked() ? TradeSession.STALL_SECONDS-5 : 0)); call(ra,"tick",[now]);
+                b.tick(now+(b.closingLocked() ? TradeSession.STALL_SECONDS-5 : 0)); call(rb,"tick",[now]);
                 equal(snapshot(a),snapshot(ra),"alice seed "+seed+" step "+step);
                 equal(snapshot(b),snapshot(rb),"bob seed "+seed+" step "+step);
             }

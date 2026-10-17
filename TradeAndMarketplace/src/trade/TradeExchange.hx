@@ -64,7 +64,7 @@ class TradeExchange {
                 }
             }
             if (pending != null) {
-                if (now-droppingAt >= 5) fail("Could not confirm the dropped item within 5 seconds. Check your inventory and the ground.");
+                if (now-droppingAt >= TradeSession.STALL_SECONDS) fail("Could not confirm the dropped item within 10 seconds. Check your inventory and the ground.");
                 return;
             }
         }
@@ -108,7 +108,7 @@ class TradeExchange {
             catch(e:Dynamic) { pickupTarget = null; throw e; }
             pickupTarget = null;
             if (!allowed) return;
-            pickupPending = i.uid; nextPickup = now+0.5; pickupAttempts[i.uid] = (pickupAttempts.exists(i.uid) ? pickupAttempts[i.uid] : 0)+1;
+            pickupPending = i.uid; pickupAttempts[i.uid] = (pickupAttempts.exists(i.uid) ? pickupAttempts[i.uid] : 0)+1;
             status = "Picking up "+i.name+"..."; pickupTarget = d;
             try G.call("ent.Interactible","requestInteraction",d,[heroUid,function(ok:Bool) {
                 if (!current()) return;
@@ -116,7 +116,11 @@ class TradeExchange {
                 if (ok) {
                     approved[i.uid] = true; session.progress(lastNow);
                     session.emit("collected",{key:session.key(),item:i.uid,drop:uid});
-                } else if (pickupAttempts[i.uid] >= 3) fail("The server rejected a pickup. Check the items on the ground.");
+                } else {
+                    // Only failed requests back off; successful pickups proceed on the next update.
+                    nextPickup = lastNow+0.5;
+                    if (pickupAttempts[i.uid] >= 3) fail("The server rejected a pickup. Check the items on the ground.");
+                }
             }]) catch(e:Dynamic) { pickupTarget = null; throw e; }
             pickupTarget = null; return;
         }

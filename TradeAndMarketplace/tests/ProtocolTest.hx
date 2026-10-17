@@ -30,6 +30,14 @@ class ProtocolTest {
         check(wire.receive("alice","!winktrade1:X:0:97:AAAA",0) == null,"Reject oversized fragment counts");
         check(!TradeOffer.valid([item,item]),"Reject duplicate offered UIDs");
         check(!TradePreview.valid({flags:0,level:0,upgrade:0,rarity:"",infusion:"",bonus:"",mastery:"",slots:[],effects:[{skill:"x",source:"untrusted"}]}),"Reject unknown effect sources");
+        var timed = new TradeSession("timer"); timed.id = "t"; timed.peer = "peer"; timed.phase = "exchanging";
+        timed.progress(100); check(timed.deadline == 110,"Progress grants ten seconds");
+        timed.tick(105); check(timed.active(),"Exchange survives old five-second deadline");
+        timed.tick(109.99); check(timed.active(),"Exchange survives until ten-second deadline");
+        timed.tick(110); check(timed.phase == "cancelled" && timed.error.indexOf("10 seconds") >= 0,"Exchange stops after ten seconds without progress");
+        var prep = new TradeSession("alice"); prep.id = "p"; prep.peer = "bob"; prep.phase = "offering";
+        prep.leader = true; prep.mine = [item]; prep.ack = prep.revision; prep.peerRevision = 0; prep.peerAccepted = true;
+        prep.accept(0); check(prep.phase == "preparing" && prep.deadline == 10,"Prepare handshake also allows ten seconds");
         Sys.println("Protocol checks passed: "+checks);
     }
 }

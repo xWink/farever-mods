@@ -2,6 +2,7 @@ package trade;
 import trade.TradeTypes;
 /** Pure protocol state. Native inventory mutations belong exclusively to TradeExchange. */
 class TradeSession {
+    public static inline var STALL_SECONDS = 10.0;
     public var self:String;
     public var peer = "";
     public var id = "";
@@ -27,7 +28,7 @@ class TradeSession {
     public function editable():Bool return phase == "offering";
     public function closingLocked():Bool return phase == "preparing" || phase == "exchanging";
     public function cancelByUser(reason = "Trade cancelled."):Bool { if (closingLocked()) return false; cancel(reason); return true; }
-    public function progress(now:Float):Void { if (phase == "exchanging") deadline = now+5; }
+    public function progress(now:Float):Void { if (phase == "exchanging") deadline = now+STALL_SECONDS; }
     public function start(peer:String,id:String,now:Float):Bool {
         if (active() || peer == self || peer == "" || id == "" || used.exists(id)) return false;
         reset(peer,id,true,now); phase = "inviting"; deadline = now+45; emit("invite"); changed++; return true;
@@ -62,7 +63,7 @@ class TradeSession {
     }
     function commitIfReady(now:Float):Void {
         if (leader && canAccept() && accepted && peerAccepted) {
-            phase = "preparing"; deadline = now+5; emit("prepare",{key:key()}); changed++;
+            phase = "preparing"; deadline = now+STALL_SECONDS; emit("prepare",{key:key()}); changed++;
         }
     }
     public function receive(sender:String,p:Dynamic,now:Float):Void {
@@ -77,7 +78,7 @@ class TradeSession {
         switch (p.op) {
             case "ack": if (editable() && p.revision == revision && p.hash == TradeOffer.hash(mine)) { ack = revision; changed++; }
             case "cancel": cancel(TradeOffer.str(p.reason,160) ? p.reason : "The other player cancelled.",false);
-            case "commit": if (!leader && phase == "preparing" && p.key == key()) { phase = "exchanging"; deadline = now+5; changed++; }
+            case "commit": if (!leader && phase == "preparing" && p.key == key()) { phase = "exchanging"; deadline = now+STALL_SECONDS; changed++; }
             case "done": if (phase == "exchanging" && p.key == key() && !peerReceived) { peerReceived = true; progress(now); finish(); changed++; }
             case "join": if (phase == "inviting" && leader) { phase = "offering"; deadline = now+180; offer(); changed++; }
             case "offer":
@@ -86,10 +87,10 @@ class TradeSession {
                 if (p.revision > peerRevision) { peerRevision = p.revision; theirs = TradeOffer.copy(p.items); accepted = peerAccepted = false; deadline = now+180; changed++; }
                 emit("ack",{revision:peerRevision,hash:TradeOffer.hash(theirs)});
             case "prepare": if (!leader && editable() && canAccept() && accepted && peerAccepted && p.key == key()) {
-                phase = "preparing"; deadline = now+5; emit("prepared",{key:key()}); changed++;
+                phase = "preparing"; deadline = now+STALL_SECONDS; emit("prepared",{key:key()}); changed++;
             }
             case "prepared": if (leader && phase == "preparing" && p.key == key()) {
-                phase = "exchanging"; deadline = now+5; emit("commit",{key:key()}); changed++;
+                phase = "exchanging"; deadline = now+STALL_SECONDS; emit("commit",{key:key()}); changed++;
             }
             case "ready": if (editable() && p.key == key() && Std.isOfType(p.ready,Bool)) { peerAccepted = p.ready; changed++; commitIfReady(now); }
             default:
@@ -107,7 +108,7 @@ class TradeSession {
     }
     public function tick(now:Float):Void {
         if (active() && now >= deadline) cancel(phase == "inviting" ? "Trade request timed out. Both players need Trade + Marketplace installed."
-            : closingLocked() ? "Trade stalled for 5 seconds. Check your inventory and any items on the ground." : "Trade timed out.");
+            : closingLocked() ? "Trade stalled for 10 seconds. Check your inventory and any items on the ground." : "Trade timed out.");
     }
     public function emit(op:String,?payload:Dynamic):Void {
         var p:Dynamic = {id:id,to:peer,op:op};

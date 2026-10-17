@@ -3,17 +3,22 @@ import hlx.runtime.HlxPrefixResult;
 import hlx.runtime.ModConfig;
 import hlx.runtime.Bus;
 import trade.GameAccess as G;
-typedef TradeConfig = {enabled:Bool,requestX:Null<Float>,requestY:Null<Float>};
+typedef TradeConfig = {enabled:Bool,requestX:Null<Float>,requestY:Null<Float>,tradeX:Null<Float>,tradeY:Null<Float>};
 @:build(hlx.runtime.Mod.build())
 class TradeMod {
-    @:hlx.config static var config:TradeConfig = {enabled:true,requestX:null,requestY:null};
+    @:hlx.config static var config:TradeConfig = {enabled:true,requestX:null,requestY:null,tradeX:null,tradeY:null};
     static var controller:TradeController;
     static var menuUi:Dynamic;
     static var menuUid:String;
     static var stoppingDrag = false;
     public static function enabled():Bool return config.enabled;
     public static function requestPosition():{x:Null<Float>,y:Null<Float>} return {x:config.requestX,y:config.requestY};
-    public static function saveRequestPosition(x:Float,y:Float):Void { config.requestX = x; config.requestY = y; ModConfig.save(HlxRuntime.moduleName(),config); }
+    public static function saveRequestPosition(x:Float,y:Float):Void { if (config.requestX == x && config.requestY == y) return; config.requestX = x; config.requestY = y; ModConfig.save(HlxRuntime.moduleName(),config); }
+    public static function tradePosition():{x:Null<Float>,y:Null<Float>} return {x:config.tradeX,y:config.tradeY};
+    public static function saveTradePosition(x:Float,y:Float):Void {
+        if (config.tradeX == x && config.tradeY == y) return;
+        config.tradeX = x; config.tradeY = y; ModConfig.save(HlxRuntime.moduleName(),config);
+    }
     static function main():Void {
         ModConfig.save(HlxRuntime.moduleName(),config); controller = new TradeController();
         Bus.subscribe("better-mod-settings/config-changed/"+HlxRuntime.moduleName(),(_)->config = ModConfig.load(HlxRuntime.moduleName(),config));

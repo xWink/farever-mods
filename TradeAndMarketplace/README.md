@@ -17,7 +17,7 @@ No ImGui dependency. This is an initial testing build, not a published release.
    in the header's right corner, matching Ready Check.
    The initiator stays in place; after accepting the request, the recipient
    tries to walk onto the initiator's position, as closely as native collision
-   allows. This initial approach stops after five seconds if blocked. There is
+   allows. This initial approach stops after ten seconds if blocked. There is
    no facing, flat-ground or precise-overlap requirement to accept the trade.
    Movement and manual/quick-loot pickup are blocked while the trade window is
    open. The incoming request popup alone does not lock the recipient's controls.
@@ -49,21 +49,27 @@ No ImGui dependency. This is an initial testing build, not a published release.
    Cancel, X and Escape work while reviewing offers. Once both players commit,
    closing is disabled until completion, a timeout or an error.
    Any offer change clears both acceptances. Empty offers are allowed for gifts,
-   but at least one player must offer something. Acceptance requires one backpack
-   slot per incoming item/stack after your offered items are dropped. Fully offered
-   stacks free a slot; partial-stack offers do not. The button is disabled and shows
-   the slot shortage until there is enough room. This is rechecked before committing
-   and does not depend on incoming items merging into existing stacks.
+   but at least one player must offer something. Capacity checks account for native
+   stack compatibility and stack limits, space freed by your outgoing items, and
+   incoming stacks sharing a slot. A full backpack can receive items that fit into
+   existing stacks. If the whole offer cannot fit, the window shows **Not enough
+   inventory space.** Capacity is rechecked before committing.
 6. The mod drops and picks up the accepted items through the normal game
    requests. Each client confirms its server replies and inventory contents.
-   A green **Trade complete** message appears locally when both confirm receipt.
+   A green **Trade complete - received N items.** message appears locally when both
+   confirm receipt. The count includes every item within received stacks. Successful
+   pickups proceed on the next update without a fixed half-second delay; failed
+   requests still back off, and inventory replication must confirm receipt.
    If a partner's item lands outside pickup range, your character walks toward
    that exact ground item and picks it up on reaching native interaction range.
-   A five-second stall timeout releases controls if the exchange stops making
+   A ten-second stall timeout releases controls if the exchange stops making
    progress. Each confirmed new drop/pickup or receipt restarts that timer;
-   duplicate messages do not. Walking toward one drop also has a five-second limit.
+   duplicate messages do not. Walking toward one drop also has a ten-second limit.
 
-The header can be dragged. Closing is blocked during the committed exchange.
+Both window headers can be dragged. Each window remembers its displayed position
+when closed and restores it on the next opening, clamped to the screen. Trade
+windows use the native window layer beneath dragged inventory items and cursors.
+Closing is blocked during the committed exchange.
 The inset body reaches the header, with 16 pixels of inner spacing above the
 offers. The title has a 28-pixel left inset. There is no divider line beneath
 the offer panels. Status text is vertically centered between the offer panels
@@ -108,7 +114,7 @@ Enabled preference. The solo preview and its F8 binding have been removed.
   data. Sender identity comes from the game's received chat message. Only a
   current party member can invite or participate. Whisper delivery failures stop
   the trade, and commit delivery is confirmed before dropping. Requests expire
-  after 45s, offers after 180s without edits/acceptance, and commit/exchange stalls after 5s.
+  after 45s, offers after 180s without edits/acceptance, and commit/exchange stalls after 10s.
 - Previews contain bounded plain values and game database IDs, never serialized
   hxbit object graphs. Hover uses the actual replicated item when available;
   otherwise the same detached item factory used by native base-item tooltips
@@ -149,7 +155,8 @@ haxe test.hxml
 haxe compile.hxml
 ```
 
-Trade errors appear in local chat in red; successful completion appears in green.
+Trade errors use the Cancel button's red in local chat; successful completion
+appears in green. Both use a dark one-pixel drop shadow for readability.
 
 The GitHub Actions workflow runs protocol, inventory, controller and simulated exchange tests, compares
 core behavior against the preserved original binary, then builds an installable

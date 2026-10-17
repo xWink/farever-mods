@@ -93,8 +93,7 @@ class TradeController {
     }
     public function inventorySpaceReason():String {
         if (state == null || inv == null) return "Backpack is unavailable.";
-        var missing = state.theirs.length-inv.freeSlotsAfterOffering(state.mine);
-        return missing <= 0 ? "" : "Need "+missing+" more backpack slot"+(missing == 1 ? "" : "s")+" after dropping your offer.";
+        return inv.canReceive(state.mine,state.theirs) ? "" : "Not enough inventory space.";
     }
     public function accept():Void {
         if (state == null || !state.editable()) return;
@@ -187,18 +186,23 @@ class TradeController {
             status = exchange.status; flush();
         }
         if ((state.phase == "complete" || state.phase == "cancelled") && reportedEnd != state.id) {
-            reportedEnd = state.id; chat(state.phase == "complete" ? "Trade complete" : state.error,state.phase == "complete");
+            reportedEnd = state.id; chat(state.phase == "complete" ? completionText() : state.error,state.phase == "complete");
             open = false; releaseMovement(); view.dispose(); requestPopup.dispose();
         }
         if (state.phase == "invited") requestPopup.update(now);
         if (open) view.update();
     }
+    public function completionText():String {
+        var count = 0; if (state != null) for (item in state.theirs) count += item.count;
+        return "Trade complete - received "+count+" item"+(count == 1 ? "" : "s")+".";
+    }
     public function chat(text:String,success = false):Void {
         var ui = G.current("ui.BaseUI","current"); if (ui == null || !G.isA(ui,"ui.GameUI")) return;
         var chat = G.call("ui.GameUI","get_chat",ui); if (chat == null) return;
         var line = G.create("ui.hud.ChatBoxLine",[G.field(chat,"messages")]), label = G.field(line,"msgText");
-        TradeUi.setText(label,text); var color = success ? 0x59DB70 : 0xEF5350;
+        TradeUi.setText(label,text); var color = success ? 0x59DB70 : 0xB8443A;
         G.call("h2d.Text","set_textColor",label,[color]); TradeUi.style(label,"color",color);
+        G.set(label,"dropShadow",{color:0,alpha:0.9,dx:1.0,dy:1.0});
     }
     public function fail(error:Dynamic):Void {
         if (!errorLogged) { errorLogged = true; TradeDiagnostics.log("Error: "+error); }

@@ -32,7 +32,7 @@ class TradeMovement {
             if (gatherSince < 0) gatherSince = now;
             var a = G.field(hero,"position"), b = G.field(peer,"position");
             var x = G.number(G.field(a,"x"))-G.number(G.field(b,"x")), y = G.number(G.field(a,"y"))-G.number(G.field(b,"y"));
-            if (x*x+y*y <= 0.25 || now-gatherSince >= 5) gathered = true;
+            if (x*x+y*y <= 0.25 || now-gatherSince >= TradeSession.STALL_SECONDS) gathered = true;
             else { status = "Moving together..."; walkTo(peer,now); }
             return "";
         }
@@ -40,7 +40,7 @@ class TradeMovement {
             target = null; targetSince = -1; stop(); return "";
         }
         if (target != collection) { target = collection; targetSince = now; nextMove = 0; }
-        if (now-targetSince >= 5) return "Could not reach the offered item within 5 seconds. Check the items on the ground.";
+        if (now-targetSince >= TradeSession.STALL_SECONDS) return "Could not reach the offered item within 10 seconds. Check the items on the ground.";
         var range = G.number(G.call("ent.interactible.LootDrop","getInteractRange",collection),5);
         if (TradeInventory.distance(hero,collection) <= Math.max(0.1,range-0.35)) { stop(); return ""; }
         return walkTo(collection,now);

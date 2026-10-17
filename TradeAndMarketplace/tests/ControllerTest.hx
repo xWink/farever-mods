@@ -9,12 +9,12 @@ class ControllerTest {
     static function check(value:Bool, message:String):Void { checks++; if (!value) throw message; }
     static function latestRed():Bool {
         var line = GameAccess.lines[GameAccess.lines.length - 1];
-        return line != null && line.color == 0xEF5350 && line.style_color == 0xEF5350;
+        return line != null && line.color == 0xB8443A && line.style_color == 0xB8443A;
     }
     static function fixture():TradeController {
         locked = false; nativeAllowed = true; gateCalls = 0;
         GameAccess.lines = []; TradeChat.sent = [];
-        var item:Dynamic = {__uid: "item", kind: "Copper", getName: () -> "Copper", maxStack: () -> 99};
+        var item:Dynamic = {__uid: "item", kind: "Copper", getName: () -> "Copper", maxStack: () -> 99, canStack: (other:Dynamic) -> other.kind == "Copper"};
         var inventory:Dynamic = {content: [{item: item, count: 4}], getFreeSize: () -> 10};
         // Models the hooked game's permission result (including Item Utilities locks).
         inventory.canRequestDropIndex = function(index:Int, manual:Bool, count:Null<Int>):Bool {
@@ -61,6 +61,27 @@ class ControllerTest {
         c.chat("Trade complete", true);
         var line = GameAccess.lines[GameAccess.lines.length - 1];
         check(line.color == 0x59DB70 && line.style_color == 0x59DB70, "Success remains green");
+        check(line.dropShadow.color == 0 && line.dropShadow.alpha > 0 && line.dropShadow.dx == 1.0, "Success has a dark drop shadow");
+        c = fixture(); offering(c);
+        c.inv.inventory.getFreeSize = () -> 0;
+        var incoming = TradeInventory.describe(c.inv.stacks()[0].item, 95); incoming.uid = "peer-item";
+        c.state.theirs = [incoming];
+        check(c.inventorySpaceReason() == "", "Full backpack accepts items that fit the existing stack exactly");
+        var built = TradeTooltips.builds; c.inventorySpaceReason();
+        check(TradeTooltips.builds == built, "Native item descriptions are reused between frames");
+        c.state.theirs[0].count = 96;
+        check(c.inventorySpaceReason() == "Not enough inventory space.", "Overflow uses the requested error text");
+        c.addSlot(slot, true);
+        check(c.inventorySpaceReason() == "", "Partial outgoing stack creates matching stack capacity");
+        c.state.theirs[0].count = 5;
+        var second = TradeOffer.copy(c.state.theirs)[0]; second.uid = "second"; second.count = 7; c.state.theirs.push(second);
+        check(c.completionText() == "Trade complete - received 12 items.", "Completion totals all stack quantities");
+        c.state.theirs = [];
+        check(c.completionText() == "Trade complete - received 0 items.", "One-sided gift sender receives zero");
+        c.state.theirs = [second]; second.count = 1;
+        check(c.completionText() == "Trade complete - received 1 item.", "Singular item count");
+        c.fail("shadow check");
+        check(latestRed() && GameAccess.lines[0].dropShadow.color == 0, "Cancel-button red also has a shadow");
         Sys.println("Controller and inventory checks passed: " + checks);
     }
 }

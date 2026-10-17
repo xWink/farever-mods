@@ -6,6 +6,8 @@ class TradeInventory {
     public var player:Dynamic;
     public var hero:Dynamic;
     public var inventory:Dynamic;
+    var incomingKey = "";
+    var incoming:Array<trade.TradeCapacity.CapacityStack> = [];
     public function new(player:Dynamic) {
         this.player = player; hero = G.field(player,"hero"); inventory = G.field(G.field(hero,"loadout"),"inventory");
     }
@@ -94,14 +96,30 @@ class TradeInventory {
         return "";
     }
     public function freeSlots():Int return G.integer(G.call("st.Inventory","getFreeSize",inventory));
-    public function freeSlotsAfterOffering(items:Array<TradeItem>):Int {
-        var free = freeSlots(), seen:Map<String,Bool> = [];
-        for (i in items) {
-            if (seen.exists(i.uid)) continue; seen[i.uid] = true;
-            var s = find(i.uid);
-            if (s != null && i.count > 0 && s.count == i.count && fingerprint(s.item) == i.fingerprint) free++;
+    public function canReceive(mine:Array<TradeItem>, theirs:Array<TradeItem>):Bool {
+        if (theirs.length == 0) return true;
+        var free = freeSlots(), slots:Array<trade.TradeCapacity.CapacityStack> = [];
+        for (stack in stacks()) {
+            var remaining = stack.count;
+            for (offer in mine) if (offer.uid == G.uid(stack.item) && fingerprint(stack.item) == offer.fingerprint) {
+                remaining -= offer.count; break;
+            }
+            if (remaining <= 0) { free++; continue; }
+            slots.push({item:stack.item,count:remaining,max:G.integer(G.call("st.Item","maxStack",stack.item),1)});
         }
-        return free;
+        var key = TradeOffer.hash(theirs);
+        if (key != incomingKey) {
+            var next:Array<trade.TradeCapacity.CapacityStack> = [];
+            for (offer in theirs) {
+                // Cache detached native item descriptions until the partner edits their offer.
+                // These objects never receive a UID, network host or inventory membership.
+                var item = TradeTooltips.previewItem(offer);
+                next.push({item:item,count:offer.count,max:item == null ? 1 : G.integer(G.call("st.Item","maxStack",item),1)});
+            }
+            incoming = next; incomingKey = key;
+        }
+        return TradeCapacity.fits(slots,incoming,free,(a,b)->
+            G.call("st.Item","canStack",a,[b]) == true && G.call("st.Item","canStack",b,[a]) == true);
     }
     public function drops():Array<Dynamic> return [for(d in G.array(G.field(player,"lootDrops"),true))
         if (d != null && G.field(d,"removed") != true && G.isA(d,"ent.interactible.LootDrop")) d];

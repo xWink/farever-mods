@@ -46,3 +46,11 @@ chat errors, green completion, and the readable invitation sent by the controlle
 The exchange suite now has 18 checks, including a lock added after acceptance
 preventing any drop request. The removed solo preview has no hotkey, settings,
 controller branches or test fixtures left in the current source.
+
+The current build intentionally extends the original five-second stall timeout
+to ten seconds. The differential harness offsets the new watchdog's clock and
+normalizes its message for comparison, excluding absolute deadlines from state
+snapshots. Dedicated protocol tests check the new ten-second boundary. Capacity
+and controller tests cover native stack matching, shared incoming capacity,
+partial outgoing stacks, full backpacks, and received-item counts. Exchange tests
+verify that the faster pickup path still waits for replicated inventory receipt.
