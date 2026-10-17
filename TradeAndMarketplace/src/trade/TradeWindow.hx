@@ -74,7 +74,7 @@ class TradeWindow {
         frame.layout(inventoryWindow()); updateDrag(); marks.update(inventoryWindow(),controller.inv,s);
     }
     function build(ui:Dynamic):Void {
-        frame = new TradeFrame(ui,controller.previewMode ? "Trade preview" : "Trade with "+controller.peerName,WIDTH,HEIGHT,controller.cancelByUser);
+        frame = new TradeFrame(ui,"Trade with "+controller.peerName,WIDTH,HEIGHT,controller.cancelByUser);
         var c = frame.container, bg = graphic(c);
         rounded(bg,6,20,584,188,8,15260877); rounded(bg,6,220,584,188,8,15260877);
         textAt(c,"Your offer",20,31,450,true); textAt(c,controller.peerName+"'s offer",20,231,450,true);
@@ -99,7 +99,6 @@ class TradeWindow {
         var g = slot.background; G.call("h2d.Graphics","clear",g);
         rounded(g,0,2,80,80,7,4601647,0.15); rounded(g,0,0,80,80,7,slot.disabled ? 10262933 : slot.color);
         rounded(g,2,2,76,76,5,slot.disabled ? 12170929 : slot.empty ? 13022367 : 3683900);
-
     }
     function render(parent:Dynamic,items:Array<TradeItem>,own:Bool):Void {
         for (c in children(parent)) G.call("h2d.Object","remove",c);

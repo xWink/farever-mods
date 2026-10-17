@@ -34,7 +34,7 @@ jobs:
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
-      - name: Test protocol and exchange safeguards
+      - name: Test protocol, controller, inventory and exchange safeguards
         working-directory: TradeAndMarketplace
         run: haxe test.hxml
       - uses: actions/checkout@v4
@@ -67,6 +67,7 @@ jobs:
     uses: ./.github/workflows/_build-mod.yml
     with:
       project: TradeAndMarketplace
-      module: trade
+      module: trade-and-marketplace
+      artifact-name: farever-trade-and-marketplace
       title: Trade and Marketplace
       required-settings: true

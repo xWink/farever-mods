@@ -1,10 +1,10 @@
 package trade;
 
-typedef InspectTipBounds = {xMin:Float, yMin:Float, xMax:Float, yMax:Float};
+typedef TradeTipBounds = {xMin:Float, yMin:Float, xMax:Float, yMax:Float};
 
 /** Fit the entire rendered tip, including comparisons left of its origin. */
 class TradeTooltipPlacement {
-    public static function fit(x:Float, y:Float, bounds:InspectTipBounds, viewport:InspectTipBounds):{x:Float, y:Float, scale:Float} {
+    public static function fit(x:Float, y:Float, bounds:TradeTipBounds, viewport:TradeTipBounds):{x:Float, y:Float, scale:Float} {
         var width = bounds.xMax - bounds.xMin, height = bounds.yMax - bounds.yMin;
         var availableWidth = viewport.xMax - viewport.xMin, availableHeight = viewport.yMax - viewport.yMin;
         if (width <= 0 || height <= 0 || availableWidth <= 0 || availableHeight <= 0)

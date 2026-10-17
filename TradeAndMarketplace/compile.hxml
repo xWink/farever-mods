@@ -4,13 +4,13 @@
 -cp ../shared/src
 -main trade.TradeMod
 -dce full
--hl build/trade/implementation/trade.hl
+-hl build/trade-and-marketplace/implementation/trade-and-marketplace.hl
 
 # Check required dependencies before linking the implementation.
 --next
 -D hl-ver=1.16.0
 -cp ../shared/bootstrap
--D dependency-mod=trade
+-D dependency-mod=trade-and-marketplace
 -main moddependencies.Bootstrap
 -dce full
--hl build/trade/trade.hl
+-hl build/trade-and-marketplace/trade-and-marketplace.hl

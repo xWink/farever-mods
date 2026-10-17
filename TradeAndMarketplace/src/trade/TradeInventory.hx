@@ -80,6 +80,8 @@ class TradeInventory {
         var index = G.integer(G.call("ui.win.InventorySlot","getIndex",slot),-1);
         for (s in stacks()) if (s.index == index) return s; return null;
     }
+    // Use the hooked game permission check so Item Utilities locks apply too.
+    // Reused when offering, validating the offer, and immediately before a drop.
     public function canDrop(s:TradeStack,count:Int):Bool return s != null && count > 0 && count <= s.count
         && count <= G.integer(G.call("st.Item","maxStack",s.item),1)
         && G.call("st.Inventory","canRequestDropIndex",inventory,[s.index,true,count]) == true;

@@ -19,6 +19,10 @@ on:
         description: Human-readable mod name
         required: true
         type: string
+      artifact-name:
+        description: Optional installable artifact name
+        type: string
+        default: ""
       required-settings:
         description: Package the mandatory dependency startup check
         default: false
@@ -103,7 +107,7 @@ jobs:
       - name: Upload installable build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: farever-${{ inputs.project }}
+          name: ${{ inputs.artifact-name || format('farever-{0}', inputs.project) }}
           path: ${{ inputs.project }}/package/
           if-no-files-found: error
 
@@ -130,7 +134,7 @@ jobs:
       - name: Download this mod's build
         uses: actions/download-artifact@v4
         with:
-          name: farever-${{ inputs.project }}
+          name: ${{ inputs.artifact-name || format('farever-{0}', inputs.project) }}
           path: package
 
       - name: Create installable ZIP

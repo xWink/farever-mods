@@ -7,7 +7,7 @@ import sys.io.File;
 class DependencyCheck {
     public static function title(id:String):String {
         return switch (id) {
-            case "trade": "Trade and Marketplace";
+            case "trade-and-marketplace": "Trade and Marketplace";
             case "dps-meter": "DPS Meter";
             case "minimap": "Minimap";
             case "item-utilities": "Item Utilities";

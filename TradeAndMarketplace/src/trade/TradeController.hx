@@ -7,7 +7,6 @@ class TradeController {
     public var peerName = "Player";
     public var status = "";
     public var open = false;
-    public var previewMode(default,null) = false;
     public var view:TradeWindow;
     public var requestPopup:TradeRequestPopup;
     var group:Dynamic;
@@ -23,25 +22,6 @@ class TradeController {
     var reportedEnd = "";
     var errorLogged = false;
     public function new() { wire = new TradeWire(StringTools.hex(Std.random(0x3fffffff))); view = new TradeWindow(this); requestPopup = new TradeRequestPopup(this); }
-    /** Isolated visual fixture: never enters the protocol or exchange update path. */
-    public function togglePreview():Void {
-        if (previewMode) { cancelByUser(); return; }
-        if (!TradeMod.enabled() || !ensure(G.field(G.staticCall("GameApp","get",[]),"me"))) return;
-        if (state.active()) { chat("Finish or cancel your current trade before opening the preview."); return; }
-        previewMode = true;
-        state = new TradeSession(G.text(G.field(player,"uid")));
-        state.id = "local-preview"; state.peer = "preview-partner"; state.phase = "offering";
-        state.leader = true; state.peerRevision = state.ack = 0;
-        reportedEnd = ""; peerName = "Preview partner"; status = "Preview only - no items will be exchanged.";
-        outgoing = []; announcements = []; exchange = null; exchangeId = ""; pendingCommits = 0;
-        // Use real artwork and tooltip metadata without changing inventory.
-        for (stack in inv.stacks()) {
-            var item = TradeInventory.describe(stack.item,Std.int(Math.min(stack.count,3)));
-            if (TradeOffer.valid([item])) state.theirs.push(item);
-            if (state.theirs.length == 3) break;
-        }
-        view.dispose(); requestPopup.dispose(); open = true;
-    }
     public function ensure(player:Dynamic):Bool {
         if (player == null || G.field(player,"isMe") != true || G.field(player,"hero") == null) return false;
         if (this.player != player) { dispose(); this.player = player; state = new TradeSession(G.text(G.field(player,"uid"))); inv = new TradeInventory(player); }
@@ -83,7 +63,6 @@ class TradeController {
         outgoing = outgoing.filter(p->p.op == "cancel"); status = ""; open = state.phase != "invited"; view.dispose(); requestPopup.dispose();
     }
     public function receive(client:Dynamic,message:Dynamic,text:String):Void {
-        if (previewMode) return;
         var me = G.field(G.staticCall("GameApp","get",[]),"me");
         if (!TradeMod.enabled() || !TradeChat.isLocalClient(client,me) || !ensure(me)) return;
         var sender = TradeChat.sender(message);
@@ -113,19 +92,17 @@ class TradeController {
         reason = inv.validate(state.mine); return reason == "" ? inventorySpaceReason() : reason;
     }
     public function inventorySpaceReason():String {
-        if (previewMode) return "";
         if (state == null || inv == null) return "Backpack is unavailable.";
         var missing = state.theirs.length-inv.freeSlotsAfterOffering(state.mine);
         return missing <= 0 ? "" : "Need "+missing+" more backpack slot"+(missing == 1 ? "" : "s")+" after dropping your offer.";
     }
     public function accept():Void {
-        if (previewMode) { state.accepted = !state.accepted; state.peerAccepted = state.accepted; state.changed++; return; }
         if (state == null || !state.editable()) return;
         if (!state.accepted) { var reason = readyReason(); if (reason != "") { status = reason; chat(reason); return; } }
         status = state.accept(haxe.Timer.stamp()) ? "" : "Wait for both offers to finish syncing."; flush();
     }
-    public function canAccept():Bool return previewMode || (state != null && state.canAccept() && (state.accepted || (controlsHeld() && inventorySpaceReason() == "")));
-    public function controlsLocked(?nativeController:Dynamic):Bool return !previewMode && open && TradeMod.enabled() && state != null && state.active() && inv != null
+    public function canAccept():Bool return state != null && state.canAccept() && (state.accepted || (controlsHeld() && inventorySpaceReason() == ""));
+    public function controlsLocked(?nativeController:Dynamic):Bool return open && TradeMod.enabled() && state != null && state.active() && inv != null
         && (nativeController == null || G.field(nativeController,"unit") == inv.hero);
     function controlsHeld():Bool return inv != null && movement.holding(G.current("client.PlayerController","inst"),inv.hero,state);
     function prepareExchangeAction():String {
@@ -147,23 +124,26 @@ class TradeController {
         var stack = inv.fromSlot(slot); if (stack == null) return false;
         for (i in state.mine) if (i.uid == G.uid(stack.item)) { if (!dragged) remove(i.uid); return true; }
         var count = dragged ? G.integer(G.field(slot,"dragCountOverride"),stack.count) : stack.count;
-        if (!previewMode && !inv.canDrop(stack,count)) { status = "This item is locked or cannot be dropped."; return true; }
-        if (state.mine.length >= 6) { status = "You can offer up to six items or stacks."; return true; }
+        if (!inv.canDrop(stack,count)) return rejectOffer("This item is locked or cannot be dropped.");
+        if (state.mine.length >= 6) return rejectOffer("You can offer up to six items or stacks.");
         var items = TradeOffer.copy(state.mine); items.push(TradeInventory.describe(stack.item,count));
-        if (!state.setOffer(items,haxe.Timer.stamp())) { status = "This item's preview could not be shared."; return true; }
-        status = previewMode ? "Preview only - no items will be exchanged." : ""; flush(); return true;
+        if (!state.setOffer(items,haxe.Timer.stamp())) return rejectOffer("This item's preview could not be shared.");
+        status = ""; flush(); return true;
+    }
+    function rejectOffer(reason:String):Bool {
+        status = reason; chat(reason); return true;
     }
     public function remove(uid:String):Void {
         if (state == null || !state.editable()) return;
-        state.setOffer(state.mine.filter(i->i.uid != uid),haxe.Timer.stamp()); status = previewMode ? "Preview only - no items will be exchanged." : ""; flush();
+        state.setOffer(state.mine.filter(i->i.uid != uid),haxe.Timer.stamp()); status = ""; flush();
     }
     public function cancelByUser():Void { if (state != null && !state.cancelByUser()) return; cancel(); }
     public function cancel(reason = "Trade cancelled."):Void {
-        if (state != null) { state.cancel(reason); if (previewMode) reportedEnd = state.id; } open = false; releaseMovement(); flush(); view.dispose(); requestPopup.dispose(); previewMode = false;
+        if (state != null) { state.cancel(reason); reportedEnd = state.id; }
+        chat(reason); open = false; releaseMovement(); flush(); view.dispose(); requestPopup.dispose();
     }
     public function flush():Void {
         if (state == null) return;
-        if (previewMode) { state.outbox = []; state.ack = state.revision; outgoing = []; return; }
         while (state.outbox.length > 0) {
             var p = state.outbox.shift();
             if (p.op == "offer") outgoing = outgoing.filter(q->q.op != "offer" || q.id != p.id);
@@ -176,7 +156,6 @@ class TradeController {
         var me = G.field(app,"me");
         if (me != player || G.field(me,"hero") != (inv == null ? null : inv.hero)) { dispose(); return; }
         if (!TradeMod.enabled() && state.active()) cancel("Trade disabled.");
-        if (previewMode) { if (open) view.update(); return; }
         if (state.active() && now >= nextCheck) {
             nextCheck = now+0.2;
             var reason = G.field(player,"group") != group ? "Your party changed." : environment();
@@ -218,16 +197,16 @@ class TradeController {
         var ui = G.current("ui.BaseUI","current"); if (ui == null || !G.isA(ui,"ui.GameUI")) return;
         var chat = G.call("ui.GameUI","get_chat",ui); if (chat == null) return;
         var line = G.create("ui.hud.ChatBoxLine",[G.field(chat,"messages")]), label = G.field(line,"msgText");
-        TradeUi.setText(label,text); var color = success ? 5888880 : 15974760;
+        TradeUi.setText(label,text); var color = success ? 0x59DB70 : 0xEF5350;
         G.call("h2d.Text","set_textColor",label,[color]); TradeUi.style(label,"color",color);
     }
     public function fail(error:Dynamic):Void {
         if (!errorLogged) { errorLogged = true; TradeDiagnostics.log("Error: "+error); }
         if (state != null && state.active()) cancel("Trade stopped: "+error);
-        else { open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); }
+        else { chat("Trade stopped: "+error); open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); }
     }
     public function dispose():Void {
-        open = false; previewMode = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = [];
+        open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = [];
         state = null; player = group = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
     }
 }

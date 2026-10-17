@@ -1,10 +1,10 @@
-# Trade + Marketplace
+# Trade and Marketplace
 
-A native trade window for nearby party members. Both players need Trade + Marketplace,
+A native trade window for nearby party members. Both players need Trade and Marketplace,
 HLX Core 0.0.8+, Better Mod Settings, and Mod Update Alerts installed.
 No ImGui dependency. This is an initial testing build, not a published release.
 
-## Using Trade + Marketplace
+## Using Trade and Marketplace
 
 1. Join the same party and stand near each other (within 5 world units).
 2. Choose **Trade** in the other player's interaction menu, or type
@@ -37,6 +37,8 @@ No ImGui dependency. This is an initial testing build, not a published release.
    Slot borders keep their item rarity colour on hover. Quantity labels have no
    dark background bar. Each side shows its acceptance status.
    Offer slots are gray and cannot accept items until the request is accepted.
+   Locked items cannot be offered. Drop permission is rechecked before acceptance
+   and immediately before every drop, including locks added after offering.
    Offered backpack items have a gold border and a **TRADE xN** label showing
    the offered quantity. The mark follows the item when rearranging or sorting,
    and clears when the item is removed from the offer or the trade ends.
@@ -67,7 +69,7 @@ offers. The title has a 28-pixel left inset. There is no divider line beneath
 the offer panels. Status text is vertically centered between the offer panels
 and the action buttons using its rendered text bounds.
 Changing party/area, moving too far apart before exchanging, dying, changing an offered item, or
-disabling Trade + Marketplace stops the operation. Cancellation after drops have started can
+disabling Trade and Marketplace stops the operation. Cancellation after drops have started can
 leave items on the ground; this automates the same cooperative exchange as
 manual dropping and does not add server escrow or rollback.
 Positioning and input locks improve reliability for cooperating clients; they
@@ -75,19 +77,18 @@ cannot enforce honesty against an altered mod or disconnection.
 Native drops still scatter within a cone, rather than landing at an exact point.
 Both players must install this build and restart the game.
 
-## Solo UI preview
+## Installation and upgrades
 
-Press **F8** while playing to open or close a local trade preview. The binding is
-configurable in Better Mod Settings. Your offer appears above the sample partner
-offer; add/remove your items normally and click Accept to preview both acceptance
-badges. Preview mode never sends trade whispers or drops, picks up, or exchanges
-items. It cannot open during a real trade. Empty slots have no plus sign, and the
-slot and acceptance badge corners use smoother rounded geometry.
+The build artifact is **farever-trade-and-marketplace.zip**, installing under
+`hlx/mods/trade-and-marketplace/`. When upgrading from the earlier test build,
+remove the old `hlx/mods/trade/` folder before installing so both copies cannot
+load. The new module has its own settings; reapply any saved popup position or
+Enabled preference. The solo preview and its F8 binding have been removed.
 
 ## Implementation
 
 - A bounded, versioned protocol uses private whispers addressed to the other
-  trader's player ID. Trade + Marketplace clients hide these messages, including from More
+  trader's player ID. Trade and Marketplace clients hide these messages, including from More
   Settings' self chat bubbles. Nothing is broadcast to party chat, and the
   player's selected chat channel stays unchanged. Both traders must use this
   whisper build; it cannot communicate with the earlier party-chat test build.
@@ -148,7 +149,9 @@ haxe test.hxml
 haxe compile.hxml
 ```
 
-The GitHub Actions workflow runs protocol and simulated exchange tests, compares
+Trade errors appear in local chat in red; successful completion appears in green.
+
+The GitHub Actions workflow runs protocol, inventory, controller and simulated exchange tests, compares
 core behavior against the preserved original binary, then builds an installable
 artifact. See [the recovery record](recovery/README.md) for provenance, test
 coverage and remaining validation. Reconstructed UI and game integration still

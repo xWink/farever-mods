@@ -42,6 +42,10 @@ class ExchangeTest {
         var stale = session(), sti = new TradeInventory(); stale.mine = [item("own")]; sti.stack = {index:0,item:{fingerprint:"fp"},count:1};
         var ste = new TradeExchange(stale,sti,()->""); ste.update(0); stale.id = "replacement"; sti.reply(false);
         check(stale.phase == "exchanging","Late callback cannot cancel a replacement session");
+        var locked = session(), li = new TradeInventory(); locked.mine = [item("own")];
+        li.stack = {index:0,item:{fingerprint:"fp"},count:1}; li.dropAllowed = false;
+        var le = new TradeExchange(locked,li,()->""); le.update(0);
+        check(locked.phase == "cancelled" && li.requests == 0,"Lock added after acceptance prevents any drop request");
         Sys.println("Exchange safety checks passed: "+checks);
     }
 }

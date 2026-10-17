@@ -10,13 +10,6 @@
       "key": "enabled",
       "type": "checkbox",
       "label": "Enabled"
-    },
-    {
-      "key": "previewHotkey",
-      "type": "keybinding",
-      "modifiers": true,
-      "label": "Trade window preview hotkey",
-      "tooltip": "Open or close a local trade window preview. No whispers are sent and no items are exchanged. Default: F8."
     }
   ]
 }

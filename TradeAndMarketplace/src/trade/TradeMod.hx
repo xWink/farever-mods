@@ -2,12 +2,11 @@ package trade;
 import hlx.runtime.HlxPrefixResult;
 import hlx.runtime.ModConfig;
 import hlx.runtime.Bus;
-import modinput.NativeHotkey;
 import trade.GameAccess as G;
-typedef TradeConfig = {enabled:Bool,requestX:Null<Float>,requestY:Null<Float>,previewHotkey:Dynamic};
+typedef TradeConfig = {enabled:Bool,requestX:Null<Float>,requestY:Null<Float>};
 @:build(hlx.runtime.Mod.build())
 class TradeMod {
-    @:hlx.config static var config:TradeConfig = {enabled:true,requestX:null,requestY:null,previewHotkey:119};
+    @:hlx.config static var config:TradeConfig = {enabled:true,requestX:null,requestY:null};
     static var controller:TradeController;
     static var menuUi:Dynamic;
     static var menuUid:String;
@@ -22,7 +21,6 @@ class TradeMod {
     @:hlx.postfix(GameApp.update)
     static function afterFrame(instance:Dynamic,dt:Float,result:Void):Void {
         if (controller != null) try {
-            if (enabled() && NativeHotkey.isPressed(config.previewHotkey)) controller.togglePreview();
             controller.update(instance,haxe.Timer.stamp());
         } catch(e:Dynamic) controller.fail(e);
     }

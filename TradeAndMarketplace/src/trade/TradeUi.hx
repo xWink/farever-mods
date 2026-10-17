@@ -2,7 +2,7 @@ package trade;
 
 import trade.GameAccess as G;
 
-/** Native Options styling and layout helpers for the Inspect window. */
+/** Native Options styling and layout helpers for the trade windows. */
 class TradeUi {
     public static function prepareBody(body:Dynamic):Dynamic {
         var object = G.field(body, "obj");
@@ -11,8 +11,8 @@ class TradeUi {
         var container = G.field(options, "container");
         if (container == null) throw "Native Options content container was not found";
         // Keep the native styling ancestry, but stop the settings callbacks:
-        // OptionsList watches display mode and otherwise rebuilds over our equipment list.
-        // Do this before adding any of the equipment list's own controls.
+        // OptionsList watches display mode and otherwise rebuilds over our trade controls.
+        // Do this before adding any of the trade controls's own controls.
         for (component in [object, options, input])
             if (component != null) G.call("ui.UIElement", "clearBinds", component);
         show(input, false);

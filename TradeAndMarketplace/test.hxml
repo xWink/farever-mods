@@ -12,6 +12,6 @@
 --next
 -cp src
 -cp tests
--cp tests/preview-stubs
--main PreviewTest
+-cp tests/controller-stubs
+-main ControllerTest
 --interp
