@@ -21,6 +21,7 @@ class TradeController {
     var nextCheck = 0.0;
     var reportedEnd = "";
     var errorLogged = false;
+    var handledInvites:Array<String> = [];
     public function new() { wire = new TradeWire(StringTools.hex(Std.random(0x3fffffff))); view = new TradeWindow(this); requestPopup = new TradeRequestPopup(this); }
     public function ensure(player:Dynamic):Bool {
         if (player == null || G.field(player,"isMe") != true || G.field(player,"hero") == null) return false;
@@ -60,7 +61,7 @@ class TradeController {
     function begin():Void {
         releaseMovement(); group = G.field(player,"group"); peerName = G.text(G.call("st.Player","getName",partyMember(state.peer)),"Player");
         exchange = null; exchangeId = ""; pendingCommits = 0; announcements = []; reportedEnd = "";
-        outgoing = outgoing.filter(p->p.op == "cancel"); status = ""; open = state.phase != "invited"; view.dispose(); requestPopup.dispose();
+        outgoing = outgoing.filter(p->p.op == "cancel" || p.op == "reject"); status = ""; open = state.phase != "invited"; view.dispose(); requestPopup.dispose();
     }
     public function receive(client:Dynamic,message:Dynamic,text:String):Void {
         var me = G.field(G.staticCall("GameApp","get",[]),"me");
@@ -70,7 +71,16 @@ class TradeController {
         var p = wire.receive(sender,text,haxe.Timer.stamp());
         if (p == null) return;
         var previousId = state.id;
-        if (p.op == "invite") { if (environment(sender) != "") return; }
+        if (p.op == "invite") {
+            if (p.to != state.self || p.id == "") return;
+            // Native chat hooks can deliver the same invitation more than once.
+            var key = sender+"/"+p.id;
+            if (handledInvites.indexOf(key) >= 0 || (sender == state.peer && p.id == state.id)) return;
+            handledInvites.push(key); if (handledInvites.length > 128) handledInvites.shift();
+            var reason = incomingRequestReason();
+            if (reason != "") { rejectRequest(sender,p.id,reason); return; }
+            if (environment(sender) != "") return;
+        }
         else if (sender != state.peer || p.id != state.id || p.to != state.self) return;
         if (p.key == state.key() && ((p.op == "prepare" && state.phase == "offering")
             || ((p.op == "prepared" || p.op == "commit") && state.phase == "preparing"))) {
@@ -80,6 +90,23 @@ class TradeController {
         else state.receive(sender,p,haxe.Timer.stamp());
         if (state.id != previousId) begin();
         flush();
+    }
+    function incomingRequestReason():String {
+        if (TradeMod.rejectsRequests()) return "Player is not accepting trade requests.";
+        if (state.active() || G.field(inv.hero,"isInCombat") == true) return "Player is busy.";
+        var app = G.staticCall("GameApp","get",[]), ui = G.current("ui.BaseUI","current");
+        if (ui == null || !G.isA(ui,"ui.GameUI") || G.call("GameApp","isInCutscene",app) == true) return "Player is busy.";
+        // NPC dialogue, inventory, settings, map and other menus are registered windows.
+        // Persistent HUD elements (including the DPS meter) are not in this list.
+        for (window in G.array(G.field(ui,"windows")))
+            if (window != null && G.field(window,"removed") != true && G.field(window,"parent") != null
+                && G.field(window,"visible") != false) return "Player is busy.";
+        var menu = G.field(ui,"contextMenu");
+        return menu != null && G.field(menu,"removed") != true ? "Player is busy." : "";
+    }
+    function rejectRequest(sender:String,id:String,reason:String):Void {
+        // Reply using the request's ID without changing or cancelling our current session.
+        outgoing.push({id:id,to:sender,op:"reject",parts:wire.encode({id:id,to:sender,op:"cancel",reason:reason})});
     }
     public function join():Void {
         if (state == null || state.phase != "invited") return;
@@ -146,7 +173,7 @@ class TradeController {
         while (state.outbox.length > 0) {
             var p = state.outbox.shift();
             if (p.op == "offer") outgoing = outgoing.filter(q->q.op != "offer" || q.id != p.id);
-            if (p.op == "cancel") outgoing = [];
+            if (p.op == "cancel") outgoing = outgoing.filter(q->q.id != p.id || q.to != p.to);
             outgoing.push({id:p.id,to:p.to,op:p.op,parts:wire.encode(p,G.text(G.call("st.Player","getName",player),"Player"))});
         }
     }
@@ -169,6 +196,7 @@ class TradeController {
             if (commit) pendingCommits++;
             var peer = partyMember(p.to);
             TradeChat.send(player,p.to,peer == null ? "Player" : G.text(G.call("st.Player","getName",peer)),text,function(ok:Bool) {
+                if (p.op == "reject") return;
                 if (state != current || state.id != id) return;
                 if (commit) pendingCommits--;
                 if (!ok && state.active()) {
@@ -210,7 +238,7 @@ class TradeController {
         else { chat("Trade stopped: "+error); open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); }
     }
     public function dispose():Void {
-        open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = [];
+        open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = []; handledInvites = [];
         state = null; player = group = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
     }
 }

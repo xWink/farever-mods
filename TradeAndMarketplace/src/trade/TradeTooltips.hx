@@ -26,7 +26,10 @@ class TradeTooltips {
             var flags = G.create("hxbit.EnumFlagsData",[null]); G.set(flags,"value",p.flags); G.set(item,"flags",flags);
             if (G.isA(item,"st.item.Gear")) {
                 G.set(item,"level",p.level); G.set(item,"upgradeLevel",p.upgrade); G.set(item,"infusion",nullable(p.infusion)); G.set(item,"infusionBonusStat",nullable(p.bonus));
-                G.set(item,"slots",proxy([for(s in p.slots) nullable(s)]));
+                // The game's affix cache compares enum parameters using its own String class.
+                // Inserting mod-owned strings into a dynamic array can show gift names while
+                // missing their cached affix values. Keep the database's native IDs here.
+                G.set(item,"slots",proxy([for(s in p.slots) s == "" ? null : G.field(TradeInventory.definition(s),"id")]));
             }
             if (G.isA(item,"st.item.Weapon")) {
                 G.set(item,"rarity",nullable(p.rarity));

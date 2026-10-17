@@ -21,3 +21,10 @@
 -cp tests
 -main CapacityTest
 --interp
+
+--next
+-cp src
+-cp tests
+-cp tests/tooltip-stubs
+-main TooltipTest
+--interp

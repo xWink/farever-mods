@@ -29,8 +29,9 @@ class TradeFrame {
         constructing = true;
         try window = G.create("ui.win.TitleWindow",["Options",null]) catch(e:Dynamic) { constructing = false; throw e; }
         constructing = false;
-        var flags = 0, names = ["PreventCloseOther","FreeCursor","AutoRegisterLayer","NeedLayer"];
-        if (blockInputs) names = names.concat(["BlockInputs","BlockSkills"]);
+        var flags = 0, names = ["PreventCloseOther","AutoRegisterLayer","NeedLayer"];
+        // Incoming requests leave the player's cursor and movement modes alone.
+        if (blockInputs) names = names.concat(["FreeCursor","BlockInputs","BlockSkills"]);
         for (name in names) flags |= 1 << Type.enumIndex(G.enumeration("ui.win.WindowFlags",name));
         G.call("ui.win.BaseWindow","set_windowFlags",window,[flags]); G.call("ui.win.BaseWindow","rebuild",window);
         // Use the native window layer, below HUD item dragging and the cursor.

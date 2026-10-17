@@ -12,8 +12,11 @@ No ImGui dependency. This is an initial testing build, not a published release.
 3. The other player receives a **Trade request** popup and clicks **Accept request**
    or **Decline**. Accepting opens their Trade window and backpack. Drag the popup
    by its header to move it; its position is saved between requests and restarts,
-   and kept on screen if the resolution changes. Simultaneous requests resolve
-   to one invitation, which the receiving player accepts. The countdown sits
+   and kept on screen if the resolution changes. The popup preserves your cursor
+   mode: press Alt to show the mouse if it was hidden. Incoming requests are
+   automatically rejected during combat, NPC dialogue, another trade/request,
+   or while inventory, settings, map or another menu is open. The requester sees
+   **Player is busy.** The countdown sits
    in the header's right corner, matching Ready Check.
    The initiator stays in place; after accepting the request, the recipient
    tries to walk onto the initiator's position, as closely as native collision
@@ -21,6 +24,9 @@ No ImGui dependency. This is an initial testing build, not a published release.
    no facing, flat-ground or precise-overlap requirement to accept the trade.
    Movement and manual/quick-loot pickup are blocked while the trade window is
    open. The incoming request popup alone does not lock the recipient's controls.
+   **Reject all trade requests** in General settings (off by default) rejects
+   incoming invitations with **Player is not accepting trade requests.** You can
+   still initiate trades yourself when this preference is on.
 4. Your backpack opens beside Trade automatically. Drag items onto **Your offer**, or right-click them to
    add/remove them. Right-click an offered item, or drag it out of your offer,
    to remove it. You can offer six items/stacks in a single row per offer. Right-click offers a whole
@@ -121,6 +127,8 @@ Enabled preference. The solo preview and its F8 binding have been removed.
   supplies the native tooltip/comparison UI. Preview objects never receive the
   offered UID, bind to a network host, enter inventories or issue item actions.
   Tooltip metadata is included in acceptance hashes.
+  Socketed-gift preview IDs are resolved back to game-owned database strings so
+  the native affix cache can display their values, including weapon-flag scaling.
 - Original item identities are checked before dropping. Item fingerprints cover
   kind, class, flags, level, upgrades, rarity, infusion/bonus, slots/enchantments,
   and weapon effects. Ground-object IDs are announced and independently checked
@@ -155,7 +163,7 @@ haxe test.hxml
 haxe compile.hxml
 ```
 
-Trade errors use the Cancel button's red in local chat; successful completion
+Trade errors use `#b9443a` in local chat; successful completion
 appears in green. Both use a dark one-pixel drop shadow for readability.
 
 The GitHub Actions workflow runs protocol, inventory, controller and simulated exchange tests, compares

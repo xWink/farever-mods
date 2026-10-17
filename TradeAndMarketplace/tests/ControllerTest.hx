@@ -11,9 +11,10 @@ class ControllerTest {
         var line = GameAccess.lines[GameAccess.lines.length - 1];
         return line != null && line.color == 0xB9443A && line.style_color == 0xB9443A;
     }
-    static function fixture():TradeController {
+    static function fixture(start = true):TradeController {
         locked = false; nativeAllowed = true; gateCalls = 0;
-        GameAccess.lines = []; TradeChat.sent = [];
+        GameAccess.lines = []; TradeChat.sent = []; TradeChat.delivered = true; TradeMod.rejectAllRequests = false;
+        GameAccess.ui = {windows: [], get_chat: function() return {messages: {}}};
         var item:Dynamic = {__uid: "item", kind: "Copper", getName: () -> "Copper", maxStack: () -> 99, canStack: (other:Dynamic) -> other.kind == "Copper"};
         var inventory:Dynamic = {content: [{item: item, count: 4}], getFreeSize: () -> 10};
         // Models the hooked game's permission result (including Item Utilities locks).
@@ -23,9 +24,82 @@ class ControllerTest {
         var hero:Dynamic = {__uid: "hero", loadout: {inventory: inventory}, position: {x: 0, y: 0, z: 0}, isDead: () -> false};
         var peer:Dynamic = {uid: "peer", getName: () -> "Bob", hero: {position: {x: 0, y: 0, z: 0}, isDead: () -> false}};
         var me:Dynamic = {uid: "me", isMe: true, hero: hero, getName: () -> "Alice"};
-        me.group = {players: {array: [me, peer]}}; GameAccess.app = {me: me};
+        me.group = {players: {array: [me, peer]}}; GameAccess.app = {me: me, isInCutscene: () -> false};
         slot = {inventory: inventory, getIndex: () -> 0, dragCountOverride: 2};
-        var controller = new TradeController(); controller.request("peer"); return controller;
+        var controller = new TradeController();
+        if (start) controller.request("peer"); else controller.ensure(me);
+        return controller;
+    }
+    static var inviteSequence = 0;
+    static function invite(c:TradeController,id = "request",to = "me",sender = "peer"):Void {
+        var encoder = new TradeWire("I"+(++inviteSequence));
+        for (text in encoder.encode({id:id,to:to,op:"invite"},"Bob")) c.receive(null,{sender:sender},text);
+    }
+    static function sentPackets():Array<Dynamic> {
+        var decoder = new TradeWire("R"), packets:Array<Dynamic> = [];
+        for (message in TradeChat.sent) {
+            var packet = decoder.receive("me",message.text,0);
+            if (packet != null) packets.push(packet);
+        }
+        return packets;
+    }
+    static function rejection(c:TradeController,reason:String):Void {
+        invite(c); c.update(GameAccess.app,haxe.Timer.stamp());
+        var packets = sentPackets();
+        check(c.state.phase == "idle" && !c.open && GameAccess.lines.length == 0, "Auto-reject leaves the receiver undisturbed");
+        check(packets.length == 1 && packets[0].op == "cancel" && packets[0].id == "request"
+            && packets[0].to == "peer" && packets[0].reason == reason, "Rejection carries the exact reason to the requester");
+    }
+    static function requestChecks():Void {
+        var c = fixture(false); invite(c);
+        check(c.state.phase == "invited" && !c.open, "An available player receives a request without opening trade");
+        invite(c); c.update(GameAccess.app,haxe.Timer.stamp());
+        check(c.state.phase == "invited" && TradeChat.sent.length == 0, "Repeated delivery does not reject the accepted invitation");
+        c = fixture(false); c.inv.hero.isInCombat = true;
+        rejection(c,"Player is busy.");
+        c.inv.hero.isInCombat = false; invite(c); c.update(GameAccess.app,haxe.Timer.stamp()+1);
+        check(sentPackets().length == 1 && c.state.phase == "idle", "Rejected invitation is not replayed after combat ends");
+        for (kind in ["InventoryUI","Options","DialogBar","BigMap"]) {
+            c = fixture(false); GameAccess.ui.windows = [{kind:kind,parent:{},removed:false,visible:true}];
+            rejection(c,"Player is busy.");
+        }
+        c = fixture(false); GameAccess.ui.contextMenu = {removed:false}; rejection(c,"Player is busy.");
+        c = fixture(false); GameAccess.app.isInCutscene = () -> true; rejection(c,"Player is busy.");
+        c = fixture(false);
+        GameAccess.ui.windows = [{parent:{},removed:true},{parent:null},{parent:{},visible:false}];
+        invite(c); check(c.state.phase == "invited", "Removed, detached and hidden windows do not mark the player busy");
+        c = fixture(false); TradeMod.rejectAllRequests = true; c.inv.hero.isInCombat = true;
+        rejection(c,"Player is not accepting trade requests.");
+        c = fixture(false); TradeMod.rejectAllRequests = true;
+        invite(c,"wrong-recipient","someone-else"); invite(c,"","me"); invite(c,"outsider","me","outsider");
+        c.update(GameAccess.app,haxe.Timer.stamp());
+        check(TradeChat.sent.length == 0, "Invalid, misaddressed and non-party invitations receive no reply");
+        c = fixture(); offering(c);
+        c.update(GameAccess.app,haxe.Timer.stamp()); TradeChat.sent = [];
+        var id = c.state.id, peer = c.state.peer;
+        c.player.group.players.array.push({uid:"other",getName:()->"Charlie"});
+        invite(c,"other-request","me","other"); c.update(GameAccess.app,haxe.Timer.stamp()+1);
+        var packets = sentPackets();
+        check(c.state.id == id && c.state.peer == peer && c.state.phase == "offering" && c.open,
+            "Rejecting another request preserves the active trade");
+        check(packets.length == 1 && packets[0].id == "other-request" && packets[0].to == "other" && packets[0].reason == "Player is busy.",
+            "Busy rejection belongs to the incoming request, not the active trade");
+        TradeChat.delivered = false; invite(c,"undelivered"); c.update(GameAccess.app,haxe.Timer.stamp()+2);
+        check(c.state.phase == "offering", "Failed rejection delivery cannot cancel the active trade");
+        TradeChat.delivered = true; TradeChat.sent = [];
+        invite(c,"queued-rejection"); c.cancelByUser();
+        c.update(GameAccess.app,haxe.Timer.stamp()+3); c.update(GameAccess.app,haxe.Timer.stamp()+4);
+        packets = sentPackets();
+        check(packets.length == 2 && packets[0].id == "queued-rejection" && packets[1].id == id,
+            "Cancelling the active trade preserves its separate queued rejection reply");
+        c = fixture(); var requestId = c.state.id;
+        for (text in new TradeWire("P").encode({id:requestId,to:"me",op:"cancel",reason:"Player is busy."}))
+            c.receive(null,{sender:"peer"},text);
+        c.update(GameAccess.app,haxe.Timer.stamp());
+        check(!c.open && c.state.phase == "cancelled" && latestRed() && GameAccess.lines[0].text == "Player is busy.",
+            "Requester sees the rejection in red and their trade closes");
+        c = fixture(false); TradeMod.rejectAllRequests = true; c.request("peer");
+        check(c.state.phase == "inviting", "Reject-all preference still allows initiating outgoing requests");
     }
     static function offering(c:TradeController):Void {
         c.state.phase = "offering"; c.state.ack = c.state.revision; c.state.peerRevision = 0;
@@ -81,7 +155,8 @@ class ControllerTest {
         c.state.theirs = [second]; second.count = 1;
         check(c.completionText() == "Trade complete - received 1 item.", "Singular item count");
         c.fail("shadow check");
-        check(latestRed() && GameAccess.lines[0].dropShadow.color == 0, "Cancel-button red also has a shadow");
+        check(latestRed() && GameAccess.lines[0].dropShadow.color == 0, "Error red also has a shadow");
+        requestChecks();
         Sys.println("Controller and inventory checks passed: " + checks);
     }
 }

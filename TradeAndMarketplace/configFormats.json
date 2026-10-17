@@ -10,6 +10,11 @@
       "key": "enabled",
       "type": "checkbox",
       "label": "Enabled"
+    },
+    {
+      "key": "rejectAllRequests",
+      "type": "checkbox",
+      "label": "Reject all trade requests"
     }
   ]
 }
