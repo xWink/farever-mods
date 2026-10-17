@@ -11,7 +11,7 @@ class DependencyCheckTest {
     }
 
     static function main():Void {
-        for (id in ["dps-meter", "minimap", "item-utilities", "more-settings", "fix-target-lock"]) {
+        for (id in ["dps-meter", "minimap", "item-utilities", "more-settings", "fix-target-lock", "trade"]) {
             equal(DependencyCheck.missing(false, true).join(","), "Better Mod Settings");
             equal(DependencyCheck.missing(true, false).join(","), "Mod Update Alerts");
             equal(DependencyCheck.missing(false, false).join(","), "Better Mod Settings,Mod Update Alerts");

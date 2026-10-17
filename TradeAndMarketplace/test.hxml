@@ -1,0 +1,10 @@
+-cp src
+-cp tests
+-main ProtocolTest
+--interp
+--next
+-cp src
+-cp tests
+-cp tests/exchange-stubs
+-main ExchangeTest
+--interp

@@ -1,0 +1,72 @@
+name: Trade and Marketplace
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'TradeAndMarketplace/**'
+      - 'shared/**'
+      - '.github/workflows/build-trade-and-marketplace.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'TradeAndMarketplace/**'
+      - 'shared/**'
+      - '.github/workflows/build-trade-and-marketplace.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-trade-and-marketplace-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Test protocol and exchange safeguards
+        working-directory: TradeAndMarketplace
+        run: haxe test.hxml
+      - uses: actions/checkout@v4
+        with:
+          repository: HaxeFoundation/hashlink
+          ref: 04a207d73816132b9f742867e8643f58b02a5afa
+          path: .trade-oracle-hashlink
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build isolated bytecode comparison harness
+        run: |
+          pip install crashlink==0.0.9
+          python TradeAndMarketplace/recovery/tools/patch_oracle_runtime.py .trade-oracle-hashlink
+          make -C .trade-oracle-hashlink -j2 hl
+      - name: Compare with surviving original bytecode
+        working-directory: TradeAndMarketplace
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.trade-oracle-hashlink
+        run: |
+          mkdir -p build
+          unzip -p recovery/reference.zip hlx/mods/trade/implementation/trade.hl > build/reference.hl
+          python recovery/tools/make_oracle.py build/reference.hl build/original-oracle.hl
+          haxe -cp src -cp tests -main OracleTest -hl build/oracle-test.hl
+          ../.trade-oracle-hashlink/hl build/original-oracle.hl
+
+  build:
+    needs: test
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: TradeAndMarketplace
+      module: trade
+      title: Trade and Marketplace
+      required-settings: true

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Trade + Marketplace",
+  "configs": [
+    {"type":"title", "label":"General"},
+    {"key":"enabled", "type":"checkbox", "label":"Enabled"}
+  ]
+}

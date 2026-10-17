@@ -1,0 +1,7 @@
+{
+  "archive": "farever-trade-marketplace-status-spacing-20261014.zip",
+  "sha256": "13d45bdd88d2d9164fe9f8bcabf49a799d0f580380e469e8902cac423eec71b3",
+  "original_source_commit": "036c485aac59a3888df73d04d5af91bd68ef4279",
+  "status": "Reconstructed maintainable Haxe source; protocol differential checks passed; live game validation pending",
+  "reference_path": "reference.zip"
+}
