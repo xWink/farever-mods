@@ -4,6 +4,7 @@ package dpsmeter;
     production builds do not include this classpath. */
 class GameAccess {
     public static var globals:Map<String, Dynamic> = [];
+    public static var enchantTypeReads:Int = 0;
     public static function field(object:Dynamic, name:String):Dynamic return object == null ? null : Reflect.field(object, name);
     public static function text(value:Dynamic, fallback:String = ""):String return value == null ? fallback : Std.string(value);
     public static function uid(value:Dynamic):String return text(field(value, "__uid"));
@@ -87,6 +88,10 @@ class GameAccess {
         case "HActivity.getInf": (cast globals["activities"]:Map<String, Dynamic>).get(args[0]);
         case "HActivity.isOfType": (cast field(args[0], "types"):Array<String>).indexOf(args[1]) >= 0;
         case "HSkill.getSkillRef": (cast globals["skillRefs"]:Map<String, Dynamic>).get(args[0]);
+        case "HItem.isSameType":
+            enchantTypeReads++;
+            args[0].id == args[1] || args[0].inherit == args[1];
+        case "HItem.getGfx": field(args[0], "gfx") != null ? field(args[0], "gfx") : field(args[0], "defaultGfx");
         case "ui.BaseUI.getTile": args[0];
         // In particular HText.skill is intentionally unavailable: readable
         // names must not depend on constructing a native SkillSpec.

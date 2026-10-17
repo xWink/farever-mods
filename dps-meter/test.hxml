@@ -140,6 +140,12 @@
 
 --next
 -cp src
+-cp tests
+-main ReportGraphTest
+--interp
+
+--next
+-cp src
 -cp ../shared/src
 -cp tests
 -cp tests/account-ui

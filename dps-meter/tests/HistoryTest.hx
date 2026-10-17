@@ -1237,6 +1237,31 @@ class HistoryTest {
         GameAccess.globals.remove("Data.item");
         check(NativeCombatMetadata.skillName("ConsumeFlask") == "Hess'tuss Flask" && NativeCombatMetadata.skillIcon("ConsumeFlask") == null,
             "Missing item metadata never reintroduces the movement buff name or icon");
+        var flameGfx:Dynamic = {file:"flaming-scroll.png"}, lifeGfx:Dynamic = {file:"lifestealing-scroll.png"};
+        definitions["Enchant_FlamingWeapon"] = {texts:{name:"Flaming Weapon"}};
+        definitions["Enchant_Lifestealing"] = {texts:{name:"Lifestealing"}};
+        refs["Lifestealing_Heal"] = {id:"Enchant_Lifestealing"};
+        check(NativeCombatMetadata.skillIcon("Enchant_FlamingWeapon") == null, "Missing item data remains safe and retryable");
+        GameAccess.globals["Data.itemType"] = {byId:["AugmentEnchantWeapon" => {id:"AugmentEnchantWeapon", inherit:"Augment"},
+            "Weapon" => {id:"Weapon", inherit:"Gear"}]};
+        var scrolls:Array<Dynamic> = [
+            {id:"EnchantedSword", type:"Weapon", skills:[{skill:"Enchant_FlamingWeapon"}], gfx:{file:"sword.png"}},
+            {id:"FormulaWeaponFlamingWeapon", type:"AugmentEnchantWeapon", skills:[{skill:"Enchant_FlamingWeapon"}], gfx:flameGfx},
+            {id:"FormulaWeaponLifestealing", type:"AugmentEnchantWeapon", skills:[{skill:"Enchant_Lifestealing"}], defaultGfx:lifeGfx}];
+        GameAccess.globals["Data.item"] = {all:scrolls};
+        check(NativeCombatMetadata.skillIcon("Enchant_FlamingWeapon") == flameGfx, "Flaming Weapon uses its scroll, not the enchanted weapon");
+        check(NativeCombatMetadata.skillIcon("Enchant_Lifestealing") == lifeGfx, "Lifestealing uses native inherited scroll artwork");
+        check(NativeCombatMetadata.skillIcon("Lifestealing_Heal") == lifeGfx, "Referenced enchant effects share the scroll icon");
+        var typeReads = GameAccess.enchantTypeReads;
+        NativeCombatMetadata.skillIcon("Enchant_FlamingWeapon");
+        check(GameAccess.enchantTypeReads == typeReads, "Repeated icon lookups do not rescan item definitions");
+        definitions["Enchant_FlamingWeapon"].gfx = strideGfx;
+        check(NativeCombatMetadata.skillIcon("Enchant_FlamingWeapon") == strideGfx, "Existing skill artwork takes priority over fallback");
+        check(NativeCombatMetadata.skillIcon("Removed_Skill") == null, "Unrelated missing skills do not receive an enchant icon");
+        check(NativeCombatMetadata.skillIcon("Enchant_Unknown") == null, "Unknown enchants do not borrow a different scroll");
+        GameAccess.globals["Data.item"] = {all:[scrolls[2]]};
+        check(NativeCombatMetadata.skillIcon("Enchant_Lifestealing") == lifeGfx, "Replaced native definitions rebuild the scroll lookup");
+        GameAccess.globals.remove("Data.item"); GameAccess.globals.remove("Data.itemType");
         GameAccess.globals["activities"] = ["TestArena" => {types: ["Dungeon"]}, "TestClassic" => {types: ["Boss", "Dungeon"]}];
         var activity:Dynamic = {};
         var player:Dynamic = {context: {objectives: {array: []}}};

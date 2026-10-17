@@ -385,7 +385,7 @@ class NativeDetailedReport {
         var index = Std.int(Math.max(0, Math.min(bins.length - 1, Math.floor(time / data.graph.step))));
         setText(graphLabel, DetailedReport.timestamp(time) + (uptime() ? " · Click to jump" : "  ·  "
             + (mode == "health" && data.graph.knownHp[index] != true ? "Unknown" : compact(bins[index]))
-            + " / sec" + "  ·  Click to jump"));
+            + (mode == "health" ? " HP" : " / sec") + "  ·  Click to jump"));
         fitGraphCaption();
         G.call("h2d.Graphics", "clear", cursor);
         fill(cursor, 0x614c3e, .5, plotLeft() + Math.max(0, Math.min(plotWidth(), x)), PLOT_TOP, 1, PLOT_BOTTOM - PLOT_TOP);
@@ -451,12 +451,15 @@ class NativeDetailedReport {
             fill(graphic, 0x806a58, i == 2 ? .25 : .14, left, y, pw, 1);
             graphText(i, compact(max * (1 - i / 2)), 8, y - 7, left - 18, "right");
         }
-        for (i in 0...bins.length) {
-            if (mode == "health" && data.graph.knownHp[i] != true) continue;
-            var x = left + i * pw / bins.length;
-            var h = Math.min(PLOT_BOTTOM - PLOT_TOP, bins[i] / max * (PLOT_BOTTOM - PLOT_TOP));
-            fill(graphic, tint, .88, x, PLOT_BOTTOM - h, Math.max(1, pw / bins.length - 1), h);
+        G.call("h2d.Graphics", "lineStyle", graphic, [2.0, tint, .95]);
+        for (line in ReportGraph.lines(bins, data.graph.step, end, max, mode == "health" ? cast data.graph.knownHp : null)) {
+            for (i in 0...line.length) {
+                var point = line[i];
+                G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", graphic,
+                    [left + point.x * pw, PLOT_TOP + point.y * (PLOT_BOTTOM - PLOT_TOP)]);
+            }
         }
+        G.call("h2d.Graphics", "lineStyle", graphic, [0.0, tint, 0.0]);
         graphText(22, duration(end / 2), left + pw / 2 - 36, PLOT_BOTTOM + 4, 72, "center", 17, INK);
         if (mode == "health" && data.graph.hasHp != true)
             graphText(4, "No recorded health samples", left, PLOT_TOP + 28, pw, "center");

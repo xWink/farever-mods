@@ -11,6 +11,9 @@ class NativeCombatMetadata {
     static var dungeonBosses:Map<String, String> = [];
     static var warned:Bool = false;
     static var dummyGroup:Null<Int>;
+    static var enchantItemSource:Dynamic;
+    static var enchantItemCount:Int = -1;
+    static var enchantItems:Map<String, Dynamic> = [];
     public static function isTargetDummy(inf:Dynamic):Bool {
         if (inf == null) return false;
         // Match Minimap's native classification, independent of translated
@@ -177,9 +180,40 @@ class NativeCombatMetadata {
         try {
             var inf = skillDefinition(id);
             var gfx = id == "ConsumeFlask" ? G.field(skillItem(id), "gfx") : G.field(inf, "gfx");
-            if (gfx == null && id != "ConsumeFlask") gfx = G.field(G.staticCall("HSkill", "getSkillRef", [id]), "gfx");
-            return gfx == null ? null : G.staticCall("ui.BaseUI", "getTile", [gfx, null, null]);
+            var source:Dynamic = null;
+            if (gfx == null && id != "ConsumeFlask") {
+                source = G.staticCall("HSkill", "getSkillRef", [id]);
+                gfx = G.field(source, "gfx");
+            }
+            if (gfx != null) return G.staticCall("ui.BaseUI", "getTile", [gfx, null, null]);
+            var tile = enchantIcon(id);
+            return tile != null ? tile : enchantIcon(G.text(G.field(source, "id")));
         } catch (e:Dynamic) { warn(e); return null; }
+    }
+    static function enchantIcon(id:String):Dynamic {
+        if (!StringTools.startsWith(id, "Enchant_")) return null;
+        var all = G.field(G.current("Data", "item"), "all");
+        var count = G.integer(G.field(all, "length"));
+        if (all == null || count == 0) return null;
+        if (enchantItemSource != all || enchantItemCount != count) {
+            var items:Map<String, Dynamic> = [];
+            var types = G.field(G.current("Data", "itemType"), "byId");
+            if (types == null) return null;
+            for (item in G.array(all)) {
+                var skills = [for (entry in G.array(G.field(item, "skills"))) G.text(G.field(entry, "skill"))];
+                skills = skills.filter(key -> StringTools.startsWith(key, "Enchant_"));
+                if (skills.length == 0) continue;
+                var type = G.call("haxe.ds.StringMap", "get", types, [G.text(G.field(item, "type"))]);
+                // Match the scroll's inherited item type, not weapons carrying
+                // the same passive or translated item names.
+                if (type == null || G.staticCall("HItem", "isSameType", [type, "Augment"]) != true) continue;
+                for (key in skills) if (!items.exists(key)) items[key] = item;
+            }
+            enchantItems = items; enchantItemSource = all; enchantItemCount = count;
+        }
+        var item = enchantItems[id];
+        // Native item rendering also resolves inherited/default scroll artwork.
+        return item == null ? null : G.staticCall("HItem", "getGfx", [item]);
     }
     static function warn(error:Dynamic):Void {
         if (warned) return;
