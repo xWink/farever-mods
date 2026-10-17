@@ -32,6 +32,7 @@ class NativeDetailedReport {
     var searchAt:Float = -1;
     var graphLabel:Dynamic;
     var graphic:Dynamic;
+    var graphLine:Dynamic;
     var cursor:Dynamic;
     var graphInput:Dynamic;
     var graphTexts:Array<Dynamic> = [];
@@ -67,6 +68,14 @@ class NativeDetailedReport {
         object = G.field(root, "obj"); padding(object, 0);
         // Draw the card before its controls so its fill never tints native buttons.
         graphic = G.create("h2d.Graphics", [object]);
+        graphLine = G.create("h2d.Graphics", [object]);
+        // Supersample only the plotted line, keeping text and controls crisp.
+        // Screen-relative resolution also follows the meter's UI scale.
+        var antialias = G.create("h2d.filter.Nothing", []);
+        G.set(antialias, "smooth", true); G.set(antialias, "boundsExtend", 1.0);
+        G.call("h2d.filter.Filter", "set_useScreenResolution", antialias, [true]);
+        G.call("h2d.filter.Filter", "set_resolutionScale", antialias, [4.0]);
+        G.call("h2d.Object", "set_filter", graphLine, [antialias]);
         cursor = G.create("h2d.Graphics", [object]);
         graphInput = G.create("h2d.Interactive", [100.0, 102.0, object, null]);
         filterBox = new HistoryDropdown(root, "dpsEventFilter", [
@@ -130,7 +139,7 @@ class NativeDetailedReport {
         lanePrevious = button(root, "<", "dpsUptimePrevious", () -> { if (lanePage > 0) { lanePage--; drawGraph(); } });
         laneNext = button(root, ">", "dpsUptimeNext", () -> { lanePage++; drawGraph(); });
         for (i in 0...3) { var icon = G.create("h2d.Bitmap", [null, object]); absolute(object, icon); laneIcons.push(icon); show(icon, false); }
-        for (c in [filterBox.object, sourceBox.object, targetBox.object, metricBox.object, searchBox, graphLabel, graphic, cursor, graphInput,
+        for (c in [filterBox.object, sourceBox.object, targetBox.object, metricBox.object, searchBox, graphLabel, graphic, graphLine, cursor, graphInput,
             G.field(list, "obj"), empty, previous, next, pages, laneNext, lanePrevious].concat(headingTexts)) absolute(object, c);
         show(object, false);
     }
@@ -284,7 +293,7 @@ class NativeDetailedReport {
         var w = width;
         var metricWidth = Std.int(Math.min(284, w * .44));
         metricBox.resize(metricWidth); position(metricBox.object, 12, GRAPH_Y + 8);
-        position(graphic, 0, GRAPH_Y); position(cursor, 0, GRAPH_Y);
+        position(graphic, 0, GRAPH_Y); position(graphLine, 0, GRAPH_Y); position(cursor, 0, GRAPH_Y);
         position(graphInput, plotLeft(), GRAPH_Y + PLOT_TOP);
         G.set(graphInput, "width", plotWidth()); G.set(graphInput, "height", PLOT_BOTTOM - PLOT_TOP + 18.0);
         HistoryButtons.singleLine(lanePrevious, 32, 28); position(lanePrevious, w - 84, GRAPH_Y + 12);
@@ -407,6 +416,7 @@ class NativeDetailedReport {
     function lanePages():Int return data == null ? 1 : Std.int(Math.max(1, Math.ceil((cast data.lanes:Array<Dynamic>).length / 3)));
     function drawGraph():Void {
         G.call("h2d.Graphics", "clear", graphic); G.call("h2d.Graphics", "clear", cursor);
+        G.call("h2d.Graphics", "clear", graphLine);
         for (t in graphTexts) show(t, false);
         show(laneNext, false); show(lanePrevious, false);
         for (icon in laneIcons) show(icon, false);
@@ -451,15 +461,15 @@ class NativeDetailedReport {
             fill(graphic, 0x806a58, i == 2 ? .25 : .14, left, y, pw, 1);
             graphText(i, compact(max * (1 - i / 2)), 8, y - 7, left - 18, "right");
         }
-        G.call("h2d.Graphics", "lineStyle", graphic, [2.0, tint, .95]);
+        G.call("h2d.Graphics", "lineStyle", graphLine, [2.0, tint, .95]);
         for (line in ReportGraph.lines(bins, data.graph.step, end, max, mode == "health" ? cast data.graph.knownHp : null)) {
             for (i in 0...line.length) {
                 var point = line[i];
-                G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", graphic,
+                G.call("h2d.Graphics", i == 0 ? "moveTo" : "lineTo", graphLine,
                     [left + point.x * pw, PLOT_TOP + point.y * (PLOT_BOTTOM - PLOT_TOP)]);
             }
         }
-        G.call("h2d.Graphics", "lineStyle", graphic, [0.0, tint, 0.0]);
+        G.call("h2d.Graphics", "lineStyle", graphLine, [0.0, tint, 0.0]);
         graphText(22, duration(end / 2), left + pw / 2 - 36, PLOT_BOTTOM + 4, 72, "center", 17, INK);
         if (mode == "health" && data.graph.hasHp != true)
             graphText(4, "No recorded health samples", left, PLOT_TOP + 28, pw, "center");
