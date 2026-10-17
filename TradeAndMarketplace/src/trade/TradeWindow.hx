@@ -93,21 +93,22 @@ class TradeWindow {
         lastOffer = lastStatuses = ""; lastAccepted = null; tooltipFailed = false; showInventory();
     }
     function inventoryFullIcon(parent:Dynamic):Dynamic {
-        // Draw once as native vector geometry so the small indicator stays crisp at UI scale.
-        var g = graphic(parent);
-        rounded(g,9,13,19,18,8,0x62412C);
-        rounded(g,11,14,15,15,6,0x956745);
-        rounded(g,12,7,12,8,3,0x62412C);
-        rounded(g,13,8,10,4,2,0xAC815B);
-        rounded(g,11,13,15,3,1.5,0xD3B17B);
-        rounded(g,23,15,2,7,1,0xD3B17B);
+        var root = G.create("h2d.Object",[parent]); absolute(parent,root);
+        var definition = TradeInventory.definition("SmallPouch");
+        if (definition != null) {
+            var icon = G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),root]);
+            position(icon,2,2);
+            G.call("h2d.Bitmap","set_width",icon,[32.0]); G.call("h2d.Bitmap","set_height",icon,[32.0]);
+        }
+        // Draw the warning over the native item icon once, when the window opens.
+        var g = G.create("h2d.Graphics",[root]);
         var width = 2.4, red = 0xB8443A, opacity = 1.0, segments = 64;
         var w:hl.Ref<Float> = width, c:hl.Ref<Int> = red, a:hl.Ref<Float> = opacity, n:hl.Ref<Int> = segments;
         G.call("h2d.Graphics","lineStyle",g,[w,c,a]);
         G.call("h2d.Graphics","drawCircle",g,[18.0,18.0,16.0,n]);
         G.call("h2d.Graphics","moveTo",g,[6.7,6.7]);
         G.call("h2d.Graphics","lineTo",g,[29.3,29.3]);
-        return g;
+        return root;
     }
     function panel(x:Int,y:Int):Dynamic {
         var o = G.field(node("element",G.field(frame.container,"dom"),[],"tradePanel"+x+"_"+y),"obj");

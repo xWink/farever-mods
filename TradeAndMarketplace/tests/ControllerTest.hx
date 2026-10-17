@@ -9,7 +9,7 @@ class ControllerTest {
     static function check(value:Bool, message:String):Void { checks++; if (!value) throw message; }
     static function latestRed():Bool {
         var line = GameAccess.lines[GameAccess.lines.length - 1];
-        return line != null && line.color == 0xB8443A && line.style_color == 0xB8443A;
+        return line != null && line.color == 0xB9443A && line.style_color == 0xB9443A;
     }
     static function fixture():TradeController {
         locked = false; nativeAllowed = true; gateCalls = 0;

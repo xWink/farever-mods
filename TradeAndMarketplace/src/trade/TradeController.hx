@@ -200,7 +200,7 @@ class TradeController {
         var ui = G.current("ui.BaseUI","current"); if (ui == null || !G.isA(ui,"ui.GameUI")) return;
         var chat = G.call("ui.GameUI","get_chat",ui); if (chat == null) return;
         var line = G.create("ui.hud.ChatBoxLine",[G.field(chat,"messages")]), label = G.field(line,"msgText");
-        TradeUi.setText(label,text); var color = success ? 0x59DB70 : 0xB8443A;
+        TradeUi.setText(label,text); var color = success ? 0x59DB70 : 0xB9443A;
         G.call("h2d.Text","set_textColor",label,[color]); TradeUi.style(label,"color",color);
         G.set(label,"dropShadow",{color:0,alpha:0.9,dx:1.0,dy:1.0});
     }
