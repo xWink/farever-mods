@@ -11,6 +11,18 @@ typedef ActivityVisibility = {
 
 /** Shared classification for world activities and instanced entrances. */
 class ActivityMarkers {
+    /** Artwork follows native activity ancestry, independently of filtering. */
+    public static function icon(inf:Dynamic):String {
+        if (inf == null) return "activity";
+        for (entry in [
+            {type:"Boss", icon:"boss"}, {type:"WorldElite", icon:"boss"},
+            {type:"ChestOrb", icon:"orbChest"}, {type:"TimerCollectRun", icon:"orbRace"},
+            {type:"ArenaChest", icon:"ambushChest"},
+            {type:"WorldCamp", icon:"battle"}, {type:"FightStone", icon:"battle"}
+        ]) if (G.staticCall("HActivity", "isOfType", [inf, entry.type]) == true) return entry.icon;
+        return "activity";
+    }
+
     public static function kind(inf:Dynamic):String {
         if (inf == null) return "activity";
         if (G.staticCall("HActivity", "isOfType", [inf, "Ascension"]) == true) return "ascension";

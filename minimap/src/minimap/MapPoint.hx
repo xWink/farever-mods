@@ -5,6 +5,7 @@ typedef MapPoint = {
     var y:Float;
     var z:Float;
     var kind:String;
+    var ?activityIcon:String;
     var ?elevation:Int;
     var ?heading:Float;
     var ?sparkling:Bool;

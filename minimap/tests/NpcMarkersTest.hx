@@ -11,6 +11,11 @@ class NpcMarkersTest {
 
     static function main():Void {
         expect(NpcMarkers.kind(null), "npc", "Missing definition");
+        expect(NpcMarkers.kind({dialog:[], testGoals:[{id:"Help"}]}), "quest", "Native dialogue goals identify quest givers");
+        expect(NpcMarkers.kind({dialog:[], testGoals:[]}), "npc", "Conversation alone is not a quest");
+        expect(NpcMarkers.kind({dialog:[], testGoals:[{id:"Help"}], props:{npc:{unit:"WanderingMerchant"}}}),
+            "bank", "Service icons retain priority over quest artwork");
+        expect(NpcMarkers.isNpc("quest"), true, "Quest givers retain NPC filtering and hover names");
         expect(NpcMarkers.kind({type: 22, props: {}}), "npc", "Ordinary NPC");
         expect(NpcMarkers.kind({type: 22, props: {npc: {unit: "WanderingMerchant"}}}), "bank", "Guild merchant");
         expect(NpcMarkers.kind({id: "World_NPC_17", type: 22, props: {npc: {unit: "TODO_MOG_Merchant"}}}),

@@ -150,7 +150,7 @@ class NativeUtilityUi {
     }
     public static function lockInput(slot:Dynamic, action:Void->Void):Void {
         var entry = get(slot, "lock-input", entry -> {
-            entry.root = G.create("h2d.Interactive", [48.,48.,slot,null]);
+            entry.root = G.create("h2d.Interactive", [0.,0.,slot,null]);
             attach(slot, entry.root);
             G.set(entry.root, "propagateEvents", false);
             G.set(entry.root, "cancelEvents", false);
@@ -163,6 +163,13 @@ class NativeUtilityUi {
             G.set(entry.root, "onWheel", (event:Dynamic) -> G.set(event, "propagate", true));
         });
         entry.action = action;
+        // Match the native slot's complete hit area, including its border.
+        // Refresh dimensions after layout so resizing cannot leave dead edges.
+        var nativeInput = G.field(slot, "interactive");
+        G.set(entry.root, "x", G.number(G.field(nativeInput, "x")));
+        G.set(entry.root, "y", G.number(G.field(nativeInput, "y")));
+        G.set(entry.root, "width", G.number(G.field(nativeInput, "width"), G.number(G.field(slot, "calculatedWidth"))));
+        G.set(entry.root, "height", G.number(G.field(nativeInput, "height"), G.number(G.field(slot, "calculatedHeight"))));
     }
 
     public static function presets(owner:Dynamic, key:String, pixels:OverlayRect, busy:Bool, selected:Int,

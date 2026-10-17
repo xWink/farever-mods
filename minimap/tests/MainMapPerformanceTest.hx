@@ -72,6 +72,17 @@ class MainMapPerformanceTest {
         eq(markers.hitPoints.length, 1, 'Partly visible icons survive viewport culling');
         eq(markers.npcElevationMarkers.length, 1, 'Edge markers retain elevation indicators');
         eq(markers.npcElevationMarkers[0].arrow.nativeType, 'h2d.Bitmap', 'Height indicators also share cached artwork');
+        markers.setViewport(0, 0, 1000, 800);
+        var activityPoints:Array<minimap.MapPoint> = [for (i in 0...6)
+            {kind:"activity", activityIcon:["boss", "orbChest", "orbRace", "battle", "ambushChest", "boss"][i],
+                x:100.+i*25, y:100., z:0.}];
+        var beforeActivities = G.bakes;
+        markers.draw(activityPoints, 1);
+        eq(G.bakes, beforeActivities + 5, "Each activity appearance gets its own cached texture");
+        eq(markers.mapIconMarkers[0].icon.tile, markers.mapIconMarkers[5].icon.tile, "Matching activity types share artwork");
+        eq(markers.mapIconMarkers[0].icon.tile == markers.mapIconMarkers[1].icon.tile, false, "Boss and chest artwork cannot collide");
+        markers.draw(activityPoints, 1);
+        eq(G.bakes, beforeActivities + 5, "Refreshing activities never rebakes unchanged artwork");
         var beforeFailure = G.bakes;
         G.failBake = true;
         var failed = false;

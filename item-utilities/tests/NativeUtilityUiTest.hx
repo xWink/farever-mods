@@ -10,6 +10,7 @@ class NativeUtilityUiTest {
     static function main():Void {
         var scene=G.object("Scene",null), window=G.object("window",scene), header=G.object("flow",window);
         var viewport=G.object("scroll-viewport",window), slot=G.object("slot",viewport);
+        slot.interactive={x:2.,y:3.,width:64.,height:60.};
         var clicks=0, toggles=0, selected=-1, saves=0;
         var rect=new OverlayRect(10,20,42,50), presets=new OverlayRect(20,50,222,86);
         G.ui={top:null};
@@ -20,6 +21,8 @@ class NativeUtilityUiTest {
         UI.endFrame();
         var button=header.children[0], bar=header.children[1], dropdown=bar.children[0], save=bar.children[1];
         var badge=slot.children[0], input=slot.children[1];
+        check(input.x==2 && input.y==3 && input.width==64 && input.height==60,
+            "Lock/junk input covers all four native slot edges, including pixels beyond 48");
         check(button.parent==header && bar.parent==header, "Buttons and preset bar stay in the owning window");
         check(button.absolute && bar.absolute && badge.absolute && input.absolute, "Utilities do not change native flow layout");
         check(badge.parent==slot && input.parent==slot && slot.parent==viewport, "Slot graphics and input inherit the native scroll mask");
@@ -46,11 +49,13 @@ class NativeUtilityUiTest {
         var foreground=G.object("tooltip",scene);
         var geometry=G.geometryCalls;
         dropdown.select.hasHover=true;
+        slot.interactive.width=72.; slot.interactive.height=68.;
         UI.beginFrame();
         UI.button(header,"deposit",rect,"materials","Deposit crafting components",() -> clicks++);
         UI.badge(slot); UI.lockInput(slot,() -> toggles++);
         UI.presets(header,"presets",presets,false,4,i -> selected=i,() -> saves++);
         UI.endFrame();
+        check(input.width==72 && input.height==68, "Existing hit area follows native layout resizing");
         check(Reflect.field(dropdown.select.background.styles,"background")==save.background.shader.backgroundColor.value,
             "Native background has a persistent color style matching Set");
         check(dropdown.select.background.color.value==0xFFCCCCCC,
@@ -82,10 +87,13 @@ class NativeUtilityUiTest {
         check(bar.parent==null && dropdown.listWindow==null,"Leaving a tab cleans up its separate dropdown window");
         UI.beginFrame(); UI.badge(slot); UI.lockInput(slot,() -> toggles++); UI.endFrame();
         UI.forget(slot); check(slot.children.length==0,"Recycled/removed slots immediately lose their utilities");
+        slot.interactive=null; slot.calculatedWidth=56.; slot.calculatedHeight=58.;
         UI.beginFrame(); UI.badge(slot, "junk-badge"); UI.lockInput(slot, () -> toggles++); UI.endFrame();
         var trash:Dynamic = slot.children[0];
         check(trash.parent==slot && trash.x==40 && trash.y==7, "Trash badge uses the lock badge's top-right placement");
         var trashInput:Dynamic=slot.children[1]; trashInput.onClick({button:0});
+        check(trashInput.width==56 && trashInput.height==58 && trashInput.x==0 && trashInput.y==0,
+            "Slots without native input use their full calculated layout dimensions");
         check(toggles==2 && trashInput.propagateEvents==false, "Junk mode also captures the underlying item action");
         UI.beginFrame(); UI.badge(slot); UI.endFrame();
         check(trash.parent==null && slot.children.length==1, "Switching marker kinds removes the old badge");

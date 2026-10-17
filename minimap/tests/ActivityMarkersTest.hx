@@ -31,6 +31,17 @@ class ActivityMarkersTest {
         equal(ActivityMarkers.kind(rift), "activity", "Instance entrance alone does not imply dungeon");
         equal(ActivityMarkers.kind(ordinary), "activity", "Name alone does not imply dungeon");
         equal(ActivityMarkers.kind(null), "activity", "Missing optional definition");
+        var roots = ["Boss", "WorldElite", "ChestOrb", "TimerCollectRun", "ArenaChest", "WorldCamp", "FightStone"];
+        var icons = ["boss", "boss", "orbChest", "orbRace", "ambushChest", "battle", "battle"];
+        for (i in 0...roots.length) {
+            definition(roots[i]);
+            definition("Template" + i, roots[i]);
+            var inf = definition("Encounter" + i, "Template" + i);
+            equal(ActivityMarkers.icon(inf), icons[i], "Artwork follows inherited native activity type");
+            equal(ActivityMarkers.kind(inf), "activity", "Artwork does not change filter category");
+        }
+        equal(ActivityMarkers.icon(definition("BossNamedPuzzle")), "activity", "Names do not identify artwork");
+        equal(ActivityMarkers.icon(null), "activity", "Unknown activities keep generic artwork");
 
         // Exercise all four visibility toggles with incomplete, complete, and
         // temporarily unavailable progress (such as during character loading).

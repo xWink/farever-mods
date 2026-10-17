@@ -564,7 +564,7 @@ class MinimapMarkers {
                 continue;
             }
             var position = G.staticCall("HActivity", "getPos", [definition]);
-            activities.push({kind: kind, inf: inf,
+            activities.push({kind: kind, inf: inf, activityIcon: ActivityMarkers.icon(inf),
                 x: G.number(G.field(position, "x")), y: G.number(G.field(position, "y")),
                 z: G.number(G.field(position, "z"), Math.NaN)});
         }
@@ -582,7 +582,7 @@ class MinimapMarkers {
             var props = G.field(activityInf, "props");
             if (!worldEvents.checkStatus(G.field(props, "releaseStatus"))) continue;
             var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", G.field(orb, "prefab"), [true]);
-            activities.push({kind: ActivityMarkers.kind(activityInf), inf: activityInf,
+            activities.push({kind: ActivityMarkers.kind(activityInf), inf: activityInf, activityIcon: ActivityMarkers.icon(activityInf),
                 x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
                 z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
@@ -669,7 +669,7 @@ class MinimapMarkers {
         return Math.abs(px - x) <= radius && Math.abs(py - y) <= radius;
 
     static function markerRadius(kind:String):Float return switch kind {
-        case "bank", "player", "activity", "ascension", "companion": 7;
+        case "bank", "player", "activity", "ascension", "companion", "quest": 7;
         case "plant", "ore", "boss": 5;
         case "obelisk", "dungeon", "soulstone", "secretOrb", "glory", "chest", "vaultChest", "recipeChest": 8;
         case "targetDummy", "upcomingRift", "infusion", "craft", "recycler", "respawn", "demon": 9;
@@ -857,6 +857,7 @@ class MinimapMarkers {
         for (i in 0...points.length) {
             var point = points[i], marker = pool[i];
             var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "")
+                + (point.activityIcon == null ? "" : ":" + point.activityIcon)
                 + (point.friend == true ? ":friend" : "")
                 + (point.respawnUnlocked == true ? ":unlocked" : "");
             // Draw in local pixels once per appearance, then reuse the geometry
@@ -865,7 +866,7 @@ class MinimapMarkers {
                 var paint = (target:Dynamic) -> {
                     graphics = target;
                     drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember, friend: point.friend,
-                        respawnUnlocked: point.respawnUnlocked, heading: 0, x: 0, y: 0, z: 0});
+                        respawnUnlocked: point.respawnUnlocked, activityIcon: point.activityIcon, heading: 0, x: 0, y: 0, z: 0});
                 };
                 if (iconCache == null) {
                     G.call("h2d.Graphics", "clear", marker.icon);
@@ -912,6 +913,10 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "quest" || kind == "activity" && point.activityIcon != null && point.activityIcon != "activity") {
+            ActivityIcons.draw(graphics, kind == "quest" ? "quest" : point.activityIcon, markerRadius(kind));
+            return;
+        }
         if (kind == "respawn") {
             LandmarkIcons.respawnPoint(graphics, markerRadius(kind), point.respawnUnlocked == true);
             return;

@@ -9,7 +9,7 @@ class MainMapFilters {
         category("ore", "Ore", "ore", ["copper", "iron", "tin", "tungstene"], ["Copper", "Iron", "Tin", "Tungstene"]),
         category("plants", "Plants", "plant", ["madrigold", "lavendula", "ancientThyme", "zealotus"], ["Madrigold", "Lavendula", "Ancient Thyme", "Zealotus"]),
         category("enemies", "Enemies", "enemy", ["regular", "boss", "targetDummy", "completed", "mastered"],
-            ["Regular enemies", "Bosses and elites", "Target dummies", "Codex XP reward completed", "Codex mastery completed"]),
+            ["Regular enemies", "Bosses and elites", "Target dummies", "Codex partially completed", "Codex mastery completed"]),
         category("companions", "Companions", "companion", ["regular", "sparkling", "collected"], ["Regular companions", "Sparkling companions", "Collected companions"]),
         category("activities", "Activities", "activity", ["activity", "ascension", "completed"],
             ["Activities", "Ascensions", "Completed activities"]),

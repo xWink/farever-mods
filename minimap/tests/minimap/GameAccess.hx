@@ -82,6 +82,7 @@ class GameAccess {
     }
 
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "HElement" && name == "getDialogGoals") return field(args[0], "testGoals");
         if (type == "HText" && name == "unit") {
             if (args.length != 2) throw "Unit name requires two arguments";
             return field(args[0], "name");

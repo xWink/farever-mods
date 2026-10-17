@@ -12,6 +12,7 @@ class InspectAccess {
     public static function field(object:Dynamic, name:String):Dynamic return object == null ? null : Reflect.field(object, name);
     public static function set(object:Dynamic, name:String, value:Dynamic):Void Reflect.setField(object, name, value);
     public static function integer(value:Dynamic, fallback:Int = 0):Int return value == null ? fallback : cast value;
+    public static function number(value:Dynamic, fallback:Float = 0):Float return value == null ? fallback : cast value;
     public static function current(type:String, name:String):Dynamic return type == "hxd.Cursor" ? "Button" : ui;
     public static function object(type:String, parent:Dynamic):Dynamic {
         var value:Dynamic = {type:type,parent:parent,children:[],visible:true,removed:false,enable:true,x:0.,y:0.,items:[],selectedIndex:-1};
