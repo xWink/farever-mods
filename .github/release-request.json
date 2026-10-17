@@ -1,7 +1,7 @@
 {
-  "project": "better-mod-settings",
-  "version": "1.7.1",
+  "project": "dps-meter",
+  "version": "1.11.1",
   "commit": "edbf13a3a05278198595df08c84fd4808af99a8b",
-  "notes": "- Improved appearance of show/hide secret button",
+  "notes": "- Adjusted UI scale slider to allow 50% to 150% scale",
   "dry_run": false
 }
