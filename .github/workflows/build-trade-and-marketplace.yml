@@ -5,14 +5,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'TradeAndMarketplace/**'
+      - 'trade-and-marketplace/**'
       - 'shared/**'
       - '.github/workflows/build-trade-and-marketplace.yml'
       - '.github/workflows/_build-mod.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'TradeAndMarketplace/**'
+      - 'trade-and-marketplace/**'
       - 'shared/**'
       - '.github/workflows/build-trade-and-marketplace.yml'
       - '.github/workflows/_build-mod.yml'
@@ -35,7 +35,7 @@ jobs:
         with:
           haxe-version: 4.3.7
       - name: Test protocol, controller, inventory and exchange safeguards
-        working-directory: TradeAndMarketplace
+        working-directory: trade-and-marketplace
         run: haxe test.hxml
       - uses: actions/checkout@v4
         with:
@@ -49,10 +49,10 @@ jobs:
       - name: Build isolated bytecode comparison harness
         run: |
           pip install crashlink==0.0.9
-          python TradeAndMarketplace/recovery/tools/patch_oracle_runtime.py .trade-oracle-hashlink
+          python trade-and-marketplace/recovery/tools/patch_oracle_runtime.py .trade-oracle-hashlink
           make -C .trade-oracle-hashlink -j2 hl
       - name: Compare with surviving original bytecode
-        working-directory: TradeAndMarketplace
+        working-directory: trade-and-marketplace
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.trade-oracle-hashlink
         run: |
@@ -66,7 +66,7 @@ jobs:
     needs: test
     uses: ./.github/workflows/_build-mod.yml
     with:
-      project: TradeAndMarketplace
+      project: trade-and-marketplace
       module: trade-and-marketplace
       artifact-name: farever-trade-and-marketplace
       title: Trade and Marketplace

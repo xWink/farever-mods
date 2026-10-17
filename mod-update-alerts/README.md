@@ -1,148 +1,30 @@
 # Mod Update Alerts
 
-[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mod-update-alerts.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mod-update-alerts&expanded=true)
+[Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mod-update-alerts.yml) · [Releases](https://github.com/xWink/farever-mods/releases?q=mod-update-alerts%2Fv&expanded=true)
 
-Checks Nexus Mods for updates in the background once per game launch, starting
-when the application initializes. As soon as an update is confirmed, a native
-window lists mod names, installed versions, and available versions. It can appear
-on the title screen, in character selection, or during gameplay, and adds further
-confirmed updates as the remaining checks finish. No particular screen or character
-login is required. Close it with its X or Escape to continue. To update, close
-Farever, open Vortex, check for updates, install them, and deploy.
-The popup needs only the active UI's rendering resources. It registers with the
-game's window manager, keeps the mouse cursor available, and unregisters when
-closed so controls are restored. Pending alerts survive UI transitions. Temporary
-UI construction failures retry after 0.25 seconds, backing off to at most 2 seconds;
-they cannot exhaust a permanent attempt limit. The first actual failure is logged,
-with identical errors suppressed while retries continue. Routine startup, version
-verification, and popup success are silent.
+Checks Nexus Mods for updates in the background once per game launch and shows installed and available versions in a native popup.
 
-The checkbox **Don't remind me again about these versions** remembers the listed
-available versions immediately. Unchecking it restores the prior preference.
-If any mod later has a newer update, or another mod gains an update, the next
-launch shows the **entire outstanding update list**, including previously dismissed
-updates. Installing some updates or a temporary failure to check one mod does not
-erase remembered versions. If additional updates arrive while the checkbox is
-checked, it resets for the expanded list; previously selected versions remain
-remembered, but unseen updates are never silently suppressed. Closing the popup
-dismisses it for the current launch, including any checks still finishing.
-Large lists have Previous/Next pages.
+## Usage
 
-Each row has a **Changes** button showing a scrollable changelog for the advertised
-release, taken from its matching public main/update files on Nexus. **Back** returns
-to the same table page. Missing notes are shown explicitly; they do not prevent an
-update alert. Notes from newer beta files or optional/archived files are excluded.
-Duplicate notes are combined, markup is displayed as literal text, and unusually
-long notes are capped at 16,000 characters/100 entries with a notice to read more
-on Nexus. The reminder checkbox always applies to the full update list.
+- Select **Changes** to read an update's changelog.
+- Close the popup to dismiss it for the current launch.
+- Select **Don't remind me again about these versions** to remember the listed updates. A newer update can trigger another reminder.
+- To update, close Farever, install the updates in Vortex, and deploy.
+
+This mod only notifies: it never downloads, installs, or changes other mods. No Nexus login, API key, or Premium subscription is required.
 
 ## Installation
 
-Requires HLX Core 0.0.8 or newer for the September 30 Live client. No ImGui or Better Mod Settings dependency, Nexus login, API key,
-Premium subscription, or external executable.
+Requires HLX Core 0.0.8+. Download from [Nexus Mods](https://www.nexusmods.com/farever/mods/17) or Releases and follow the [installation instructions](../README.md#installation). Better Mod Settings is not required.
 
-Install the build ZIP with Vortex or extract it into the Farever game directory.
-The installed file is `hlx/mods/mod-update-alerts/mod-update-alerts.hl`.
-This mod only notifies; it never downloads, installs, or changes other mods.
+If upgrading from **Mod Updater**, remove or disable the old `mod-updater` installation to avoid running both copies. Existing reminder preferences are migrated.
 
-**Upgrading from Mod Updater:** remove/disable the old `mod-updater` installation
-before installing Mod Update Alerts, so both copies do not run. Existing dismissed
-versions are read from the old reminder file until a new preference is saved.
+## Supported installs
 
-## How installed versions are identified
+Vortex mods must be deployed and match their installed files. Manual installs need valid `update-info.json` metadata. Unknown or modified versions are skipped, not reported as up to date. Network failures do not block startup.
 
-HLX binaries in this repository do not contain a standard release-version field.
-The checker reads current local metadata without locking or modifying Vortex's
-database or requesting its credentials:
+Reminder preferences are saved in `hlx/config/mod-update-alerts/reminders.json`.
 
-1. Vortex's `vortex.deployment.*json` records select mods actually deployed into
-   this game directory. Only present, unmodified deployed code/package files
-   (`.hl`, `.dll`, `.hdll`, `.pak`) qualify.
-2. Farever's current installed-mod records in `%APPDATA%/Vortex/state.v2/`
-   supply Nexus IDs, names, and installed versions. The reader follows LevelDB's
-   active manifest, compressed tables, and recent write log, including updates and
-   deletions. It retries if those files change during the read. If discovery still
-   fails or records change during verification, the background worker retries the
-   entire scan after 5 seconds and then 15 seconds in the same launch. Each scan
-   has a 30-second budget, and quitting cancels the wait. It never opens the
-   database for writing, takes its lock, or performs recovery/compaction.
-3. Deployed binaries must also match the corresponding files in the manifest's
-   Vortex staging folder by SHA-256. Current mod records are rechecked after file
-   verification. Installed-but-not-deployed replacements and modified test builds
-   cannot be labeled with a stale version. Disabled/staged-only mods are excluded.
-   **Backup snapshots and archive/folder names are never version authorities:**
-   Vortex may reuse an older version's folder name when updating in place.
-   Farever mods and tools published under Nexus's Site category are supported.
-4. Manual installs can include the opt-in metadata below.
+For mod authors, see [manual-install metadata](docs/update-metadata.md).
 
-This cannot identify every arbitrary manual install, portable Vortex installation,
-or mod lacking version metadata. Unreadable/unsupported current Vortex databases,
-missing/stale deployment records, changed binaries, unknown version schemes, and
-unavailable Nexus metadata are logged as `[Mod Update Alerts]` and skipped; they
-are never reported as up to date. Vortex need not be running, but mods must have
-been deployed. These diagnostics do not prevent alerts for other identified mods.
-Recovered database errors stay quiet. If all discovery attempts fail, the log
-includes the underlying error once instead of repeating it for every deployed mod.
-
-The public [Nexus GraphQL API](https://api.nexusmods.com/v2/graphql) supplies current
-page versions and file metadata. The **page version** is the author's advertised
-release and is compared with the installed version. An alert also requires a
-matching public main/update download. A newer file alone never triggers an alert:
-it could be a beta the author has not promoted to the page version. Optional,
-archived, or removed files alone do not trigger alerts. Only requested Nexus game domains
-and mod IDs leave the computer; no file paths, binaries, Vortex database, or
-credentials are uploaded.
-Each identity is checked once per launch, using a worker thread, verified TLS,
-bounded responses, request timeouts, and an overall time budget. Network failures
-do not block startup; the next launch retries. Public API changes may require a
-checker update.
-
-Discovery format references: Vortex's
-[deployment manifest](https://github.com/Nexus-Mods/Vortex/blob/master/src/renderer/src/extensions/mod_management/types/IDeploymentManifest.ts),
-[deployed files](https://github.com/Nexus-Mods/Vortex/blob/master/src/renderer/src/extensions/mod_management/types/IDeploymentMethod.ts),
-and [current state persistence](https://github.com/Nexus-Mods/Vortex/blob/master/src/main/src/store/LevelPersist.ts).
-The reader follows LevelDB's [table](https://github.com/google/leveldb/blob/main/doc/table_format.md)
-and [log](https://github.com/google/leveldb/blob/main/doc/log_format.md) formats.
-
-## Manual-install metadata
-
-A mod author can package `update-info.json` beside their binary:
-
-```json
-{
-  "name": "Example Mod",
-  "domain": "farever",
-  "modId": 123,
-  "version": "1.2.3",
-  "binary": "example.hl",
-  "sha256": "<64-character SHA-256 of the packaged binary>"
-}
-```
-
-Use the real Nexus mod ID and the installed release version. Regenerate the hash
-for each build. Mismatched hashes are ignored so stale metadata cannot label a
-replacement binary as an older release. Mod Update Alerts itself can use this metadata
-once it has a Nexus page; until then, its missing metadata is silently skipped.
-
-Reminder preferences are stored in `hlx/config/mod-update-alerts/reminders.json`.
-Delete the `reminders.json` and `.bak` files from both the new and old config
-folders while Farever is closed to reset all suppressed reminders.
-
-## Build and test
-
-```sh
-haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
-haxe test.hxml
-haxe compile.hxml
-```
-
-Tests cover numeric/prerelease ordering, reminders and rename migration, current
-Vortex records overriding stale backups/folder names, staged-versus-deployed
-contents, delayed discovery recovery and cancellation, ignoring files newer than
-the page version, changelog filtering/escaping/navigation, screen-independent readiness, progressive alerts, manual
-metadata hashes, and popup dismissal releasing its owner's modal registration
-without closing other windows. The synthetic database fixture was generated
-by real LevelDB (via `plyvel-ci`) and exercises Snappy tables, multi-block write
-logs, deletions, obsolete tables, and checksum failures. Regenerate it with
-`python tests/generate_vortex_fixture.py` after installing `plyvel-ci`.
-Native popup layout and discovery should also be verified in-game.
+See [Building](../README.md#building) for source builds and tests.
