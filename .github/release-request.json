@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.2",
-  "commit": "4610b7bd611c72dde0952f1546d5e65e769c7a21",
-  "notes": "- Added missing icon for enchants in damage breakdowns and detailed reports\n- Changed bar graphs in detailed reports to line graphs\n",
+  "project": "item-utilities",
+  "version": "1.15.1",
+  "commit": "3428bdd0ba419645820d454c3623f18e73fe3b19",
+  "notes": "- Fixed an issue where trying to click the edge of an item slot to mark the item as locked/junk would not register.\n",
   "dry_run": false
 }
