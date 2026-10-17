@@ -11,7 +11,7 @@ Adds a configurable minimap and enhances the main overworld map with detailed ma
 - Ordinary players are hidden by default; party members and friends are shown. Completed enemy mastery, collected companions, and completed activities are hidden by default.
 - Obelisks, soulstones, respawn points, and your own marker remain available. Dungeons, rifts, and inactive rifts have no category toggle to hide them.
 - The main map shows the current Heroic Bonus Dungeon and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
-- Obelisk fast travel shows only obelisks, with larger markers.
+- Obelisk fast travel shows only obelisks, with larger markers, and ignores the vertical-distance filter.
 - The minimap supports circular or square shapes, mouse-wheel zoom, size, position, transparency, and marker scaling. Rotation and camera-following rotation are enabled by default.
 - Optional rift alerts, sparkling-companion alerts, a rift timer or clock, and a vertical-distance filter that applies to both maps.
 

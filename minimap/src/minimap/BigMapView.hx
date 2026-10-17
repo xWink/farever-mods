@@ -131,6 +131,8 @@ class BigMapView {
         markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point));
         markers.obeliskScale = fastTravel ? 1.5 : 1.;
         markers.showOwn = !fastTravel;
+        // Travel destinations must stay visible and clickable regardless of elevation.
+        markers.ignoreHeightFilter = fastTravel;
         // After the party layer, above every native and replacement marker.
         arrow = iconCache.bitmap(priorityRoot, "own", g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xfff3d6));
         G.call("h2d.Object", "set_visible", arrow, [!fastTravel]);

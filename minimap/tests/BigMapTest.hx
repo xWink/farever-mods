@@ -103,6 +103,30 @@ class BigMapTest {
             eq(BigMapView.travelPoint({kind:kind, x:0, y:0, z:0}), false, 'Travel hides ' + kind);
         eq(BigMapView.travelPoint({kind:'player', partyMember:true, x:0, y:0, z:0}), false, 'Travel hides party');
         eq(BigMapView.travelPoint({kind:'player', friend:true, x:0, y:0, z:0}), false, 'Travel hides friends');
+        // Travel destinations must remain usable above/below the shared height cutoff.
+        window.scroll.x = -8500.; window.scroll.y = -6500.;
+        c = change(c, 'hideVerticallyDistantMarkers', true);
+        for (height in [-10.1, -9.9, 20.1, 19.9, -100., 100.]) {
+            hero.posz = height;
+            view.markers.nextRefresh = 0;
+            view.update(window, c);
+            eq(kinds(view), 'obelisk', 'Travel keeps obelisk across height changes: ' + height);
+            eq(view.markers.mapIconMarkers.length, 1, 'Travel draws distant obelisk: ' + height);
+            eq(obelisk.visible, true, 'Travel keeps distant destination clickable: ' + height);
+            eq(obelisk.content.onClick, click, 'Travel keeps native action: ' + height);
+        }
+        eq(c.hideVerticallyDistantMarkers, true, 'Travel does not change saved height preference');
+        eq(view.filters.minimapSettings().hideVerticallyDistantMarkers, true, 'HUD retains height filtering during travel');
+        window.selector = false;
+        view.update(window, c);
+        eq(view.markers.points.filter(p -> p.kind == 'obelisk').length, 0, 'Normal map still filters distant obelisk');
+        eq(obelisk.visible, false, 'Normal map still hides distant native target');
+        window.selector = true;
+        view.update(window, c);
+        eq(kinds(view), 'obelisk', 'Reopening travel restores distant obelisk');
+        eq(obelisk.visible, true, 'Reopening travel restores destination click target');
+        hero.posz = 5.;
+        c = change(c, 'hideVerticallyDistantMarkers', false);
         // Put the obelisk onscreen to check actual icon size and smooth zoom.
         window.scroll.x = -8500.; window.scroll.y = -6500.;
         view.update(window, c);

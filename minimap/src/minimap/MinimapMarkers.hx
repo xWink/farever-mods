@@ -44,6 +44,7 @@ class MinimapMarkers {
     public var ownFirst:Bool = false;
     public var showOwn:Bool = true;
     public var obeliskScale:Float = 1;
+    public var ignoreHeightFilter:Bool = false;
     var partyIcons:Dynamic;
     var partyElevations:Dynamic;
     var partyIconMarkers:Array<IconMarker> = [];
@@ -535,7 +536,7 @@ class MinimapMarkers {
         // never reach icon drawing or hover hit-testing. Keep alert targets:
         // the vertical filter must not hide the arrows that guide to them.
         return MarkerDetails.filter(points, heroHeight,
-            config.hideVerticallyDistantMarkers, config.verticallyDistantThreshold);
+            !ignoreHeightFilter && config.hideVerticallyDistantMarkers, config.verticallyDistantThreshold);
     }
 
     function refreshActivities():Void {
