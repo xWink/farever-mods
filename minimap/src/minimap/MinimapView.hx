@@ -162,7 +162,6 @@ class MinimapView {
         }
         // A native Flow reflow can move absolute children; reapply after measuring it.
         position(panel, panelX, panelY);
-        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY);
         // A rotating square needs enough tiles/markers to cover its diagonal.
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
@@ -173,6 +172,8 @@ class MinimapView {
         markers.updateAlerts(markerSettings, x, y, size, scale, rotation, rifts);
         compass.update(size, circular, rotation, markerScale / 100, config.showNorthIndicator);
         updateClockTimer(config);
+        var clockCenter = riftCaption != "" && riftText != null ? riftY + riftHeight / 2 : -15.;
+        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY, null, clockCenter);
         show(true);
         updateHover(hero, x, y, rotation);
     }
@@ -276,7 +277,7 @@ class MinimapView {
                 if (kind == "settings") MainMapFilterBar.drawGear(target);
                 else if (kind == "filterRound" || kind == "filterSquare") MainMapFilterBar.drawButtonFace(target, kind == "filterRound");
                 else markers.drawFilterIcon(target, kind);
-            }), true);
+            }, 4), true);
     }
 
     function trackMouse(event:Dynamic):Void {
@@ -418,7 +419,9 @@ class MinimapView {
         var x = Math.round(BORDER + (size - riftWidth) / 2);
         // Seven pixels above the frame, versus four below it for hover text.
         // Keep the caption on-screen even with a very small viewport.
-        var y = Math.ceil(Math.max(2 - panelY, -riftHeight - 7));
+        var buttonHeight = MainMapFilterBar.hudButtonHeight(size);
+        var topClearance = circular ? 2. : 2 + Math.max(0, (buttonHeight - riftHeight) / 2);
+        var y = Math.ceil(Math.max(topClearance - panelY, -riftHeight - 7));
         if (x != riftX || y != riftY) {
             riftX = x; riftY = y;
             position(riftShadow, x + 1, y + 1);
@@ -579,6 +582,8 @@ class MinimapView {
         if (panel != null) G.call("h2d.Object", "set_visible", panel, [visible]);
         if (!visible) { hovered = false; setHoverCaption(""); }
     }
+
+    public function blocksAttackClick():Bool return filterBar != null && filterBar.blocksAttackClick();
 
     public function dispose():Void {
         if (filterBar != null) filterBar.dispose();

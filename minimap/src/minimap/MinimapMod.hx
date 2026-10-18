@@ -97,6 +97,11 @@ class MinimapMod {
         }
     }
 
+    @:hlx.postfix(ui.GameUI.blockAttackClick)
+    static function blockMinimapCloseClick(instance:Dynamic, result:Bool):Bool {
+        return result || config.enabled && view != null && view.blocksAttackClick();
+    }
+
     @:hlx.postfix(ui.win.MapWindow.update)
     static function updateBigMap(instance:Dynamic, dt:Float, result:Void):Void {
         if (bigMap != null) bigMap.update(instance, config);

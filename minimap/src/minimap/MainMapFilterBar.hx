@@ -26,8 +26,10 @@ class MainMapFilterBar {
     var popup:Dynamic;
     var popupCategory:MapFilterCategory;
     var buttons:Array<MapFilterButton> = [];
-    var boxes:Array<{key:String, object:Dynamic, ?art:Dynamic, ?selected:Bool, ?hovered:Bool}> = [];
-    var hudLabels:Array<{text:Dynamic, source:Dynamic, font:Dynamic, size:Float}> = [];
+    var boxes:Array<{key:String, object:Dynamic}> = [];
+    var nativeStyle:Dynamic;
+    var closeClickHeld:Bool = false;
+    var closeClickFrame:Int = -1;
     var nativeButtons = new haxe.ds.ObjectMap<Dynamic, Bool>();
     var nativeSource:Dynamic;
     var filters:MainMapFilters;
@@ -45,10 +47,20 @@ class MainMapFilterBar {
     var mapSize:Float = -1;
     var panelX:Float = Math.NaN;
     var panelY:Float = Math.NaN;
+    var gearCenterY:Float = -15;
 
     public function new(container:Dynamic, filters:MainMapFilters, createIcon:(Dynamic, String)->Dynamic, hud:Bool = false) {
         this.container = container; this.filters = filters; this.hud = hud;
-        try build(createIcon) catch (error:Dynamic) { dispose(); throw error; }
+        try {
+            if (hud) {
+                // The HUD parent is a plain h2d.Object outside the native DOM
+                // roots. Reparenting controls there detaches their style updates.
+                nativeStyle = G.field(G.current("ui.BaseUI", "current"), "style");
+                if (nativeStyle == null) throw "Minimap control stylesheet unavailable";
+                G.call("h2d.domkit.Style", "addObject", nativeStyle, [container]);
+            }
+            build(createIcon);
+        } catch (error:Dynamic) { dispose(); throw error; }
     }
 
     function build(createIcon:(Dynamic, String)->Dynamic):Void {
@@ -128,13 +140,14 @@ class MainMapFilterBar {
         return true;
     }
 
-    function hudScale():Float return mapSize / (BAR_HEIGHT + BUTTON_STEP) * HUD_BUTTON_SCALE;
+    public static function hudButtonHeight(size:Float):Float return size / (BAR_HEIGHT + BUTTON_STEP) * HUD_BUTTON_SCALE * BUTTON_SIZE;
+    function hudScale():Float return hudButtonHeight(mapSize) / BUTTON_SIZE;
 
-    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float):Void {
+    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float, clockCenterY:Float = -15):Void {
         var moving = advanceAnimation(now == null ? haxe.Timer.stamp() : now);
-        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y;
+        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y || gearCenterY != clockCenterY;
         if (layoutChanged) {
-            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
+            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y; gearCenterY = clockCenterY;
             G.call("h2d.Object", "setScale", root, [hudScale()]);
             G.call("h2d.Object", "setScale", gear.object, [hudScale()]);
         }
@@ -145,7 +158,6 @@ class MainMapFilterBar {
         styleButton(gear);
         if (expanded || expansion > 0) for (button in buttons) styleButton(button);
         if (revision != filters.revision) refresh();
-        refreshHudFonts();
     }
 
     function layoutHud():Void {
@@ -167,11 +179,11 @@ class MainMapFilterBar {
             }
         } else {
             var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
-            var columnHeight = (BAR_HEIGHT + BUTTON_STEP) * scale;
-            var top = Math.max(4 - panelY, Math.min(0, height - panelY - columnHeight - 4));
+            var top = Math.max(2 - panelY, gearCenterY - BUTTON_SIZE * scale / 2);
+            var step = Math.min(BUTTON_STEP, (height - panelY - top - 4 - BUTTON_SIZE * scale) / (buttons.length * scale));
             position(gear.object, left, top);
             position(root, left, top);
-            for (i in 0...buttons.length) position(buttons[i].object, 0, (i + 1) * BUTTON_STEP * expansion);
+            for (i in 0...buttons.length) position(buttons[i].object, 0, (i + 1) * step * expansion);
         }
     }
 
@@ -205,11 +217,8 @@ class MainMapFilterBar {
             G.call("ui.UIElement", "set_selected", button.object, [true]);
             G.call("h2d.Object", "set_visible", button.slash, [!on]);
         }
-        if (popupCategory != null) for (box in boxes) {
-            var value = filters.enabled(popupCategory.key, box.key);
-            if (box.art == null) G.call("ui.comp.CheckBox", "set_selected", box.object, [value]);
-            else if (box.selected != value) { box.selected = value; drawCheckRow(box.art, value, box.hovered == true); }
-        }
+        if (popupCategory != null) for (box in boxes)
+            G.call("ui.comp.CheckBox", "set_selected", box.object, [filters.enabled(popupCategory.key, box.key)]);
     }
 
     function styleButton(button:MapFilterButton):Void {
@@ -281,7 +290,6 @@ class MainMapFilterBar {
         absolute(popup, blocker);
         G.set(blocker, "enableRightButton", true);
         G.set(blocker, "propagateEvents", false);
-        if (hud) { buildHudPopup(category); placePopup(); return; }
         var heading = node("text", popup, [category.label], "mainMapFilterTitle");
         position(heading, 14, 12);
         G.call("domkit.Properties", "addClass", G.field(heading, "dom"), ["bold-16"]);
@@ -297,7 +305,11 @@ class MainMapFilterBar {
             G.call("h2d.Graphics", "moveTo", cross, [-5., -5. * direction]);
             G.call("h2d.Graphics", "lineTo", cross, [5., 5. * direction]);
         }
-        G.call("ui.UIElement", "set_onClick", close, [closePopup]);
+        if (hud) G.call("ui.UIElement", "set_onPush", close, [captureCloseClick]);
+        G.call("ui.UIElement", "set_onClick", close, [() -> {
+            if (hud) captureCloseClick();
+            closePopup();
+        }]);
         for (i in 0...category.items.length) {
             var item = category.items[i];
             var box = node("check-box", popup, [item.label], "mainMapSubfilter_" + item.key);
@@ -309,95 +321,6 @@ class MainMapFilterBar {
             boxes.push({key:item.key, object:box});
         }
         placePopup();
-    }
-
-    function buildHudPopup(category:MapFilterCategory):Void {
-        // Use the native text component's regular font, not an arbitrary HUD
-        // label (which can be a small bold bitmap font). Hidden style sources
-        // also pick up delayed CSS and language changes without text shadows.
-        hudLabel(category.label, 14, 12, 16, 0x20120b, true);
-        var closeArt = G.create("h2d.Graphics", [popup]);
-        absolute(popup, closeArt); position(closeArt, 246, 8);
-        G.call("h2d.Graphics", "beginFill", closeArt, [0xb1978d, 1.]);
-        G.call("h2d.Graphics", "drawRoundedRect", closeArt, [0., 0., 28., 28., 8., 16]);
-        G.call("h2d.Graphics", "endFill", closeArt);
-        G.call("h2d.Graphics", "lineStyle", closeArt, [2., 0xfff3e1, 1.]);
-        for (direction in [-1., 1.]) {
-            G.call("h2d.Graphics", "moveTo", closeArt, [9., 14. - 5 * direction]);
-            G.call("h2d.Graphics", "lineTo", closeArt, [19., 14. + 5 * direction]);
-        }
-        var close = hudInput(28, 28, 246, 8);
-        G.set(close, "onClick", (_:Dynamic) -> closePopup());
-        for (i in 0...category.items.length) {
-            var item = category.items[i], y = 44 + i * 32;
-            var art = G.create("h2d.Graphics", [popup]);
-            absolute(popup, art); position(art, 12, y);
-            hudLabel(item.label, 44, y + 2, 20, 0xffffff);
-            var input = hudInput(260, 28, 12, y);
-            var box = {key:item.key, object:input, art:art, selected:filters.enabled(category.key, item.key), hovered:false};
-            boxes.push(box); drawCheckRow(art, box.selected, false);
-            G.set(input, "onClick", (_:Dynamic) -> {
-                filters.setEnabled(category.key, item.key, !filters.enabled(category.key, item.key));
-                refresh();
-            });
-            G.set(input, "onOver", (_:Dynamic) -> { box.hovered = true; drawCheckRow(art, box.selected, true); });
-            G.set(input, "onOut", (_:Dynamic) -> { box.hovered = false; drawCheckRow(art, box.selected, false); });
-        }
-        refreshHudFonts();
-    }
-
-    function hudLabel(caption:String, x:Float, y:Float, fontSize:Float, color:Int, bold:Bool = false):Void {
-        var source = node("text", popup, [""], "minimapSubfilterFont" + hudLabels.length);
-        if (bold) G.call("domkit.Properties", "addClass", G.field(source, "dom"), ["bold-16"]);
-        G.call("h2d.Object", "set_visible", source, [false]);
-        var font = G.field(source, "font");
-        if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
-        var text = G.create("h2d.Text", [font, popup]);
-        absolute(popup, text);
-        G.call("h2d.Text", "set_text", text, [caption]);
-        G.call("h2d.Text", "set_textColor", text, [color]);
-        G.set(text, "smooth", true);
-        G.set(text, "dropShadow", null);
-        position(text, x, y);
-        hudLabels.push({text:text, source:source, font:null, size:fontSize});
-    }
-
-    function refreshHudFonts():Void {
-        for (label in hudLabels) {
-            var font = G.field(label.source, "font");
-            if (font == null || font == label.font) continue;
-            label.font = font;
-            G.call("h2d.Text", "set_font", label.text, [font]);
-            G.call("h2d.Object", "setScale", label.text, [label.size / Math.max(1, G.number(G.field(font, "size"), label.size))]);
-        }
-    }
-
-    function hudInput(w:Float, h:Float, x:Float, y:Float):Dynamic {
-        var input = G.create("h2d.Interactive", [w, h, popup, null]);
-        absolute(popup, input); position(input, x, y);
-        G.set(input, "propagateEvents", false);
-        G.set(input, "enableRightButton", true);
-        G.call("h2d.Interactive", "set_cursor", input, [G.current("hxd.Cursor", "Button")]);
-        return input;
-    }
-
-    static function drawCheckRow(g:Dynamic, selected:Bool, hovered:Bool):Void {
-        G.call("h2d.Graphics", "clear", g);
-        G.call("h2d.Graphics", "lineStyle", g, [0., 0, 0.]);
-        G.call("h2d.Graphics", "beginFill", g, [hovered ? 0xa58a80 : 0xb1978d, 1.]);
-        G.call("h2d.Graphics", "drawRoundedRect", g, [0., 0., 260., 28., 8., 16]);
-        G.call("h2d.Graphics", "endFill", g);
-        // Match the native checkbox: a dark diamond around a yellow centre.
-        for (outer in [true, false]) {
-            var r = outer ? 8. : 5.;
-            G.call("h2d.Graphics", "beginFill", g, [outer ? 0x1d1f26 : selected ? 0xffd017 : 0xeadbc1, 1.]);
-            G.call("h2d.Graphics", "moveTo", g, [16., 14. - r]);
-            G.call("h2d.Graphics", "lineTo", g, [16. + r, 14.]);
-            G.call("h2d.Graphics", "lineTo", g, [16., 14. + r]);
-            G.call("h2d.Graphics", "lineTo", g, [16. - r, 14.]);
-            G.call("h2d.Graphics", "lineTo", g, [16., 14. - r]);
-            G.call("h2d.Graphics", "endFill", g);
-        }
     }
 
     function placePopup():Void {
@@ -431,9 +354,31 @@ class MainMapFilterBar {
         return x >= POPUP_X && x <= POPUP_X + 286 * ps && y >= py && y <= py + (56 + popupCategory.items.length * 32) * ps;
     }
 
+    function captureCloseClick():Void {
+        closeClickHeld = true;
+        closeClickFrame = G.integer(G.staticCall("hxd.Key", "getFrame", []));
+    }
+
+    public function blocksAttackClick():Bool {
+        if (!closeClickHeld && closeClickFrame < 0) return false;
+        var frame = G.integer(G.staticCall("hxd.Key", "getFrame", []));
+        if (!closeClickHeld) {
+            if (closeClickFrame == frame) return true;
+            closeClickFrame = -1;
+            return false;
+        }
+        // Keep consuming the original press if held or dragged off the button.
+        // On release the popup can disappear before gameplay polls its inputs.
+        if (G.staticCall("hxd.Key", "isDown", [G.current("hxd.Key", "MOUSE_LEFT")]) != true) {
+            closeClickHeld = false;
+            closeClickFrame = frame;
+        }
+        return true;
+    }
+
     public function closePopup():Void {
         if (popup != null) G.call("h2d.Object", "remove", popup);
-        popup = null; popupCategory = null; boxes = []; hudLabels = [];
+        popup = null; popupCategory = null; boxes = [];
     }
     function restoreNative():Void {
         for (button => visible in nativeButtons) if (G.field(button, "removed") != true)
@@ -442,6 +387,9 @@ class MainMapFilterBar {
     }
     public function dispose():Void {
         closePopup(); restoreNative();
+        closeClickHeld = false; closeClickFrame = -1;
+        if (nativeStyle != null) G.call("h2d.domkit.Style", "removeObject", nativeStyle, [container]);
+        nativeStyle = null;
         if (root != null) G.call("h2d.Object", "remove", root);
         if (gear != null) G.call("h2d.Object", "remove", gear.object);
         gear = null;

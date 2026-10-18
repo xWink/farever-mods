@@ -4,6 +4,7 @@ package minimap;
 class GameAccess {
     public static var globals:Map<String, Dynamic> = ["h3d.mat.TextureFlags.Target" => "Target", "hxd.PixelFormat.RGBA" => "RGBA", "h2d.BlendMode.AlphaAdd" => "AlphaAdd",
         "h3d.mat.TextureFlags.MipMapped" => "MipMapped", "h3d.mat.MipMap.Linear" => "Linear"];
+    public static var styledObjects:Array<Dynamic> = [];
     public static var bakes:Int = 0;
     public static var reductions:Int = 0;
     public static var failReduction:Bool = false;
@@ -66,6 +67,8 @@ class GameAccess {
             if (args.length != 1) throw "Tile argument count";
             return {texture:args[0], width:args[0].width, height:args[0].height};
         }
+        if (type == "hxd.Key" && name == "getFrame") return integer(globals["keyFrame"]);
+        if (type == "hxd.Key" && name == "isDown") return globals["mouseDown"] == true;
         if (type == "gamepad.Pad" && name == "get_active") return globals["padActive"] == true;
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
         if (type == "HData" && name == "checkStatus") return true;
@@ -164,6 +167,12 @@ class GameAccess {
                 case "onRemove": o.removed = true;
                 default: throw "Object " + name;
             }
+            return null;
+        }
+        if (type == "h2d.domkit.Style") {
+            if (name == "addObject") styledObjects.push(args[0]);
+            else if (name == "removeObject") styledObjects.remove(args[0]);
+            else throw "Style " + name;
             return null;
         }
         if (type == "shiro.ui.DynamicBackground" && name == "set_background") { o.fill = args[0]; return null; }

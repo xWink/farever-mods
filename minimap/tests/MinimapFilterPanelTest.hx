@@ -39,6 +39,7 @@ class MinimapFilterPanelTest {
         restored.useSameMapFilters = false; main.bind(restored); hud.bind(restored);
         eq(hud.minimapSettings().showPlants, true, 'Unlinking again starts with synchronized choices');
 
+        G.globals['ui.BaseUI.current'] = {style:{}};
         var container:Dynamic = {dom:null}; container.dom = {obj:container};
         var icons:Array<String> = [];
         var bar = new MainMapFilterBar(container, hud, (parent, kind) -> {
@@ -46,6 +47,7 @@ class MinimapFilterPanelTest {
             return G.create('h2d.Graphics', [parent]);
         }, true);
         bar.updateHud(250, true, 1920, 1080, 1660, 10);
+        eq(G.styledObjects.indexOf(container) >= 0, true, 'Reparented HUD is registered for native styling');
         eq(icons.join(','), [for (c in MainMapFilters.CATEGORIES) c.icon].concat(['settings']).join(','),
             'HUD uses the same ordered category icons plus the gear');
         eq(bar.root.visible, false, 'Filter panel starts closed');
@@ -82,13 +84,12 @@ class MinimapFilterPanelTest {
             if (button.category.items.length > 0) {
                 button.object.onRightClick();
                 eq(bar.boxes.length, button.category.items.length, 'Right-click offers matching subfilters');
-                if (hud.enabled(button.category.key, bar.boxes[0].key)) bar.boxes[0].object.onClick({});
+                bar.boxes[0].object.onValueChange(false);
                 eq(hud.enabled(button.category.key, bar.boxes[0].key), false, 'HUD checkbox edits HUD preference');
             } else eq(G.field(button.object, 'onRightClick'), null, 'No empty submenu');
         }
         eq(bar.popup != null, true, 'Subfilter popup opened');
-        eq(bar.boxes[0].object.nativeType, 'h2d.Interactive', 'HUD rows do not instantiate the missing native checkbox skin');
-        eq(bar.boxes[0].art.nativeType, 'h2d.Graphics', 'HUD checkbox is explicit geometry');
+        eq(bar.boxes[0].object.nativeType, 'check-box', 'HUD uses the same native checkbox as main map');
         var arcScale = bar.root.scale, center = 125., radius = center + 34 * arcScale;
         for (button in bar.buttons) {
             var dx = (button.object.x + 24) * arcScale - center;
@@ -97,22 +98,23 @@ class MinimapFilterPanelTest {
         }
         eq(bar.buttons[0].object.x > bar.buttons[4].object.x, true, 'Upper buttons curve inward');
         eq(bar.buttons[8].object.x > bar.buttons[4].object.x, true, 'Lower buttons curve inward');
-        eq(bar.hudLabels[0].text.dropShadow, null, 'Popup title has no shadow');
-        eq(bar.hudLabels[1].text.color, 0xffffff, 'Rows use white text as in native popup');
-        eq(bar.hudLabels[1].size, 20., 'Rows use native-sized 20px text');
-        var regular = {size:20, name:'native-regular'};
-        bar.hudLabels[1].source.font = regular;
-        bar.updateHud(250, true, 1920, 1080, 1660, 10);
-        eq(bar.hudLabels[1].text.font, regular, 'Delayed native font styling is applied');
-        eq(bar.hudLabels[1].text.scale, 1., 'A 20px font is rendered at native scale');
         eq(bar.popup.x == Math.round(bar.popup.x) && bar.popup.y == Math.round(bar.popup.y), true, 'Popup origin is pixel aligned');
-        var checkbox = bar.boxes[0].art;
-        MainMapFilterBar.drawCheckRow(checkbox, true, false);
-        eq(checkbox.fills[0], 0xb1978d, 'Rows match native muted brown');
-        eq(checkbox.fills[1], 0x1d1f26, 'Diamond has dark outline');
-        eq(checkbox.fills[2], 0xffd017, 'Selected diamond is yellow');
-        MainMapFilterBar.drawCheckRow(checkbox, false, false);
-        eq(checkbox.fills[2], 0xeadbc1, 'Deselected diamond has no yellow fill');
+        var close = G.created.filter(o -> G.field(G.field(o, 'dom'), 'id') == 'mainMapFilterClose').pop();
+        eq(close.nativeType, 'button', 'Close has native hover and pressed styling');
+        G.globals['keyFrame'] = 100; G.globals['mouseDown'] = true;
+        eq(bar.blocksAttackClick(), false, 'Unrelated clicks are not blocked');
+        close.onPush();
+        eq(bar.blocksAttackClick(), true, 'Close press blocks attacks');
+        G.globals['keyFrame'] = 120;
+        eq(bar.blocksAttackClick(), true, 'Holding close cannot attack');
+        G.globals['mouseDown'] = false;
+        close.onClick();
+        eq(bar.popup, null, 'Native close dismisses popup');
+        eq(bar.blocksAttackClick(), true, 'Release remains consumed after popup removal');
+        eq(bar.blocksAttackClick(), true, 'All input polls in release frame remain blocked');
+        G.globals['keyFrame'] = 121;
+        eq(bar.blocksAttackClick(), false, 'Following independent click can attack normally');
+        bar.buttons[0].object.onRightClick();
         var popup = bar.popup;
         bar.gear.object.onClick();
         eq(bar.root.visible, true, 'Closing remains visible during retraction');
@@ -133,6 +135,9 @@ class MinimapFilterPanelTest {
         bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 0.14);
         for (button in bar.buttons) eq(button.object.x, 0., 'Square animation stays in a straight column');
         bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 1);
+        bar.updateHud(160, false, 800, 600, 400, 100, null, -15);
+        eq(Math.abs(bar.gear.object.y + 24 * bar.gear.object.scale + 15) < 0.001, true, 'Square gear is centered on clock row');
+        bar.updateHud(160, false, 800, 600, 0, 0);
         var small = bar.root.scale;
         eq(bar.root.x >= 0, true, 'Left-edge map keeps buttons on screen');
         for (button in bar.buttons) {
@@ -153,6 +158,8 @@ class MinimapFilterPanelTest {
         var gear = bar.gear.object, root = bar.root;
         bar.dispose();
         eq(gear.removed && root.removed, true, 'Disposal removes controls');
+        eq(G.styledObjects.indexOf(container), -1, 'Disposal unregisters detached HUD style root');
+        eq(bar.blocksAttackClick(), false, 'Disposal clears click guard');
 
         // Cached distant NPCs and loaded NPCs must both track character progress.
         var inf:Dynamic = {id:'quest', dialog:[], testGoals:[{}], props:{}};

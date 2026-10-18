@@ -28,7 +28,10 @@ class MainMapIconCache {
         G.call("hl.types.ArrayObj", "pushDyn", flags, [target]);
     }
 
-    public function tile(key:String, draw:Dynamic->Void):Dynamic {
+    public function tile(key:String, draw:Dynamic->Void, resolution:Int = 2):Dynamic {
+        // Buttons retain 4x detail; small map markers keep the softer 2x bake.
+        if (resolution != 2 && resolution != 4) throw "Unsupported icon resolution";
+        key = resolution + ":" + key;
         var cached = tiles[key];
         if (cached != null) return cached;
         var holder:Dynamic = null, texture:Dynamic = null;
@@ -47,7 +50,7 @@ class MainMapIconCache {
             G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
             G.call("h2d.Object", "drawTo", holder, [texture]);
             geometryReleased = true;
-            for (pixels in [SIZE * 4, SIZE * 2]) {
+            for (pixels in (resolution == 4 ? [SIZE * 4] : [SIZE * 4, SIZE * 2])) {
                 var source = G.staticCall("h2d.Tile", "fromTexture", [texture]);
                 G.call("h2d.Tile", "scaleToSize", source, [pixels * 1., pixels * 1.]);
                 holder = G.create("h2d.Bitmap", [source, null]);
@@ -76,8 +79,8 @@ class MainMapIconCache {
         return cached;
     }
 
-    public function bitmap(parent:Dynamic, key:String, draw:Dynamic->Void):Dynamic {
-        var object = G.create("h2d.Bitmap", [tile(key, draw), parent]);
+    public function bitmap(parent:Dynamic, key:String, draw:Dynamic->Void, resolution:Int = 2):Dynamic {
+        var object = G.create("h2d.Bitmap", [tile(key, draw, resolution), parent]);
         style(object);
         return object;
     }

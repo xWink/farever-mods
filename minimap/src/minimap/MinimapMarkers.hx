@@ -906,7 +906,7 @@ class MinimapMarkers {
     }
 
     public function createFilterIcon(parent:Dynamic, kind:String):Dynamic {
-        return iconCache.bitmap(parent, kind, target -> drawFilterIcon(target, kind));
+        return iconCache.bitmap(parent, kind, target -> drawFilterIcon(target, kind), 4);
     }
 
     public function drawFilterIcon(target:Dynamic, kind:String):Void {
