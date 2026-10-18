@@ -38,7 +38,10 @@ class MinimapView {
     var partyPivot:Dynamic;
     var partyTerrain:Dynamic;
     var markers:MinimapMarkers;
-    var filters = new MainMapFilters();
+    var filters:MainMapFilters;
+    var filterBar:MainMapFilterBar;
+    var filterIcons:MainMapIconCache;
+    var controls:Dynamic;
     var compass:MinimapCompass;
     var rifts:RiftMarkers;
     var riftText:Dynamic;
@@ -83,7 +86,7 @@ class MinimapView {
     var cached:Array<MapTile> = [];
     var generation:Int = 0;
 
-    public function new() {}
+    public function new(?save:Void->Void) filters = new MainMapFilters(save, true);
 
     public function update(app:Dynamic, config:MinimapSettings):Void {
         filters.bind(config);
@@ -110,7 +113,7 @@ class MinimapView {
             loader = G.current("hxd.res.Loader", "currentInstance");
             if (loader == null) return;
             indexTiles(settings);
-            create();
+            create(G.field(G.field(hero, "layer"), "units"));
         }
 
         if (size != config.size || circular != config.circular) layout(config.size, config.circular);
@@ -123,6 +126,7 @@ class MinimapView {
             G.set(panel, "alpha", 1 - transparency / 100);
             // A fully invisible map must not consume wheel input.
             G.call("h2d.Object", "set_visible", input, [transparency < 100]);
+            G.call("h2d.Object", "set_visible", controls, [transparency < 100]);
             if (transparency == 100) { hovered = false; setHoverCaption(""); }
         }
         var newScale = config.zoom / 100 * 2; // Two UI pixels per world unit at 100%.
@@ -158,6 +162,7 @@ class MinimapView {
         }
         // A native Flow reflow can move absolute children; reapply after measuring it.
         position(panel, panelX, panelY);
+        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY);
         // A rotating square needs enough tiles/markers to cover its diagonal.
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
@@ -206,7 +211,7 @@ class MinimapView {
         if (!index.iterator().hasNext()) throw "No overworld map tiles were found";
     }
 
-    function create():Void {
+    function create(nativeArray:Dynamic):Void {
         panel = G.create("h2d.Object", [null]);
         show(false);
         var layer = G.integer(G.call("h2d.Object", "getChildIndex", root, [G.field(owner, "gameRoot")]));
@@ -258,6 +263,19 @@ class MinimapView {
             G.set(event, "propagate", false);
             MinimapMod.adjustZoom(G.number(G.field(event, "wheelDelta")));
         });
+        var dom = G.staticCall("domkit.Properties", "createNew",
+            ["flow", G.field(G.field(owner, "gameRoot"), "dom"), [], {id:"minimapFilterControls"}]);
+        controls = G.field(dom, "obj");
+        if (controls == null) throw "Could not create minimap filter controls";
+        // Outside the terrain mask, above the map's wheel/hover input. Keeping
+        // the native controls under panel also preserves HUD layering/visibility.
+        G.call("h2d.Object", "addChild", panel, [controls]);
+        filterIcons = new MainMapIconCache(nativeArray);
+        filterBar = new MainMapFilterBar(controls, filters, (parent, kind) ->
+            filterIcons.bitmap(parent, kind, target -> {
+                if (kind == "settings") MainMapFilterBar.drawGear(target);
+                else markers.drawFilterIcon(target, kind);
+            }), true);
     }
 
     function trackMouse(event:Dynamic):Void {
@@ -562,6 +580,10 @@ class MinimapView {
     }
 
     public function dispose():Void {
+        if (filterBar != null) filterBar.dispose();
+        filterBar = null; controls = null;
+        if (filterIcons != null) filterIcons.dispose();
+        filterIcons = null;
         // The hidden font source belongs to gameRoot's DOM, outside our panel.
         if (riftFontSource != null) G.call("h2d.Object", "remove", riftFontSource);
         if (panel != null) {

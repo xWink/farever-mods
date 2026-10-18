@@ -3,7 +3,7 @@ package minimap;
 typedef MapSubfilter = {key:String, label:String};
 typedef MapFilterCategory = {key:String, label:String, icon:String, items:Array<MapSubfilter>};
 
-/** One saved set of category/subtype filters, with map-specific presentation. */
+/** Saved category/subtype filters, optionally shared between both maps. */
 class MainMapFilters {
     public static final CATEGORIES:Array<MapFilterCategory> = [
         category("ore", "Ore", "ore", ["copper", "iron", "tin", "tungstene"], ["Copper", "Iron", "Tin", "Tungstene"]),
@@ -26,16 +26,18 @@ class MainMapFilters {
     var hudMarkerScale:Float = Math.NaN;
     var markerScale:Float = Math.NaN;
     var save:Void->Void;
+    var minimap:Bool;
     public var revision(default, null):Int = 0;
 
-    public function new(?save:Void->Void) this.save = save;
+    public function new(?save:Void->Void, minimap:Bool = false) {
+        this.save = save; this.minimap = minimap;
+    }
 
     static function category(key:String, label:String, icon:String, keys:Array<String>, labels:Array<String>):MapFilterCategory
         return {key:key, label:label, icon:icon, items:[for (i in 0...keys.length) {key:keys[i], label:labels[i]}]};
 
-    public function bind(config:MinimapSettings):Void {
-        if (source == config && saved == config.mainMapHiddenFilters) return;
-        source = config;
+    public static function prepare(config:MinimapSettings):Void {
+        if (config.useSameMapFilters == null) config.useSameMapFilters = true;
         if (config.mainMapHiddenFilters == null) config.mainMapHiddenFilters = ["activities:completed", "companions:collected", "enemies:mastered"];
         // Apply the new player default once, including existing installations.
         if (config.mainMapPlayerFiltersInitialized != true) {
@@ -43,7 +45,19 @@ class MainMapFilters {
             if (config.mainMapHiddenFilters.indexOf("players:regular") < 0) config.mainMapHiddenFilters.push("players:regular");
             config.mainMapPlayerFiltersInitialized = true;
         }
-        saved = config.mainMapHiddenFilters;
+        // Sharing always takes the main map as the authority. Unlink by copying
+        // so subsequent edits cannot mutate the other map's saved preferences.
+        if (config.useSameMapFilters) config.minimapHiddenFilters = config.mainMapHiddenFilters;
+        else if (config.minimapHiddenFilters == null || config.minimapHiddenFilters == config.mainMapHiddenFilters)
+            config.minimapHiddenFilters = config.mainMapHiddenFilters.copy();
+    }
+
+    public function bind(config:MinimapSettings):Void {
+        prepare(config);
+        var next = minimap ? config.minimapHiddenFilters : config.mainMapHiddenFilters;
+        if (source == config && saved == next) return;
+        source = config;
+        saved = next;
         hidden = [];
         for (key in saved) if (key != null) hidden[key] = true;
         derived = null;
@@ -54,12 +68,16 @@ class MainMapFilters {
     public function enabled(category:String, ?item:String):Bool return !hidden.exists(category + (item == null ? "" : ":" + item));
 
     public function setEnabled(category:String, item:Null<String>, value:Bool):Void {
-        if (source == null || enabled(category, item) == value) return;
+        if (source == null) return;
+        bind(source);
+        if (enabled(category, item) == value) return;
         var key = category + (item == null ? "" : ":" + item);
         if (value) hidden.remove(key); else hidden[key] = true;
         saved = [for (key in hidden.keys()) key];
         saved.sort(Reflect.compare);
-        source.mainMapHiddenFilters = saved;
+        if (minimap && !source.useSameMapFilters) source.minimapHiddenFilters = saved;
+        else source.mainMapHiddenFilters = saved;
+        if (source.useSameMapFilters) source.minimapHiddenFilters = saved;
         derived = null;
         hudDerived = null;
         revision++;
@@ -76,7 +94,7 @@ class MainMapFilters {
         return applyFilters(derived);
     }
 
-    /** Preserve HUD size and alerts; visibility rules are shared with the main map. */
+    /** Preserve HUD size and alerts while applying this map's visibility rules. */
     public function minimapSettings():MinimapSettings {
         if (hudDerived == null || hudMarkerScale != source.markerScale) {
             hudMarkerScale = source.markerScale;

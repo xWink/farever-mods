@@ -4,6 +4,7 @@
   "configs": [
     { "type": "title", "label": "General" },
     { "key": "enabled", "type": "checkbox", "label": "Enabled" },
+    { "key": "useSameMapFilters", "type": "checkbox", "label": "Use same filters for both maps" },
     { "key": "riftAlerts", "type": "checkbox", "label": "Rift alerts" },
     { "key": "sparklingCompanionAlerts", "type": "checkbox", "label": "Sparkling companion alerts" },
     { "type": "title", "label": "Main map" },

@@ -133,6 +133,7 @@ class BigMapView {
         markers.ownFirst = true;
         markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point));
         markers.obeliskScale = fastTravel ? 1.5 : 1.;
+        markers.highlightObelisks = fastTravel;
         // Travel destinations must stay visible and clickable regardless of elevation.
         markers.ignoreHeightFilter = fastTravel;
         // After the party layer, above every native and replacement marker.

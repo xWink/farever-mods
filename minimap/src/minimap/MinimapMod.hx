@@ -10,7 +10,7 @@ class MinimapMod {
     static var config:MinimapSettings = {
         enabled: true, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
-        mainMapMarkerScale: 100, mainMapMovement: false,
+        mainMapMarkerScale: 100, mainMapMovement: false, useSameMapFilters: true,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
         hideCompletedCodexEnemies: false, hideMasteredCodexEnemies: false, hideTargetDummies: false,
@@ -32,17 +32,19 @@ class MinimapMod {
     static function main():Void {
         normalize();
         config.save();
-        view = new MinimapView();
+        view = new MinimapView(() -> config.save());
         bigMap = new BigMapView(() -> config.save());
         Bus.subscribe("better-mod-settings/config-changed/" + HlxRuntime.moduleName(), (_:Dynamic) -> {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             normalize();
+            config.save();
             saveZoomAt = 0;
             retryAt = 0;
         });
     }
 
     static function normalize():Void {
+        MainMapFilters.prepare(config);
         // A null initial default lets old false preferences migrate to None.
         config.clockTimerMode = ClockTimer.mode(Reflect.field(config, "clockTimerMode"), config.showRiftTimer);
         config.transparency = Std.int(Math.max(0, Math.min(100, config.transparency)));

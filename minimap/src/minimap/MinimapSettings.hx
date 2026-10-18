@@ -2,7 +2,9 @@ package minimap;
 
 typedef MinimapSettings = {
     var ?mainMapPlayerFiltersInitialized:Bool;
-    /** Shared category/subfilter exclusions; retain the key to preserve saved main-map choices. */
+    var ?useSameMapFilters:Bool;
+    var ?minimapHiddenFilters:Array<String>;
+    /** Retain the key to preserve existing main-map choices. */
     var ?mainMapHiddenFilters:Array<String>;
     var ?mainMapMarkerScale:Float;
     var ?mainMapMovement:Bool;

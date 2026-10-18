@@ -16,6 +16,7 @@ class GameAccess {
     public static var restored:Int = 0;
     public static var activityNameReads:Int = 0;
     public static var failActivityLookup:Bool = false;
+    public static var rings:Int = 0;
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, v:Dynamic):Void Reflect.setField(o, name, v);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
@@ -75,6 +76,7 @@ class GameAccess {
             if (failActivityLookup) throw "Activity definitions unavailable";
             return globals["activity:" + args[0]];
         }
+        if (type == "HElement" && name == "getDialogGoals") return field(args[0], "testGoals");
         if (type == "HActivity" && name == "getPos") return args[0].position;
         if (type == "hxd.res.DefaultFont" && name == "get") return {size: 14};
         if (type == "ui.BaseUI" && name == "getTile") return field(args[0], "tile");
@@ -113,6 +115,7 @@ class GameAccess {
             default: throw "Tile " + name;
         };
         if (type == "h2d.Graphics") {
+            if (name == "drawCircle" && args[2] == 11.5) rings++;
             if (failGraphics) throw "Graphics unavailable";
             if (["clear", "beginFill", "endFill", "lineStyle", "moveTo", "lineTo", "drawCircle", "drawRect", "drawEllipse", "drawRoundedRect"].indexOf(name) < 0) throw "Graphics " + name;
             return null;
@@ -207,6 +210,7 @@ class GameAccess {
         if (type == "ent.Element" && name == "getElementStateInf") return {flags: o.state};
         if (type == "st.player.Progress" && name == "hasElementCompleted") return true;
         if (type == "st.player.Progress" && name == "hasActivityCompleted") return o.completed == args[0];
+        if (type == "st.player.Progress" && name == "getNpcProgressState") return o.questState;
         if (type == "ent.GameObject" && name == "isDead") return false;
         if (type == "ent.Foe" && name == "isEnemyWith") return true;
         if (type == "ent.Hero" && name == "isSameGroup") return args[0].party == true;

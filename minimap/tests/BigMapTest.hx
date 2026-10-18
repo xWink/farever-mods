@@ -111,6 +111,11 @@ class BigMapTest {
         eq(obelisk.visible, true, 'Obelisk travel destination remains clickable');
         eq(obelisk.content.onClick, click, 'Obelisk travel callback preserved');
         eq(view.markers.obeliskScale, 1.5, 'Obelisks are 50 percent larger only in travel');
+        eq(view.markers.highlightObelisks, true, 'Fast travel adds the obelisk ring');
+        // Render an on-screen destination; the fixture's actual tower starts
+        // outside the viewport and is intentionally culled from artwork.
+        view.markers.updateIcons([{kind:'obelisk', x:0., y:0., z:0.}], [], {}, 1.);
+        eq(G.rings > 0, true, 'Fast travel artwork actually paints its ring');
         hero.name = 'Me';
         eq(view.markers.hoverAt(hero.posx, hero.posy, view.scale, hero.posx, hero.posy, hero).name, 'Me', 'Travel retains own-player hover text');
         for (kind in ['dungeon', 'soulstone', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
@@ -153,6 +158,7 @@ class BigMapTest {
         view.update(window, c);
         eq(kinds(view), 'activity,companion,npc,obelisk,ore,player,respawn', 'Normal map restored after leaving travel');
         eq(view.markers.obeliskScale, 1., 'Normal map uses normal obelisk size');
+        eq(view.markers.highlightObelisks, false, 'Normal map does not use travel rings');
         eq(view.arrow.visible, true, 'Normal map restores own arrow');
         eq(own.alpha, 0.8, 'Main map preserves camera cone parent opacity');
         eq(own.content.alpha, 0., 'Main map hides only the duplicate native player icon');

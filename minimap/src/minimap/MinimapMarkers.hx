@@ -44,6 +44,7 @@ class MinimapMarkers {
     public var ownFirst:Bool = false;
     public var showOwn:Bool = true;
     public var obeliskScale:Float = 1;
+    public var highlightObelisks:Bool = false;
     public var ignoreHeightFilter:Bool = false;
     var partyIcons:Dynamic;
     var partyElevations:Dynamic;
@@ -471,7 +472,8 @@ class MinimapMarkers {
             if (category == "npc") {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
-                liveNpcs[key] = active ? {kind: npcKind(G.field(element, "inf")), x: px, y: py,
+                var inf = G.field(element, "inf");
+                liveNpcs[key] = active ? {kind: NpcMarkers.forProgress(npcKind(inf), inf, progress), x: px, y: py,
                     z: G.number(G.field(element, "posz"), Math.NaN), entity: element} : null;
             } else if (category == "chest") {
                 if (!active || player == null) continue;
@@ -502,6 +504,7 @@ class MinimapMarkers {
             };
             if (show && near(point.x, point.y, x, y, radius)) {
                 if (isNpc(point.kind) && !NpcMarkers.eventVisible(point.inf, G.field(layer, "worldEvents"), worldEvents)) continue;
+                if (isNpc(point.kind)) point.kind = NpcMarkers.forProgress(npcKind(point.inf), point.inf, progress);
                 // Definitions are cached, but unlocks belong to the current
                 // character and must refresh after activating a respawn point.
                 if (point.kind == "respawn") point.respawnUnlocked = RespawnMarkers.unlocked(point.inf, progress);
@@ -859,6 +862,7 @@ class MinimapMarkers {
             var point = points[i], marker = pool[i];
             var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "")
                 + (point.activityIcon == null ? "" : ":" + point.activityIcon)
+                + (point.kind == "obelisk" && highlightObelisks ? ":travel" : "")
                 + (point.friend == true ? ":friend" : "")
                 + (point.respawnUnlocked == true ? ":unlocked" : "");
             // Draw in local pixels once per appearance, then reuse the geometry
@@ -914,6 +918,13 @@ class MinimapMarkers {
 
     function drawIcon(point:MapPoint):Void {
         var kind = point.kind;
+        if (kind == "obelisk" && highlightObelisks) {
+            G.call("h2d.Graphics", "lineStyle", graphics, [2.8, 0x62472a, 1.]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., 11.5, 48]);
+            G.call("h2d.Graphics", "lineStyle", graphics, [1.6, 0xffdc42, 1.]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., 11.5, 48]);
+            G.call("h2d.Graphics", "lineStyle", graphics, [0., 0, 0.]);
+        }
         if (kind == "quest" || kind == "activity" && point.activityIcon != null && point.activityIcon != "activity") {
             ActivityIcons.draw(graphics, kind == "quest" ? "quest" : point.activityIcon, markerRadius(kind));
             return;

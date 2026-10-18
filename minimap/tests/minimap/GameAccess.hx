@@ -129,6 +129,7 @@ class GameAccess {
 
     public static function call(type:String, name:String, object:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (nativeCall != null) return nativeCall(type, name, object, args == null ? [] : args);
+        if (type == "st.player.Progress" && name == "getNpcProgressState") return object.questState;
         if (type == "st.event.WorldEvents" && name == "getEventStatus") {
             eventStatusCalls++;
             if (args.length != 3) throw "Incorrect native argument count";

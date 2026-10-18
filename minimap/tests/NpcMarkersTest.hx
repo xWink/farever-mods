@@ -16,6 +16,11 @@ class NpcMarkersTest {
         expect(NpcMarkers.kind({dialog:[], testGoals:[{id:"Help"}], props:{npc:{unit:"WanderingMerchant"}}}),
             "bank", "Service icons retain priority over quest artwork");
         expect(NpcMarkers.isNpc("quest"), true, "Quest givers retain NPC filtering and hover names");
+        for (state in 0...5)
+            expect(NpcMarkers.forProgress("quest", {}, {questState:state}), state == 0 || state == 4 ? "npc" : "quest",
+                "Quest marker follows per-character native state " + state);
+        expect(NpcMarkers.forProgress("bank", {}, {questState:4}), "bank", "Quest completion does not change service markers");
+        expect(NpcMarkers.forProgress("quest", {}, null), "quest", "Missing progress retains quest information");
         expect(NpcMarkers.kind({type: 22, props: {}}), "npc", "Ordinary NPC");
         expect(NpcMarkers.kind({type: 22, props: {npc: {unit: "WanderingMerchant"}}}), "bank", "Guild merchant");
         expect(NpcMarkers.kind({id: "World_NPC_17", type: 22, props: {npc: {unit: "TODO_MOG_Merchant"}}}),

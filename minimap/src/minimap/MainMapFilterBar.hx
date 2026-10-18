@@ -5,14 +5,15 @@ import minimap.MainMapFilters.MapFilterCategory;
 
 private typedef MapFilterButton = {
     category:MapFilterCategory, object:Dynamic, icon:Dynamic, slash:Dynamic,
-    background:Dynamic, tint:Int
+    background:Dynamic, tint:Int, radius:Float
 };
 
-/** Main-map controls for the marker filters shared by both maps. */
+/** Common category buttons and subfilter popups for both map surfaces. */
 class MainMapFilterBar {
     static inline var BUTTON_SIZE = 48;
     static inline var BUTTON_STEP = 54;
-    static inline var BAR_HEIGHT = 7 * BUTTON_STEP + BUTTON_SIZE;
+    static var BAR_HEIGHT(get, never):Int;
+    static function get_BAR_HEIGHT():Int return (MainMapFilters.CATEGORIES.length - 1) * BUTTON_STEP + BUTTON_SIZE;
     static inline var POPUP_X = 72;
     static inline var BACKGROUND = 0xFFE9D9BB;
     static inline var NORMAL_TINT = 0xFFFFFFFF;
@@ -31,9 +32,16 @@ class MainMapFilterBar {
     var width:Float = 0;
     var height:Float = 0;
     var bottom:Float = -1;
+    var hud:Bool;
+    var gear:MapFilterButton;
+    var expanded:Bool = false;
+    var circular:Bool = false;
+    var mapSize:Float = -1;
+    var panelX:Float = Math.NaN;
+    var panelY:Float = Math.NaN;
 
-    public function new(container:Dynamic, filters:MainMapFilters, createIcon:(Dynamic, String)->Dynamic) {
-        this.container = container; this.filters = filters;
+    public function new(container:Dynamic, filters:MainMapFilters, createIcon:(Dynamic, String)->Dynamic, hud:Bool = false) {
+        this.container = container; this.filters = filters; this.hud = hud;
         try build(createIcon) catch (error:Dynamic) { dispose(); throw error; }
     }
 
@@ -61,11 +69,46 @@ class MainMapFilterBar {
                 G.call("h2d.Graphics", "lineTo", slash, [37., 11.]);
             }
             G.call("h2d.Object", "set_visible", slash, [false]);
-            var entry:MapFilterButton = {category:category, object:button, icon:icon, slash:slash, background:null, tint:0};
+            var entry:MapFilterButton = {category:category, object:button, icon:icon, slash:slash, background:null, tint:0, radius:-1};
             buttons.push(entry);
             G.call("ui.UIElement", "set_onOver", button, [() -> styleButton(entry)]);
             G.call("ui.UIElement", "set_onOut", button, [() -> styleButton(entry)]);
         }
+        if (hud) {
+            var button = node("button", container, [""], "minimapFilterGear");
+            size(button, BUTTON_SIZE, BUTTON_SIZE);
+            var icon = createIcon(button, "settings");
+            absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
+            G.call("h2d.Object", "setScale", icon, [1.35]);
+            gear = {category:null, object:button, icon:icon, slash:null, background:null, tint:0, radius:-1};
+            G.call("ui.UIElement", "set_selected", button, [true]);
+            G.call("ui.UIElement", "set_onClick", button, [() -> {
+                expanded = !expanded;
+                G.call("h2d.Object", "set_visible", root, [expanded]);
+                if (!expanded) closePopup();
+                refresh();
+            }]);
+            G.call("ui.UIElement", "set_onOver", button, [() -> styleButton(gear)]);
+            G.call("ui.UIElement", "set_onOut", button, [() -> styleButton(gear)]);
+            G.call("h2d.Object", "set_visible", root, [false]);
+        }
+    }
+
+    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float):Void {
+        if (mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y) {
+            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
+            var scale = size / (BAR_HEIGHT + BUTTON_STEP);
+            // Keep controls accessible even when the minimap is against the left edge.
+            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
+            G.call("h2d.Object", "setScale", root, [scale]);
+            G.call("h2d.Object", "setScale", gear.object, [scale]);
+            position(gear.object, left, 0);
+            position(root, left, BUTTON_STEP * scale);
+            placePopup();
+        }
+        styleButton(gear);
+        if (expanded) for (button in buttons) styleButton(button);
+        if (revision != filters.revision) refresh();
     }
 
     public function update(window:Dynamic, w:Float, h:Float, bottomInset:Float = 0):Void {
@@ -108,11 +151,22 @@ class MainMapFilterBar {
         if (background != button.background) {
             button.background = background;
             button.tint = 0;
+            button.radius = -1;
             // Keep the native rounded border and smoothing. Override the
             // background's own color so selected/hover CSS cannot flash white.
             var dom = G.field(background, "dom");
             if (dom != null) G.call("domkit.Properties", "initStyle", dom, ["background", BACKGROUND]);
             G.call("shiro.ui.DynamicBackground", "set_background", background, [BACKGROUND]);
+        }
+        if (hud) {
+            var radius = circular ? BUTTON_SIZE / 2. : 6.;
+            if (button.radius != radius) {
+                var corners = {top:radius, right:radius, bottom:radius, left:radius};
+                var dom = G.field(background, "dom");
+                if (dom != null) G.call("domkit.Properties", "initStyle", dom, ["border-radius", corners]);
+                G.set(background, "borderRadius", corners);
+                button.radius = radius;
+            }
         }
         var tint = G.field(button.object, "pushed") != null ? PRESSED_TINT
             : G.field(button.object, "hasHover") == true ? HOVER_TINT : NORMAL_TINT;
@@ -182,6 +236,15 @@ class MainMapFilterBar {
     function placePopup():Void {
         if (popup == null) return;
         var h = 56 + popupCategory.items.length * 32;
+        if (hud) {
+            var scale = Math.min(1, Math.min((height - 16) / h, (width - 16) / 286));
+            var buttonScale = mapSize / (BAR_HEIGHT + BUTTON_STEP);
+            var right = G.number(G.field(root, "x")) + BUTTON_SIZE * buttonScale + 8;
+            G.call("h2d.Object", "setScale", popup, [scale]);
+            position(popup, Math.max(8 - panelX, Math.min(right, width - panelX - 286 * scale - 8)),
+                Math.max(8 - panelY, Math.min(BUTTON_STEP * buttonScale, height - panelY - h * scale - 8)));
+            return;
+        }
         var scale = Math.max(0.25, Math.min(1, Math.min((height - 24) / h, (width - POPUP_X - 12) / 286)));
         G.call("h2d.Object", "setScale", popup, [scale]);
         position(popup, POPUP_X, Math.max(12, Math.min(height - h * scale - 12, G.number(G.field(root, "y")))));
@@ -209,7 +272,21 @@ class MainMapFilterBar {
     public function dispose():Void {
         closePopup(); restoreNative();
         if (root != null) G.call("h2d.Object", "remove", root);
+        if (gear != null) G.call("h2d.Object", "remove", gear.object);
+        gear = null;
         root = null;
+    }
+
+    public static function drawGear(g:Dynamic):Void {
+        G.call("h2d.Graphics", "lineStyle", g, [3., 0x5b4334, 1.]);
+        for (i in 0...8) {
+            var a = i * Math.PI / 4;
+            G.call("h2d.Graphics", "moveTo", g, [Math.cos(a) * 6.5, Math.sin(a) * 6.5]);
+            G.call("h2d.Graphics", "lineTo", g, [Math.cos(a) * 9.5, Math.sin(a) * 9.5]);
+        }
+        G.call("h2d.Graphics", "drawCircle", g, [0., 0., 6., 32]);
+        G.call("h2d.Graphics", "lineStyle", g, [2., 0x5b4334, 1.]);
+        G.call("h2d.Graphics", "drawCircle", g, [0., 0., 2., 24]);
     }
 
     static function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String):Dynamic {
