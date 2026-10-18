@@ -12,7 +12,7 @@ private typedef MapFilterButton = {
 class MainMapFilterBar {
     static inline var BUTTON_SIZE = 48;
     static inline var BUTTON_STEP = 54;
-    static inline var HUD_BUTTON_SCALE = 1.12;
+    static inline var HUD_BUTTON_SCALE = 1.12 * 1.10;
     static inline var ANIMATION_SECONDS = 0.28;
     static var BAR_HEIGHT(get, never):Int;
     static function get_BAR_HEIGHT():Int return (MainMapFilters.CATEGORIES.length - 1) * BUTTON_STEP + BUTTON_SIZE;
@@ -47,7 +47,6 @@ class MainMapFilterBar {
     var mapSize:Float = -1;
     var panelX:Float = Math.NaN;
     var panelY:Float = Math.NaN;
-    var gearCenterY:Float = -15;
 
     public function new(container:Dynamic, filters:MainMapFilters, createIcon:(Dynamic, String)->Dynamic, hud:Bool = false) {
         this.container = container; this.filters = filters; this.hud = hud;
@@ -79,7 +78,7 @@ class MainMapFilterBar {
             if (hasSubfilters) G.call("ui.UIElement", "set_onRightClick", button, [() -> openPopup(category)]);
             var icon = createIcon(button, category.icon);
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
-            G.call("h2d.Object", "setScale", icon, [1.35]);
+            G.call("h2d.Object", "setScale", icon, [hud ? 1.35 * 1.20 : 1.35]);
             var slash = G.create("h2d.Graphics", [button]);
             absolute(button, slash);
             // A light keyline keeps the dark slash legible over every icon.
@@ -101,7 +100,7 @@ class MainMapFilterBar {
             var faces = makeFaces(button, createIcon);
             var icon = createIcon(button, "settings");
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
-            G.call("h2d.Object", "setScale", icon, [1.35]);
+            G.call("h2d.Object", "setScale", icon, [hud ? 1.35 * 1.20 : 1.35]);
             gear = {category:null, object:button, icon:icon, slash:null, background:null, tint:0, radius:-1};
             gear.roundFace = faces.round; gear.squareFace = faces.square;
             G.call("ui.UIElement", "set_selected", button, [true]);
@@ -143,11 +142,11 @@ class MainMapFilterBar {
     public static function hudButtonHeight(size:Float):Float return size / (BAR_HEIGHT + BUTTON_STEP) * HUD_BUTTON_SCALE * BUTTON_SIZE;
     function hudScale():Float return hudButtonHeight(mapSize) / BUTTON_SIZE;
 
-    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float, clockCenterY:Float = -15):Void {
+    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float):Void {
         var moving = advanceAnimation(now == null ? haxe.Timer.stamp() : now);
-        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y || gearCenterY != clockCenterY;
+        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y;
         if (layoutChanged) {
-            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y; gearCenterY = clockCenterY;
+            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
             G.call("h2d.Object", "setScale", root, [hudScale()]);
             G.call("h2d.Object", "setScale", gear.object, [hudScale()]);
         }
@@ -179,11 +178,22 @@ class MainMapFilterBar {
             }
         } else {
             var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
-            var top = Math.max(2 - panelY, gearCenterY - BUTTON_SIZE * scale / 2);
-            var step = Math.min(BUTTON_STEP, (height - panelY - top - 4 - BUTTON_SIZE * scale) / (buttons.length * scale));
+            // The gear starts beside the top edge, independent of the clock.
+            // Overflow follows a continuous down-then-right path under the map.
+            var top = Math.max(0, 2 - panelY);
+            var buttonHeight = BUTTON_SIZE * scale, step = BUTTON_STEP * scale;
+            var rowY = Math.min(mapSize + 6, height - panelY - top - buttonHeight - 4);
+            var sideCount = Std.int(Math.max(0, Math.floor((Math.min(mapSize, rowY - 6) - buttonHeight) / step)));
+            var cornerY = rowY / scale;
             position(gear.object, left, top);
             position(root, left, top);
-            for (i in 0...buttons.length) position(buttons[i].object, 0, (i + 1) * step * expansion);
+            for (i in 0...buttons.length) {
+                var slot = i + 1;
+                var endX = slot <= sideCount ? 0. : BUTTON_SIZE + 6 / scale + (slot - sideCount - 1) * BUTTON_STEP;
+                var endY = slot <= sideCount ? slot * BUTTON_STEP : cornerY;
+                var distance = (endY + endX) * expansion;
+                position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
+            }
         }
     }
 
