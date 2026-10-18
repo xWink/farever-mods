@@ -1,7 +1,7 @@
 {
   "project": "minimap",
-  "version": "2.0.3",
-  "commit": "3428bdd0ba419645820d454c3623f18e73fe3b19",
-  "notes": "- Major improvements to activity marker appearances.\n",
+  "version": "2.1.0",
+  "commit": "843d1c647a70e0aa06e7d99465d29abc8ac0f724",
+  "notes": "- Added ability to have separate main map and minimap marker filters\n- Added filter buttons along the outside of the minimap\n- Filter buttons can be hidden/shown by pressing the settings button in the top left corner of the minimap\n- Right-clicking a filter button to select sub-filters\n- Fixed an issue where completed quest activities still appeared on the maps",
   "dry_run": false
 }
