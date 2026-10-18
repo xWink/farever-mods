@@ -12,7 +12,7 @@ private typedef MapFilterButton = {
 class MainMapFilterBar {
     static inline var BUTTON_SIZE = 48;
     static inline var BUTTON_STEP = 54;
-    static inline var HUD_BUTTON_SCALE = 1.12 * 1.10;
+    static inline var HUD_BUTTON_SCALE = 1.12 * 1.10 * 1.05;
     static inline var ANIMATION_SECONDS = 0.28;
     static var BAR_HEIGHT(get, never):Int;
     static function get_BAR_HEIGHT():Int return (MainMapFilters.CATEGORIES.length - 1) * BUTTON_STEP + BUTTON_SIZE;
@@ -189,7 +189,7 @@ class MainMapFilterBar {
             position(root, left, top);
             for (i in 0...buttons.length) {
                 var slot = i + 1;
-                var endX = slot <= sideCount ? 0. : BUTTON_SIZE + 6 / scale + (slot - sideCount - 1) * BUTTON_STEP;
+                var endX = slot <= sideCount ? 0. : (slot - sideCount - 1) * BUTTON_STEP;
                 var endY = slot <= sideCount ? slot * BUTTON_STEP : cornerY;
                 var distance = (endY + endX) * expansion;
                 position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
