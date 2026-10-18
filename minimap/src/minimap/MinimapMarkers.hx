@@ -473,7 +473,7 @@ class MinimapMarkers {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
                 var inf = G.field(element, "inf");
-                liveNpcs[key] = active ? {kind: NpcMarkers.forProgress(npcKind(inf), inf, progress), x: px, y: py,
+                liveNpcs[key] = active ? {kind: NpcMarkers.forProgress(npcKind(inf), inf, progress, !config.hideCompletedActivities), x: px, y: py,
                     z: G.number(G.field(element, "posz"), Math.NaN), entity: element} : null;
             } else if (category == "chest") {
                 if (!active || player == null) continue;
@@ -504,7 +504,7 @@ class MinimapMarkers {
             };
             if (show && near(point.x, point.y, x, y, radius)) {
                 if (isNpc(point.kind) && !NpcMarkers.eventVisible(point.inf, G.field(layer, "worldEvents"), worldEvents)) continue;
-                if (isNpc(point.kind)) point.kind = NpcMarkers.forProgress(npcKind(point.inf), point.inf, progress);
+                if (isNpc(point.kind)) point.kind = NpcMarkers.forProgress(npcKind(point.inf), point.inf, progress, !config.hideCompletedActivities);
                 // Definitions are cached, but unlocks belong to the current
                 // character and must refresh after activating a respawn point.
                 if (point.kind == "respawn") point.respawnUnlocked = RespawnMarkers.unlocked(point.inf, progress);

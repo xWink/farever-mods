@@ -5,7 +5,7 @@ import minimap.MainMapFilters.MapFilterCategory;
 
 private typedef MapFilterButton = {
     category:MapFilterCategory, object:Dynamic, icon:Dynamic, slash:Dynamic,
-    background:Dynamic, tint:Int, radius:Float
+    background:Dynamic, tint:Int, radius:Float, ?roundFace:Dynamic, ?squareFace:Dynamic
 };
 
 /** Common category buttons and subfilter popups for both map surfaces. */
@@ -24,7 +24,7 @@ class MainMapFilterBar {
     var popup:Dynamic;
     var popupCategory:MapFilterCategory;
     var buttons:Array<MapFilterButton> = [];
-    var boxes:Array<{key:String, object:Dynamic}> = [];
+    var boxes:Array<{key:String, object:Dynamic, ?art:Dynamic, ?selected:Bool, ?hovered:Bool}> = [];
     var nativeButtons = new haxe.ds.ObjectMap<Dynamic, Bool>();
     var nativeSource:Dynamic;
     var filters:MainMapFilters;
@@ -51,6 +51,7 @@ class MainMapFilterBar {
             var category = MainMapFilters.CATEGORIES[i];
             var button = node("button", root, [""], "mainMapFilter_" + category.key);
             size(button, BUTTON_SIZE, BUTTON_SIZE); position(button, 0, i * BUTTON_STEP);
+            var faces = hud ? makeFaces(button, createIcon) : null;
             G.call("ui.UIElement", "set_onClick", button, [() -> {
                 filters.setEnabled(category.key, null, !filters.enabled(category.key));
                 refresh();
@@ -70,6 +71,7 @@ class MainMapFilterBar {
             }
             G.call("h2d.Object", "set_visible", slash, [false]);
             var entry:MapFilterButton = {category:category, object:button, icon:icon, slash:slash, background:null, tint:0, radius:-1};
+            if (faces != null) { entry.roundFace = faces.round; entry.squareFace = faces.square; }
             buttons.push(entry);
             G.call("ui.UIElement", "set_onOver", button, [() -> styleButton(entry)]);
             G.call("ui.UIElement", "set_onOut", button, [() -> styleButton(entry)]);
@@ -77,10 +79,12 @@ class MainMapFilterBar {
         if (hud) {
             var button = node("button", container, [""], "minimapFilterGear");
             size(button, BUTTON_SIZE, BUTTON_SIZE);
+            var faces = makeFaces(button, createIcon);
             var icon = createIcon(button, "settings");
             absolute(button, icon); position(icon, BUTTON_SIZE / 2, BUTTON_SIZE / 2);
             G.call("h2d.Object", "setScale", icon, [1.35]);
             gear = {category:null, object:button, icon:icon, slash:null, background:null, tint:0, radius:-1};
+            gear.roundFace = faces.round; gear.squareFace = faces.square;
             G.call("ui.UIElement", "set_selected", button, [true]);
             G.call("ui.UIElement", "set_onClick", button, [() -> {
                 expanded = !expanded;
@@ -98,12 +102,28 @@ class MainMapFilterBar {
         if (mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y) {
             mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
             var scale = size / (BAR_HEIGHT + BUTTON_STEP);
-            // Keep controls accessible even when the minimap is against the left edge.
-            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
             G.call("h2d.Object", "setScale", root, [scale]);
             G.call("h2d.Object", "setScale", gear.object, [scale]);
-            position(gear.object, left, 0);
-            position(root, left, BUTTON_STEP * scale);
+            if (round) {
+                var center = size / scale / 2, radius = center + BUTTON_SIZE / 2 + 10;
+                var positions = [for (i in 0...buttons.length + 1) {
+                    var angle = (230 - 100 * i / buttons.length) * Math.PI / 180;
+                    {x:center + Math.cos(angle) * radius - BUTTON_SIZE / 2,
+                     y:center + Math.sin(angle) * radius - BUTTON_SIZE / 2};
+                }];
+                var minX = positions[0].x;
+                for (p in positions) minX = Math.min(minX, p.x);
+                // Shift the whole arc at the screen edge, preserving its curve.
+                var shift = Math.max(0, 4 - panelX - minX * scale);
+                position(root, shift, 0);
+                position(gear.object, shift + positions[0].x * scale, positions[0].y * scale);
+                for (i in 0...buttons.length) position(buttons[i].object, positions[i + 1].x, positions[i + 1].y);
+            } else {
+                var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
+                position(gear.object, left, 0);
+                position(root, left, BUTTON_STEP * scale);
+                for (i in 0...buttons.length) position(buttons[i].object, 0, i * BUTTON_STEP);
+            }
             placePopup();
         }
         styleButton(gear);
@@ -141,12 +161,35 @@ class MainMapFilterBar {
             G.call("ui.UIElement", "set_selected", button.object, [true]);
             G.call("h2d.Object", "set_visible", button.slash, [!on]);
         }
-        if (popupCategory != null) for (box in boxes)
-            G.call("ui.comp.CheckBox", "set_selected", box.object, [filters.enabled(popupCategory.key, box.key)]);
+        if (popupCategory != null) for (box in boxes) {
+            var value = filters.enabled(popupCategory.key, box.key);
+            if (box.art == null) G.call("ui.comp.CheckBox", "set_selected", box.object, [value]);
+            else if (box.selected != value) { box.selected = value; drawCheckRow(box.art, value, box.hovered == true); }
+        }
     }
 
     function styleButton(button:MapFilterButton):Void {
         var background = G.field(button.object, "background");
+        if (hud) {
+            // HUDs do not inherit MapWindow's button skin. Draw our own cached
+            // faces and only retain the native button's input handling.
+            if (background != null && G.field(background, "visible") != false)
+                G.call("h2d.Object", "set_visible", background, [false]);
+            var shape = circular ? 24. : 6.;
+            if (button.radius != shape) {
+                G.call("h2d.Object", "set_visible", button.roundFace, [circular]);
+                G.call("h2d.Object", "set_visible", button.squareFace, [!circular]);
+                button.radius = shape;
+            }
+            var tint = G.field(button.object, "pushed") != null ? PRESSED_TINT
+                : G.field(button.object, "hasHover") == true ? HOVER_TINT : NORMAL_TINT;
+            if (button.tint != tint) {
+                for (face in [button.roundFace, button.squareFace])
+                    G.call("h3d.Vector4Impl", "setColor", G.field(face, "color"), [tint]);
+                button.tint = tint;
+            }
+            return;
+        }
         if (background == null || G.field(background, "shader") == null) return;
         if (background != button.background) {
             button.background = background;
@@ -157,16 +200,6 @@ class MainMapFilterBar {
             var dom = G.field(background, "dom");
             if (dom != null) G.call("domkit.Properties", "initStyle", dom, ["background", BACKGROUND]);
             G.call("shiro.ui.DynamicBackground", "set_background", background, [BACKGROUND]);
-        }
-        if (hud) {
-            var radius = circular ? BUTTON_SIZE / 2. : 6.;
-            if (button.radius != radius) {
-                var corners = {top:radius, right:radius, bottom:radius, left:radius};
-                var dom = G.field(background, "dom");
-                if (dom != null) G.call("domkit.Properties", "initStyle", dom, ["border-radius", corners]);
-                G.set(background, "borderRadius", corners);
-                button.radius = radius;
-            }
         }
         var tint = G.field(button.object, "pushed") != null ? PRESSED_TINT
             : G.field(button.object, "hasHover") == true ? HOVER_TINT : NORMAL_TINT;
@@ -204,6 +237,7 @@ class MainMapFilterBar {
         absolute(popup, blocker);
         G.set(blocker, "enableRightButton", true);
         G.set(blocker, "propagateEvents", false);
+        if (hud) { buildHudPopup(category); placePopup(); return; }
         var heading = node("text", popup, [category.label], "mainMapFilterTitle");
         position(heading, 14, 12);
         G.call("domkit.Properties", "addClass", G.field(heading, "dom"), ["bold-16"]);
@@ -233,16 +267,89 @@ class MainMapFilterBar {
         placePopup();
     }
 
+    function buildHudPopup(category:MapFilterCategory):Void {
+        var font = MapFonts.find(G.field(G.current("ui.BaseUI", "current"), "gameRoot"), 6);
+        if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
+        var textScale = 16 / Math.max(1, G.number(G.field(font, "size"), 16));
+        var label = (caption:String, x:Float, y:Float) -> {
+            var text = G.create("h2d.Text", [font, popup]);
+            absolute(popup, text);
+            G.call("h2d.Text", "set_text", text, [caption]);
+            G.call("h2d.Text", "set_textColor", text, [0x503a2d]);
+            G.call("h2d.Object", "setScale", text, [textScale]);
+            position(text, x, y);
+        };
+        label(category.label, 14, 14);
+        var closeArt = G.create("h2d.Graphics", [popup]);
+        absolute(popup, closeArt); position(closeArt, 246, 8);
+        G.call("h2d.Graphics", "beginFill", closeArt, [0x89644b, 1.]);
+        G.call("h2d.Graphics", "drawRoundedRect", closeArt, [0., 0., 28., 28., 5., 16]);
+        G.call("h2d.Graphics", "endFill", closeArt);
+        G.call("h2d.Graphics", "lineStyle", closeArt, [2., 0xfff3e1, 1.]);
+        for (direction in [-1., 1.]) {
+            G.call("h2d.Graphics", "moveTo", closeArt, [9., 14. - 5 * direction]);
+            G.call("h2d.Graphics", "lineTo", closeArt, [19., 14. + 5 * direction]);
+        }
+        var close = hudInput(28, 28, 246, 8);
+        G.set(close, "onClick", (_:Dynamic) -> closePopup());
+        for (i in 0...category.items.length) {
+            var item = category.items[i], y = 44 + i * 32;
+            var art = G.create("h2d.Graphics", [popup]);
+            absolute(popup, art); position(art, 12, y);
+            label(item.label, 48, y + 5);
+            var input = hudInput(260, 28, 12, y);
+            var box = {key:item.key, object:input, art:art, selected:filters.enabled(category.key, item.key), hovered:false};
+            boxes.push(box); drawCheckRow(art, box.selected, false);
+            G.set(input, "onClick", (_:Dynamic) -> {
+                filters.setEnabled(category.key, item.key, !filters.enabled(category.key, item.key));
+                refresh();
+            });
+            G.set(input, "onOver", (_:Dynamic) -> { box.hovered = true; drawCheckRow(art, box.selected, true); });
+            G.set(input, "onOut", (_:Dynamic) -> { box.hovered = false; drawCheckRow(art, box.selected, false); });
+        }
+    }
+
+    function hudInput(w:Float, h:Float, x:Float, y:Float):Dynamic {
+        var input = G.create("h2d.Interactive", [w, h, popup, null]);
+        absolute(popup, input); position(input, x, y);
+        G.set(input, "propagateEvents", false);
+        G.set(input, "enableRightButton", true);
+        G.call("h2d.Interactive", "set_cursor", input, [G.current("hxd.Cursor", "Button")]);
+        return input;
+    }
+
+    static function drawCheckRow(g:Dynamic, selected:Bool, hovered:Bool):Void {
+        G.call("h2d.Graphics", "clear", g);
+        G.call("h2d.Graphics", "lineStyle", g, [0., 0, 0.]);
+        G.call("h2d.Graphics", "beginFill", g, [hovered ? 0xe0ccaa : 0xf3e6ce, 1.]);
+        G.call("h2d.Graphics", "drawRoundedRect", g, [0., 0., 260., 28., 4., 12]);
+        G.call("h2d.Graphics", "endFill", g);
+        G.call("h2d.Graphics", "lineStyle", g, [1.5, 0x89644b, 1.]);
+        G.call("h2d.Graphics", "beginFill", g, [selected ? 0x89644b : 0xfff6e5, 1.]);
+        G.call("h2d.Graphics", "drawRoundedRect", g, [8., 5., 18., 18., 3., 12]);
+        G.call("h2d.Graphics", "endFill", g);
+        if (selected) {
+            G.call("h2d.Graphics", "lineStyle", g, [2., 0xfff3e1, 1.]);
+            G.call("h2d.Graphics", "moveTo", g, [11., 14.]);
+            G.call("h2d.Graphics", "lineTo", g, [15., 18.]);
+            G.call("h2d.Graphics", "lineTo", g, [23., 10.]);
+        }
+    }
+
     function placePopup():Void {
         if (popup == null) return;
         var h = 56 + popupCategory.items.length * 32;
         if (hud) {
             var scale = Math.min(1, Math.min((height - 16) / h, (width - 16) / 286));
             var buttonScale = mapSize / (BAR_HEIGHT + BUTTON_STEP);
-            var right = G.number(G.field(root, "x")) + BUTTON_SIZE * buttonScale + 8;
+            var anchor = buttons[MainMapFilters.CATEGORIES.indexOf(popupCategory)].object;
+            var ax = G.number(G.field(root, "x")) + G.number(G.field(anchor, "x")) * buttonScale;
+            var ay = G.number(G.field(root, "y")) + G.number(G.field(anchor, "y")) * buttonScale;
+            var preferred = ax - 286 * scale - 8;
+            if (preferred + panelX < 8) preferred = ax + BUTTON_SIZE * buttonScale + 8;
             G.call("h2d.Object", "setScale", popup, [scale]);
-            position(popup, Math.max(8 - panelX, Math.min(right, width - panelX - 286 * scale - 8)),
-                Math.max(8 - panelY, Math.min(BUTTON_STEP * buttonScale, height - panelY - h * scale - 8)));
+            position(popup, Math.max(8 - panelX, Math.min(preferred, width - panelX - 286 * scale - 8)),
+                Math.max(8 - panelY, Math.min(ay, height - panelY - h * scale - 8)));
             return;
         }
         var scale = Math.max(0.25, Math.min(1, Math.min((height - 24) / h, (width - POPUP_X - 12) / 286)));
@@ -287,6 +394,26 @@ class MainMapFilterBar {
         G.call("h2d.Graphics", "drawCircle", g, [0., 0., 6., 32]);
         G.call("h2d.Graphics", "lineStyle", g, [2., 0x5b4334, 1.]);
         G.call("h2d.Graphics", "drawCircle", g, [0., 0., 2., 24]);
+    }
+
+    function makeFaces(button:Dynamic, createIcon:(Dynamic, String)->Dynamic):{round:Dynamic, square:Dynamic} {
+        var round = createIcon(button, "filterRound"), square = createIcon(button, "filterSquare");
+        for (face in [round, square]) {
+            absolute(button, face); position(face, 24, 24);
+            G.call("h2d.Object", "setScale", face, [1.5]);
+        }
+        return {round:round, square:square};
+    }
+
+    public static function drawButtonFace(g:Dynamic, round:Bool):Void {
+        for (i in 0...3) {
+            var radius = 15. - i;
+            var color = i == 0 ? 0x89644b : i == 1 ? 0xfff2da : 0xe9d9bb;
+            G.call("h2d.Graphics", "beginFill", g, [color, 1.]);
+            if (round) G.call("h2d.Graphics", "drawCircle", g, [0., 0., radius, 64]);
+            else G.call("h2d.Graphics", "drawRoundedRect", g, [-radius, -radius, radius * 2, radius * 2, 4. - i * 0.5, 16]);
+            G.call("h2d.Graphics", "endFill", g);
+        }
     }
 
     static function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String):Dynamic {

@@ -21,6 +21,9 @@ class NpcMarkersTest {
                 "Quest marker follows per-character native state " + state);
         expect(NpcMarkers.forProgress("bank", {}, {questState:4}), "bank", "Quest completion does not change service markers");
         expect(NpcMarkers.forProgress("quest", {}, null), "quest", "Missing progress retains quest information");
+        expect(NpcMarkers.forProgress("quest", {}, {questState:4}, true), "quest", "Completed activity filter restores quest artwork");
+        expect(NpcMarkers.forProgress("npc", {}, {questState:4}, true), "npc", "Ordinary NPCs never become quest markers");
+        expect(NpcMarkers.forProgress("quest", {}, {questState:0}, true), "npc", "NPC with no goals retains ordinary icon");
         expect(NpcMarkers.kind({type: 22, props: {}}), "npc", "Ordinary NPC");
         expect(NpcMarkers.kind({type: 22, props: {npc: {unit: "WanderingMerchant"}}}), "bank", "Guild merchant");
         expect(NpcMarkers.kind({id: "World_NPC_17", type: 22, props: {npc: {unit: "TODO_MOG_Merchant"}}}),

@@ -274,6 +274,7 @@ class MinimapView {
         filterBar = new MainMapFilterBar(controls, filters, (parent, kind) ->
             filterIcons.bitmap(parent, kind, target -> {
                 if (kind == "settings") MainMapFilterBar.drawGear(target);
+                else if (kind == "filterRound" || kind == "filterSquare") MainMapFilterBar.drawButtonFace(target, kind == "filterRound");
                 else markers.drawFilterIcon(target, kind);
             }), true);
     }

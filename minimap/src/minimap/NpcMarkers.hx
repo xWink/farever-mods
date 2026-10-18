@@ -18,12 +18,12 @@ class NpcMarkers {
 
     public static function isNpc(kind:String):Bool return KINDS.indexOf(kind) >= 0;
 
-    public static function forProgress(kind:String, inf:Dynamic, progress:Dynamic):String {
+    public static function forProgress(kind:String, inf:Dynamic, progress:Dynamic, showCompleted:Bool = false):String {
         if (kind != "quest" || progress == null) return kind;
         // Native ProgressState: 0=no goals, 1=available, 2=started,
         // 3=ready to turn in, 4=completed. Check all goals on every sample.
         var state = G.integer(G.call("st.player.Progress", "getNpcProgressState", progress, [inf]));
-        return state == 0 || state == 4 ? "npc" : "quest";
+        return state == 0 || state == 4 && !showCompleted ? "npc" : "quest";
     }
 
     public static function availableDefinition(inf:Dynamic):Bool {

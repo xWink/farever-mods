@@ -46,7 +46,7 @@ class GameAccess {
         if (type == "h2d.filter.Nothing" || type == "h2d.filter.Outline") { var filter:Dynamic = {nativeType: type}; created.push(filter); return filter; }
         var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" || type == "h2d.Bitmap" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
         if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Bitmap", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
-        var o:Dynamic = {nativeType: type, parent: parent, visible: true, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
+        var o:Dynamic = {nativeType: type, parent: parent, visible: true, color:{argb:0xffffffff}, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
         if (type == "h2d.Text") { o.font = args[0]; o.text = ""; }
         if (type == "h2d.Bitmap") { o.tile = args[0]; o.color = {argb:0xffffffff}; }
         created.push(o);
@@ -184,6 +184,7 @@ class GameAccess {
         };
         if (type == "h2d.Bitmap" && name == "set_tile") { o.tile = args[0]; return null; }
         if (type == "h2d.Interactive" && name == "isOver") return true;
+        if (type == "h2d.Interactive" && name == "set_cursor") { o.cursor = args[0]; return null; }
         if (type == "h2d.Flow" && name == "getProperties") return {};
         if (type == "h2d.FlowProperties" && name == "set_isAbsolute") return null;
         if (type == "h2d.Layers" && name == "add") { args[0].parent = o; args[0].layer = args[1]; return null; }

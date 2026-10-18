@@ -42,7 +42,8 @@ class MinimapFilterPanelTest {
         var container:Dynamic = {dom:null}; container.dom = {obj:container};
         var icons:Array<String> = [];
         var bar = new MainMapFilterBar(container, hud, (parent, kind) -> {
-            icons.push(kind); return G.create('h2d.Graphics', [parent]);
+            if (kind != 'filterRound' && kind != 'filterSquare') icons.push(kind);
+            return G.create('h2d.Graphics', [parent]);
         }, true);
         bar.updateHud(250, true, 1920, 1080, 1660, 10);
         eq(icons.join(','), [for (c in MainMapFilters.CATEGORIES) c.icon].concat(['settings']).join(','),
@@ -51,7 +52,9 @@ class MinimapFilterPanelTest {
         bar.gear.object.onClick(); bar.updateHud(250, true, 1920, 1080, 1660, 10);
         eq(bar.root.visible, true, 'Gear opens filters');
         for (button in bar.buttons) {
-            eq(button.object.background.borderRadius.top, 24., 'Circular map has round filter buttons');
+            eq(button.roundFace.visible, true, 'Circular map has an explicit round button face');
+            eq(button.squareFace.visible, false, 'Circular map hides square face');
+            eq(button.object.background.visible, false, 'HUD does not depend on native window skin');
             eq(button.object.selected, true, 'Border stays selected');
             var enabled = hud.enabled(button.category.key);
             button.object.onClick();
@@ -60,11 +63,21 @@ class MinimapFilterPanelTest {
             if (button.category.items.length > 0) {
                 button.object.onRightClick();
                 eq(bar.boxes.length, button.category.items.length, 'Right-click offers matching subfilters');
-                bar.boxes[0].object.onValueChange(false);
+                if (hud.enabled(button.category.key, bar.boxes[0].key)) bar.boxes[0].object.onClick({});
                 eq(hud.enabled(button.category.key, bar.boxes[0].key), false, 'HUD checkbox edits HUD preference');
             } else eq(G.field(button.object, 'onRightClick'), null, 'No empty submenu');
         }
         eq(bar.popup != null, true, 'Subfilter popup opened');
+        eq(bar.boxes[0].object.nativeType, 'h2d.Interactive', 'HUD rows do not instantiate the missing native checkbox skin');
+        eq(bar.boxes[0].art.nativeType, 'h2d.Graphics', 'HUD checkbox is explicit geometry');
+        var arcScale = bar.root.scale, center = 125., radius = center + 34 * arcScale;
+        for (button in bar.buttons) {
+            var dx = (button.object.x + 24) * arcScale - center;
+            var dy = (button.object.y + 24) * arcScale - center;
+            eq(Math.abs(Math.sqrt(dx * dx + dy * dy) - radius) < 0.001, true, 'Buttons follow the circular rim');
+        }
+        eq(bar.buttons[0].object.x > bar.buttons[4].object.x, true, 'Upper buttons curve inward');
+        eq(bar.buttons[8].object.x > bar.buttons[4].object.x, true, 'Lower buttons curve inward');
         var popup = bar.popup;
         bar.gear.object.onClick();
         eq(bar.root.visible, false, 'Gear closes filters');
@@ -74,7 +87,10 @@ class MinimapFilterPanelTest {
         bar.updateHud(160, false, 800, 600, 0, 0);
         var small = bar.root.scale;
         eq(bar.root.x >= 0, true, 'Left-edge map keeps buttons on screen');
-        for (button in bar.buttons) eq(button.object.background.borderRadius.top, 6., 'Square map restores square buttons');
+        for (button in bar.buttons) {
+            eq(button.squareFace.visible, true, 'Square map restores square button faces');
+            eq(button.roundFace.visible, false, 'Square map hides round faces');
+        }
         bar.updateHud(400, false, 800, 600, 390, 190);
         eq(bar.root.scale / small, 2.5, 'Filter size scales proportionally with minimap size');
         var last = bar.buttons[bar.buttons.length - 1].object;
@@ -98,13 +114,17 @@ class MinimapFilterPanelTest {
         var layer:Dynamic = {units:[], interactibles:[]};
         var hero:Dynamic = {layer:layer, posx:0., posy:0., posz:0., player:{progress:progress}};
         var markers = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta');
-        var settings:MinimapSettings = cast {showNpcs:true, markerScale:100.};
+        var settings:MinimapSettings = cast {showNpcs:true, markerScale:100., hideCompletedActivities:true};
         var rifts = new minimap.RiftMarkers('World/W1_Siagarta');
         markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
         eq(markers.points[0].kind, 'quest', 'Distant active quest marker');
         progress.questState = 4; markers.nextRefresh = 0;
         markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
         eq(markers.points[0].kind, 'npc', 'Cached distant quest becomes ordinary NPC after completion');
+        settings.hideCompletedActivities = false; markers.nextRefresh = 0;
+        markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
+        eq(markers.points[0].kind, 'quest', 'Showing completed activities restores distant completed quest artwork');
+        settings.hideCompletedActivities = true;
         progress.questState = 1; markers.nextRefresh = 0;
         markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
         eq(markers.points[0].kind, 'quest', 'Newly available follow-up restores quest icon');
@@ -116,6 +136,9 @@ class MinimapFilterPanelTest {
         progress.questState = 4; markers.nextRefresh = 0;
         markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
         eq(markers.points[0].kind, 'npc', 'Loaded quest becomes ordinary NPC after completion');
+        settings.hideCompletedActivities = false; markers.nextRefresh = 0;
+        markers.update(hero, settings, 0, 0, 100, 1, 0, rifts);
+        eq(markers.points[0].kind, 'quest', 'Showing completed activities restores loaded completed quest artwork');
         Sys.println('Minimap filter panel: $checks checks passed.');
     }
 }
