@@ -5,7 +5,7 @@ import moresettings.SocialCommands.SocialCommand;
 
 private typedef KnownPlayer = {var uid:String; var name:String; var player:Dynamic; var online:Bool;}
 
-/** Only uses the same public client actions as the native Social UI. */
+/** Dispatch chat commands through the game's native actions. */
 class SocialChat {
     public static var commandsEnabled = false;
     public static var closeAfterSend = false;
@@ -73,6 +73,10 @@ class SocialChat {
         if (command.error != "") { error(box, command.error); return null; }
         var me = G.call("ui.BaseElement", "get_myPlayer", box);
         if (me == null) { error(box, "Chat is not ready yet."); return null; }
+        if (command.command == "box") {
+            submitted = BoxCommand.run(box, me);
+            return null;
+        }
         var group = G.field(me, "group");
         if (command.command == "leave") {
             if (group == null || G.call("st.Group", "get_isSolo", group) == true) {

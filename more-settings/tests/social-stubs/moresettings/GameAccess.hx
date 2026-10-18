@@ -2,6 +2,8 @@ package moresettings;
 
 class GameAccess {
     public static var me:Dynamic;
+    public static var npcs:Array<Dynamic> = [];
+    public static var failTeleport = false;
     public static var ui:Dynamic;
     public static var calls:Array<{type:String, name:String, object:Dynamic, args:Array<Dynamic>}> = [];
     public static var saved:Dynamic;
@@ -35,11 +37,13 @@ class GameAccess {
     public static function enumeration(type:String, name:String):Dynamic return name;
     public static function enumValue(type:String, name:String, args:Array<Dynamic>):Dynamic return {type:type, name:name, args:args};
     public static function current(type:String, name:String):Dynamic {
+        if (type == "HElement" && name == "npcs") return npcs;
         if (type == "lib.Input") return name == "longPresses" ? longPresses : bufferedPresses;
         if (type == "ui.comp.LongInputKey") return 0.15;
         return type == "Data" ? {byId: {}} : ui;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "HData" && name == "checkStatus") return args[0] != "disabled";
         if (type == "ui.hud.ChatBoxMessage" && name == "getChannelColor") return switch Type.enumConstructor(args[0]) {
             case "Local": "Chat_Local";
             case "All": "Chat_All";
@@ -93,6 +97,10 @@ class GameAccess {
             };
         }
         return switch name {
+            case "getAbsPos": object.matrix;
+            case "rpcTeleportPosition":
+                if (failTeleport) throw "Simulated teleport failure";
+                null;
             case "tryInteractHero": onHeroCheck(); null;
             case "getFocusedTextInput": field(object, "textInput");
             case "isDead": field(object, "dead") == true;

@@ -7,15 +7,15 @@ typedef SocialCommand = {
     var error:String;
 }
 
-/** No network actions here: parse only the three additional chat commands. */
+/** Parse additional chat commands without performing game actions. */
 class SocialCommands {
     public static function parse(command:String, args:String):Null<SocialCommand> {
         command = command.toLowerCase();
-        if (command != "invite" && command != "leave" && command != "w") return null;
+        if (command != "invite" && command != "leave" && command != "w" && command != "box") return null;
         args = StringTools.trim(args);
         var result:SocialCommand = {command: command, player: "", message: "", error: ""};
-        if (command == "leave") {
-            if (args != "") result.error = "Usage: /leave";
+        if (command == "leave" || command == "box") {
+            if (args != "") result.error = "Usage: /" + command;
             return result;
         }
         var end = 0;

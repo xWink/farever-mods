@@ -14,7 +14,7 @@ class SocialTest {
         if (actual != expected) throw why + ': expected $expected, got $actual';
     }
     static function main():Void {
-        parse(); notifications(); notes(); chat(); menu();
+        parse(); notifications(); notes(); chat(); menu(); boxCommand();
         Sys.println('Social: $checks checks passed.');
     }
     static function parse():Void {
@@ -28,6 +28,8 @@ class SocialTest {
             eq(SocialCommands.parse("invite", args).error != "", true, "invalid invite has usage error");
         }
         eq(SocialCommands.parse("leave", "extra").error != "", true, "leave validates arguments");
+        eq(SocialCommands.parse("BOX", "  ").error, "", "box accepts no arguments and ignores case");
+        eq(SocialCommands.parse("box", "extra").error, "Usage: /box", "box rejects arguments");
         eq(SocialCommands.parse("invite", "Magé").player, "Magé", "accented name unchanged");
         eq(SocialCommands.connectionMessage("PlayerConnected"), true, "connected hidden");
         eq(SocialCommands.connectionMessage("PlayerDisconnected"), true, "disconnected hidden");
@@ -37,6 +39,51 @@ class SocialTest {
         eq(SettingsData.defaults().sendingMessageClosesChat, true, "sending closes chat by default");
         eq(SettingsData.defaults().enableFriendNotes, true, "friend notes enabled by default");
         eq(SettingsData.defaults().hideFriendConnectionNotifications, false, "connection notifications remain visible by default");
+    }
+    static function boxCommand():Void {
+        var config = SettingsData.defaults(); SocialHooks.configure(config);
+        var box:Dynamic = {errors:[]};
+        var hero:Dynamic = {removed:false};
+        G.me = {hero:hero, layer:{world:{level:"overworld"}}};
+        var merchant:Dynamic = {mapId:"overworld", inf:{zoneBaked:"Z1_Primevalley_Hub",
+            props:{npc:{unit:"WanderingMerchant"}}}, prefab:{matrix:{_41:123.0, _42:-456.0, _43:7.5}}};
+        var otherTown:Dynamic = {mapId:"overworld", inf:{zoneBaked:"Elsewhere",
+            props:{npc:{unit:"WanderingMerchant"}}}, prefab:{matrix:{_41:1.0, _42:2.0, _43:3.0}}};
+        G.npcs = [otherTown, merchant]; G.calls = [];
+        eq(Type.enumEq(@:privateAccess SocialHooks.command(box, "box", []), SkipWith(null)), true, "box consumed locally");
+        var teleports = G.calls.filter(c -> c.name == "rpcTeleportPosition");
+        eq(teleports.length, 1, "exactly one teleport");
+        eq(teleports[0].object, hero, "only local hero teleported");
+        eq(teleports[0].args[0].x, 123.0, "Navelin merchant absolute X");
+        eq(teleports[0].args[0].y, -456.0, "Navelin merchant absolute Y");
+        eq(teleports[0].args[0].z, 7.5, "Navelin merchant absolute height");
+        eq(teleports[0].args[1], null, "preserve player rotation");
+        eq(box.errors.length, 0, "no error on successful dispatch");
+        config.enableMissingSlashCommands = false; SocialHooks.configure(config); G.calls = [];
+        eq(@:privateAccess SocialHooks.command(box, "box", []), Continue, "setting disables command");
+        eq(G.calls.length, 0, "disabled command does no work");
+        config.enableMissingSlashCommands = true; SocialHooks.configure(config);
+        function rejected(why:String, ?args:Array<String>):Void {
+            G.calls = []; box.errors = [];
+            eq(Type.enumEq(@:privateAccess SocialHooks.command(box, "box", args == null ? [] : args), SkipWith(null)), true, why + " consumed");
+            eq(G.calls.filter(c -> c.name == "rpcTeleportPosition").length, 0, why + " does not teleport");
+            eq(box.errors.length, 1, why + " shows chat error");
+        }
+        rejected("extra arguments", ["elsewhere"]);
+        G.me.layer.world.level = "dungeon"; rejected("wrong map");
+        G.me.layer.world.level = "overworld";
+        G.npcs = [otherTown]; rejected("missing Navelin merchant");
+        G.npcs = [merchant, merchant]; rejected("ambiguous destination");
+        G.npcs = [merchant]; merchant.inf.props.enabled = false; rejected("disabled merchant");
+        merchant.inf.props.enabled = true; merchant.inf.props.releaseStatus = "disabled"; rejected("unreleased merchant");
+        merchant.inf.props.releaseStatus = null;
+        merchant.prefab.matrix._43 = Math.NaN; rejected("invalid height");
+        merchant.prefab.matrix._43 = 7.5;
+        G.me.hero = null; rejected("missing hero"); G.me.hero = hero;
+        G.failTeleport = true; box.errors = [];
+        eq(Type.enumEq(@:privateAccess SocialHooks.command(box, "box", []), SkipWith(null)), true, "RPC failure consumed");
+        eq(box.errors.length, 1, "RPC exception shown in chat");
+        G.failTeleport = false; G.npcs = []; G.me = null; SocialChat.clear();
     }
     static function notifications():Void {
         var config = SettingsData.defaults();

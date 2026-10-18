@@ -14,6 +14,8 @@ Additional camera, combat, social, and visual settings for Farever.
 
 Quick casting and target-lock camera controls are provided by [Fix Target Lock](../fix-target-lock/).
 
+With **Enable missing slash commands** on, `/box` teleports to Navelin's Guild Merchant from the same overworld map. It cannot switch maps from a dungeon or another instance.
+
 ## Installation and upgrade
 
 Requires HLX Core 0.0.8+, [Better Mod Settings](../better-mod-settings/), and [Mod Update Alerts](../mod-update-alerts/). Follow the [installation instructions](../README.md#installation), then configure the mod in **Game Menu → Mod Settings**.
