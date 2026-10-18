@@ -115,6 +115,11 @@ class GameAccess {
             default: throw "Tile " + name;
         };
         if (type == "h2d.Graphics") {
+            if (name == "clear") o.fills = [];
+            if (name == "beginFill") {
+                if (field(o, "fills") == null) o.fills = [];
+                (cast o.fills:Array<Int>).push(args[0]);
+            }
             if (name == "drawCircle" && args[2] == 11.5) rings++;
             if (failGraphics) throw "Graphics unavailable";
             if (["clear", "beginFill", "endFill", "lineStyle", "moveTo", "lineTo", "drawCircle", "drawRect", "drawEllipse", "drawRoundedRect"].indexOf(name) < 0) throw "Graphics " + name;

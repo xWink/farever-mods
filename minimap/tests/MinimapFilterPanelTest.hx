@@ -50,7 +50,26 @@ class MinimapFilterPanelTest {
             'HUD uses the same ordered category icons plus the gear');
         eq(bar.root.visible, false, 'Filter panel starts closed');
         bar.gear.object.onClick(); bar.updateHud(250, true, 1920, 1080, 1660, 10);
-        eq(bar.root.visible, true, 'Gear opens filters');
+        eq(bar.root.visible, true, 'Gear starts opening filters');
+        eq(Math.abs(bar.root.scale / (250 / 534) - 1.12) < 0.00001, true, 'HUD buttons are exactly 12 percent bigger');
+        var opening = bar.animationStart;
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, opening);
+        var initialSaves = saves;
+        bar.buttons[0].object.onClick(); bar.buttons[0].object.onRightClick();
+        eq(saves, initialSaves, 'Moving buttons cannot accidentally toggle filters');
+        eq(bar.popup, null, 'Moving buttons cannot open subfilters');
+        var collapsedX = bar.root.x + bar.buttons[0].object.x * bar.root.scale;
+        eq(Math.abs(collapsedX - bar.gear.object.x) < 0.001, true, 'Buttons emerge from behind the gear');
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, opening + 0.14);
+        eq(Math.abs(bar.expansion - 0.5) < 0.001, true, 'Opening has a smooth midpoint');
+        var movingCenter = 125., movingRadius = movingCenter + 34 * bar.root.scale;
+        for (button in bar.buttons) {
+            var dx = (button.object.x + 24) * bar.root.scale - movingCenter;
+            var dy = (button.object.y + 24) * bar.root.scale - movingCenter;
+            eq(Math.abs(Math.sqrt(dx * dx + dy * dy) - movingRadius) < 0.001, true, 'Animation follows arc, not a chord');
+        }
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, opening + 1);
+        eq(bar.expansion, 1., 'Opening completes exactly at final positions');
         for (button in bar.buttons) {
             eq(button.roundFace.visible, true, 'Circular map has an explicit round button face');
             eq(button.squareFace.visible, false, 'Circular map hides square face');
@@ -78,13 +97,42 @@ class MinimapFilterPanelTest {
         }
         eq(bar.buttons[0].object.x > bar.buttons[4].object.x, true, 'Upper buttons curve inward');
         eq(bar.buttons[8].object.x > bar.buttons[4].object.x, true, 'Lower buttons curve inward');
+        eq(bar.hudLabels[0].text.dropShadow, null, 'Popup title has no shadow');
+        eq(bar.hudLabels[1].text.color, 0xffffff, 'Rows use white text as in native popup');
+        eq(bar.hudLabels[1].size, 20., 'Rows use native-sized 20px text');
+        var regular = {size:20, name:'native-regular'};
+        bar.hudLabels[1].source.font = regular;
+        bar.updateHud(250, true, 1920, 1080, 1660, 10);
+        eq(bar.hudLabels[1].text.font, regular, 'Delayed native font styling is applied');
+        eq(bar.hudLabels[1].text.scale, 1., 'A 20px font is rendered at native scale');
+        eq(bar.popup.x == Math.round(bar.popup.x) && bar.popup.y == Math.round(bar.popup.y), true, 'Popup origin is pixel aligned');
+        var checkbox = bar.boxes[0].art;
+        MainMapFilterBar.drawCheckRow(checkbox, true, false);
+        eq(checkbox.fills[0], 0xb1978d, 'Rows match native muted brown');
+        eq(checkbox.fills[1], 0x1d1f26, 'Diamond has dark outline');
+        eq(checkbox.fills[2], 0xffd017, 'Selected diamond is yellow');
+        MainMapFilterBar.drawCheckRow(checkbox, false, false);
+        eq(checkbox.fills[2], 0xeadbc1, 'Deselected diamond has no yellow fill');
         var popup = bar.popup;
         bar.gear.object.onClick();
-        eq(bar.root.visible, false, 'Gear closes filters');
+        eq(bar.root.visible, true, 'Closing remains visible during retraction');
+        var closing = bar.animationStart;
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, closing + 0.14);
+        var halfClosed = bar.expansion;
+        bar.toggleExpanded(closing + 0.14);
+        eq(bar.expansion, halfClosed, 'Mid-animation reversal does not snap');
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, closing + 1);
+        eq(bar.expansion, 1., 'Reversed animation opens fully');
+        bar.toggleExpanded(closing + 1);
+        bar.updateHud(250, true, 1920, 1080, 1660, 10, closing + 2);
+        eq(bar.root.visible, false, 'Root hides only after retraction completes');
+        eq(bar.expansion, 0., 'Closing returns to gear');
         eq(bar.popup, null, 'Gear closes active subfilter popup');
         eq(popup.removed, true, 'Closed popup removed from input tree');
         bar.gear.object.onClick();
-        bar.updateHud(160, false, 800, 600, 0, 0);
+        bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 0.14);
+        for (button in bar.buttons) eq(button.object.x, 0., 'Square animation stays in a straight column');
+        bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 1);
         var small = bar.root.scale;
         eq(bar.root.x >= 0, true, 'Left-edge map keeps buttons on screen');
         for (button in bar.buttons) {
@@ -92,9 +140,9 @@ class MinimapFilterPanelTest {
             eq(button.roundFace.visible, false, 'Square map hides round faces');
         }
         bar.updateHud(400, false, 800, 600, 390, 190);
-        eq(bar.root.scale / small, 2.5, 'Filter size scales proportionally with minimap size');
+        eq(Math.abs(bar.root.scale / small - 2.5) < 0.00001, true, 'Filter size scales proportionally with minimap size');
         var last = bar.buttons[bar.buttons.length - 1].object;
-        eq(bar.root.y + (last.y + 48) * bar.root.scale <= 400.01, true, 'All nine categories fit along minimap');
+        eq(190 + bar.root.y + (last.y + 48) * bar.root.scale <= 600, true, 'Larger column stays within viewport');
         bar.buttons[2].object.onRightClick();
         eq(bar.popup.x + 390 >= 0 && bar.popup.x + 390 + 286 * bar.popup.scale <= 800, true, 'Popup stays inside horizontal viewport');
         eq(bar.popup.y + 190 >= 0 && bar.popup.y + 190 + 216 * bar.popup.scale <= 600, true, 'Popup stays inside vertical viewport');

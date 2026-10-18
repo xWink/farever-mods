@@ -12,6 +12,8 @@ private typedef MapFilterButton = {
 class MainMapFilterBar {
     static inline var BUTTON_SIZE = 48;
     static inline var BUTTON_STEP = 54;
+    static inline var HUD_BUTTON_SCALE = 1.12;
+    static inline var ANIMATION_SECONDS = 0.28;
     static var BAR_HEIGHT(get, never):Int;
     static function get_BAR_HEIGHT():Int return (MainMapFilters.CATEGORIES.length - 1) * BUTTON_STEP + BUTTON_SIZE;
     static inline var POPUP_X = 72;
@@ -25,6 +27,7 @@ class MainMapFilterBar {
     var popupCategory:MapFilterCategory;
     var buttons:Array<MapFilterButton> = [];
     var boxes:Array<{key:String, object:Dynamic, ?art:Dynamic, ?selected:Bool, ?hovered:Bool}> = [];
+    var hudLabels:Array<{text:Dynamic, source:Dynamic, font:Dynamic, size:Float}> = [];
     var nativeButtons = new haxe.ds.ObjectMap<Dynamic, Bool>();
     var nativeSource:Dynamic;
     var filters:MainMapFilters;
@@ -36,6 +39,9 @@ class MainMapFilterBar {
     var gear:MapFilterButton;
     var expanded:Bool = false;
     var circular:Bool = false;
+    var expansion:Float = 0;
+    var animationFrom:Float = 0;
+    var animationStart:Float = -1;
     var mapSize:Float = -1;
     var panelX:Float = Math.NaN;
     var panelY:Float = Math.NaN;
@@ -53,6 +59,7 @@ class MainMapFilterBar {
             size(button, BUTTON_SIZE, BUTTON_SIZE); position(button, 0, i * BUTTON_STEP);
             var faces = hud ? makeFaces(button, createIcon) : null;
             G.call("ui.UIElement", "set_onClick", button, [() -> {
+                if (hud && (!expanded || expansion < 1)) return;
                 filters.setEnabled(category.key, null, !filters.enabled(category.key));
                 refresh();
             }]);
@@ -87,10 +94,7 @@ class MainMapFilterBar {
             gear.roundFace = faces.round; gear.squareFace = faces.square;
             G.call("ui.UIElement", "set_selected", button, [true]);
             G.call("ui.UIElement", "set_onClick", button, [() -> {
-                expanded = !expanded;
-                G.call("h2d.Object", "set_visible", root, [expanded]);
-                if (!expanded) closePopup();
-                refresh();
+                toggleExpanded(haxe.Timer.stamp());
             }]);
             G.call("ui.UIElement", "set_onOver", button, [() -> styleButton(gear)]);
             G.call("ui.UIElement", "set_onOut", button, [() -> styleButton(gear)]);
@@ -98,37 +102,77 @@ class MainMapFilterBar {
         }
     }
 
-    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float):Void {
-        if (mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y) {
+    function toggleExpanded(now:Float):Void {
+        advanceAnimation(now);
+        animationFrom = expansion;
+        animationStart = now;
+        expanded = !expanded;
+        // Keep the buttons drawn while retracting, behind the gear (created last).
+        G.call("h2d.Object", "set_visible", root, [true]);
+        if (!expanded) closePopup();
+        refresh();
+    }
+
+    function advanceAnimation(now:Float):Bool {
+        if (animationStart < 0) return false;
+        var target = expanded ? 1. : 0.;
+        var duration = ANIMATION_SECONDS * Math.abs(target - animationFrom);
+        var t = duration == 0 ? 1. : Math.max(0, Math.min(1, (now - animationStart) / duration));
+        var eased = t * t * (3 - 2 * t);
+        expansion = animationFrom + (target - animationFrom) * eased;
+        if (t == 1) {
+            expansion = target;
+            animationStart = -1;
+            G.call("h2d.Object", "set_visible", root, [expanded]);
+        }
+        return true;
+    }
+
+    function hudScale():Float return mapSize / (BAR_HEIGHT + BUTTON_STEP) * HUD_BUTTON_SCALE;
+
+    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float):Void {
+        var moving = advanceAnimation(now == null ? haxe.Timer.stamp() : now);
+        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y;
+        if (layoutChanged) {
             mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
-            var scale = size / (BAR_HEIGHT + BUTTON_STEP);
-            G.call("h2d.Object", "setScale", root, [scale]);
-            G.call("h2d.Object", "setScale", gear.object, [scale]);
-            if (round) {
-                var center = size / scale / 2, radius = center + BUTTON_SIZE / 2 + 10;
-                var positions = [for (i in 0...buttons.length + 1) {
-                    var angle = (230 - 100 * i / buttons.length) * Math.PI / 180;
-                    {x:center + Math.cos(angle) * radius - BUTTON_SIZE / 2,
-                     y:center + Math.sin(angle) * radius - BUTTON_SIZE / 2};
-                }];
-                var minX = positions[0].x;
-                for (p in positions) minX = Math.min(minX, p.x);
-                // Shift the whole arc at the screen edge, preserving its curve.
-                var shift = Math.max(0, 4 - panelX - minX * scale);
-                position(root, shift, 0);
-                position(gear.object, shift + positions[0].x * scale, positions[0].y * scale);
-                for (i in 0...buttons.length) position(buttons[i].object, positions[i + 1].x, positions[i + 1].y);
-            } else {
-                var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
-                position(gear.object, left, 0);
-                position(root, left, BUTTON_STEP * scale);
-                for (i in 0...buttons.length) position(buttons[i].object, 0, i * BUTTON_STEP);
-            }
+            G.call("h2d.Object", "setScale", root, [hudScale()]);
+            G.call("h2d.Object", "setScale", gear.object, [hudScale()]);
+        }
+        if (layoutChanged || moving) {
+            layoutHud();
             placePopup();
         }
         styleButton(gear);
-        if (expanded) for (button in buttons) styleButton(button);
+        if (expanded || expansion > 0) for (button in buttons) styleButton(button);
         if (revision != filters.revision) refresh();
+        refreshHudFonts();
+    }
+
+    function layoutHud():Void {
+        var scale = hudScale();
+        if (circular) {
+            var center = mapSize / scale / 2, radius = center + BUTTON_SIZE / 2 + 10;
+            // Use the fully expanded arc for screen-edge clearance, so it stays
+            // stationary throughout the animation. Interpolate angles, not chords.
+            var minX = center - radius - BUTTON_SIZE / 2;
+            var shift = Math.max(0, 4 - panelX - minX * scale);
+            position(root, shift, 0);
+            var gearAngle = 230 * Math.PI / 180;
+            position(gear.object, shift + (center + Math.cos(gearAngle) * radius - BUTTON_SIZE / 2) * scale,
+                (center + Math.sin(gearAngle) * radius - BUTTON_SIZE / 2) * scale);
+            for (i in 0...buttons.length) {
+                var angle = (230 - 100 * (i + 1) / buttons.length * expansion) * Math.PI / 180;
+                position(buttons[i].object, center + Math.cos(angle) * radius - BUTTON_SIZE / 2,
+                    center + Math.sin(angle) * radius - BUTTON_SIZE / 2);
+            }
+        } else {
+            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
+            var columnHeight = (BAR_HEIGHT + BUTTON_STEP) * scale;
+            var top = Math.max(4 - panelY, Math.min(0, height - panelY - columnHeight - 4));
+            position(gear.object, left, top);
+            position(root, left, top);
+            for (i in 0...buttons.length) position(buttons[i].object, 0, (i + 1) * BUTTON_STEP * expansion);
+        }
     }
 
     public function update(window:Dynamic, w:Float, h:Float, bottomInset:Float = 0):Void {
@@ -210,7 +254,7 @@ class MainMapFilterBar {
     }
 
     function openPopup(category:MapFilterCategory):Void {
-        if (category.items.length == 0) return;
+        if (category.items.length == 0 || hud && (!expanded || expansion < 1)) return;
         if (popupCategory == category) { closePopup(); return; }
         closePopup();
         try buildPopup(category) catch (error:Dynamic) {
@@ -268,22 +312,14 @@ class MainMapFilterBar {
     }
 
     function buildHudPopup(category:MapFilterCategory):Void {
-        var font = MapFonts.find(G.field(G.current("ui.BaseUI", "current"), "gameRoot"), 6);
-        if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
-        var textScale = 16 / Math.max(1, G.number(G.field(font, "size"), 16));
-        var label = (caption:String, x:Float, y:Float) -> {
-            var text = G.create("h2d.Text", [font, popup]);
-            absolute(popup, text);
-            G.call("h2d.Text", "set_text", text, [caption]);
-            G.call("h2d.Text", "set_textColor", text, [0x503a2d]);
-            G.call("h2d.Object", "setScale", text, [textScale]);
-            position(text, x, y);
-        };
-        label(category.label, 14, 14);
+        // Use the native text component's regular font, not an arbitrary HUD
+        // label (which can be a small bold bitmap font). Hidden style sources
+        // also pick up delayed CSS and language changes without text shadows.
+        hudLabel(category.label, 14, 12, 16, 0x20120b, true);
         var closeArt = G.create("h2d.Graphics", [popup]);
         absolute(popup, closeArt); position(closeArt, 246, 8);
-        G.call("h2d.Graphics", "beginFill", closeArt, [0x89644b, 1.]);
-        G.call("h2d.Graphics", "drawRoundedRect", closeArt, [0., 0., 28., 28., 5., 16]);
+        G.call("h2d.Graphics", "beginFill", closeArt, [0xb1978d, 1.]);
+        G.call("h2d.Graphics", "drawRoundedRect", closeArt, [0., 0., 28., 28., 8., 16]);
         G.call("h2d.Graphics", "endFill", closeArt);
         G.call("h2d.Graphics", "lineStyle", closeArt, [2., 0xfff3e1, 1.]);
         for (direction in [-1., 1.]) {
@@ -296,7 +332,7 @@ class MainMapFilterBar {
             var item = category.items[i], y = 44 + i * 32;
             var art = G.create("h2d.Graphics", [popup]);
             absolute(popup, art); position(art, 12, y);
-            label(item.label, 48, y + 5);
+            hudLabel(item.label, 44, y + 2, 20, 0xffffff);
             var input = hudInput(260, 28, 12, y);
             var box = {key:item.key, object:input, art:art, selected:filters.enabled(category.key, item.key), hovered:false};
             boxes.push(box); drawCheckRow(art, box.selected, false);
@@ -306,6 +342,33 @@ class MainMapFilterBar {
             });
             G.set(input, "onOver", (_:Dynamic) -> { box.hovered = true; drawCheckRow(art, box.selected, true); });
             G.set(input, "onOut", (_:Dynamic) -> { box.hovered = false; drawCheckRow(art, box.selected, false); });
+        }
+        refreshHudFonts();
+    }
+
+    function hudLabel(caption:String, x:Float, y:Float, fontSize:Float, color:Int, bold:Bool = false):Void {
+        var source = node("text", popup, [""], "minimapSubfilterFont" + hudLabels.length);
+        if (bold) G.call("domkit.Properties", "addClass", G.field(source, "dom"), ["bold-16"]);
+        G.call("h2d.Object", "set_visible", source, [false]);
+        var font = G.field(source, "font");
+        if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
+        var text = G.create("h2d.Text", [font, popup]);
+        absolute(popup, text);
+        G.call("h2d.Text", "set_text", text, [caption]);
+        G.call("h2d.Text", "set_textColor", text, [color]);
+        G.set(text, "smooth", true);
+        G.set(text, "dropShadow", null);
+        position(text, x, y);
+        hudLabels.push({text:text, source:source, font:null, size:fontSize});
+    }
+
+    function refreshHudFonts():Void {
+        for (label in hudLabels) {
+            var font = G.field(label.source, "font");
+            if (font == null || font == label.font) continue;
+            label.font = font;
+            G.call("h2d.Text", "set_font", label.text, [font]);
+            G.call("h2d.Object", "setScale", label.text, [label.size / Math.max(1, G.number(G.field(font, "size"), label.size))]);
         }
     }
 
@@ -321,18 +384,19 @@ class MainMapFilterBar {
     static function drawCheckRow(g:Dynamic, selected:Bool, hovered:Bool):Void {
         G.call("h2d.Graphics", "clear", g);
         G.call("h2d.Graphics", "lineStyle", g, [0., 0, 0.]);
-        G.call("h2d.Graphics", "beginFill", g, [hovered ? 0xe0ccaa : 0xf3e6ce, 1.]);
-        G.call("h2d.Graphics", "drawRoundedRect", g, [0., 0., 260., 28., 4., 12]);
+        G.call("h2d.Graphics", "beginFill", g, [hovered ? 0xa58a80 : 0xb1978d, 1.]);
+        G.call("h2d.Graphics", "drawRoundedRect", g, [0., 0., 260., 28., 8., 16]);
         G.call("h2d.Graphics", "endFill", g);
-        G.call("h2d.Graphics", "lineStyle", g, [1.5, 0x89644b, 1.]);
-        G.call("h2d.Graphics", "beginFill", g, [selected ? 0x89644b : 0xfff6e5, 1.]);
-        G.call("h2d.Graphics", "drawRoundedRect", g, [8., 5., 18., 18., 3., 12]);
-        G.call("h2d.Graphics", "endFill", g);
-        if (selected) {
-            G.call("h2d.Graphics", "lineStyle", g, [2., 0xfff3e1, 1.]);
-            G.call("h2d.Graphics", "moveTo", g, [11., 14.]);
-            G.call("h2d.Graphics", "lineTo", g, [15., 18.]);
-            G.call("h2d.Graphics", "lineTo", g, [23., 10.]);
+        // Match the native checkbox: a dark diamond around a yellow centre.
+        for (outer in [true, false]) {
+            var r = outer ? 8. : 5.;
+            G.call("h2d.Graphics", "beginFill", g, [outer ? 0x1d1f26 : selected ? 0xffd017 : 0xeadbc1, 1.]);
+            G.call("h2d.Graphics", "moveTo", g, [16., 14. - r]);
+            G.call("h2d.Graphics", "lineTo", g, [16. + r, 14.]);
+            G.call("h2d.Graphics", "lineTo", g, [16., 14. + r]);
+            G.call("h2d.Graphics", "lineTo", g, [16. - r, 14.]);
+            G.call("h2d.Graphics", "lineTo", g, [16., 14. - r]);
+            G.call("h2d.Graphics", "endFill", g);
         }
     }
 
@@ -341,15 +405,15 @@ class MainMapFilterBar {
         var h = 56 + popupCategory.items.length * 32;
         if (hud) {
             var scale = Math.min(1, Math.min((height - 16) / h, (width - 16) / 286));
-            var buttonScale = mapSize / (BAR_HEIGHT + BUTTON_STEP);
+            var buttonScale = hudScale();
             var anchor = buttons[MainMapFilters.CATEGORIES.indexOf(popupCategory)].object;
             var ax = G.number(G.field(root, "x")) + G.number(G.field(anchor, "x")) * buttonScale;
             var ay = G.number(G.field(root, "y")) + G.number(G.field(anchor, "y")) * buttonScale;
             var preferred = ax - 286 * scale - 8;
             if (preferred + panelX < 8) preferred = ax + BUTTON_SIZE * buttonScale + 8;
             G.call("h2d.Object", "setScale", popup, [scale]);
-            position(popup, Math.max(8 - panelX, Math.min(preferred, width - panelX - 286 * scale - 8)),
-                Math.max(8 - panelY, Math.min(ay, height - panelY - h * scale - 8)));
+            position(popup, Math.round(Math.max(8 - panelX, Math.min(preferred, width - panelX - 286 * scale - 8))),
+                Math.round(Math.max(8 - panelY, Math.min(ay, height - panelY - h * scale - 8))));
             return;
         }
         var scale = Math.max(0.25, Math.min(1, Math.min((height - 24) / h, (width - POPUP_X - 12) / 286)));
@@ -369,7 +433,7 @@ class MainMapFilterBar {
 
     public function closePopup():Void {
         if (popup != null) G.call("h2d.Object", "remove", popup);
-        popup = null; popupCategory = null; boxes = [];
+        popup = null; popupCategory = null; boxes = []; hudLabels = [];
     }
     function restoreNative():Void {
         for (button => visible in nativeButtons) if (G.field(button, "removed") != true)
