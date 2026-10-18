@@ -4,6 +4,7 @@ typedef MapEdgePoint = {x:Float, y:Float};
 
 /** Screen-space clipping and compass geometry, shared by both minimap shapes. */
 class MinimapGeometry {
+    public static inline var FRAME_BORDER = 3;
     public static function markerInView(x:Float, y:Float, size:Float, circular:Bool, radius:Float):Bool {
         var half = size / 2;
         // Sparkling pawprints have circular outlines. Count a partly clipped

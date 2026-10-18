@@ -12,6 +12,7 @@ private typedef MapFilterButton = {
 class MainMapFilterBar {
     static inline var BUTTON_SIZE = 48;
     static inline var BUTTON_STEP = 54;
+    static inline var HUD_MAP_GAP = 6;
     static inline var HUD_BUTTON_SCALE = 1.12 * 1.10 * 1.05;
     static inline var ANIMATION_SECONDS = 0.28;
     static var BAR_HEIGHT(get, never):Int;
@@ -177,20 +178,24 @@ class MainMapFilterBar {
                     center + Math.sin(angle) * radius - BUTTON_SIZE / 2);
             }
         } else {
-            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - 6);
+            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - HUD_MAP_GAP);
             // The gear starts beside the top edge, independent of the clock.
             // Overflow follows a continuous down-then-right path under the map.
             var top = Math.max(0, 2 - panelY);
             var buttonHeight = BUTTON_SIZE * scale, step = BUTTON_STEP * scale;
-            var rowY = Math.min(mapSize + 6, height - panelY - top - buttonHeight - 4);
-            var sideCount = Std.int(Math.max(0, Math.floor((Math.min(mapSize, rowY - 6) - buttonHeight) / step)));
-            var cornerY = rowY / scale;
+            var outerSize = mapSize + MinimapGeometry.FRAME_BORDER * 2;
+            var rowY = Math.min(outerSize + HUD_MAP_GAP - top, height - panelY - top - buttonHeight - 4);
+            // Fit the nearest number of intervals to the corner, rather than
+            // dropping the last side slot when its edge crosses the frame.
+            var intervals = Std.int(Math.max(1, Math.round(rowY / step)));
+            var sideCount = intervals - 1;
+            var cornerY = rowY / scale, stride = cornerY / intervals;
             position(gear.object, left, top);
             position(root, left, top);
             for (i in 0...buttons.length) {
                 var slot = i + 1;
-                var endX = slot <= sideCount ? 0. : (slot - sideCount - 1) * BUTTON_STEP;
-                var endY = slot <= sideCount ? slot * BUTTON_STEP : cornerY;
+                var endX = slot <= sideCount ? 0. : (slot - sideCount - 1) * stride;
+                var endY = slot <= sideCount ? slot * stride : cornerY;
                 var distance = (endY + endX) * expansion;
                 position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
             }

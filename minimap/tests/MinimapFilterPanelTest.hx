@@ -150,16 +150,24 @@ class MinimapFilterPanelTest {
         var last = bar.buttons[bar.buttons.length - 1].object;
         eq(190 + bar.root.y + (last.y + 48) * bar.root.scale <= 600, true, 'Larger column stays within viewport');
         bar.updateHud(250, false, 1920, 1080, 1660, 10);
-        var side = bar.buttons.filter(b -> (b.object.y + 48) * bar.root.scale <= 250);
-        var underside = bar.buttons.filter(b -> b.object.y * bar.root.scale > 250);
-        eq(side.length, 6, 'Six enlarged categories fit down the square map side');
-        eq(underside.length, 3, 'Remaining categories include the corner and underside');
+        var side = bar.buttons.filter(b -> b.object.y * bar.root.scale < 261.99);
+        var underside = bar.buttons.filter(b -> b.object.y * bar.root.scale >= 261.99);
+        eq(side.length, 7, 'Seventh side category fills the previously skipped slot');
+        eq(underside.length, 2, 'Last categories occupy the corner and underside');
         eq(underside[0].object.x, 0., 'First overflow button fills the lower-left corner');
-        for (button in side) eq((button.object.y + 48) * bar.root.scale <= 250, true, 'Side buttons do not stick below map');
-        for (button in underside) eq(Math.abs(button.object.y * bar.root.scale - 256) < 0.001, true, 'Overflow buttons sit below the bottom edge');
+        var previousY = 0., stride = underside[0].object.y / 8;
+        for (button in side.concat([underside[0]])) {
+            eq(Math.abs(button.object.y - previousY - stride) < 0.001, true, 'Every vertical slot is evenly occupied through the corner');
+            previousY = button.object.y;
+        }
+        eq(Math.abs(underside[1].object.x - stride) < 0.001, true, 'Horizontal spacing matches vertical spacing');
+        var sideGap = -(bar.root.x + 48 * bar.root.scale);
+        var bottomGap = bar.root.y + underside[0].object.y * bar.root.scale - (250 + 2 * minimap.MinimapGeometry.FRAME_BORDER);
+        eq(Math.abs(bottomGap - sideGap) < 0.001, true, 'Bottom and side gaps match at the outer map border');
+        for (button in underside) eq(Math.abs(button.object.y * bar.root.scale - 262) < 0.001, true, 'Overflow buttons sit below the bottom edge');
         eq(underside[1].object.x > underside[0].object.x, true, 'Underside runs left to right');
-        var wrapped = underside[2].object;
-        var turn = 256 / bar.root.scale;
+        var wrapped = underside[1].object;
+        var turn = 262 / bar.root.scale;
         bar.expansion = (turn + wrapped.x / 2) / (turn + wrapped.x);
         bar.layoutHud();
         eq(wrapped.x > 0 && Math.abs(wrapped.y - turn) < 0.001, true, 'Animation travels around the L corner');

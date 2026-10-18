@@ -17,7 +17,7 @@ private typedef MapTile = {
 class MinimapView {
     static inline var LEVEL = "World/W1_Siagarta";
     static inline var DIRECTORY = "Level/" + LEVEL + ".dat/minimap";
-    static inline var BORDER = 3;
+    static inline var BORDER = MinimapGeometry.FRAME_BORDER;
     static inline var CACHE_LIMIT = 24;
 
     var world:Dynamic;
