@@ -7,6 +7,7 @@ import fareverly.SessionLease;
 import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
+    public static inline var PAGE_SIZE = 8;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -128,13 +129,13 @@ class MarketController {
     public function loadInventory():Void {
         inventory=[];chosen=null;
         if(inv!=null)for(s in inv.stacks())if(inv.canDrop(s,1))try inventory.push(TradeInventory.describe(s.item,s.count))catch(_:Dynamic){}
-        total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/12)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
+        total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/PAGE_SIZE)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
     }
     public function refresh():Void {
         if(tab=="Sell an item"){loadInventory();return;}
         var path="/api/v1/marketplace/listings";
         if(page==1)cursors=[null];
-        var params=["limit=12"];
+        var params=["limit="+PAGE_SIZE];
         if(tab=="My listings")params.push("mine=true");
         if(page>1&&cursors[page-1]!=null)params.push("cursor="+StringTools.urlEncode(cursors[page-1]));
         if(tab=="Browse") {
@@ -143,7 +144,7 @@ class MarketController {
             for(k=>v in filters)if(v!="")params.push(k+"="+StringTools.urlEncode(v));
         }
         request("GET",path+"?"+params.join("&"),null,null,data->{
-            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>12)throw "Invalid listings";
+            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>PAGE_SIZE)throw "Invalid listings";
             rows=data.listings;total=rows.length;pages=page+(data.nextCursor==null?0:1);
             cursors[page]=data.nextCursor;selected=null;message=total==0?"No matching listings.":"Listings updated.";
         });
