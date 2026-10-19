@@ -570,7 +570,7 @@ class MinimapMarkers {
             var start = kind == "ascension" ? checkpointStart(prefab) : null;
             if (start != null) {
                 var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", start, [true]);
-                activities.push({kind: "ascension", inf: inf,
+                activities.push({kind: "ascension", inf: inf, zoneBaked: "",
                     x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
                     z: G.number(G.field(matrix, "_43"), Math.NaN)});
                 continue;
@@ -595,6 +595,8 @@ class MinimapMarkers {
             if (!worldEvents.checkStatus(G.field(props, "releaseStatus"))) continue;
             var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", G.field(orb, "prefab"), [true]);
             activities.push({kind: ActivityMarkers.kind(activityInf), inf: activityInf, activityIcon: ActivityMarkers.icon(activityInf),
+                // The entrance belongs to the overworld, not the activity's interior region.
+                zoneBaked: G.text(G.field(inf, "zoneBaked")),
                 x: G.number(G.field(matrix, "_41")), y: G.number(G.field(matrix, "_42")),
                 z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
@@ -949,7 +951,7 @@ class MinimapMarkers {
             G.call("h2d.Graphics", "lineStyle", graphics, [0., 0, 0.]);
         }
         if (kind == "dungeon" && NativeMarkerIcons.draw(graphics, "icon", "Dungeon", 22)) {
-            if (point.bonusDungeon == true) NativeMarkerIcons.draw(graphics, "icon", "Dungeon_BonusReward", 8, 7, 7);
+            if (point.bonusDungeon == true) NativeMarkerIcons.draw(graphics, "icon", "Dungeon_BonusReward", 16, 7, 7);
             return;
         }
         if (kind == "pilgrim" && NativeMarkerIcons.draw(graphics, "faction", "Pilgrims", 20)) return;
@@ -994,7 +996,7 @@ class MinimapMarkers {
             if (sparkling) LandmarkIcons.sparklingRing(graphics, radius + 3.5);
             // Stroke each toe and the pad at their original positions. Scaling
             // a second paw shifts its pieces and leaves their inner edges bare.
-            G.call("h2d.Graphics", "lineStyle", graphics, [1.3, 0x201b1b, 1.]);
+            G.call("h2d.Graphics", "lineStyle", graphics, [0.65, 0x201b1b, 1.]);
             G.call("h2d.Graphics", "beginFill", graphics, [color, 1.]);
             shape(point, radius);
             G.call("h2d.Graphics", "endFill", graphics);

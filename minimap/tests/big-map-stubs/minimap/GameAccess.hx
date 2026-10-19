@@ -56,7 +56,7 @@ class GameAccess {
         var parent:Dynamic = type == "h2d.Mask" ? args[2] : type == "h2d.Text" || type == "h2d.Bitmap" ? args[1] : type == "h2d.Interactive" ? args[2] : args[0];
         if (["h2d.Object", "h2d.Graphics", "h2d.Text", "h2d.Bitmap", "h2d.Interactive", "h2d.Mask"].indexOf(type) < 0) throw "Constructor " + type;
         var o:Dynamic = {nativeType: type, parent: parent, visible: true, color:{argb:0xffffffff}, alpha: 1., x: 0., y: 0., scale: 1., rotation: 0., removed: false};
-        if (type == "h2d.Text") { o.font = args[0]; o.text = ""; }
+        if (type == "h2d.Text") { o.font = args[0]; o.text = ""; if (field(o.font,"sdfCutoff") != null) o.sdfShader = {alphaCutoff:field(o.font,"sdfCutoff")}; }
         if (type == "h2d.Bitmap") { o.tile = args[0]; o.color = {argb:0xffffffff}; }
         created.push(o);
         return o;
@@ -170,7 +170,7 @@ class GameAccess {
                 var sx = number(field(f,"sx")), sy = number(field(f,"sy"));
                 textureRegions.push({x:(number(args[0])-number(field(f,"dx"))+number(field(f.tile,"x")))/sx,
                     y:(number(args[1])-number(field(f,"dy"))+number(field(f.tile,"y")))/sy,
-                    width:number(args[2])/sx,height:number(args[3])/sy});
+                    width:number(args[2])/sx,height:number(args[3])/sy,drawWidth:number(args[2]),drawHeight:number(args[3])});
             }
             if (name == "endFill") o.tileFill = null;
             if (name == "drawCircle" && args[2] == MinimapMarkers.TRAVEL_RING_RADIUS - 1.4) rings++;
@@ -237,6 +237,11 @@ class GameAccess {
             case "set_useScreenResolution": o.useScreenResolution = args[0]; null;
             case "set_resolutionScale": o.resolutionScale = args[0]; null;
             default: throw "Filter " + name;
+        };
+        if (type == "h3d.shader.SignedDistanceField") return switch name {
+            case "get_alphaCutoff": o.alphaCutoff;
+            case "set_alphaCutoff": o.alphaCutoff = args[0]; null;
+            default: throw "SDF " + name;
         };
         if (type == "h2d.Text") return switch name {
             case "set_font": o.font = args[0]; null;

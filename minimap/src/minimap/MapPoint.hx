@@ -16,6 +16,7 @@ typedef MapPoint = {
     var ?eventElement:String;
     var ?entity:Dynamic;
     var ?inf:Dynamic;
+    var ?zoneBaked:String;
     var ?name:String;
     var ?hasMarker:Bool;
 }

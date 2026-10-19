@@ -43,6 +43,32 @@ class MapRefinementsTest {
         eq(discovery.fogVisible(cave), true, 'Explored cave in unlocked region reveals');
         eq(discovery.regionVisible(null), false, 'Unknown region does not disclose markers');
 
+        var bakedZones:Map<String,Dynamic> = ['region'=>region,'interior'=>{id:'interior',type:1}];
+        G.globals['Data.zone'] = {byId:bakedZones};
+        world.zoneAt = (_:Dynamic) -> null;
+        var early = new MapDiscovery(); early.sample(hero);
+        var entrance:minimap.MapPoint = {kind:'dungeon',x:300.,y:200.,z:0.,zoneBaked:'region',inf:{zoneBaked:'interior'}};
+        progress.lockedZone = 'interior'; early.sample(hero);
+        eq(early.accepts(entrance),true,'Unlocked entrance appears before terrain loads, regardless of interior');
+        early.window = {zoneAt:world.zoneAt};
+        eq(early.accepts(entrance),true,'Main map also uses baked entrance region');
+        var npc:minimap.MapPoint = {kind:'npc',x:301.,y:200.,z:0.,inf:{zoneBaked:'region'}};
+        eq(early.accepts(npc),true,'Static NPC appears without terrain');
+        var foe:minimap.MapPoint = {kind:'enemy',x:302.,y:200.,z:0.,entity:{spawner:{inf:{zoneBaked:'region'}}}};
+        eq(early.accepts(foe),true,'Available enemy uses its spawner region');
+        progress.lockedZone = 'region'; early.sample(hero);
+        eq(early.accepts(entrance),false,'Baked metadata never bypasses locked regions');
+        eq(early.accepts(npc),false,'NPC in locked region stays hidden');
+        eq(early.accepts(foe),false,'Enemy in locked region stays hidden');
+        progress.lockedZone = null; early.sample(hero);
+        entrance.zoneBaked = '';
+        eq(early.accepts(entrance),false,'Unknown entrance never falls back to interior metadata');
+        npc.inf.zoneBaked = 'late';
+        eq(early.accepts(npc),false,'Unavailable definition remains hidden');
+        bakedZones['late'] = {id:'late',type:1};
+        eq(early.accepts(npc),true,'Missing definitions are retried when available');
+        world.zoneAt = (_:Dynamic) -> region;
+
         for (unit in ['HildaLambert','NellyXyr'])
             eq(NpcMarkers.kind({props:{npc:{unit:unit}}}), 'pilgrim', 'Faction merchant unit: '+unit);
         eq(NpcMarkers.kind({props:{npc:{unit:'GenericHuman'}}, texts:{name:'Nelly Xyr'}}), 'pilgrim', 'Named merchant with reused model');
@@ -72,6 +98,7 @@ class MapRefinementsTest {
         near(bonus.x,48,'Bonus symbol atlas X origin');
         near(bonus.y,24,'Bonus symbol atlas Y origin');
         near(bonus.width,24,'Full bonus symbol sampled');
+        near(bonus.drawWidth,16,'Bonus plus is large enough to read');
         near(pilgrim.width,200,'Full Pilgrims banner width sampled');
         near(pilgrim.height,248,'Full Pilgrims banner height sampled');
         art.drawIcon({kind:'demon',x:0,y:0,z:0});
@@ -89,10 +116,10 @@ class MapRefinementsTest {
             if (command.name == 'lineStyle') stroke = G.number(command.args[0]);
             if (command.name == 'drawCircle') {
                 toes++;
-                eq(stroke > 0,true,'Every toe has a real outline');
+                near(stroke,0.65,'Each toe outline has half the previous thickness');
                 near(G.number(command.args[2]),7*0.23,'Outline preserves each toe size and position');
             }
-            if (command.name == 'moveTo') { pads++; eq(stroke > 0,true,'Paw pad has a real outline'); }
+            if (command.name == 'moveTo') { pads++; near(stroke,0.65,'Paw pad outline has half the previous thickness'); }
         }
         eq(toes,4,'Exactly four outlined toes, without a displaced silhouette');
         eq(pads,1,'Exactly one outlined pad');
@@ -168,7 +195,7 @@ class MapRefinementsTest {
         progress.lockedElement = null;
         var timerMarker = BigMapTest.nativeMarker(window,13,100,120);
         timerMarker.activity = {id:'Rift'};
-        timerMarker.eventTimer = {font:{size:18},scaleX:1.,textColor:0xffffff,smooth:true,
+        timerMarker.eventTimer = {font:{size:18,sdfCutoff:0.5},scaleX:1.,textColor:0xffffff,smooth:true,
             letterSpacing:0.5,dropShadow:{dx:0.,dy:1.,color:0,alpha:0.5}};
         window.selector = false; view.update(window,config);
         view.markers.sampledPoints = [{kind:'nextRift',x:100.,y:120.,z:0.}];
@@ -179,7 +206,10 @@ class MapRefinementsTest {
         eq(view.riftLabel.color,0xffffff,'Countdown uses native timer color');
         eq(view.riftLabel.dropShadow,timerMarker.eventTimer.dropShadow,'Countdown uses native timer shadow');
         eq(view.riftLabel.letterSpacing,0.5,'Countdown uses native timer spacing');
-        eq(G.field(view.riftLabel,'filter'),null,'Countdown has no custom thick outline');
+        eq(view.riftLabel.filter.color,0x000000,'Countdown has a black outline');
+        near(view.riftLabel.filter.size,1.,'Countdown outline is subtle');
+        near(view.riftLabel.sdfShader.alphaCutoff,0.475,'Countdown strokes are slightly heavier');
+        near(timerMarker.eventTimer.font.sdfCutoff,0.5,'Shared native font stays unchanged');
         config.clockTimerMode = 'Clock'; view.updateRiftLabel();
         eq(view.riftLabel.text,'02:05','Map countdown independent of minimap Clock setting');
         eq(view.riftLabel.y > 120,true,'Countdown appears below the next rift');

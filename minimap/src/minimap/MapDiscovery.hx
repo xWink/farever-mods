@@ -9,6 +9,7 @@ class MapDiscovery {
     var world:Dynamic;
     var visible:Map<String, Bool> = [];
     var regions:Map<String, Dynamic> = [];
+    var bakedRegions:Map<String, Dynamic> = [];
     var position:Dynamic;
     var regionCount:Int = 0;
     public var window:Dynamic;
@@ -17,7 +18,7 @@ class MapDiscovery {
 
     public function sample(nextHero:Dynamic):Void {
         var nextWorld = G.field(G.field(nextHero, "layer"), "world");
-        if (hero != nextHero || world != nextWorld) { regions = []; regionCount = 0; }
+        if (hero != nextHero || world != nextWorld) { regions = []; bakedRegions = []; regionCount = 0; }
         hero = nextHero; world = nextWorld;
         progress = G.field(G.field(hero, "player"), "progress");
         // Unlocks can change on the same progress object. Cache only this sample.
@@ -26,6 +27,22 @@ class MapDiscovery {
 
     public function accepts(point:MapPoint):Bool {
         if (progress == null || world == null) return false;
+        // Definitions already identify their region. Do not wait for the terrain
+        // chunk at a distant marker to stream in just to check its obelisk.
+        var bakedId = point.zoneBaked;
+        if (bakedId == null) {
+            var inf = point.inf != null ? point.inf : G.field(point.entity, "inf");
+            bakedId = G.text(G.field(inf, "zoneBaked"));
+            if (bakedId == "") bakedId = G.text(G.field(G.field(G.field(point.entity, "spawner"), "inf"), "zoneBaked"));
+        }
+        if (bakedId != "") {
+            var baked = bakedRegions[bakedId];
+            if (baked == null) {
+                baked = G.call("haxe.ds.StringMap", "get", G.field(G.current("Data", "zone"), "byId"), [bakedId]);
+                if (baked != null) bakedRegions[bakedId] = baked;
+            }
+            if (baked != null) return regionVisible(baked);
+        }
         var key = point.x + ":" + point.y + ":" + point.z;
         var zone = regions[key];
         if (zone == null) {

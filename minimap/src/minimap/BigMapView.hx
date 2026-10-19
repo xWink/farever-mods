@@ -311,6 +311,14 @@ class BigMapView {
             G.call("h2d.Text", "set_textColor", riftLabel, [G.integer(G.field(source, "textColor"), 0xffffff)]);
             G.call("h2d.Text", "set_letterSpacing", riftLabel, [G.number(G.field(source, "letterSpacing"))]);
             G.set(riftLabel, "dropShadow", G.field(source, "dropShadow"));
+            // Each Text owns its SDF shader; adjust this label without changing
+            // the shared font or the game's original countdown.
+            var sdf = G.field(riftLabel, "sdfShader");
+            if (sdf != null) {
+                var cutoff = G.number(G.call("h3d.shader.SignedDistanceField", "get_alphaCutoff", sdf));
+                G.call("h3d.shader.SignedDistanceField", "set_alphaCutoff", sdf, [Math.max(0.05, cutoff - 0.025)]);
+            }
+            MapTextOutline.apply(riftLabel, 1.0);
         }
         if (riftLabelText != text) {
             riftLabelText = text;
