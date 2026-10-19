@@ -97,7 +97,13 @@ class GameAccess {
     }
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (args == null) args = [];
-        if (type == "hxd.res.Loader") return name == "dir" ? field(o,"resources") : {texture:{resource:args[0]}};
+        if (type == "hxd.res.Loader") {
+            if (name == "dir") {
+                var directories:Map<String, Array<Dynamic>> = field(o, "directories");
+                return directories == null ? field(o, "resources") : directories.get(args[0]);
+            }
+            return {texture:{resource:args[0]}};
+        }
         if (type == "hxd.res.Any" && name == "toTexture") return o.texture;
         if (type == "hxd.impl.Allocator") return switch name {
             case "allocFloats": {length:args[0], values:[for (_ in 0...Std.int(args[0])) 0.]};

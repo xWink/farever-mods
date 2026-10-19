@@ -23,7 +23,8 @@ class MinimapFog {
         this.world = world;
         chunkSize = G.integer(G.field(G.field(world, "terrainData"), "chunkSize"));
         chunksPerSide = G.integer(G.field(settings, "MapTileChunksPerSide"));
-        var directory = "Level/" + G.text(G.field(world, "level")) + ".dat/minimap/zones";
+        // Match MapWindow.refreshTiles: fog atlases live beside the terrain tiles.
+        var directory = "Level/" + G.text(G.field(world, "level")) + ".dat/minimap/fowZones";
         for (resource in G.array(G.call("hxd.res.Loader", "dir", loader, [directory]))) {
             var name = G.text(G.field(G.field(resource, "entry"), "name"));
             if (!StringTools.endsWith(name, ".png")) continue;
@@ -35,7 +36,8 @@ class MinimapFog {
             zoneTexture = G.call("hxd.res.Any", "toTexture", resource);
             break;
         }
-        if (zoneTexture == null || chunkSize <= 0 || chunksPerSide <= 0) throw "Map fog data unavailable";
+        if (zoneTexture == null) throw "Map fog texture unavailable in " + directory;
+        if (chunkSize <= 0 || chunksPerSide <= 0) throw "Map fog tile dimensions unavailable";
         ramp = G.call("hxd.res.Any", "toTexture", G.call("hxd.res.Loader", "load", loader, ["UI/Map/fowRamp.png"]));
         allocator = G.staticCall("hxd.impl.Allocator", "get", []);
     }

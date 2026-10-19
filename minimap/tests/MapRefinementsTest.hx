@@ -108,7 +108,12 @@ class MapRefinementsTest {
         G.globals['DataCache.FOW_ZONES'] = [null,region,cave];
         G.globals['Const.UI'] = {FowBlurSize:2};
         var resource:Dynamic = {entry:{name:'-2_3.png'},texture:{source:'zones'}};
-        var fog = new MinimapFog(world,{resources:[resource]},{MapTileChunksPerSide:4});
+        // MapWindow.refreshTiles reads this exact directory in the game's resources.
+        var directories:Map<String, Array<Dynamic>> = [
+            'Level/World/W1_Siagarta.dat/minimap/fowZones' => [resource]
+        ];
+        var fog = new MinimapFog(world,{directories:directories},{MapTileChunksPerSide:4});
+        eq(fog.zoneTexture,resource.texture,'Fog loads the native fowZones atlas');
         progress.lockedZone = 'region'; fog.update(hero);
         eq(fog.buffer.values[1],0.,'Locked region darkened by native fog buffer');
         var bitmap:Dynamic = {}; fog.attach(bitmap,2,5);
