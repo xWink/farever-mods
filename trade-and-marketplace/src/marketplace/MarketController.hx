@@ -125,7 +125,12 @@ class MarketController {
         view.dirty=true;
     }
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
-    public function chooseTab(value:String):Void {if(busy)return;tab=value;page=1;selected=null;chosen=null;if(tab=="Sell an item")loadInventory();else refresh();view.dirty=true;}
+    public function chooseTab(value:String):Void {
+        if(busy)return;
+        tab=value;page=1;pages=1;total=0;rows=[];selected=null;chosen=null;
+        if(tab=="Sell an item")loadInventory();else refresh();
+        view.dirty=true;
+    }
     public function loadInventory():Void {
         inventory=[];chosen=null;
         if(inv!=null)for(s in inv.stacks())if(inv.canDrop(s,1))try inventory.push(TradeInventory.describe(s.item,s.count))catch(_:Dynamic){}
