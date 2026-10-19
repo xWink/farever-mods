@@ -15,6 +15,29 @@
       "key": "rejectAllRequests",
       "type": "checkbox",
       "label": "Reject all trade requests"
+    },
+    {
+      "type": "title",
+      "label": "Marketplace"
+    },
+    {
+      "type": "button",
+      "key": "openMarketplace",
+      "label": "Open marketplace",
+      "buttonText": "Open"
+    },
+    {
+      "type": "button",
+      "key": "fareverlySignIn",
+      "label": "Connect to Fareverly",
+      "buttonText": "Sign in with Steam"
+    },
+    {
+      "type": "text",
+      "key": "fareverlyApiKey",
+      "label": "Fareverly API key",
+      "isCommon": true,
+      "isSecret": true
     }
   ]
 }

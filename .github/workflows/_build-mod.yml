@@ -83,6 +83,13 @@ jobs:
       - name: Compile
         run: haxe compile.hxml
 
+      - name: Build marketplace desktop plugin
+        if: inputs.project == 'trade-and-marketplace'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-mingw-w64-x86-64
+          bash native/build.sh
+
       - name: Package
         env:
           REQUIREMENTS: ${{ inputs.required-settings && 'Requires HLX Core, Better Mod Settings, and Mod Update Alerts.' || 'Requires HLX Core.' }}
@@ -97,6 +104,10 @@ jobs:
           fi
           if [[ -f configFormats.json ]]; then
             cp configFormats.json "$destination/"
+          fi
+          if [[ "$PROJECT" == 'trade-and-marketplace' ]]; then
+            mkdir -p package/hlx/plugins/trade-and-marketplace
+            cp build/native/trade_marketplace_desktop.hdll package/hlx/plugins/trade-and-marketplace/
           fi
           printf '%s\n' \
             "$REQUIREMENTS" \

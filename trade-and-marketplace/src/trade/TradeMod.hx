@@ -8,6 +8,7 @@ typedef TradeConfig = {enabled:Bool,rejectAllRequests:Bool,requestX:Null<Float>,
 class TradeMod {
     @:hlx.config static var config:TradeConfig = {enabled:true,rejectAllRequests:false,requestX:null,requestY:null,tradeX:null,tradeY:null};
     static var controller:TradeController;
+    static var market:marketplace.MarketController;
     static var menuUi:Dynamic;
     static var menuUid:String;
     static var stoppingDrag = false;
@@ -21,7 +22,7 @@ class TradeMod {
         config.tradeX = x; config.tradeY = y; ModConfig.save(HlxRuntime.moduleName(),config);
     }
     static function main():Void {
-        ModConfig.save(HlxRuntime.moduleName(),config); controller = new TradeController();
+        ModConfig.save(HlxRuntime.moduleName(),config); controller = new TradeController(); market = new marketplace.MarketController();
         Bus.subscribe("better-mod-settings/config-changed/"+HlxRuntime.moduleName(),(_)->config = ModConfig.load(HlxRuntime.moduleName(),config));
     }
     @:hlx.postfix(GameApp.update)
@@ -29,6 +30,7 @@ class TradeMod {
         if (controller != null) try {
             controller.update(instance,haxe.Timer.stamp());
         } catch(e:Dynamic) controller.fail(e);
+        if (market != null) try market.update(instance,haxe.Timer.stamp()) catch (_:Dynamic) market.fail();
     }
     @:hlx.postfix(ui.Tooltip.sync)
     static function fitTradeTooltip(instance:Dynamic,engine:Dynamic,result:Void):Void {
@@ -49,13 +51,14 @@ class TradeMod {
     }
     @:hlx.prefix(GameApp.dispose)
     static function beforeDispose(instance:Dynamic):HlxPrefixResult<Void> {
+        if (market != null) market.disconnect();
         if (controller != null) controller.dispose(); menuUi = null; menuUid = null; return Continue;
     }
     @:hlx.prefix(ui.win.BaseWindow.autoDisplay)
     static function suppressAutoDisplay(instance:Dynamic):HlxPrefixResult<Void> return TradeFrame.constructing ? Skip : Continue;
     @:hlx.prefix(ui.win.BaseWindow.onBack)
     static function back(instance:Dynamic):HlxPrefixResult<Bool> return controller != null
-        && (controller.view.closeFromBack(instance) || controller.requestPopup.closeFromBack(instance)) ? SkipWith(true) : Continue;
+        && ((market != null && market.view.closeFromBack(instance)) || controller.view.closeFromBack(instance) || controller.requestPopup.closeFromBack(instance)) ? SkipWith(true) : Continue;
     @:hlx.prefix(ui.win.BaseWindow.closeOtherOnOpen)
     static function keepOtherWindows(instance:Dynamic,other:Dynamic):HlxPrefixResult<Bool> return controller != null && controller.requestPopup.ownsWindow(instance) ? SkipWith(false) : Continue;
     @:hlx.prefix(ui.win.BaseWindow.closeSelfOnOpen)
@@ -72,6 +75,9 @@ class TradeMod {
     }
     @:hlx.prefix(ui.hud.ChatBox.handleCommand)
     static function command(instance:Dynamic,name:String,args:Dynamic):HlxPrefixResult<String> {
+        if (name != null && ["market","marketplace"].indexOf(name.toLowerCase()) >= 0) {
+            if (market != null) market.open(); return SkipWith(null);
+        }
         if (name == null || name.toLowerCase() != "trade") return Continue;
         if (controller != null) try {
             if (!enabled()) controller.chat("Enable Trade + Marketplace in Better Mod Settings first.");

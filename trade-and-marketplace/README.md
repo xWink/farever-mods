@@ -34,3 +34,16 @@ Trading automates normal item dropping and pickup; it does not provide server es
 See [Building](../README.md#building) for source builds and tests.
 
 Source lives in `trade-and-marketplace/`. Actions runs regression tests and compares core protocol behavior with the preserved original binary before packaging. See the [recovery record](recovery/README.md) for provenance. Native exchange behavior also needs two-player in-game testing.
+
+## Marketplace
+
+Open `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings.
+
+- Browse listings for your game server, filter items and inspect native tooltips.
+- Sign in with Steam to list unlocked, tradable backpack items. The API key is shared with DPS Meter and other Fareverly mods.
+- Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
+- Manage up to 10 active listings under **My listings**. Listings expire after 3 days; price edits do not renew them.
+- **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items remain in the seller's backpack until then.
+- Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
+
+Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The website at [fareverly.com/marketplace](https://fareverly.com/marketplace) shows the same listings.

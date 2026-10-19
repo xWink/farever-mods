@@ -4,6 +4,7 @@ import trade.TradeUi.*;
 /** Shared native Options frame, with explicitly owned layout and drag lifetime. */
 class TradeFrame {
     public static var constructing = false;
+    static var styledUi:Dynamic;
     public var ui:Dynamic;
     public var window:Dynamic;
     public var root:Dynamic;
@@ -65,6 +66,7 @@ class TradeFrame {
         installStyles();
     }
     function installStyles():Void {
+        if (styledUi == ui) return;
         var sheet = "";
         for (s in [{name:"accept",bg:"#527F40",fg:"#FFFFFF"},{name:"unaccept",bg:"#E8BB4D",fg:"#433523"},{name:"cancel",bg:"#B8443A",fg:"#FFFFFF"}]) {
             var selector = "button.trade-"+s.name;
@@ -73,6 +75,7 @@ class TradeFrame {
         }
         var style = G.field(ui,"style");
         G.call("domkit.CssStyle","add",style,[G.call("domkit.CssParser","parseSheet",G.field(style,"cssParser"),[sheet,"trade-actions"])]);
+        styledUi = ui;
     }
     public function button(text:String,x:Int,y:Int,w:Int,action:Void->Void,kind:String):Dynamic {
         var obj = G.field(node("button",G.field(container,"dom"),[text],"tradeButton"+(nextId++)),"obj");

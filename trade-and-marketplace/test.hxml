@@ -28,3 +28,11 @@
 -cp tests/tooltip-stubs
 -main TooltipTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/market-stubs
+-main MarketplaceTest
+--interp
