@@ -5,7 +5,7 @@ import minimap.GameAccess as G;
 /** Service roles from resolved world definitions, shared by static and live markers. */
 class NpcMarkers {
     // Shared by classification and drawing: every recognized service is drawn.
-    public static final KINDS:Array<String> = ["npc", "quest", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "soulWell"];
+    public static final KINDS:Array<String> = ["npc", "quest", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "soulWell", "pilgrim"];
 
     public static function stationKind(type:Int):String return switch type {
         // Data.Element_type.
@@ -58,6 +58,7 @@ class NpcMarkers {
         // Huntresses can also sell Glory-priced rewards. Their explicit native
         // identity takes precedence over the generic shop/title heuristics.
         switch unit {
+            case "HildaLambert", "NellyXyr": return "pilgrim";
             case "DemonHunterMira", "DemonHunterZoey", "DemonHunterRumi": return "demon";
             default:
         }
@@ -66,6 +67,9 @@ class NpcMarkers {
         // prices and localized service title need not be present here.
         if (unit == "TODO_MOG_Merchant") return "glory";
         var texts = G.field(inf, "texts");
+        // Some merchants reuse another unit model and name the world instance.
+        var personalName = G.text(G.field(texts, "name"));
+        if (personalName == "Hilda Lambert" || personalName == "Nelly Xyr") return "pilgrim";
         // Some world NPCs expose their service in npcTitle / the popup's
         // texts.type without exposing Glory-priced offers in props.shop.
         // Only match the complete service label; personal names, templates,

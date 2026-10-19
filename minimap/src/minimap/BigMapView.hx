@@ -26,6 +26,14 @@ class BigMapView {
     var markers:MinimapMarkers;
     var rifts:RiftMarkers;
     var nativeMarkers:BigMapNativeMarkers;
+    var travelHovered:Bool = false;
+    var riftLabel:Dynamic;
+    var riftLabelScale:Float = 1;
+    var riftLabelText:String = "";
+    var riftLabelWidth:Float = 0;
+    var riftLabelRevision:Int = -1;
+    var riftLabelPoint:MapPoint;
+    var riftLabelWorldScale:Float = 0;
     var revision:Int = -1;
     var nativeCount:Int = -1;
     var tileScale:Float = 0;
@@ -101,7 +109,9 @@ class BigMapView {
             nativeMarkers.sample(window, markers.points, hero, fastTravel);
             revision = markers.revision; nativeCount = count;
         }
-        nativeMarkers.apply(window, tileScale, hero);
+        nativeMarkers.apply(window, tileScale, hero, fastTravel ? root : null,
+            MinimapMarkers.TRAVEL_RING_RADIUS * markers.obeliskScale * filters.settings().markerScale / 100 * MARKER_SIZE / scale);
+        updateRiftLabel();
         var newOwnScale = filters.settings().markerScale / 100 * MARKER_SIZE / scale;
         if (ownScale != newOwnScale) {
             ownScale = newOwnScale;
@@ -131,15 +141,19 @@ class BigMapView {
         var foreground = G.create("h2d.Object", [root]);
         markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE, priorityRoot, iconCache);
         markers.ownFirst = true;
-        markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point));
+        markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point) && MapDiscovery.travelUnlocked(point, hero));
         markers.obeliskScale = fastTravel ? 1.5 : 1.;
         markers.highlightObelisks = fastTravel;
         // Travel destinations must stay visible and clickable regardless of elevation.
         markers.ignoreHeightFilter = fastTravel;
+        markers.showElevations = !fastTravel;
+        markers.discovery.window = window;
         // After the party layer, above every native and replacement marker.
         arrow = iconCache.bitmap(priorityRoot, "own", g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xfff3d6));
         rifts = new RiftMarkers(LEVEL);
         nativeMarkers = new BigMapNativeMarkers();
+        nativeMarkers.travelHover = (source, event) -> { travelHovered = true; trackMouse(event, source); };
+        nativeMarkers.travelOut = () -> { travelHovered = false; hovered = false; hoverState = null; hideCaption(); };
         overlay = G.create("h2d.Object", [container]);
         var properties = G.call("h2d.Flow", "getProperties", container, [overlay]);
         G.call("h2d.FlowProperties", "set_isAbsolute", properties, [true]);
@@ -214,11 +228,11 @@ class BigMapView {
         hovered = false; hoverState = null;
     }
 
-    function trackMouse(event:Dynamic):Void {
+    function trackMouse(event:Dynamic, ?source:Dynamic):Void {
         if (inputPoint == null) return;
         G.set(inputPoint, "x", G.number(G.field(event, "relX")));
         G.set(inputPoint, "y", G.number(G.field(event, "relY")));
-        G.call("h2d.Object", "localToGlobal", input, [inputPoint]);
+        G.call("h2d.Object", "localToGlobal", source == null ? input : source, [inputPoint]);
         G.call("h2d.Object", "globalToLocal", overlay, [inputPoint]);
         mouseX = G.number(G.field(inputPoint, "x"));
         mouseY = G.number(G.field(inputPoint, "y"));
@@ -233,7 +247,7 @@ class BigMapView {
             width = w; height = h;
             captionKey = ""; hoverState = null;
         }
-        if (input == null || !hovered || filterBar.contains(mouseX, mouseY) || G.call("h2d.Interactive", "isOver", input) != true) { hoverState = null; hideCaption(); return; }
+        if (input == null || !hovered || filterBar.contains(mouseX, mouseY) || !travelHovered && G.call("h2d.Interactive", "isOver", input) != true) { hoverState = null; hideCaption(); return; }
         // Use the displayed scroll transform, including smooth zoom and pan,
         // rather than targetZoom or the rounded native mouse-world coordinates.
         var x = (mouseX - projection.x) / scale;
@@ -247,7 +261,7 @@ class BigMapView {
             bonusWidth:bonusDungeon.width, bonusVisible:bonusDungeon.visible};
         var target = markers.hoverAt(x, y, scale, hx, hy, hero);
         if (target == null) { hideCaption(); return; }
-        var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: hz});
+        var details = MarkerDetails.measurements(target, {x: hx, y: hy, z: fastTravel ? Math.NaN : hz});
         var key = target.name + [for (part in details) part.direction + ":" + part.metres].join("|")
             + "|bonus:" + bonusDungeon.visible + ":" + bonusDungeon.width;
         if (captionKey == key) return;
@@ -270,6 +284,42 @@ class BigMapView {
         G.call("h2d.Object", "setPosition", caption, [(width - textWidth) / 2, height - 72 - footerOffset]);
         measurements.setValues(details);
         measurements.place(width / 2, height - 40 - footerOffset, maxWidth);
+    }
+
+    function updateRiftLabel():Void {
+        if (riftLabelRevision != markers.revision) {
+            riftLabelRevision = markers.revision;
+            riftLabelPoint = null;
+            if (!fastTravel) for (point in markers.points)
+                if (point.kind == "nextRift" || point.kind == "upcomingRift") { riftLabelPoint = point; break; }
+        }
+        var target = riftLabelPoint;
+        var text = target == null ? "" : RiftTiming.caption(rifts.remaining);
+        if (text == "") {
+            if (riftLabel != null) G.call("h2d.Object", "set_visible", riftLabel, [false]);
+            return;
+        }
+        if (riftLabel == null) {
+            var font = MapFonts.find(window, 6);
+            if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
+            riftLabelScale = 15 / Math.max(1, G.number(G.field(font, "size"), 14));
+            riftLabel = G.create("h2d.Text", [font, root]);
+            G.set(riftLabel, "smooth", true);
+            G.call("h2d.Text", "set_textColor", riftLabel, [0xfff3d6]);
+            MapTextOutline.apply(riftLabel, 1.0);
+        }
+        if (riftLabelText != text) {
+            riftLabelText = text;
+            G.call("h2d.Text", "set_text", riftLabel, [text]);
+            riftLabelWidth = G.number(G.call("h2d.Text", "get_textWidth", riftLabel)) * riftLabelScale;
+        }
+        var s = riftLabelScale / scale;
+        var x = target.x - riftLabelWidth / (2 * scale);
+        var y = target.y + (12 * MARKER_SIZE * filters.settings().markerScale / 100 + 3) / scale;
+        if (riftLabelWorldScale != s) { riftLabelWorldScale = s; G.call("h2d.Object", "setScale", riftLabel, [s]); }
+        if (G.field(riftLabel, "x") != x || G.field(riftLabel, "y") != y)
+            G.call("h2d.Object", "setPosition", riftLabel, [x, y]);
+        if (G.field(riftLabel, "visible") != true) G.call("h2d.Object", "set_visible", riftLabel, [true]);
     }
 
     function ensureCaption():Void {
@@ -327,6 +377,7 @@ class BigMapView {
         overlay = null; input = null; caption = null; measurements = null;
         projection = null; hoverState = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
+        riftLabel = null; riftLabelText = ""; riftLabelRevision = -1; riftLabelPoint = null; riftLabelWorldScale = 0; travelHovered = false;
         width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;
     }
 }

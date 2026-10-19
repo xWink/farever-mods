@@ -6,6 +6,7 @@ typedef MapPoint = {
     var z:Float;
     var kind:String;
     var ?activityIcon:String;
+    var ?bonusDungeon:Bool;
     var ?elevation:Int;
     var ?heading:Float;
     var ?sparkling:Bool;

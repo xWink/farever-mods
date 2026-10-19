@@ -191,7 +191,7 @@ class MinimapFilterPanelTest {
         G.globals['HElement.npcs'] = [{mapId:'World/W1_Siagarta', inf:inf, prefab:{_41:10., _42:10., _43:0.}}];
         G.globals['activities'] = [];
         var progress:Dynamic = {questState:2};
-        var layer:Dynamic = {units:[], interactibles:[]};
+        var layer:Dynamic = {world:{level:"World/W1_Siagarta"}, units:[], interactibles:[]};
         var hero:Dynamic = {layer:layer, posx:0., posy:0., posz:0., player:{progress:progress}};
         var markers = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta');
         var settings:MinimapSettings = cast {showNpcs:true, markerScale:100., hideCompletedActivities:true};

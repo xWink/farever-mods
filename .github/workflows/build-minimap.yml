@@ -65,6 +65,8 @@ jobs:
           ../.minimap-hashlink/hl build/main-map-performance-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main MainMapControlsTest -hl build/main-map-controls-test.hl
           ../.minimap-hashlink/hl build/main-map-controls-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main MapRefinementsTest -hl build/map-refinements-test.hl
+          ../.minimap-hashlink/hl build/map-refinements-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main SharedMapFiltersTest -hl build/shared-map-filters-test.hl
           ../.minimap-hashlink/hl build/shared-map-filters-test.hl
 

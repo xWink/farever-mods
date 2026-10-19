@@ -10,10 +10,11 @@ Adds a configurable minimap and enhances the main overworld map with detailed ma
 - Filter buttons: left-click to toggle a category; right-click for subfilters where available. The minimap's top-left gear shows or hides its filter buttons.
 - **Use same filters for both maps** is enabled by default. Turn it off for independent filters; turning it back on copies the main map's filters to the minimap.
 - Ordinary players are hidden by default; party members and friends are shown. Completed enemy mastery, collected companions, and completed activities are hidden by default.
-- Obelisks, soulstones, respawn points, and your own marker remain available. Dungeons, rifts, and inactive rifts have no category toggle to hide them.
-- The main map shows the current Heroic Bonus Dungeon and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
+- Obelisks, soulstones, and respawn points remain available in unlocked regions; your own marker stays visible. Dungeons, rifts, and inactive rifts have no category toggle to hide them.
+- The main map shows the next rift countdown beneath its marker, highlights the Heroic Bonus Dungeon with a green plus, and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
 - The main map keeps native right-click pin placement and the player’s camera-direction cone.
-- Obelisk fast travel highlights larger obelisks with yellow rings, shows your marker and camera-direction cone, and ignores the vertical-distance filter.
+- Obelisk fast travel shows only unlocked destinations, with clickable yellow rings, your marker and camera-direction cone. Height arrows and the vertical-distance filter are disabled in this view.
+- Both maps hide markers in regions whose obelisk has not been activated; the minimap also retains the game’s fog of war.
 - The minimap supports circular or square shapes, mouse-wheel zoom, size, position, transparency, and marker scaling. Rotation and camera-following rotation are enabled by default.
 - Optional rift alerts, sparkling-companion alerts, a rift timer or clock, and a vertical-distance filter that applies to both maps.
 

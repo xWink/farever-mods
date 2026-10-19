@@ -46,6 +46,9 @@ class MinimapMarkers {
     public var obeliskScale:Float = 1;
     public var highlightObelisks:Bool = false;
     public var ignoreHeightFilter:Bool = false;
+    public var showElevations:Bool = true;
+    public var discovery(default, null):MapDiscovery = new MapDiscovery();
+    public static inline var TRAVEL_RING_RADIUS:Float = 15.6;
     var partyIcons:Dynamic;
     var partyElevations:Dynamic;
     var partyIconMarkers:Array<IconMarker> = [];
@@ -160,12 +163,15 @@ class MinimapMarkers {
         heroHeight = G.number(G.field(hero, "posz"), Math.NaN);
         try {
             refreshLandmarks();
+            discovery.sample(hero);
             var points = collect(hero, config, x, y, radius + 12 * markerScale / scale);
             if (pointFilter != null) {
                 points = points.filter(pointFilter);
                 // Companion alerts intentionally bypass marker filters. Party alerts do not.
                 alertTargets = alertTargets.filter(point -> point.kind != "player" || pointFilter(point));
             }
+            points = points.filter(discovery.accepts);
+            alertTargets = alertTargets.filter(discovery.accepts);
             sampledPoints = points;
             draw(points, scale);
             healthy = true;
@@ -529,6 +535,8 @@ class MinimapMarkers {
                     var event = worldEvents.elementStatus(events, point.eventElement);
                     if (G.text(G.field(event, "status")) == "Disabled") continue;
                 }
+                point.bonusDungeon = point.kind == "dungeon" && G.text(G.field(point.inf, "id"))
+                    == G.text(G.field(G.field(G.field(hero, "specialization"), "bonusHeroicDungeon"), "activity"));
                 points.push(point);
             }
             for (point in rifts.displayPoints(config.hideInactiveRifts)) if (near(point.x, point.y, x, y, radius))
@@ -676,9 +684,11 @@ class MinimapMarkers {
         case "bank", "player", "activity", "ascension", "companion", "quest": 7;
         case "plant", "ore", "boss": 5;
         case "obelisk", "dungeon", "soulstone", "secretOrb", "glory", "chest", "vaultChest", "recipeChest": 8;
-        case "targetDummy", "upcomingRift", "infusion", "craft", "recycler", "respawn", "demon": 9;
+        case "targetDummy", "upcomingRift", "infusion", "craft", "recycler", "respawn": 9;
+        case "demon": 7.2;
+        case "soulWell", "pilgrim": 8;
         case "riftPortal": 11;
-        case "inactiveRift", "nextRift", "upgrade", "soulWell": 10;
+        case "inactiveRift", "nextRift", "upgrade": 10;
         default: 3.5;
     };
 
@@ -717,6 +727,12 @@ class MinimapMarkers {
         while (pool.length > count) G.call("h2d.Object", "remove", pool.pop().root);
     }
 
+    public function hitRadius(point:MapPoint):Float {
+        if (point.kind == "obelisk" && highlightObelisks) return TRAVEL_RING_RADIUS * obeliskScale;
+        return markerRadius(point.kind) * (point.kind == "obelisk" ? obeliskScale : 1)
+            + (outlinedPlayer(point) ? 4.5 : point.sparkling == true ? 2.5 : 0) + 2;
+    }
+
     public function hoverAt(x:Float, y:Float, scale:Float, heroX:Float, heroY:Float, hero:Dynamic, partyOnly:Bool = false):Null<MarkerHover> {
         if (showOwn && ownFirst && !partyOnly && nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
         var checkHero = showOwn && !ownFirst;
@@ -729,7 +745,7 @@ class MinimapMarkers {
                 checkHero = false;
                 if (nearCursor(x, y, heroX, heroY, 11 * markerScale / scale)) return heroHover(hero, heroX, heroY);
             }
-            var r = (markerRadius(point.kind) * (point.kind == "obelisk" ? obeliskScale : 1) + (outlinedPlayer(point) ? 4.5 : point.sparkling == true ? 2.5 : 0) + 2) * markerScale / scale;
+            var r = hitRadius(point) * markerScale / scale;
             var hit = nearCursor(x, y, point.x, point.y, r);
             if (!hit && point.elevation != null && point.elevation != 0) {
                 var offset = elevationOffset(point) * markerScale / scale;
@@ -788,6 +804,7 @@ class MinimapMarkers {
             case "soulstone": "Soulstone";
             case "bank": "Guild Merchant";
             case "demon": "Demon Huntress";
+            case "pilgrim": "Faction Merchant";
             case "recycler": "Spark Recycler";
             case "upgrade": "Weapon Upgrade";
             case "craft": "Crafting Station";
@@ -824,7 +841,7 @@ class MinimapMarkers {
                 var px = point.x * scale + viewport.x, py = point.y * scale + viewport.y;
                 if (px < -padding || py < -padding || px > viewport.width + padding || py > viewport.height + padding) continue;
             }
-            point.elevation = elevationDirection(point.z, heroHeight);
+            point.elevation = showElevations ? elevationDirection(point.z, heroHeight) : 0;
             if (point.partyMember == true) partyPoints.push(point);
             else {
                 var group = groups[point.kind];
@@ -863,6 +880,7 @@ class MinimapMarkers {
             var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "")
                 + (point.activityIcon == null ? "" : ":" + point.activityIcon)
                 + (point.kind == "obelisk" && highlightObelisks ? ":travel" : "")
+                + (point.bonusDungeon == true ? ":bonus" : "")
                 + (point.friend == true ? ":friend" : "")
                 + (point.respawnUnlocked == true ? ":unlocked" : "");
             // Draw in local pixels once per appearance, then reuse the geometry
@@ -871,7 +889,7 @@ class MinimapMarkers {
                 var paint = (target:Dynamic) -> {
                     graphics = target;
                     drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember, friend: point.friend,
-                        respawnUnlocked: point.respawnUnlocked, activityIcon: point.activityIcon, heading: 0, x: 0, y: 0, z: 0});
+                        respawnUnlocked: point.respawnUnlocked, activityIcon: point.activityIcon, bonusDungeon: point.bonusDungeon, heading: 0, x: 0, y: 0, z: 0});
                 };
                 if (iconCache == null) {
                     G.call("h2d.Graphics", "clear", marker.icon);
@@ -920,11 +938,16 @@ class MinimapMarkers {
         var kind = point.kind;
         if (kind == "obelisk" && highlightObelisks) {
             G.call("h2d.Graphics", "lineStyle", graphics, [2.8, 0x62472a, 1.]);
-            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., 11.5, 48]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., TRAVEL_RING_RADIUS - 1.4, 64]);
             G.call("h2d.Graphics", "lineStyle", graphics, [1.6, 0xffdc42, 1.]);
-            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., 11.5, 48]);
+            G.call("h2d.Graphics", "drawCircle", graphics, [0., 0., TRAVEL_RING_RADIUS - 1.4, 64]);
             G.call("h2d.Graphics", "lineStyle", graphics, [0., 0, 0.]);
         }
+        if (kind == "dungeon" && NativeMarkerIcons.draw(graphics, "icon", "Dungeon", 22)) {
+            if (point.bonusDungeon == true) NativeMarkerIcons.draw(graphics, "icon", "Dungeon_BonusReward", 8, 7, 7);
+            return;
+        }
+        if (kind == "pilgrim" && NativeMarkerIcons.draw(graphics, "faction", "Pilgrims", 20)) return;
         if (kind == "quest" || kind == "activity" && point.activityIcon != null && point.activityIcon != "activity") {
             ActivityIcons.draw(graphics, kind == "quest" ? "quest" : point.activityIcon, markerRadius(kind));
             return;

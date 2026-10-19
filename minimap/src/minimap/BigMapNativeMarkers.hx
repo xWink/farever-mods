@@ -3,7 +3,7 @@ package minimap;
 import minimap.GameAccess as G;
 
 private typedef NativeMarker = {
-    marker:Dynamic, artwork:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>, tip:Null<NativeMarkerTip>
+    marker:Dynamic, artwork:Dynamic, alpha:Float, visible:Bool, point:Null<MapPoint>, tip:Null<NativeMarkerTip>, ?target:Dynamic
 };
 private typedef NativeMarkerTip = {
     content:Dynamic, getTip:Dynamic, showTipOnOver:Bool
@@ -15,6 +15,8 @@ class BigMapNativeMarkers {
 
     var corrections:Array<NativeMarker> = [];
     var dirty:Bool = true;
+    public var travelHover:Dynamic->Dynamic->Void;
+    public var travelOut:Void->Void;
     public function new() {}
     public function invalidate():Void dirty = true;
 
@@ -47,7 +49,10 @@ class BigMapNativeMarkers {
             if (layer == 13 && activity != null)
                 point = byId[G.text(G.staticCall("HMapActivity", "getKind", [activity]))];
             else if (layer == 14) point = respawns.get(marker);
-            else if (layer == 15 && element != null) point = byId[G.text(G.field(element, "id"))];
+            else if (layer == 15 && element != null) {
+                point = byId[G.text(G.field(element, "id"))];
+                if (fastTravel && point != null && !MapDiscovery.travelUnlocked(point, hero)) point = null;
+            }
             else if (layer == 20 && player != null) point = byEntity.get(player);
             else if (fastTravel && (layer == 16 || layer == 22)) point = null; // Pins and death markers.
             else continue;
@@ -85,7 +90,7 @@ class BigMapNativeMarkers {
         dirty = true;
     }
 
-    public function apply(window:Dynamic, tileScale:Float, hero:Dynamic):Void {
+    public function apply(window:Dynamic, tileScale:Float, hero:Dynamic, ?travelParent:Dynamic, travelRadius:Float = 0):Void {
         if (dirty) {
             dirty = false;
             for (record in originals) {
@@ -100,6 +105,40 @@ class BigMapNativeMarkers {
                     G.set(window, "nearClickableMarker", null);
                 }
             }
+        }
+        if (travelParent != null) for (record in originals) {
+            var point = record.point;
+            var enabled = travelParent != null && travelRadius > 0 && point != null && point.kind == "obelisk"
+                && G.field(record.marker, "removed") != true;
+            if (!enabled) {
+                if (record.target != null) G.call("h2d.Object", "remove", record.target);
+                record.target = null;
+                continue;
+            }
+            if (record.target == null) {
+                var target = G.create("h2d.Interactive", [travelRadius * 2, travelRadius * 2, travelParent, null]);
+                record.target = target;
+                G.set(target, "isEllipse", true);
+                G.set(target, "propagateEvents", false);
+                G.set(target, "onClick", (event:Dynamic) -> {
+                    G.set(event, "propagate", false);
+                    // Keep native cost, current-location and travel validation.
+                    if (G.integer(G.field(event, "button")) == 0 && record.point != null
+                        && MapDiscovery.travelUnlocked(record.point, hero))
+                        G.call("ui.UIElement", "click", G.field(record.marker, "content"), [null]);
+                });
+                G.set(target, "onPush", (event:Dynamic) -> G.set(event, "propagate", false));
+                for (name in ["onOver", "onMove", "onCheck"])
+                    G.set(target, name, (event:Dynamic) -> { if (travelHover != null) travelHover(target, event); });
+                G.set(target, "onOut", (_:Dynamic) -> { if (travelOut != null) travelOut(); });
+            }
+            if (G.field(record.target, "width") != travelRadius * 2) {
+                G.set(record.target, "width", travelRadius * 2);
+                G.set(record.target, "height", travelRadius * 2);
+            }
+            var x = point.x - travelRadius, y = point.y - travelRadius;
+            if (G.field(record.target, "x") != x || G.field(record.target, "y") != y)
+                G.call("h2d.Object", "setPosition", record.target, [x, y]);
         }
         for (record in corrections) {
             var marker = record.marker, point = record.point;
@@ -137,6 +176,8 @@ class BigMapNativeMarkers {
     }
 
     function restore(record:NativeMarker):Void {
+        if (record.target != null) G.call("h2d.Object", "remove", record.target);
+        record.target = null;
         restoreTip(record);
         if (G.field(record.marker, "removed") == true) return;
         G.set(record.artwork, "alpha", record.alpha);

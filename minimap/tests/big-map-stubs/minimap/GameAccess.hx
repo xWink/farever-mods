@@ -18,6 +18,9 @@ class GameAccess {
     public static var activityNameReads:Int = 0;
     public static var failActivityLookup:Bool = false;
     public static var rings:Int = 0;
+    public static var tileDraws:Array<Dynamic> = [];
+    public static var fogUploads:Int = 0;
+    public static var fogAllocations:Int = 0;
     public static function field(o:Dynamic, name:String):Dynamic return o == null ? null : Reflect.field(o, name);
     public static function set(o:Dynamic, name:String, v:Dynamic):Void Reflect.setField(o, name, v);
     public static function text(v:Dynamic, fallback:String = ""):String return v == null ? fallback : Std.string(v);
@@ -39,6 +42,8 @@ class GameAccess {
         throw "Unknown flag " + type + "." + name;
     }
     public static function create(type:String, args:Array<Dynamic>):Dynamic {
+        if (type == "ui.win.FowShader") return {nativeType:type};
+        if (type == "h3d.VectorImpl") { if (args.length != 3) throw "Vector constructor requires three coordinates"; return {x:args[0], y:args[1], z:args[2]}; }
         if (type == "h3d.mat.Texture") {
             if (args.length != 4 || args[3] != "RGBA" || (cast args[2]:Array<Dynamic>).indexOf("Target") < 0) throw "Invalid texture arguments";
             var texture:Dynamic = {nativeType:type, width:args[0], height:args[1], flags:(cast args[2]:Array<Dynamic>).copy(), disposed:false};
@@ -54,6 +59,8 @@ class GameAccess {
         return o;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "hxd.impl.Allocator" && name == "get") return {};
+        if (type == "hxd.BufferFormat" && name == "get_INDEX32") return "INDEX32";
         if (type == "domkit.Properties" && name == "createNew") {
             var component:String = args[0];
             var parent = field(args[1], "obj");
@@ -90,6 +97,23 @@ class GameAccess {
     }
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (args == null) args = [];
+        if (type == "hxd.res.Loader") return name == "dir" ? field(o,"resources") : {texture:{resource:args[0]}};
+        if (type == "hxd.res.Any" && name == "toTexture") return o.texture;
+        if (type == "hxd.impl.Allocator") return switch name {
+            case "allocFloats": {length:args[0], values:[for (_ in 0...Std.int(args[0])) 0.]};
+            case "ofFloats": fogAllocations++; {values:(cast args[0].values:Array<Float>).copy(), disposed:false};
+            case "disposeFloats": args[0].disposed = true; null;
+            default: throw "Allocator " + name;
+        };
+        if (type == "hl.types.ArrayBytes_hl_F32" && name == "setDyn") { o.values[args[0]] = args[1]; return null; }
+        if (type == "h3d.Buffer") {
+            if (name == "dispose") o.disposed = true;
+            else if (name == "uploadFloats") { fogUploads++; o.values = (cast args[0].values:Array<Float>).copy(); }
+            else throw "Buffer " + name;
+            return null;
+        }
+        if (type == "ui.win.FowShader" && StringTools.startsWith(name,"set_")) { set(o,name.substr(4),args[0]); return args[0]; }
+        if (type == "h2d.Drawable" && name == "addShader") { o.shader = args[0]; return null; }
         if (type == "ui.win.BaseWindow" && name == "set_windowFlags") { o.windowFlags = args[0]; return args[0]; }
         if (type == "hl.types.ArrayObj") return switch name {
             case "slice": (cast o:Array<Dynamic>).slice(args[0], args[1]);
@@ -113,6 +137,7 @@ class GameAccess {
             default: throw "Texture " + name;
         };
         if (type == "h2d.Tile") return switch name {
+            case "clone": Reflect.copy(o);
             case "scaleToSize": o.width = args[0]; o.height = args[1]; null;
             case "setCenterRatio": o.dx = -o.width * args[0]; o.dy = -o.height * args[1]; null;
             default: throw "Tile " + name;
@@ -123,7 +148,8 @@ class GameAccess {
                 if (field(o, "fills") == null) o.fills = [];
                 (cast o.fills:Array<Int>).push(args[0]);
             }
-            if (name == "drawCircle" && args[2] == 11.5) rings++;
+            if (name == "drawTile") { tileDraws.push(args[2]); return null; }
+            if (name == "drawCircle" && args[2] == MinimapMarkers.TRAVEL_RING_RADIUS - 1.4) rings++;
             if (failGraphics) throw "Graphics unavailable";
             if (["clear", "beginFill", "endFill", "lineStyle", "moveTo", "lineTo", "drawCircle", "drawRect", "drawEllipse", "drawRoundedRect"].indexOf(name) < 0) throw "Graphics " + name;
             return null;
@@ -207,6 +233,7 @@ class GameAccess {
         if (type == "ui.UIElement" && name == "hideTip") { o.tipHidden = true; return null; }
         if (type == "ui.win.map.MapMarker" && name == "get_showOffscreen") return field(o, "showOffscreen") == true;
         if (type == "ui.win.MapWindow") return switch name {
+            case "getLocation": field(o, "zoneAt") == null ? {id:"known", type:1} : Reflect.callMethod(o, o.zoneAt, args);
             case "isSelector": field(o, "selector") == true;
             case "clampTargetZoom": o.targetZoom = Math.max(0.5, Math.min(2., number(o.targetZoom))); null;
             case "get_tileScale": o.tileScale;
@@ -223,7 +250,11 @@ class GameAccess {
         if (type == "hrt.prefab.Object3D" && name == "getAbsPos") return o;
         if (type == "ent.Element" && name == "isHidden") return false;
         if (type == "ent.Element" && name == "getElementStateInf") return {flags: o.state};
-        if (type == "st.player.Progress" && name == "hasElementCompleted") return true;
+        if (type == "st.player.Progress" && name == "hasElementCompleted") return field(o, "lockedElement") != args[0];
+        if (type == "st.player.Progress" && name == "hasZoneDiscovered") return field(o, "lockedZone") != field(args[0], "id");
+        if (type == "st.player.Progress" && name == "hasZoneExplored") return field(o, "unexploredZone") != args[0];
+        if (type == "world.World" && name == "getZoneType") return field(o, "zoneAt") == null ? {id:"known", type:1} : Reflect.callMethod(o, o.zoneAt, [{x:args[0],y:args[1],z:args[2]}]);
+        if (type == "ui.UIElement" && name == "click") { if (field(o,"onClick") != null) Reflect.callMethod(o,o.onClick,[]); return true; }
         if (type == "st.player.Progress" && name == "hasActivityCompleted") return o.completed == args[0];
         if (type == "st.player.Progress" && name == "getNpcProgressState") return o.questState;
         if (type == "ent.GameObject" && name == "isDead") return false;

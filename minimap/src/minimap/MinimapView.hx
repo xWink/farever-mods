@@ -38,6 +38,7 @@ class MinimapView {
     var partyPivot:Dynamic;
     var partyTerrain:Dynamic;
     var markers:MinimapMarkers;
+    var fog:MinimapFog;
     var filters:MainMapFilters;
     var filterBar:MainMapFilterBar;
     var filterIcons:MainMapIconCache;
@@ -113,6 +114,7 @@ class MinimapView {
             loader = G.current("hxd.res.Loader", "currentInstance");
             if (loader == null) return;
             indexTiles(settings);
+            fog = new MinimapFog(nextWorld, loader, settings);
             create(G.field(G.field(hero, "layer"), "units"));
         }
 
@@ -165,6 +167,7 @@ class MinimapView {
         // A rotating square needs enough tiles/markers to cover its diagonal.
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
+        fog.update(hero);
         loadNextTile();
         rifts.update(G.field(hero, "layer"), haxe.Timer.stamp());
         var markerSettings = filters.minimapSettings();
@@ -497,6 +500,7 @@ class MinimapView {
             wanted.push(entry);
         }
         for (key in [for (key in sprites.keys()) key]) if (!keep.exists(key)) {
+            fog.detach(sprites[key]);
             G.call("h2d.Object", "remove", sprites[key]);
             sprites.remove(key);
         }
@@ -545,6 +549,7 @@ class MinimapView {
                 continue;
             }
             var bitmap = G.create("h2d.Bitmap", [entry.tile, tileLayer]);
+            fog.attach(bitmap, entry.x, entry.y);
             G.call("h2d.Bitmap", "set_width", bitmap, [tileWorldWidth]);
             G.call("h2d.Bitmap", "set_height", bitmap, [tileWorldWidth]);
             position(bitmap, entry.x * tileWorldWidth, entry.y * tileWorldWidth);
@@ -597,6 +602,8 @@ class MinimapView {
         owner = null; world = null; root = null; loader = null;
         frame = null; mask = null; circleMask = null; squareFilter = null; circleFilter = null;
         pivot = null; terrain = null; tileLayer = null; arrow = null; markers = null; compass = null;
+        if (fog != null) fog.dispose();
+        fog = null;
         rifts = null; riftText = null; riftShadow = null; riftCaption = ""; riftColor = -1;
         riftFontSource = null; riftFont = null;
         riftX = Math.NaN; riftY = Math.NaN;

@@ -74,7 +74,7 @@ class SharedMapFiltersTest {
         // Exercise the actual collector: the main-map toggle must refresh the
         // minimap immediately, even during its normal 200 ms sample interval.
         var layer:Dynamic = {world:{level:'World/W1_Siagarta'}, units:[], interactibles:[]};
-        var hero:Dynamic = {family:'player', layer:layer, posx:0., posy:0., posz:0., player:{}};
+        var hero:Dynamic = {family:'player', layer:layer, posx:0., posy:0., posz:0., player:{progress:{}}};
         layer.interactibles = [{family:'gatherable', enabled:true, posx:3., posy:4., posz:0., name:'Iron',
             gatherInf:{id:'Ore_Iron_Small', requiredTool:'GearPickaxe'}}];
         var rifts = new minimap.RiftMarkers('World/W1_Siagarta');
