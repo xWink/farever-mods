@@ -28,6 +28,9 @@ class BigMapView {
     var nativeMarkers:BigMapNativeMarkers;
     var travelHovered:Bool = false;
     var riftLabel:Dynamic;
+    var riftFontSource:Dynamic;
+    var riftFont:Dynamic;
+    var riftLabelSize:Float = 18;
     var riftLabelScale:Float = 1;
     var riftLabelText:String = "";
     var riftLabelWidth:Float = 0;
@@ -299,28 +302,35 @@ class BigMapView {
             if (riftLabel != null) G.call("h2d.Object", "set_visible", riftLabel, [false]);
             return;
         }
-        if (riftLabel == null) {
-            var source = nativeMarkers.timerStyle;
-            // Wait for the native activity UI rather than borrowing a header or
-            // fallback bitmap font. This is the game's own Rift timer style.
-            var font = G.field(source, "font");
-            if (font == null) return;
-            riftLabelScale = G.number(G.field(source, "scaleX"), 1);
-            riftLabel = G.create("h2d.Text", [font, root]);
-            G.set(riftLabel, "smooth", G.field(source, "smooth") == true);
-            G.call("h2d.Text", "set_textColor", riftLabel, [G.integer(G.field(source, "textColor"), 0xffffff)]);
-            G.call("h2d.Text", "set_letterSpacing", riftLabel, [G.number(G.field(source, "letterSpacing"))]);
-            G.set(riftLabel, "dropShadow", G.field(source, "dropShadow"));
-            // Each Text owns its SDF shader; adjust this label without changing
-            // the shared font or the game's original countdown.
-            var sdf = G.field(riftLabel, "sdfShader");
-            if (sdf != null) {
-                var cutoff = G.number(G.call("h3d.shader.SignedDistanceField", "get_alphaCutoff", sdf));
-                G.call("h3d.shader.SignedDistanceField", "set_alphaCutoff", sdf, [Math.max(0.05, cutoff - 0.025)]);
-            }
-            MapTextOutline.apply(riftLabel, 1.0);
+        if (riftFontSource == null) {
+            var dom = G.field(window, "dom");
+            if (dom == null) return;
+            // Use the same explicit stylesheet face as MinimapView's timer.
+            var style = G.staticCall("domkit.Properties", "createNew",
+                ["text", dom, [""], {id:"minimapMainRiftFont", "class":"bold-16"}]);
+            riftFontSource = G.field(style, "obj");
+            if (riftFontSource == null) return;
+            G.call("h2d.Object", "set_visible", riftFontSource, [false]);
         }
-        if (riftLabelText != text) {
+        var font = G.field(riftFontSource, "font");
+        if (riftLabel == null) {
+            if (font == null) return;
+            var source = nativeMarkers.timerStyle;
+            riftLabelSize = G.number(G.field(G.field(source, "font"), "size"), 18)
+                * G.number(G.field(source, "scaleX"), 1);
+            riftLabel = G.create("h2d.Text", [font, root]);
+            G.set(riftLabel, "smooth", true);
+            G.call("h2d.Text", "set_textColor", riftLabel, [G.integer(G.field(source, "textColor"), 0xffffff)]);
+        }
+        // Styles may settle a frame later or change when the locale changes.
+        var fontChanged = font != null && font != riftFont;
+        if (fontChanged) {
+            riftFont = font;
+            riftLabelScale = riftLabelSize / Math.max(1, G.number(G.field(font, "size"), 16));
+            G.call("h2d.Text", "set_font", riftLabel, [font]);
+            G.set(riftLabel, "dropShadow", {dx:1 / riftLabelScale, dy:1 / riftLabelScale, color:0x171b24, alpha:1.});
+        }
+        if (riftLabelText != text || fontChanged) {
             riftLabelText = text;
             G.call("h2d.Text", "set_text", riftLabel, [text]);
             riftLabelWidth = G.number(G.call("h2d.Text", "get_textWidth", riftLabel)) * riftLabelScale;
@@ -376,7 +386,7 @@ class BigMapView {
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
         if (filterBar != null) try filterBar.dispose() catch (_:Dynamic) {}
         if (bonusDungeon != null) try bonusDungeon.dispose() catch (_:Dynamic) {}
-        for (object in [root, markerViewport, priorityRoot, priorityViewport, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
+        for (object in [riftFontSource, root, markerViewport, priorityRoot, priorityViewport, overlay]) if (object != null) try G.call("h2d.Object", "remove", object) catch (_:Dynamic) {}
         if (window != null && G.field(window, "removed") != true) try {
             // Re-evaluate current native filters instead of restoring stale
             // visibility from when the map was first opened.
@@ -389,6 +399,7 @@ class BigMapView {
         overlay = null; input = null; caption = null; measurements = null;
         projection = null; hoverState = null;
         revision = -1; nativeCount = -1; tileScale = 0; scale = 0; ownScale = 0;
+        riftFontSource = null; riftFont = null;
         riftLabel = null; riftLabelText = ""; riftLabelRevision = -1; riftLabelPoint = null; riftLabelWorldScale = 0; travelHovered = false;
         width = 0; height = 0; hovered = false; captionKey = ""; captionVisible = false;
     }
