@@ -58,7 +58,7 @@ class MarketWindow {
             listingPanel();
         }
         if(c.total==0)textAt(root,c.busy?"Loading...":c.tab=="Sell an item"?"No tradable items in your backpack.":"No matching listings.",30,285,585);
-        button("Previous",14,710,126,()->{if(!c.busy&&c.page>1){c.page--;c.refresh();}},"");textAt(root,"Page "+c.page+" of "+c.pages+"  ·  "+c.total+" items",156,720,310);
+        button("Previous",14,710,126,()->{if(!c.busy&&c.page>1){c.page--;c.refresh();}},"");textAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:"")+"  ·  "+c.total+(c.tab=="Sell an item"?" items":" shown"),156,720,310);
         button("Next",460,710,96,()->{if(!c.busy&&c.page<c.pages){c.page++;c.refresh();}},"");button(c.busy?"Loading...":"Refresh",566,710,110,c.refresh,"");
         var status=textAt(root,c.message,18,754,1000);ink(status,0x5B4334);
     }
@@ -95,7 +95,7 @@ class MarketWindow {
         var bg=graphic(row);rounded(bg,0,0,624,34,4,selected?0xD6BF94:0xE2D1B7);var definition=TradeInventory.definition(item.kind);
         if(definition!=null){var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),row]);absolute(row,icon);position(icon,6,1);G.call("h2d.Bitmap","set_width",icon,[32.0]);G.call("h2d.Bitmap","set_height",icon,[32.0]);}
         textAt(row,item.name+(item.count>1?" ×"+item.count:""),44,8,340,true);textAt(row,right,395,8,224);G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
-        G.call("ui.UIElement","set_getTip",row,[()->TradeTooltips.create(item,c.tab=="Sell an item"?c.inv:null)]);G.set(row,"showTipOnOver",true);style(row,"show-tip-on-over",true);
+        G.call("ui.UIElement","set_getTip",row,[()->item.preview==null?null:TradeTooltips.create(item,c.tab=="Sell an item"?c.inv:null)]);G.set(row,"showTipOnOver",true);style(row,"show-tip-on-over",true);
     }
     function selectedItem(item:TradeItem):Void {textAt(frame.container,item.name,680,266,330,true);textAt(frame.container,item.detail.split("\n").slice(0,5).map(line->line.length>45?line.substr(0,42)+"...":line).join("\n"),680,302,330);}
     function priceFields(y:Int):Void {
@@ -107,7 +107,7 @@ class MarketWindow {
     }
     function listingPanel():Void {
         if(c.selected==null){textAt(frame.container,"Select a listing. Hover its item for the full native tooltip.",680,280,330);return;}
-        var row=c.selected;try selectedItem(MarketExport.offer(row))catch(_:Dynamic){}var online=row.onlineUntil!=null&&Protocol.expiry(row.onlineUntil)>Date.now().getTime()/1000;
+        var row=c.selected;try selectedItem(MarketExport.offer(row))catch(_:Dynamic){}var online=row.seller.onlineUntil!=null&&Protocol.expiry(row.seller.onlineUntil)>Date.now().getTime()/1000;
         textAt(frame.container,row.seller.characterName+" · "+(online?"Online":"Offline")+"\nExpires: "+G.text(row.expiresAt).substr(0,16).split("T").join(" ")+" UTC",680,444,330);
         if(c.tab=="My listings"){
             priceFields(500);button("Save price",680,612,330,()->c.changePrice(int(trays),offers),"accept");button("Mark sold",680,654,160,()->c.remove(true),"");button("Remove",850,654,160,()->c.remove(false),"cancel");

@@ -41,8 +41,15 @@ class MarketExport {
     }
     public static function offer(row:Dynamic):TradeItem {
         var i=row.item,p:TradeItemPreview=i.native;
-        if(!trade.TradePreview.valid(p)||p==null)throw "Update the mod to inspect this listing.";
-        return {uid:"",kind:i.baseId,count:i.quantity,name:TradeInventory.itemName(i.baseId),detail:i.detail==null?"":i.detail,
+        if(!trade.TradePreview.valid(p))throw "Update the mod to inspect this listing.";
+        var detail:String=i.detail==null?"":i.detail;
+        if(p==null) {
+            var lines=[i.rarity+" · Upgrade +"+i.upgradeLevel];
+            if(Std.isOfType(i.stats,Array)) for(stat in (cast i.stats:Array<Dynamic>))lines.push(G.text(stat.name)+": "+stat.value+(stat.unit=="percent"?"%":""));
+            if(Std.isOfType(i.modifiers,Array))for(m in (cast i.modifiers:Array<Dynamic>))lines.push(G.text(m.name));
+            detail=lines.join("\n");
+        }
+        return {uid:"",kind:i.baseId,count:i.quantity,name:TradeInventory.itemName(i.baseId),detail:detail,
             color:0xDAC9AA,fingerprint:"",preview:p};
     }
 }

@@ -25,6 +25,7 @@ class MarketController {
     public var page=1;
     public var pages=1;
     public var total=0;
+    var cursors:Array<String>=[null];
     public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>"price-asc"];
     final worker=new MarketWorker();
     var generation=0;
@@ -36,7 +37,7 @@ class MarketController {
     var contactAfter=0.0;
     public function new() {
         view=new MarketWindow(this);
-        Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null) reconnect();});
+        Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null)try {if(readKey(CommonSettings.read())!=key)reconnect();}catch(_:Dynamic){}});
         var action="better-mod-settings/action/"+HlxRuntime.moduleName()+"/";
         Bus.subscribe(action+"openMarketplace",(_:Dynamic)->open());
         Bus.subscribe(action+"fareverlySignIn",(_:Dynamic)->signIn());
@@ -61,9 +62,9 @@ class MarketController {
                 case "request":
                     busy=false;var response=event.response,data:Dynamic=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
-                    if(response.status>=200&&response.status<300&&response.error==""&&data!=null) {
-                        var done=pending;pending=null;if(done!=null)try done(data)catch(_:Dynamic)message="Unsupported marketplace response. Update the mod and try again.";
-                    } else {pending=null;message=error(data==null?"":G.text(data.error));
+                    if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
+                        var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(_:Dynamic)message="Unsupported marketplace response. Update the mod and try again.";
+                    } else {pending=null;message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
                         if(response.status==401||response.status==403)ready=false;
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
                     view.dirty=true;
@@ -130,22 +131,26 @@ class MarketController {
     }
     public function refresh():Void {
         if(tab=="Sell an item"){loadInventory();return;}
-        var path=tab=="My listings"?"/api/marketplace/mine":"/api/marketplace/listings";
-        var params=["page="+page,"size=12"];
+        var path="/api/v1/marketplace/listings";
+        if(page==1)cursors=[null];
+        var params=["limit=12"];
+        if(tab=="My listings")params.push("mine=true");
+        if(page>1&&cursors[page-1]!=null)params.push("cursor="+StringTools.urlEncode(cursors[page-1]));
         if(tab=="Browse") {
             if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
             params.push("server="+server);
             for(k=>v in filters)if(v!="")params.push(k+"="+StringTools.urlEncode(v));
         }
         request("GET",path+"?"+params.join("&"),null,null,data->{
-            if(!Std.isOfType(data.rows,Array)||(cast data.rows:Array<Dynamic>).length>12)throw "Invalid listings";
-            rows=data.rows;page=data.page;pages=data.pages;total=data.total;selected=null;message=total==0?"No matching listings.":"Listings updated.";
+            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>12)throw "Invalid listings";
+            rows=data.listings;total=rows.length;pages=page+(data.nextCursor==null?0:1);
+            cursors[page]=data.nextCursor;selected=null;message=total==0?"No matching listings.":"Listings updated.";
         });
     }
     public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void):Void {
         if(busy)return;
         if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return;}
-        if((method!="GET"||StringTools.startsWith(path,"/api/marketplace/mine"))&&!ready){message="Sign in with Steam before managing listings.";view.dirty=true;return;}
+        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){message="Sign in with Steam before managing listings.";view.dirty=true;return;}
         busy=true;pending=done;message="Loading...";view.dirty=true;
         worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
     }
@@ -155,7 +160,7 @@ class MarketController {
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app),body=haxe.Json.stringify(value);
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
-            request("POST","/api/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
+            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
     public function changePrice(trays:Int,offers:Bool):Void {
@@ -163,12 +168,15 @@ class MarketController {
         if(!offers&&(trays<1||trays>200000)){message="Choose a total price of 1 to 200,000 Silver Trays.";view.dirty=true;return;}
         var row=selected;
         // Price-only updates preserve the original item/character snapshot and expiry.
-        request("PATCH","/api/marketplace/listings/"+row.id,offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays},["If-Match"=>Std.string(row.revision)],data->refresh());
+        var value:Dynamic=haxe.Json.parse(haxe.Json.stringify(Reflect.field(row,"export")));
+        if(value==null){message="Refresh My listings before editing.";view.dirty=true;return;}
+        value.price=offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays};
+        request("PUT","/api/v1/marketplace/listings/"+row.id,value,["If-Match"=>'"'+row.revision+'"'],data->refresh());
     }
     public function remove(sold:Bool):Void {
         if(selected==null||busy)return;
         var row=selected;
-        request("DELETE","/api/marketplace/listings/"+row.id,{status:sold?"sold":"cancelled"},["If-Match"=>Std.string(row.revision)],data->refresh());
+        request("DELETE","/api/v1/marketplace/listings/"+row.id,null,["If-Match"=>'"'+row.revision+'"'],data->refresh());
     }
     public function contact():Void {
         if(selected==null||haxe.Timer.stamp()<contactAfter)return;
@@ -176,7 +184,7 @@ class MarketController {
         if(row.server!=server){message="This listing is on another server.";view.dirty=true;return;}
         contactAfter=haxe.Timer.stamp()+5;
         // Recheck availability before sending one explicit, human-readable whisper.
-        request("GET","/api/marketplace/listings/"+row.id,null,null,current->{
+        request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
             trade.TradeChat.send(player,current.seller.accountId,current.seller.characterName,
                 "Hi! I'm interested in your marketplace listing: "+TradeInventory.itemName(current.item.baseId)+" x"+current.item.quantity+
                 (current.price.mode=="offers"?" (open to offers).":" for "+current.price.silverTrays+" Silver Trays."),ok->{message=ok?"Whisper sent to "+current.seller.characterName+". Arrange a party and meet nearby to trade.":"Could not send the whisper. The seller may be unavailable.";view.dirty=true;});
@@ -186,11 +194,11 @@ class MarketController {
     public static function error(code:String):String return switch(code){
         case "duplicate_item":"You already have an active listing for this item.";
         case "listing_limit":"You can have up to 10 active listings. Remove or complete a listing first.";
-        case "listing_unavailable":"This listing expired or was removed. Refresh the marketplace.";
+        case "listing_unavailable","listing_not_found":"This listing expired or was removed. Refresh the marketplace.";
         case "stale_revision":"This listing changed. Refresh before editing it.";
         case "unauthorized","insufficient_scope","sign_in_required":"Sign in with Steam to manage your listings.";
         case "invalid_export","update_mod_required":"The server could not accept this item's data. Update the mod and try again.";
-        case "rate_limited","write_busy":"Too many requests. Wait a minute before trying again.";
+        case "rate_limited","write_busy","write_in_progress":"Too many requests. Wait a minute before trying again.";
         default:"The marketplace request failed. Please retry shortly.";
     };
 }

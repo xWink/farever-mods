@@ -14,7 +14,7 @@ class MarketplaceTest {
   for(i in 0...10)p.completed(503,0,0,0);check(p.next==900);
   p.completed(401,1000,0,0);check(!p.due(100000));p.reset();check(p.due(0));p.completed(403,0,0,0);check(!p.due(99999));
   for(pair in [["na","north-america"],["eu","europe"],["sa","latin-america"],["as","asia"],["cn","mainland-china"],["local",""],["invented",""]])check(MarketExport.server(pair[0])==pair[1]);
-  check(MarketEndpoints.validUrl("https://fareverly.com/api/marketplace/listings?server=europe"));
+  check(MarketEndpoints.validUrl("https://fareverly.com/api/v1/marketplace/listings?server=europe"));
   for(url in ["http://fareverly.com/api/v1/account","https://fareverly.com.evil/api/v1/account","https://elsewhere/api/v1/account","https://fareverly.com/contact"])check(!MarketEndpoints.validUrl(url));
   var inv=new TradeInventory(),item:TradeItem={uid:"item",kind:"Shoulders_EManfish_WizCle",count:10,name:"Shoulders",detail:"",color:0,fingerprint:"fp",preview:null};
   var app={connectionInfo:{heroID:"987654321012345678"}},value=MarketExport.snapshot(inv,item,3,8,false,"europe",app);

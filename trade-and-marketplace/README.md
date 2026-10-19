@@ -46,4 +46,4 @@ Open `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod S
 - **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items remain in the seller's backpack until then.
 - Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 
-Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The website at [fareverly.com/marketplace](https://fareverly.com/marketplace) shows the same listings.
+Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website marketplace remains a separate preview until its live-data rollout.

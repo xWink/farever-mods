@@ -38,7 +38,7 @@ class MarketWorker {
                         auth.begin(account,key!="",job.entropy);opened="";message="";
                     case "cancel-auth": auth.cancel();
                     case "request":
-                        var needsKey=job.method!="GET" || StringTools.startsWith(job.path,"/api/marketplace/mine");
+                        var needsKey=job.method!="GET" || job.path.indexOf("mine=true")>=0;
                         var response:Response=needsKey&&!verified?{status:401,body:'{"error":"sign_in_required"}',retryAfter:"",error:""}:
                             http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),needsKey?key:"",job.headers);
                         if(current(id))events.add({generation:id,op:"request",response:response});
