@@ -98,7 +98,7 @@ class MapRefinementsTest {
         near(bonus.x,48,'Bonus symbol atlas X origin');
         near(bonus.y,24,'Bonus symbol atlas Y origin');
         near(bonus.width,24,'Full bonus symbol sampled');
-        near(bonus.drawWidth,16,'Bonus plus is large enough to read');
+        near(bonus.drawWidth,20.8,'Bonus plus is thirty percent larger');
         near(pilgrim.width,200,'Full Pilgrims banner width sampled');
         near(pilgrim.height,248,'Full Pilgrims banner height sampled');
         art.drawIcon({kind:'demon',x:0,y:0,z:0});

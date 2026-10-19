@@ -951,7 +951,7 @@ class MinimapMarkers {
             G.call("h2d.Graphics", "lineStyle", graphics, [0., 0, 0.]);
         }
         if (kind == "dungeon" && NativeMarkerIcons.draw(graphics, "icon", "Dungeon", 22)) {
-            if (point.bonusDungeon == true) NativeMarkerIcons.draw(graphics, "icon", "Dungeon_BonusReward", 16, 7, 7);
+            if (point.bonusDungeon == true) NativeMarkerIcons.draw(graphics, "icon", "Dungeon_BonusReward", 20.8, 5, 5);
             return;
         }
         if (kind == "pilgrim" && NativeMarkerIcons.draw(graphics, "faction", "Pilgrims", 20)) return;
