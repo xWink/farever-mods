@@ -40,10 +40,10 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 Press **F7**, type `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings. The hotkey can be rebound there and is ignored while typing in a text field.
 
 - Browse listings for your game server, filter items and inspect native tooltips.
-- Sign in with Steam to list unlocked, tradable backpack items. The API key is shared with DPS Meter and other Fareverly mods.
+- Sign in with Steam to list unlocked, tradable items. Enable **Include bank items** on **Sell an item** to list items from your bank too. The API key is shared with DPS Meter and other Fareverly mods.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
-- Manage up to 10 active listings under **My listings**. Listings expire after 3 days; price edits do not renew them.
-- **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items remain in the seller's backpack until then.
+- Manage up to 10 active listings under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.
+- **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
 - Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 
 Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website marketplace remains a separate preview until its live-data rollout.

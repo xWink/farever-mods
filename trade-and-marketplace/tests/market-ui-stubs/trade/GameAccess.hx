@@ -2,6 +2,7 @@ package trade;
 class GameAccess {
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
+ public static var nodes:Array<Dynamic>=[];
  public static var failNextTooltip=false;
  public static var ui:Dynamic={root:{}};
  public static function object(?parent:Dynamic):Dynamic {
@@ -9,8 +10,9 @@ class GameAccess {
   if(parent!=null)(cast parent.children:Array<Dynamic>).push(o);return o;
  }
  public static function field(o:Dynamic,k:String):Dynamic return o==null?null:Reflect.field(o,k);
- public static function array(o:Dynamic):Array<Dynamic> return o==null?[]:cast o;
+ public static function array(o:Dynamic,proxy=false):Array<Dynamic> return o==null?[]:cast o;
  public static function text(v:Dynamic,f=""):String return v==null?f:Std.string(v);
+ public static function number(v:Dynamic,f:Float=0):Float return v==null?f:cast v;
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
  public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null)Reflect.setField(o,k,v);}
  public static function current(t:String,n:String):Dynamic return ui;
@@ -19,7 +21,10 @@ class GameAccess {
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
-   case "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "get_textWidth": Std.string(o.text).length*8.0;
+   case "get_textHeight": 18.0;
+   case "get_numChildren": (cast o.children:Array<Dynamic>).length;
    case "slice": [];
    case "pushDyn": (cast o:Array<Dynamic>).push(a[0]);
    case "remove": if(o.parent!=null)(cast o.parent.children:Array<Dynamic>).remove(o);null;

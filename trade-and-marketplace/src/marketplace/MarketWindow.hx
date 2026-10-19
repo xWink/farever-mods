@@ -65,7 +65,7 @@ class MarketWindow {
         if (frame == null) {
             stage="create window";
             var ui = G.current("ui.BaseUI", "current"); if (ui == null) return;
-            frame = new trade.TradeFrame(ui, "Trade and Marketplace", 1120, 860, close);
+            frame = new trade.TradeFrame(ui, "Marketplace", 1120, 900, close);
             frame.x = px; frame.y = py; frame.onMoved = (x,y) -> { px = x; py = y; }; dirty = true;
         }
         if (dirty) { dirty = false; render(); }
@@ -109,32 +109,40 @@ class MarketWindow {
             var title = ["Browse", "Sell an item", "My listings"][i];
             button(title,16+i*182,12,174,()->c.chooseTab(title),c.tab == title ? "unaccept" : "");
         }
-        if (c.ready) badge(root,"Steam connected",906,19,182,0xD5DFC6,0x426138);
-        else button(c.signingIn ? "Cancel sign-in" : "Sign in with Steam",866,12,222,
-            ()->{if(c.signingIn)c.cancelSignIn();else c.signIn();}, "");
-        var heading = switch(c.tab) {case "Browse": "Find your next upgrade"; case "Sell an item": "List an item from your backpack"; default: "Manage your listings";};
-        var headingText=labelAt(root,heading,20,65,740,true);
-        largeLabel(headingText);
-        labelAt(root,switch(c.tab) {
-            case "Browse": "Browse items for sale, inspect their details, and contact the seller.";
-            case "Sell an item": "Choose an unlocked, tradable item. It stays in your backpack until you trade it.";
-            default: "Up to 10 active listings. Listings expire after 3 days; editing a price does not renew them.";
-        },20,92,800,false,MUTED);
-        labelAt(root,serverLabel(c.server),886,80,202,true);
-        contentY = c.tab == "Browse" ? 284 : 142;
+        var connectionX=906;
+        if (c.ready) {
+            var connection=labelAt(root,"Fareverly connected",0,24,250,true,0x426138,true);
+            var badgeWidth=Std.int(Math.ceil(G.number(G.call("h2d.Text","get_textWidth",connection))))+28;
+            connectionX=1088-badgeWidth;
+            var bg=graphic(root);rounded(bg,connectionX,19,badgeWidth,28,14,0xD5DFC6);
+            G.call("h2d.Flow","addChildAt",root,[connection,G.call("h2d.Object","get_numChildren",root)]);
+            position(connection,connectionX+14,24);
+        } else {
+            connectionX=866;
+            button(c.signingIn ? "Cancel sign-in" : "Sign in with Steam",connectionX,12,222,
+                ()->{if(c.signingIn)c.cancelSignIn();else c.signIn();}, "");
+        }
+        var region=labelAt(root,serverLabel(c.server),0,24,250,false,MUTED,true);
+        position(region,connectionX-18-G.number(G.call("h2d.Text","get_textWidth",region)),24);
+        if(c.tab=="My listings")labelAt(root,"You can have up to 10 active listings. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
+        if(c.tab=="Sell an item") {
+            labelAt(root,"Choose an unlocked, tradable item. It stays where it is until you trade it.",20,76,1064,false,MUTED);
+            checkbox("Include bank items",c.includeBank,20,104,240,c.setIncludeBank);
+        }
+        contentY = c.tab == "Browse" ? 256 : 146;
         if (c.tab == "Browse") filters();
-        card(root,16,contentY,704,734-contentY);
-        card(root,736,contentY,352,734-contentY);
-        labelAt(root,c.tab == "Sell an item" ? "YOUR BACKPACK" : "ITEM",32,contentY+16,420,true);
+        card(root,16,contentY,704,758-contentY);
+        card(root,736,contentY,352,758-contentY);
+        labelAt(root,c.tab == "Sell an item" ? (c.includeBank?"BACKPACK & BANK":"YOUR BACKPACK") : "ITEM",32,contentY+16,420,true);
         labelAt(root,c.tab == "Sell an item" ? "AVAILABLE" : "TOTAL PRICE",530,contentY+16,170,true);
         labelAt(root,"ITEM DETAILS",754,contentY+16,300,true);
         line(root,30,contentY+42,676); line(root,750,contentY+42,324);
-        var rowHeight = c.tab == "Browse" ? 48 : 66;
+        var rowHeight = c.tab == "Browse" ? 56 : 66;
         if (c.tab == "Sell an item") {
             var start = (c.page-1)*MarketController.PAGE_SIZE;
             for (i in 0...MarketController.PAGE_SIZE) if (start+i < c.inventory.length) {
                 var item = c.inventory[start+i];
-                row(item,contentY+48+i*rowHeight,rowHeight,Std.string(item.count),"In backpack","",false,
+                row(item,contentY+48+i*rowHeight,rowHeight,Std.string(item.count),c.inventoryLocation(item),item.detail.split("\n")[0],false,
                     ()->{c.chosen=item;quantity=Std.string(item.count);dirty=true;},c.chosen==item);
             }
             sellPanel();
@@ -145,22 +153,19 @@ class MarketWindow {
         }
         stage="footer";
         if (c.total == 0) emptyList();
-        button("Previous",16,748,118,()->{c.page--;c.refresh();},"",c.page>1);
-        labelAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:""),152,758,172,true);
-        button("Next",342,748,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
-        button(c.busy?"Loading...":"Refresh",458,748,118,c.refresh,"");
-        labelAt(root,c.tab=="Sell an item"?MarketText.count(c.total,"tradable item"):MarketText.count(c.rows.length,"listing")+" on this page",594,758,326,false,MUTED);
-        if(c.tab=="Browse")button("Clear filters",940,748,148,resetFilters,"");
+        button("Previous",16,772,118,()->{c.page--;c.refresh();},"",c.page>1);
+        labelAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:""),152,782,172,true);
+        button("Next",342,772,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
+        button(c.busy?"Loading...":"Refresh",458,772,118,c.refresh,"");
+        labelAt(root,c.tab=="Sell an item"?MarketText.count(c.total,"tradable item"):MarketText.count(c.rows.length,"listing")+" on this page",594,782,326,false,MUTED);
+        if(c.tab=="Browse")button("Clear filters",940,772,148,resetFilters,"");
         var message = c.message;
         if (message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
-        if (message != "") labelAt(root,message,20,786,1064,false,INK,true);
+        if (message != "") labelAt(root,message.split("\n").join(" "),20,814,1064,false,INK,true);
     }
     function savedRow(listing:Dynamic,y:Int,height:Int,index:Int):Void {
         stage="listing "+(index+1)+" data";
-        var select=()->{
-            c.selected=listing;offers=G.text(G.field(G.field(listing,"price"),"mode"))=="offers";
-            trays=offers?"1":G.text(G.field(G.field(listing,"price"),"silverTrays"));dirty=true;
-        };
+        var select=()->{c.selected=listing;dirty=true;};
         try {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
@@ -181,26 +186,33 @@ class MarketWindow {
     }
     function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint=""):Dynamic {
         var root = frame.container, box = G.field(node("input-box",G.field(root,"dom"),[],"marketInput"+(sequence++)),"obj");
-        absolute(root,box); padding(box,0); size(box,width,34); position(box,x,y);
+        absolute(root,box); padding(box,0); size(box,width,36); position(box,x,y);
         var input = G.field(box,"input");
         G.call("h2d.TextInput","set_text",input,[value]); style(input,"width",width-20); style(input,"color",0xF5F0E8);
         G.call("ui.comp.InputBox","set_hintText",box,[hint]); style(G.field(box,"inputHint"),"color",0xE0D8CD);
+        for(text in [input,G.field(box,"inputHint")]) {
+            absolute(G.field(text,"parent"),text);centerControlText(text,36,12);
+            G.call("h2d.Text","set_maxWidth",text,[(width-24)*1.0]);style(text,"width",width-24);
+        }
         G.set(box,"onChange",()->changed(G.text(G.field(input,"text")))); return box;
     }
     function dropdown(label:String,values:Array<String>,labels:Array<String>,selected:String,x:Int,y:Int,width:Int,changed:String->Void):Void {
         var root = frame.container;
-        labelAt(root,label,x,y-20,width,false,MUTED);
+        labelAt(root,label,x,y-28,width,false,MUTED);
         var control = G.field(node("dropdown",G.field(root,"dom"),[false,false,"options-dropdown-list"],"marketSelect"+(sequence++)),"obj");
-        absolute(root,control); padding(control,0); size(control,width,34); position(control,x,y);
+        absolute(root,control); padding(control,0); size(control,width,36); position(control,x,y);
         // The nested select retains a large native minimum width unless sized too.
-        var select = G.field(control,"select"); padding(select,0); size(select,width,34);
+        var select = G.field(control,"select"); padding(select,0); size(select,width,36);
         var options = G.call("hl.types.ArrayObj","slice",G.field(control,"items"),[0,0]);
         for (i in 0...values.length) G.call("hl.types.ArrayObj","pushDyn",options,[{name:escape(labels[i]),value:i,icon:null,group:null}]);
         G.call("ui.comp.Dropdown","set_options",control,[options]);
         G.call("ui.comp.Dropdown","initSelectedIndex",control,[Std.int(Math.max(0,values.indexOf(selected)))]);
         var caption = G.field(control,"selectText");
-        absolute(G.field(caption,"parent"),caption);position(caption,10,8);
-        G.call("ui.comp.FmtText","set_maxWidthText",caption,[width-44]);
+        absolute(G.field(caption,"parent"),caption);centerControlText(caption,36,12);
+        G.call("ui.comp.FmtText","set_maxWidthText",caption,[width-54]);
+        for(child in children(select))if(G.text(G.field(child,"icon"))=="ArrowDown") {
+            absolute(select,child);padding(child,0);size(child,22,22);position(child,width-32,7);
+        }
         G.call("ui.comp.FmtText","set_useEllipsis",caption,[true]); textColor(caption,INK);
         var popupRoot = G.field(frame.ui,"root");
         G.set(control,"getListLayout",()->popupRoot);
@@ -231,24 +243,24 @@ class MarketWindow {
     }
     function filters():Void {
         var f=c.filters, root=frame.container;
-        card(root,16,122,1072,146,0xDCCAB5);
-        labelAt(root,"Search items",28,134,232,false,MUTED);
-        input(f["search"],28,154,232,s->f["search"]=s.substr(0,100),"Item name...");
-        button("Search",268,154,92,()->filter("search",f["search"]),"");
+        card(root,16,64,1072,176,0xDCCAB5);
+        labelAt(root,"Search items",28,80,232,false,MUTED);
+        input(f["search"],28,108,232,s->f["search"]=s.substr(0,100),"Item name...");
+        button("Search",268,108,92,()->filter("search",f["search"]),"");
         var cats=["","Components","Equipment","Consumables","Collections","Containers","Miscellaneous"];
-        dropdown("Category",cats,["All items"].concat(cats.slice(1)),f["category"],376,154,220,s->filter("category",s));
+        dropdown("Category",cats,["All items"].concat(cats.slice(1)),f["category"],376,108,220,s->filter("category",s));
         var subs=[""].concat(subcategories(f["category"]));
-        dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],612,154,264,s->filter("subcategory",s));
+        dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],612,108,264,s->filter("subcategory",s));
         var rarities=["","Common","Uncommon","Rare","Epic","Legendary"];
-        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],892,154,184,s->filter("rarity",s));
-        dropdown("Pricing",["","fixed","offers"],["Any price","Fixed price","Open to offers"],f["pricing"],28,222,190,s->filter("pricing",s));
-        dropdown("Sort by",["price-asc","price-desc"],["Lowest price","Highest price"],f["sort"],234,222,190,s->filter("sort",s));
-        labelAt(root,"Availability",440,202,156,false,MUTED);
-        button(f["online"]=="true"?"Online only":"All sellers",440,222,156,()->filter("online",f["online"]=="true"?"false":"true"),f["online"]=="true"?"unaccept":"");
-        labelAt(root,"Class",612,202,464,false,MUTED);
+        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],892,108,184,s->filter("rarity",s));
+        dropdown("Pricing",["","fixed","offers"],["Any price","Fixed price","Open to offers"],f["pricing"],28,190,190,s->filter("pricing",s));
+        dropdown("Sort by",["price-asc","price-desc"],["Lowest price","Highest price"],f["sort"],234,190,190,s->filter("sort",s));
+        labelAt(root,"Availability",440,162,156,false,MUTED);
+        checkbox("Online only",f["online"]=="true",440,190,156,value->filter("online",value?"true":"false"));
+        labelAt(root,"Class",612,162,464,false,MUTED);
         for(i in 0...4) {
             var name=["Warrior","Rogue","Mage","Priest"][i],selected=f["classes"].split(",").indexOf(name)>=0;
-            button(name,612+i*116,222,108,()->{
+            button(name,612+i*116,190,108,()->{
                 var classes=f["classes"].split(",").filter(s->s!="");
                 if(classes.indexOf(name)>=0)classes.remove(name);else classes.push(name);
                 filter("classes",classes.join(","));
@@ -275,14 +287,18 @@ class MarketWindow {
         stage="item row icon";
         itemIcon(row,item,8,iconY,38);
         stage="item row labels";
-        largeLabel(labelAt(row,item.name+(item.count>1?" ×"+item.count:""),58,Std.int((height-4)/2)-18,426,true,INK,true));
-        if(rarity=="") labelAt(row,seller,58,Std.int((height-4)/2)+4,426,false,MUTED,true);
-        else {
-            labelAt(row,rarity,58,Std.int((height-4)/2)+4,88,true,rarityColor(rarity),true);
-            labelAt(row,"·  "+seller,150,Std.int((height-4)/2)+4,334,false,MUTED,true);
+        var name=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),58,Std.int((height-4)/2)-18,rarity==""?426:322,true,INK,true);
+        largeLabel(name);
+        if(rarity!="") {
+            var nameWidth=Math.min(322,G.number(G.call("h2d.Text","get_textWidth",name)));
+            labelAt(row,rarity,58+Std.int(Math.ceil(nameWidth))+10,Std.int((height-4)/2)-17,94,true,rarityColor(rarity),true);
         }
-        largeLabel(labelAt(row,price,502,Std.int((height-4)/2)-18,166,true,INK,true));
-        labelAt(row,c.tab=="Sell an item"?"items":online?"Online":"Offline",502,Std.int((height-4)/2)+4,166,false,online?0x426138:MUTED,true);
+        var sellerLabel=labelAt(row,seller,58,Std.int((height-4)/2)+5,286,false,MUTED,true);
+        if(c.tab!="Sell an item") {
+            var sellerWidth=Math.min(286,G.number(G.call("h2d.Text","get_textWidth",sellerLabel)));
+            labelAt(row,"·  "+(online?"Online":"Offline"),58+Std.int(Math.ceil(sellerWidth))+10,Std.int((height-4)/2)+5,120,false,online?0x426138:MUTED,true);
+        }
+        largeLabel(labelAt(row,price,502,Std.int((height-4)/2)-9,166,true,INK,true));
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         stage="item row tooltip";
         tooltip(row,item);
@@ -313,18 +329,11 @@ class MarketWindow {
         }
     }
     function emptyList():Void {
-        var root=frame.container, y=contentY+Std.int((734-contentY)/2)-40;
+        var root=frame.container, y=contentY+Std.int((758-contentY)/2)-40;
         labelAt(root,c.busy?"Finding listings...":c.tab=="Sell an item"?"No tradable items":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
         labelAt(root,c.tab=="Sell an item"?"Unlocked items that can be traded will appear here.":c.tab=="My listings"?c.ready?"Select Sell an item to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
         if(!c.busy&&c.tab=="Browse")button("Clear filters",64,y+94,152,resetFilters,"");
         if(!c.busy&&c.tab=="My listings"&&c.ready)button("Sell an item",64,y+94,152,()->c.chooseTab("Sell an item"),"");
-    }
-    function emptyDetails(selling:Bool):Void {
-        var y=contentY+96;
-        labelAt(frame.container,selling?"Choose an item":"Select a listing",762,y,308,true);
-        labelAt(frame.container,selling?"Select an item from your backpack to choose the quantity and set a price.":"Item details, price, and seller information will appear here.",762,y+36,300,false,MUTED);
-        line(frame.container,754,y+122,316);
-        labelAt(frame.container,selling?"Listings last 3 days. You can have up to 10 active listings.":"Hover an item to see its in-game tooltip, including upgrades and enchantments.",762,y+144,300,false,MUTED);
     }
     function priceFields(y:Int):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);
@@ -336,24 +345,22 @@ class MarketWindow {
         } else labelAt(frame.container,"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
     }
     function sellPanel():Void {
-        if(c.chosen==null){emptyDetails(true);return;}
+        if(c.chosen==null)return;
         selectedItem(c.chosen);
         line(frame.container,754,contentY+224,316);
         labelAt(frame.container,"Quantity to sell",754,contentY+246,316,true);
         input(quantity,754,contentY+274,132,s->quantity=s.substr(0,5),"1");
         labelAt(frame.container,"of "+c.chosen.count+" available",900,contentY+282,170,false,MUTED);
         priceFields(contentY+334);
-        button(c.ready?"List item for sale":"Sign in to sell",754,682,316,()->{if(c.ready)c.list(int(quantity),int(trays),offers);else c.signIn();},"accept");
+        button(c.ready?"List item for sale":"Sign in to sell",754,704,316,()->{if(c.ready)c.list(int(quantity),int(trays),offers);else c.signIn();},"accept");
     }
     function listingPanel():Void {
-        if(c.selected==null){emptyDetails(false);return;}
+        if(c.selected==null)return;
         var row=c.selected;try selectedItem(MarketExport.offer(row))catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
             labelAt(frame.container,"Expires "+G.text(row.expiresAt).substr(0,16).split("T").join(" ")+" UTC",754,contentY+222,316,false,MUTED);
-            priceFields(contentY+260);
-            button("Save price",754,626,316,()->c.changePrice(int(trays),offers),"accept");
-            button("Mark sold",754,682,152,()->c.remove(true),"");
-            button("Remove",918,682,152,()->c.remove(false),"cancel");
+            labelAt(frame.container,MarketText.price(row.price),754,contentY+260,316,true);
+            button("Remove listing",754,704,316,c.remove,"cancel");
         } else {
             line(frame.container,754,contentY+222,316);
             labelAt(frame.container,row.seller.characterName,754,contentY+238,220,true,INK,true);
@@ -361,8 +368,20 @@ class MarketWindow {
             labelAt(frame.container,MarketText.price(row.price),754,contentY+278,316,true);
             labelAt(frame.container,row.price.mode=="offers"?"Contact the seller to agree on a price.":MarketText.number(row.price.silverTrays*500)+" gold for the entire listing",754,contentY+308,316,false,MUTED);
             labelAt(frame.container,"Arrange a party and meet nearby to trade.",754,contentY+348,316,false,MUTED);
-            button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,682,316,c.contact,"accept",row.seller.accountId!=c.account);
+            button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,704,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
+    }
+    function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void):Void {
+        var root=frame.container,box=G.field(node("check-box",G.field(root,"dom"),[text],"marketCheck"+(sequence++)),"obj");
+        absolute(root,box);size(box,width,36);position(box,x,y);
+        G.call("ui.comp.CheckBox","set_selected",box,[value]);
+        textColor(G.field(box,"fmtText"),INK);
+        G.call("ui.UIElement","set_enable",box,[!c.busy]);
+        G.set(box,"onValueChange",(selected:Bool)->{if(!c.busy)changed(selected);});
+    }
+    static function centerControlText(text:Dynamic,height:Int,left:Int):Void {
+        var textHeight=G.number(G.call("h2d.Text","get_textHeight",text),16);
+        position(text,left,Math.floor((height-Math.max(16,textHeight))/2));
     }
     static function isOnline(row:Dynamic):Bool return row.seller.onlineUntil!=null&&Protocol.expiry(row.seller.onlineUntil)>Date.now().getTime()/1000;
     static function labelAt(parent:Dynamic,value:String,x:Int,y:Int,width:Int,bold=false,color=INK,single=false):Dynamic {
@@ -400,9 +419,6 @@ class MarketWindow {
         var g=graphic(parent);rounded(g,x,y,w,h,8,EDGE);rounded(g,x+1,y+1,w-2,h-2,7,color);
     }
     static function line(parent:Dynamic,x:Int,y:Int,w:Int):Void {var g=graphic(parent);rounded(g,x,y,w,1,0,0xCFB99D);}
-    static function badge(parent:Dynamic,value:String,x:Int,y:Int,w:Int,color:Int,ink:Int):Void {
-        var g=graphic(parent);rounded(g,x,y,w,26,13,color);labelAt(parent,value,x+14,y+5,w-28,true,ink,true);
-    }
     static function serverLabel(value:String):String return switch(value) {
         case "north-america":"North America";case "latin-america":"Latin America";case "europe":"Europe";
         case "asia":"Asia";case "mainland-china":"Mainland China";default:"Server unavailable";

@@ -1,4 +1,5 @@
 import marketplace.MarketPresence;
+import marketplace.MarketInventory;
 import marketplace.MarketExport;
 import marketplace.MarketEndpoints;
 import trade.TradeInventory;
@@ -25,6 +26,23 @@ class MarketplaceTest {
   fails(()->MarketExport.snapshot(inv,item,11,1,false,"europe",app));fails(()->MarketExport.snapshot(inv,item,1,200001,false,"europe",app));
   fails(()->MarketExport.snapshot(inv,item,1,1,false,"",app));fails(()->MarketExport.snapshot(inv,item,1,1,false,"europe",{connectionInfo:{heroID:0}}));
   inv.stack=null;fails(()->MarketExport.snapshot(inv,item,1,1,false,"europe",app));
+  // Only banks attached to the current character are eligible; no stale container is retained.
+  var bank:Dynamic={content:[{item:{uid:"item",inf:{}},count:6}]};
+  inv.hero.loadout.banks=[bank,bank];
+  check(MarketInventory.sources(inv,false).length==1);
+  check(MarketInventory.sources(inv,true).length==2);
+  fails(()->MarketExport.snapshot(inv,item,3,8,false,"europe",app));
+  var bankListing=MarketExport.snapshot(inv,item,3,8,false,"europe",app,true);
+  check(bankListing.item.quantity==3);
+  fails(()->MarketExport.snapshot(inv,item,7,8,false,"europe",app,true));
+  bank.content[0].item.locked=true;
+  fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));
+  bank.content[0].item.locked=false;bank.content[0].item.bound=true;
+  fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));
+  bank.content[0].item.bound=false;
+  TradeInventory.fp="changed";fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));TradeInventory.fp="fp";
+  inv.hero.loadout.banks=[];
+  fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));
   Sys.println("Marketplace checks passed: "+checks);
  }
 }

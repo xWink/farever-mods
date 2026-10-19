@@ -1,5 +1,6 @@
 package trade;
 class GameAccess {
+ public static function array(o:Dynamic,proxy=false):Array<Dynamic> return o==null?[]:cast o;
  public static function field(o:Dynamic,k:String):Dynamic return o==null?null:Reflect.field(o,k);
  public static function text(v:Dynamic):String return v==null?"":Std.string(v);
  public static function integer(v:Dynamic):Int return v==null?0:Std.int(v);

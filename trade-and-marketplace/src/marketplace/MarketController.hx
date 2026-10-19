@@ -21,6 +21,8 @@ class MarketController {
     public var tab="Browse";
     public var rows:Array<Dynamic>=[];
     public var inventory:Array<TradeItem>=[];
+    public var includeBank=false;
+    var locations:Map<String,String>=[];
     public var selected:Dynamic;
     public var chosen:TradeItem;
     public var page=1;
@@ -83,7 +85,7 @@ class MarketController {
                         sys.FileSystem.createDirectory(haxe.io.Path.directory(CommonSettings.PATH));
                         MarketNative.write(sys.FileSystem.fullPath(CommonSettings.PATH),haxe.Json.stringify(values,null,"  "));
                         Bus.publish(CommonSettings.CHANGED_TOPIC,{key:"fareverlyApiKey"});
-                        message="Steam connected. Your API key is shared with other Fareverly mods.";
+                        message="Fareverly connected. Your API key is shared with other Fareverly mods.";
                     } catch(e:Dynamic)message=Std.string(e);
                     view.dirty=true;
                 default:
@@ -102,7 +104,7 @@ class MarketController {
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;pending=null;
-        rows=[];inventory=[];selected=null;chosen=null;expectedBody="";requestId="";
+        rows=[];inventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         SessionLease.release(HlxRuntime.moduleName());
     }
     public function fail(error:Dynamic):Void {
@@ -131,10 +133,20 @@ class MarketController {
         view.dirty=true;
     }
     public function loadInventory():Void {
-        inventory=[];chosen=null;
-        if(inv!=null)for(s in inv.stacks())if(inv.canDrop(s,1))try inventory.push(TradeInventory.describe(s.item,s.count))catch(_:Dynamic){}
+        inventory=[];chosen=null;locations=[];
+        for(source in MarketInventory.sources(inv,includeBank))for(s in source.stacks())if(source.canDrop(s,1))try {
+            var item=TradeInventory.describe(s.item,s.count);
+            if(!locations.exists(item.uid)) {
+                inventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
+            }
+        }catch(_:Dynamic){}
         total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/PAGE_SIZE)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
     }
+    public function setIncludeBank(value:Bool):Void {
+        if(busy)return;
+        includeBank=value;page=1;loadInventory();
+    }
+    public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     public function refresh():Void {
         if(tab=="Sell an item"){loadInventory();return;}
         var path="/api/v1/marketplace/listings";
@@ -163,23 +175,13 @@ class MarketController {
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
         if(chosen==null||busy)return;
         try {
-            var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app),body=haxe.Json.stringify(value);
+            var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,includeBank),body=haxe.Json.stringify(value);
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
             request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
-    public function changePrice(trays:Int,offers:Bool):Void {
-        if(selected==null||busy)return;
-        if(!offers&&(trays<1||trays>200000)){message="Choose a total price of 1 to 200,000 Silver Trays.";view.dirty=true;return;}
-        var row=selected;
-        // Price-only updates preserve the original item/character snapshot and expiry.
-        var value:Dynamic=haxe.Json.parse(haxe.Json.stringify(Reflect.field(row,"export")));
-        if(value==null){message="Refresh My listings before editing.";view.dirty=true;return;}
-        value.price=offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays};
-        request("PUT","/api/v1/marketplace/listings/"+row.id,value,["If-Match"=>'"'+row.revision+'"'],data->refresh());
-    }
-    public function remove(sold:Bool):Void {
+    public function remove():Void {
         if(selected==null||busy)return;
         var row=selected;
         request("DELETE","/api/v1/marketplace/listings/"+row.id,null,["If-Match"=>'"'+row.revision+'"'],data->refresh());
@@ -199,9 +201,9 @@ class MarketController {
     }
     public static function error(code:String):String return switch(code){
         case "duplicate_item":"You already have an active listing for this item.";
-        case "listing_limit":"You can have up to 10 active listings. Remove or complete a listing first.";
+        case "listing_limit":"You can have up to 10 active listings. Remove a listing first.";
         case "listing_unavailable","listing_not_found":"This listing expired or was removed. Refresh the marketplace.";
-        case "stale_revision":"This listing changed. Refresh before editing it.";
+        case "stale_revision":"This listing changed. Refresh before removing it.";
         case "unauthorized","insufficient_scope","sign_in_required":"Sign in with Steam to manage your listings.";
         case "invalid_export","update_mod_required":"The server could not accept this item's data. Update the mod and try again.";
         case "rate_limited","write_busy","write_in_progress":"Too many requests. Wait a minute before trying again.";
