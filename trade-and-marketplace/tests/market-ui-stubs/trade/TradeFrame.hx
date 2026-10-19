@@ -11,7 +11,7 @@ class TradeFrame {
   var o=GameAccess.object(container);o.text=s;o.action=action;GameAccess.buttons.push(o);return o;
  }
  public static function textAt(p:Dynamic,s:String,x:Float,y:Float,w:Int,b=false):Dynamic {
-  var o=GameAccess.object(p);o.text=s;return o;
+  var o=GameAccess.object(p);o.text=s;o.maxWidthText=w;GameAccess.labels.push(o);return o;
  }
  public static function graphic(p:Dynamic):Dynamic return GameAccess.object(p);
  public static function rounded(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,c:Int,a=1.0):Void{}

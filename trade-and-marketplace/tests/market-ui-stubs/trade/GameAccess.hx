@@ -1,6 +1,7 @@
 package trade;
 class GameAccess {
  public static var buttons:Array<Dynamic>=[];
+ public static var labels:Array<Dynamic>=[];
  public static var failNextTooltip=false;
  public static var ui:Dynamic={root:{}};
  public static function object(?parent:Dynamic):Dynamic {
@@ -18,6 +19,7 @@ class GameAccess {
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
+   case "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis": Reflect.setField(o,n.substr(4),a[0]);null;
    case "slice": [];
    case "pushDyn": (cast o:Array<Dynamic>).push(a[0]);
    case "remove": if(o.parent!=null)(cast o.parent.children:Array<Dynamic>).remove(o);null;

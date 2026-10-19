@@ -114,8 +114,7 @@ class MarketWindow {
             ()->{if(c.signingIn)c.cancelSignIn();else c.signIn();}, "");
         var heading = switch(c.tab) {case "Browse": "Find your next upgrade"; case "Sell an item": "List an item from your backpack"; default: "Manage your listings";};
         var headingText=labelAt(root,heading,20,65,740,true);
-        G.call("domkit.Properties","removeClass",G.field(headingText,"dom"),["bold-14"]);
-        G.call("domkit.Properties","addClass",G.field(headingText,"dom"),["bold-16"]);
+        largeLabel(headingText);
         labelAt(root,switch(c.tab) {
             case "Browse": "Browse items for sale, inspect their details, and contact the seller.";
             case "Sell an item": "Choose an unlocked, tradable item. It stays in your backpack until you trade it.";
@@ -150,7 +149,7 @@ class MarketWindow {
         labelAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:""),152,758,172,true);
         button("Next",342,748,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
         button(c.busy?"Loading...":"Refresh",458,748,118,c.refresh,"");
-        labelAt(root,c.tab=="Sell an item"?c.total+" tradable items":c.rows.length+" listings on this page",594,758,326,false,MUTED);
+        labelAt(root,c.tab=="Sell an item"?MarketText.count(c.total,"tradable item"):MarketText.count(c.rows.length,"listing")+" on this page",594,758,326,false,MUTED);
         if(c.tab=="Browse")button("Clear filters",940,748,148,resetFilters,"");
         var message = c.message;
         if (message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
@@ -165,7 +164,7 @@ class MarketWindow {
         try {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
-            var priceText=G.text(G.field(price,"mode"))=="offers"?"Open to offers":G.text(G.field(price,"silverTrays"))+" Silver Trays";
+            var priceText=MarketText.price(price);
             row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing);
         } catch(error:Dynamic) {
             report(stage,error);
@@ -200,6 +199,7 @@ class MarketWindow {
         G.call("ui.comp.Dropdown","set_options",control,[options]);
         G.call("ui.comp.Dropdown","initSelectedIndex",control,[Std.int(Math.max(0,values.indexOf(selected)))]);
         var caption = G.field(control,"selectText");
+        absolute(G.field(caption,"parent"),caption);position(caption,10,8);
         G.call("ui.comp.FmtText","set_maxWidthText",caption,[width-44]);
         G.call("ui.comp.FmtText","set_useEllipsis",caption,[true]); textColor(caption,INK);
         var popupRoot = G.field(frame.ui,"root");
@@ -275,9 +275,13 @@ class MarketWindow {
         stage="item row icon";
         itemIcon(row,item,8,iconY,38);
         stage="item row labels";
-        labelAt(row,item.name+(item.count>1?" ×"+item.count:""),58,Std.int((height-4)/2)-17,426,true,INK,true);
-        labelAt(row,rarity==""?seller:rarity+"  ·  "+seller,58,Std.int((height-4)/2)+3,426,false,MUTED,true);
-        labelAt(row,price,502,Std.int((height-4)/2)-16,166,true,INK,true);
+        largeLabel(labelAt(row,item.name+(item.count>1?" ×"+item.count:""),58,Std.int((height-4)/2)-18,426,true,INK,true));
+        if(rarity=="") labelAt(row,seller,58,Std.int((height-4)/2)+4,426,false,MUTED,true);
+        else {
+            labelAt(row,rarity,58,Std.int((height-4)/2)+4,88,true,rarityColor(rarity),true);
+            labelAt(row,"·  "+seller,150,Std.int((height-4)/2)+4,334,false,MUTED,true);
+        }
+        largeLabel(labelAt(row,price,502,Std.int((height-4)/2)-18,166,true,INK,true));
         labelAt(row,c.tab=="Sell an item"?"items":online?"Online":"Offline",502,Std.int((height-4)/2)+4,166,false,online?0x426138:MUTED,true);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         stage="item row tooltip";
@@ -300,10 +304,13 @@ class MarketWindow {
     function selectedItem(item:TradeItem):Void {
         var root=frame.container, y=contentY+58;
         itemIcon(root,item,754,y,60);
-        labelAt(root,item.name,826,y+4,242,true,INK,true);
+        largeLabel(labelAt(root,item.name,826,y+4,242,true,INK,true));
         labelAt(root,"Quantity: "+item.count,826,y+38,242,false,MUTED);
-        var summary=item.detail.split("\n").slice(0,4).map(s->s.length>48?s.substr(0,45)+"...":s).join("\n");
-        labelAt(root,summary==""?"Hover the item in the list for its full tooltip.":summary,754,y+76,316,false,MUTED);
+        if(item.detail=="") labelAt(root,"Hover the item in the list for its full tooltip.",754,y+76,316,false,MUTED);
+        else {
+            var lines=item.detail.split("\n").slice(0,4);
+            for(i in 0...lines.length)labelAt(root,lines[i],754,y+76+i*20,316,false,MUTED,true);
+        }
     }
     function emptyList():Void {
         var root=frame.container, y=contentY+Std.int((734-contentY)/2)-40;
@@ -351,8 +358,8 @@ class MarketWindow {
             line(frame.container,754,contentY+222,316);
             labelAt(frame.container,row.seller.characterName,754,contentY+238,220,true,INK,true);
             labelAt(frame.container,isOnline(row)?"Online":"Offline",988,contentY+238,82,false,isOnline(row)?0x426138:MUTED);
-            labelAt(frame.container,row.price.mode=="offers"?"Open to offers":Std.string(row.price.silverTrays)+" Silver Trays",754,contentY+278,316,true);
-            labelAt(frame.container,row.price.mode=="offers"?"Contact the seller to agree on a price.":Std.string(row.price.silverTrays*500)+" gold for the entire listing",754,contentY+308,316,false,MUTED);
+            labelAt(frame.container,MarketText.price(row.price),754,contentY+278,316,true);
+            labelAt(frame.container,row.price.mode=="offers"?"Contact the seller to agree on a price.":MarketText.number(row.price.silverTrays*500)+" gold for the entire listing",754,contentY+308,316,false,MUTED);
             labelAt(frame.container,"Arrange a party and meet nearby to trade.",754,contentY+348,316,false,MUTED);
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,682,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
@@ -364,9 +371,24 @@ class MarketWindow {
         if(single) {
             G.call("h2d.Text","set_lineBreak",obj,[false]);style(obj,"line-break",false);
             G.call("ui.comp.FmtText","set_useEllipsis",obj,[true]);
+        } else {
+            // FmtText maxWidthText shrinks a sentence; base Text maxWidth wraps it.
+            G.call("ui.comp.FmtText","set_textMultiline",obj,[true]);
+            G.call("h2d.Text","set_lineBreak",obj,[true]);style(obj,"line-break",true);
+            G.call("ui.comp.FmtText","set_useEllipsis",obj,[false]);
+            G.call("ui.comp.FmtText","set_maxWidthText",obj,[null]);
+            G.call("h2d.Text","set_maxWidth",obj,[width*1.0]);
         }
         return obj;
     }
+    static function largeLabel(obj:Dynamic):Void {
+        G.call("domkit.Properties","removeClass",G.field(obj,"dom"),["bold-14"]);
+        G.call("domkit.Properties","addClass",G.field(obj,"dom"),["bold-16"]);
+    }
+    static function rarityColor(rarity:String):Int return switch(rarity) {
+        case "Uncommon":0x426138;case "Rare":0x346A91;case "Epic":0x80529A;
+        case "Legendary":0xA86322;default:INK;
+    };
     static function textColor(obj:Dynamic,value:Int):Void {
         if(obj==null)return;
         style(obj,"color",value);

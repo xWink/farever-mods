@@ -1,4 +1,5 @@
 import marketplace.MarketWindow;
+import marketplace.MarketText;
 import marketplace.MarketController;
 import trade.GameAccess;
 import trade.TradeFrame;
@@ -11,6 +12,14 @@ class MarketplaceUiTest {
   var c=new MarketController();c.rows=[row,row];c.total=2;
   var view=new MarketWindow(c);view.open();view.update();check(TradeFrame.active==1);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
+  var paragraph=GameAccess.labels.filter(l->l.text=="Item details, price, and seller information will appear here.")[0];
+  check(paragraph!=null&&paragraph.maxWidthText==null&&paragraph.maxWidth==300.0&&paragraph.lineBreak==true);
+  var name=GameAccess.labels.filter(l->l.text==trade.TradeInventory.itemName("Shield_OrbitWater"))[0];
+  check(name!=null&&name.lineBreak==false&&name.useEllipsis==true);
+  check(GameAccess.labels.filter(l->l.text=="1 Silver Tray").length==2);
+  check(MarketText.price(haxe.Json.parse('{"mode":"fixed","silverTrays":12500}'))=="12,500 Silver Trays");
+  check(MarketText.price({mode:"offers"})=="Open to offers");
+  check(MarketText.count(1,"listing")=="1 listing"&&MarketText.count(2,"listing")=="2 listings");
   // One failing row must not close the window or stop the remaining rows.
   GameAccess.buttons=[];GameAccess.failNextTooltip=true;view.dirty=true;view.update();
   check(TradeFrame.active==1);check(!GameAccess.failNextTooltip);
