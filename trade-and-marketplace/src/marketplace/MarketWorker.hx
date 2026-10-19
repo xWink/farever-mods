@@ -41,14 +41,21 @@ class MarketWorker {
                         var needsKey=job.method!="GET" || job.path.indexOf("mine=true")>=0;
                         var response:Response=needsKey&&!verified?{status:401,body:'{"error":"sign_in_required"}',retryAfter:"",error:""}:
                             http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),needsKey?key:"",job.headers);
+                        if(needsKey&&!verified)MarketApiLog.unexpected(job.method,job.path,401,"Account verification required",key);
                         if(current(id))events.add({generation:id,op:"request",response:response});
                     default:
                 }
-            } catch(_:Dynamic) { if(current(id))events.add({generation:id,op:job.op=="request"?"request":job.op=="auth"?"auth-end":"error",message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}}); }
+            } catch(e:Dynamic) { if(current(id)) {
+                MarketApiLog.unexpected(job.method==null?job.op:job.method,job.path==null?"/api/v1/auth/":job.path,0,"Worker failure: "+Std.string(e),key);
+                events.add({generation:id,op:job.op=="request"?"request":job.op=="auth"?"auth-end":"error",message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
+            } }
             if(!current(id)||account=="") { Sys.sleep(0.1);continue; }
             var now=Date.now().getTime()/1000;
             if(auth.active) {
-                try auth.step() catch(_:Dynamic) auth.finish("Could not complete Steam sign-in. Try again.");
+                try auth.step() catch(_:Dynamic) {
+                    MarketApiLog.unexpected("AUTH","/api/v1/auth/",0,"Could not process sign-in response");
+                    auth.finish("Could not complete Steam sign-in. Try again.");
+                }
                 if(!current(id)){auth.cancel();continue;}
                 if(auth.verificationUri!="" && auth.verificationUri!=opened) {
                     opened=auth.verificationUri;
@@ -64,6 +71,8 @@ class MarketWorker {
                 if(response.status==200 && data!=null && data.account_id==account && scopes.indexOf("marketplace:write")>=0 && scopes.indexOf("marketplace:presence")>=0) {
                     verified=true;events.add({generation:id,op:"ready",message:"Connected to Fareverly."});
                 } else if(response.status==401||response.status==403||response.status==200) {
+                    if(response.status==200)MarketApiLog.unexpected("GET","/api/v1/account",200,
+                        data==null?"Expected a JSON account response":data.account_id!=account?"API key belongs to a different account":"Missing marketplace:write or marketplace:presence scope",key);
                     verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Sign in with Steam to connect this Farever account to the marketplace."});
                 } else { verifyFailures++;
                     if(verifyFailures==1)events.add({generation:id,op:"error",message:MarketText.CONNECTION_ERROR});

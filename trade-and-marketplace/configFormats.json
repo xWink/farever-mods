@@ -33,17 +33,25 @@
       "modifiers": true
     },
     {
-      "type": "button",
-      "key": "fareverlySignIn",
-      "label": "Connect to Fareverly",
-      "buttonText": "Sign in with Steam"
+      "key": "fareverlyApiKey",
+      "type": "text",
+      "isSecret": true,
+      "isCommon": true,
+      "label": "Fareverly API key",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "This secret key connects your Farever account to Fareverly. Do not share it with anyone."
+      }
     },
     {
-      "type": "text",
-      "key": "fareverlyApiKey",
-      "label": "Fareverly API key",
-      "isCommon": true,
-      "isSecret": true
+      "key": "fareverlySignIn",
+      "type": "button",
+      "label": "Generate API key",
+      "buttonText": "Generate API key",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Sign in through Steam in your browser to create or replace your Fareverly key. Your current key remains valid until the new key is issued."
+      }
     }
   ]
 }

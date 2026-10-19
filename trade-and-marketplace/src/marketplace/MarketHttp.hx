@@ -34,8 +34,14 @@ class MarketHttp {
         } catch (error:Dynamic) result.error = Std.string(error);
         if (socket != null) try socket.close() catch (_:Dynamic) {}
         result.body = output.getBytes().toString();
-        if (http.responseHeaders != null) for (key => value in http.responseHeaders)
-            if (key.toLowerCase() == "retry-after") result.retryAfter = value;
+        var requestId="";
+        if (http.responseHeaders != null) for (key => value in http.responseHeaders) switch(key.toLowerCase()) {
+            case "retry-after":result.retryAfter=value;
+            case "x-request-id":requestId=value;
+            default:
+        }
+        var diagnostic=MarketApiLog.failure(method,url,result,token,requestId);
+        if(diagnostic!="")trade.TradeDiagnostics.log(diagnostic);
         return result;
     }
 }

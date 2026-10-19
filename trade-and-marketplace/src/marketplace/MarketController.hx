@@ -7,7 +7,7 @@ import fareverly.SessionLease;
 import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
-    public static inline var PAGE_SIZE = 8;
+    public static inline var PAGE_SIZE = 6;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -23,6 +23,8 @@ class MarketController {
     public var rows:Array<Dynamic>=[];
     public var inventory:Array<TradeItem>=[];
     public var bankOnly=false;
+    public var sellSearch="";
+    var availableInventory:Array<TradeItem>=[];
     var locations:Map<String,String>=[];
     public var selected:Dynamic;
     public var chosen:TradeItem;
@@ -35,6 +37,8 @@ class MarketController {
     var generation=0;
     var key="";
     var pending:(Dynamic->Void);
+    var pendingMethod="";
+    var pendingPath="";
     var requestAfter=0.0;
     var expectedBody="";
     var requestId="";
@@ -64,12 +68,17 @@ class MarketController {
         while(event!=null){
             if(event.generation==generation) switch(event.op){
                 case "request":
-                    busy=false;var response=event.response,data:Dynamic=null;
+                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
                         if(ready)connectionIssue=false;
-                        var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(_:Dynamic)message="Unsupported marketplace response. Update the mod and try again.";
+                        var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(e:Dynamic) {
+                            MarketApiLog.unexpected(method,path,response.status,"Could not process response: "+Std.string(e),key);
+                            message="Unsupported marketplace response. Update the mod and try again.";
+                        }
                     } else {pending=null;message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
+                        if(response.status>=200&&response.status<300&&response.error=="")
+                            MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
                         if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
                         if(response.status==0||response.status>=500)connectionIssue=true;
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
@@ -107,7 +116,7 @@ class MarketController {
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
-        rows=[];inventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
+        rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         SessionLease.release(HlxRuntime.moduleName());
     }
     public function fail(error:Dynamic):Void {
@@ -136,13 +145,19 @@ class MarketController {
         view.dirty=true;
     }
     public function loadInventory():Void {
-        inventory=[];chosen=null;locations=[];
+        availableInventory=[];chosen=null;locations=[];
         for(source in MarketInventory.sources(inv,bankOnly))for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
             if(!locations.exists(item.uid)) {
-                inventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
+                availableInventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
             }
         }catch(_:Dynamic){}
+        applyInventorySearch();
+    }
+    public function searchInventory():Void {if(busy)return;page=1;applyInventorySearch();}
+    function applyInventorySearch():Void {
+        inventory=MarketInventory.filter(availableInventory,sellSearch);
+        if(chosen!=null&&inventory.indexOf(chosen)<0)chosen=null;
         total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/PAGE_SIZE)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
     }
     public function setBankOnly(value:Bool):Void {
@@ -172,7 +187,7 @@ class MarketController {
         if(busy)return;
         if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return;}
         if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){connectionIssue=true;message=MarketText.CONNECTION_ERROR;view.dirty=true;return;}
-        busy=true;pending=done;message="Loading...";view.dirty=true;
+        busy=true;pending=done;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
         worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {

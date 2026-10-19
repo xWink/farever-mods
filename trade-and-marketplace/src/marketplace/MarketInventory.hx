@@ -5,6 +5,10 @@ import trade.TradeInventory;
 
 /** Read-only listing sources. Direct trades continue to use the backpack only. */
 class MarketInventory {
+    public static function filter(items:Array<trade.TradeTypes.TradeItem>,search:String):Array<trade.TradeTypes.TradeItem> {
+        var query=StringTools.trim(search).toLowerCase();
+        return items.filter(item->query==""||item.name.toLowerCase().indexOf(query)>=0);
+    }
     public static function sources(backpack:TradeInventory,bankOnly:Bool):Array<TradeInventory> {
         if(backpack==null)return [];
         var result:Array<TradeInventory>=bankOnly?[]:[backpack];

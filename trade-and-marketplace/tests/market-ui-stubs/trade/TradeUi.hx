@@ -5,7 +5,7 @@ class TradeUi {
   o.fmtText=GameAccess.object(o);o.fmtText.text=args.length>0?Std.string(args[0]):"";
   o.arrow=GameAccess.object(o.select);o.arrow.defaultIcon="ArrowDown";o.arrow.nativeType="ui.comp.Icon";
   GameAccess.nodes.push(o);
-  o.input=GameAccess.object(o);o.inputHint=GameAccess.object(o);return o.dom;
+  o.input=GameAccess.object(o);o.inputHint=GameAccess.object(o);o.iconBmp=GameAccess.object(o);return o.dom;
  }
  public static function children(o:Dynamic):Array<Dynamic> return (cast o.children:Array<Dynamic>).copy();
  public static function absolute(p:Dynamic,o:Dynamic):Void{}

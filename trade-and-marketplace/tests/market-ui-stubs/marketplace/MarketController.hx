@@ -1,7 +1,9 @@
 package marketplace;
 class MarketController {
- public static inline var PAGE_SIZE=8;
+ public static inline var PAGE_SIZE=6;
  public var bankOnly=false;
+ public var sellSearch="";
+ public var inventorySearches=0;
  public var connectionIssue=false;
  public var ready=true; public var busy=false; public var signingIn=false;
  public var server="north-america"; public var account="tester"; public var tab="Browse"; public var message="";
@@ -12,6 +14,7 @@ class MarketController {
  public function new(){}
  public function chooseTab(s:String):Void tab=s;
  public function refresh():Void{}
+ public function searchInventory():Void {inventorySearches++;}
  public function cancelSignIn():Void{}
  public function signIn():Void{}
  public function list(q:Int,t:Int,o:Bool):Void{}

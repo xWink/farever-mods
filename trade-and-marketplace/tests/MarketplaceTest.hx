@@ -2,6 +2,8 @@ import marketplace.MarketPresence;
 import marketplace.MarketInventory;
 import marketplace.MarketExport;
 import marketplace.MarketEndpoints;
+import marketplace.MarketQuantity;
+import marketplace.MarketApiLog;
 import trade.TradeInventory;
 import trade.TradeTypes;
 class MarketplaceTest {
@@ -48,6 +50,34 @@ class MarketplaceTest {
   fails(()->MarketExport.snapshot(inv,item,1,1,false,"europe",app,true));
   var shortage="";try MarketExport.snapshot(inv,item,11,1,false,"europe",app)catch(e:Dynamic)shortage=Std.string(e);
   check(shortage=="Not enough of this item. You have 10 available.");
+  check(MarketInventory.filter([item]," SHOUL ")[0]==item);
+  check(MarketInventory.filter([item],"Shield").length==0);
+  check(MarketInventory.filter([item],"  ").length==1);
+  check(MarketQuantity.normalize("0",1,10,"5")=="1");
+  check(MarketQuantity.normalize("12",1,10,"5")=="10");
+  for(text in ["five","1.5","-1","0x10","1e4","1 2"])check(MarketQuantity.normalize(text,1,10,"5")=="5");
+  check(MarketQuantity.normalize("",1,10,"5")=="");
+  check(MarketQuantity.normalize("999999999999999999999999999",1,200000,"1")=="200000");
+  var secret="fv1_"+StringTools.lpad("", "X",43);
+  var response:fareverly.Protocol.Response={status:422,body:haxe.Json.stringify({error:{code:"invalid_export",field:"item.quantity",message:"Invalid item quantity",secret:secret},accessToken:secret}),error:"",retryAfter:""};
+  var log=MarketApiLog.failure("POST","https://fareverly.com/api/v1/marketplace/listings?token="+secret,response,secret,"request-123");
+  check(log.indexOf("POST /api/v1/marketplace/listings HTTP 422")>=0&&log.indexOf("code=invalid_export")>=0);
+  check(log.indexOf("Invalid item quantity")>=0&&log.indexOf("requestId=request-123")>=0);
+  check(log.indexOf("field=item.quantity")>=0);
+  check(log.indexOf(secret)<0&&log.indexOf("token=")<0&&log.indexOf("accessToken")<0);
+  response.error="Failure Bearer "+secret+"\nsecond line";
+  log=MarketApiLog.failure("GET","/api/v1/account",response,secret);check(log.indexOf(secret)<0&&log.indexOf("\n")<0);
+  response.status=503;response.body="<html>private service debug</html>";response.error="HTTP Error #503";response.retryAfter="60";
+  log=MarketApiLog.failure("GET","/api/v1/marketplace/listings",response);
+  check(log.indexOf("HTTP 503")>=0&&log.indexOf("retryAfter=60")>=0&&log.indexOf("private service debug")<0);
+  response.status=429;response.body='{"error":"slow_down"}';
+  check(MarketApiLog.failure("POST","/api/v1/auth/token",response)=="");
+  response.status=400;response.body='{"error":"authorization_pending"}';
+  check(MarketApiLog.failure("POST","/api/v1/auth/token",response)=="");
+  response.body='{"error":"invalid_grant","message":"private one-time code"}';
+  log=MarketApiLog.failure("POST","/api/v1/auth/token",response);check(log.indexOf("invalid_grant")>=0&&log.indexOf("one-time")<0);
+  response.status=200;response.error="";check(MarketApiLog.failure("GET","/api/v1/account",response)=="");
+  response.error="Session ended";check(MarketApiLog.failure("GET","/api/v1/account",response)=="");
   Sys.println("Marketplace checks passed: "+checks);
  }
 }

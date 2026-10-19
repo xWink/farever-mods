@@ -113,7 +113,7 @@ class MarketWindow {
         stage="navigation and filters";
         for (i in 0...3) {
             var title = ["Browse", "Sell an item", "My listings"][i];
-            button(title,16+i*182,12,174,()->c.chooseTab(title),c.tab == title ? "unaccept" : "");
+            tabButton(title,16+i*182,12,174,()->c.chooseTab(title),c.tab==title);
         }
         var region=labelAt(root,serverLabel(c.server),866,24,222,false,MUTED,true);
         G.call("h2d.Text","set_textAlign",region,[G.enumeration("h2d.Align","Right")]);
@@ -121,10 +121,12 @@ class MarketWindow {
         if(c.tab=="My listings")labelAt(root,"You can have up to 10 active listings. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
         if(c.tab=="Sell an item") {
             labelAt(root,"Choose an unlocked, tradable item to list on the marketplace. It won't be removed from your inventory until you trade it.",20,76,1064,false,MUTED);
-            button("Inventory",20,104,150,()->c.setBankOnly(false),c.bankOnly?"":"unaccept");
-            button("Bank",182,104,150,()->c.setBankOnly(true),c.bankOnly?"unaccept":"");
+            tabButton("Inventory",20,104,150,()->c.setBankOnly(false),!c.bankOnly);
+            tabButton("Bank",182,104,150,()->c.setBankOnly(true),c.bankOnly);
+            input(c.sellSearch,352,104,612,s->c.sellSearch=s.substr(0,100),"Search items to sell...");
+            button("Search",980,104,96,c.searchInventory,"");
         }
-        contentY = c.tab == "Browse" ? 304 : 146;
+        contentY = c.tab == "Browse" ? 340 : 146;
         if (c.tab == "Browse") filters();
         card(root,16,contentY,704,806-contentY);
         card(root,736,contentY,352,806-contentY);
@@ -132,7 +134,7 @@ class MarketWindow {
         labelAt(root,c.tab == "Sell an item" ? "AVAILABLE" : "TOTAL PRICE",530,contentY+16,170,true);
         labelAt(root,"ITEM DETAILS",754,contentY+16,300,true);
         line(root,30,contentY+42,676); line(root,750,contentY+42,324);
-        var rowHeight = c.tab == "Browse" ? 56 : 66;
+        var rowHeight = 68;
         if (c.tab == "Sell an item") {
             var start = (c.page-1)*MarketController.PAGE_SIZE;
             for (i in 0...MarketController.PAGE_SIZE) if (start+i < c.inventory.length) {
@@ -178,6 +180,10 @@ class MarketWindow {
         var obj = frame.button(label,x,y,width,()->{if(!c.busy&&enabled)action();},kind);
         G.call("ui.UIElement", "set_enable", obj, [enabled&&!c.busy]); return obj;
     }
+    function tabButton(label:String,x:Int,y:Int,width:Int,action:Void->Void,selected:Bool):Void {
+        // Match Better Mod Settings' native brown selected state.
+        G.call("ui.UIElement","set_selected",button(label,x,y,width,action,""),[selected]);
+    }
     function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint=""):Dynamic {
         var root = frame.container, box = G.field(node("input-box",G.field(root,"dom"),[],"marketInput"+(sequence++)),"obj");
         absolute(root,box); padding(box,0); size(box,width,36); position(box,x,y);
@@ -192,6 +198,36 @@ class MarketWindow {
             for(text in [input,G.field(box,"inputHint")])centerControlText(text,36,12);
         });
         G.set(box,"onChange",()->changed(G.text(G.field(input,"text")))); return box;
+    }
+    function counter(value:String,x:Int,y:Int,width:Int,max:Int,changed:String->Void):Dynamic {
+        var current=MarketQuantity.normalize(value,1,max,"1");
+        var box:Dynamic=null;
+        function commit(text:String):Void {
+            if(c.busy)return;
+            current=MarketQuantity.normalize(text,1,max,current);
+            if(G.text(G.field(G.field(box,"input"),"text"))!=current)
+                G.call("h2d.TextInput","set_text",G.field(box,"input"),[current]);
+            changed(current);
+        }
+        box=input(current,x,y,width-30,commit,"1");
+        changed(current);
+        var textInput=G.field(box,"input"),previous=G.field(textInput,"onFocusLost");
+        G.set(textInput,"onFocusLost",function(event:Dynamic):Void {
+            if(previous!=null)Reflect.callMethod(textInput,previous,[event]);
+            if(current=="")commit("1");
+        });
+        for(i in 0...2) {
+            var delta=i==0?1:-1;
+            var arrow=G.field(node("button-icon",G.field(frame.container,"dom"),[i==0?"ArrowUp":"ArrowDown"],"marketCounterArrow"+(sequence++)),"obj");
+            absolute(frame.container,arrow);padding(arrow,0);size(arrow,28,17);position(arrow,x+width-28,y+i*19);
+            var icon=G.field(arrow,"iconBmp");absolute(arrow,icon);
+            G.call("h2d.Bitmap","set_width",icon,[10.0]);G.call("h2d.Bitmap","set_height",icon,[6.0]);
+            style(icon,"width",10);style(icon,"height",6);
+            afterReflow(arrow,()->centerControlText(icon,17,9));
+            G.call("ui.UIElement","set_onClick",arrow,[function():Void {commit(Std.string(Std.int(Math.max(1,int(current)+delta))));}]);
+            G.call("ui.UIElement","set_enable",arrow,[!c.busy]);
+        }
+        return box;
     }
     function dropdown(label:String,values:Array<String>,labels:Array<String>,selected:String,x:Int,y:Int,width:Int,changed:String->Void):Void {
         var root = frame.container;
@@ -247,24 +283,23 @@ class MarketWindow {
     }
     function filters():Void {
         var f=c.filters, root=frame.container;
-        card(root,16,64,1072,224,0xDCCAB5);
-        labelAt(root,"Search items",28,80,232,false,MUTED);
-        input(f["search"],28,108,232,s->f["search"]=s.substr(0,100),"Item name...");
-        button("Search",268,108,92,()->filter("search",f["search"]),"");
+        card(root,16,64,1072,260,0xDCCAB5);
+        labelAt(root,"Search items",28,80,936,false,MUTED);
+        input(f["search"],28,108,936,s->f["search"]=s.substr(0,100),"Item name...");
+        button("Search",980,108,96,()->filter("search",f["search"]),"");
         var cats=["","Components","Equipment","Consumables","Collections","Containers","Miscellaneous"];
-        dropdown("Category",cats,["All items"].concat(cats.slice(1)),f["category"],376,108,220,s->filter("category",s));
+        dropdown("Category",cats,["All items"].concat(cats.slice(1)),f["category"],28,190,256,s->filter("category",s));
         var subs=[""].concat(subcategories(f["category"]));
-        dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],612,108,264,s->filter("subcategory",s));
+        dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],300,190,312,s->filter("subcategory",s));
         var rarities=["","Common","Uncommon","Rare","Epic","Legendary"];
-        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],892,108,184,s->filter("rarity",s));
-        dropdown("Pricing",["","fixed","offers"],["Any price","Fixed price","Open to offers"],f["pricing"],28,190,190,s->filter("pricing",s));
-        dropdown("Sort by",["price-asc","price-desc"],["Lowest price","Highest price"],f["sort"],234,190,190,s->filter("sort",s));
-        checkbox("Online only",f["online"]=="true",28,240,180,value->filter("online",value?"true":"false"));
-        button("Clear filters",928,240,148,resetFilters,"");
-        labelAt(root,"Class",612,162,464,false,MUTED);
+        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],628,190,210,s->filter("rarity",s));
+        dropdown("Pricing",["","fixed","offers"],["Any price","Fixed price","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
+        checkbox("Online only",f["online"]=="true",732,272,180,value->filter("online",value?"true":"false"));
+        button("Clear filters",928,272,148,resetFilters,"");
+        labelAt(root,"Class",28,244,464,false,MUTED);
         for(i in 0...4) {
             var name=["Warrior","Rogue","Mage","Priest"][i],selected=f["classes"].split(",").indexOf(name)>=0;
-            button(name,612+i*116,190,108,()->{
+            button(name,28+i*116,272,108,()->{
                 var classes=f["classes"].split(",").filter(s->s!="");
                 if(classes.indexOf(name)>=0)classes.remove(name);else classes.push(name);
                 filter("classes",classes.join(","));
@@ -287,16 +322,24 @@ class MarketWindow {
         draw(false);
         G.call("ui.UIElement","set_onOver",row,[()->draw(true)]);
         G.call("ui.UIElement","set_onOut",row,[()->draw(false)]);
-        var iconY=Std.int((height-4-38)/2);
+        var iconY=Std.int((height-4-44)/2);
         stage="item row icon";
-        itemIcon(row,item,8,iconY,38);
+        itemIcon(row,item,8,iconY,44);
         stage="item row labels";
-        var titleY=Std.int((height-4)/2)-18;
-        if(rarity!="")labelAt(row,rarity,58,titleY+1,90,true,rarityColor(rarity),true);
-        largeLabel(labelAt(row,item.name+(item.count>1?" ×"+item.count:""),rarity==""?58:156,titleY,rarity==""?426:328,true,INK,true));
-        labelAt(row,seller,58,Std.int((height-4)/2)+5,276,false,MUTED,true);
-        if(c.tab!="Sell an item")labelAt(row,online?"Online":"Offline",344,Std.int((height-4)/2)+5,140,false,online?0x426138:MUTED,true);
-        largeLabel(labelAt(row,price,502,Std.int((height-4)/2)-9,166,true,INK,true));
+        var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
+        var nameX=rarity==""?64:162;
+        var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,484-nameX,true,INK,true);
+        largeLabel(nameLabel);
+        var sellerLabel=labelAt(row,c.tab=="Sell an item"?seller:"Seller: "+seller,64,0,270,false,MUTED,true);
+        var status=c.tab=="Sell an item"?null:labelAt(row,"Status: "+(online?"Online":"Offline"),344,0,140,false,online?0x426138:MUTED,true);
+        var priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);
+        afterReflow(row,()->{
+            if(rarityLabel!=null)centerControlText(rarityLabel,24,64,5);
+            centerControlText(nameLabel,24,nameX,5);
+            centerControlText(sellerLabel,24,64,33);
+            if(status!=null)centerControlText(status,24,344,33);
+            centerControlText(priceLabel,height-4,502);
+        });
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         stage="item row tooltip";
         tooltip(row,item);
@@ -341,9 +384,9 @@ class MarketWindow {
         button(offers?"Open to offers":"Fixed price",754,y+28,316,()->{offers=!offers;dirty=true;},offers?"unaccept":"");
         if(!offers) {
             var conversion=labelAt(frame.container,MarketText.conversion(int(trays)),754,y+120,316,false,MUTED);
-            var box=input(trays,754,y+76,132,s->{
+            var box=counter(trays,754,y+76,132,200000,s->{
                 trays=s.substr(0,6);setText(conversion,MarketText.conversion(int(trays)));
-            },"1");
+            });
             var unit=labelAt(frame.container,"Silver Trays",900,y+76,170,true);
             afterReflow(box,()->centerControlText(unit,36,900,y+76));
         } else labelAt(frame.container,"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
@@ -353,7 +396,7 @@ class MarketWindow {
         selectedItem(c.chosen);
         line(frame.container,754,contentY+224,316);
         labelAt(frame.container,"Quantity to sell",754,contentY+246,316,true);
-        input(quantity,754,contentY+274,132,s->quantity=s.substr(0,5),"1");
+        counter(quantity,754,contentY+274,132,Std.int(Math.min(10000,c.chosen.count)),s->quantity=s);
         labelAt(frame.container,"of "+c.chosen.count+" available",900,contentY+282,170,false,MUTED);
         priceFields(contentY+334);
         button("List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept");

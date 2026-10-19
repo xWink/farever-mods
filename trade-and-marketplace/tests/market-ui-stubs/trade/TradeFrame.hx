@@ -9,7 +9,7 @@ class TradeFrame {
  public function layout():Void{}
  public function dispose():Void active--;
  public function button(s:String,x:Int,y:Int,w:Int,action:Void->Void,kind:String):Dynamic {
-  var o=GameAccess.object(container);o.text=s;o.action=action;GameAccess.buttons.push(o);return o;
+  var o=GameAccess.object(container);o.text=s;o.action=action;o.x=x;o.y=y;o.width=w;o.kind=kind;GameAccess.buttons.push(o);return o;
  }
  public static function textAt(p:Dynamic,s:String,x:Float,y:Float,w:Int,b=false):Dynamic {
   var o=GameAccess.object(p);o.text=s;o.maxWidthText=w;o.x=x;o.y=y;GameAccess.labels.push(o);return o;

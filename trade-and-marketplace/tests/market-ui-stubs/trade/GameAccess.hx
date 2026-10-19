@@ -31,7 +31,7 @@ class GameAccess {
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
    case "set_text": o.text=a[0];null;
    case "set_textColor": o.textColor=a[0];null;
-   case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height": Reflect.setField(o,n.substr(4),a[0]);null;
    case "get_textWidth": Std.string(o.text).length*8.0;
    case "get_textHeight": 18.0;
    case "get_numChildren": (cast o.children:Array<Dynamic>).length;

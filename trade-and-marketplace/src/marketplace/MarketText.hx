@@ -26,7 +26,7 @@ class MarketText {
     public static function conversion(trays:Int):String return count(trays,"Silver Tray")+" = "+number(trays*500)+" gold";
     public static function detail(text:String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
-        return ~/ETAAttribute\(([^()]+)\)/g.replace(text,"$1");
+        return ~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");
     }
 
 }
