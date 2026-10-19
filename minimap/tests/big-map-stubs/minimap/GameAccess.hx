@@ -12,6 +12,7 @@ class GameAccess {
     public static var visibilityWrites:Int = 0;
     public static var failBake:Bool = false;
     public static var created:Array<Dynamic> = [];
+    public static var textureRegions:Array<Dynamic> = [];
     public static var failGraphics:Bool = false;
     public static var arraysRead:Int = 0;
     public static var restored:Int = 0;
@@ -155,6 +156,20 @@ class GameAccess {
                 (cast o.fills:Array<Int>).push(args[0]);
             }
             if (name == "drawTile") { tileDraws.push(args[2]); return null; }
+            if (name == "beginTileFill") {
+                o.tileFill = {dx:args[0],dy:args[1],sx:args[2],sy:args[3],tile:args[4]};
+                tileDraws.push(args[4]);
+                return null;
+            }
+            if (name == "drawRect" && field(o,"tileFill") != null) {
+                var f = o.tileFill;
+                // Native Graphics.beginTileFill's texture transform, in atlas pixels.
+                var sx = number(field(f,"sx")), sy = number(field(f,"sy"));
+                textureRegions.push({x:(number(args[0])-number(field(f,"dx"))+number(field(f.tile,"x")))/sx,
+                    y:(number(args[1])-number(field(f,"dy"))+number(field(f.tile,"y")))/sy,
+                    width:number(args[2])/sx,height:number(args[3])/sy});
+            }
+            if (name == "endFill") o.tileFill = null;
             if (name == "drawCircle" && args[2] == MinimapMarkers.TRAVEL_RING_RADIUS - 1.4) rings++;
             if (failGraphics) throw "Graphics unavailable";
             if (["clear", "beginFill", "endFill", "lineStyle", "moveTo", "lineTo", "drawCircle", "drawRect", "drawEllipse", "drawRoundedRect"].indexOf(name) < 0) throw "Graphics " + name;
@@ -224,6 +239,7 @@ class GameAccess {
             case "set_font": o.font = args[0]; null;
             case "set_text": o.text = args[0]; null;
             case "set_textColor": o.color = args[0]; null;
+            case "set_letterSpacing": o.letterSpacing = args[0]; null;
             case "get_textWidth": o.text.length * 7.;
             case "get_textHeight": 14.;
             default: throw "Text " + name;
@@ -237,6 +253,12 @@ class GameAccess {
         if (type == "h2d.Layers" && name == "getChildLayer") return args[0].layer;
         if (type == "ui.BaseElement" && name == "get_myHero") return o.hero;
         if (type == "ui.UIElement" && name == "hideTip") { o.tipHidden = true; return null; }
+        if (type == "ui.UIElement" && (name == "_onOver" || name == "_onOut")) {
+            o.hasHover = name == "_onOver";
+            var callback = field(o, o.hasHover ? "onOver" : "onOut");
+            if (callback != null) Reflect.callMethod(o, callback, []);
+            return null;
+        }
         if (type == "ui.win.map.MapMarker" && name == "get_showOffscreen") return field(o, "showOffscreen") == true;
         if (type == "ui.win.MapWindow") return switch name {
             case "getLocation": field(o, "zoneAt") == null ? {id:"known", type:1} : Reflect.callMethod(o, o.zoneAt, args);

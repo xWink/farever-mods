@@ -300,13 +300,17 @@ class BigMapView {
             return;
         }
         if (riftLabel == null) {
-            var font = MapFonts.find(window, 6);
-            if (font == null) font = G.staticCall("hxd.res.DefaultFont", "get", []);
-            riftLabelScale = 15 / Math.max(1, G.number(G.field(font, "size"), 14));
+            var source = nativeMarkers.timerStyle;
+            // Wait for the native activity UI rather than borrowing a header or
+            // fallback bitmap font. This is the game's own Rift timer style.
+            var font = G.field(source, "font");
+            if (font == null) return;
+            riftLabelScale = G.number(G.field(source, "scaleX"), 1);
             riftLabel = G.create("h2d.Text", [font, root]);
-            G.set(riftLabel, "smooth", true);
-            G.call("h2d.Text", "set_textColor", riftLabel, [0xfff3d6]);
-            MapTextOutline.apply(riftLabel, 1.0);
+            G.set(riftLabel, "smooth", G.field(source, "smooth") == true);
+            G.call("h2d.Text", "set_textColor", riftLabel, [G.integer(G.field(source, "textColor"), 0xffffff)]);
+            G.call("h2d.Text", "set_letterSpacing", riftLabel, [G.number(G.field(source, "letterSpacing"))]);
+            G.set(riftLabel, "dropShadow", G.field(source, "dropShadow"));
         }
         if (riftLabelText != text) {
             riftLabelText = text;

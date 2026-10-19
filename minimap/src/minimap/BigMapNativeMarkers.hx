@@ -15,8 +15,10 @@ class BigMapNativeMarkers {
 
     var corrections:Array<NativeMarker> = [];
     var dirty:Bool = true;
+    var hoveredTravel:Null<NativeMarker>;
     public var travelHover:Dynamic->Dynamic->Void;
     public var travelOut:Void->Void;
+    public var timerStyle(default, null):Dynamic;
     public function new() {}
     public function invalidate():Void dirty = true;
 
@@ -39,8 +41,13 @@ class BigMapNativeMarkers {
             z: G.number(G.field(hero, "posz"), Math.NaN)});
 
         var current:haxe.ds.ObjectMap<Dynamic, NativeMarker> = new haxe.ds.ObjectMap();
+        timerStyle = null;
         for (marker in G.array(G.field(window, "markers"))) {
             if (G.field(marker, "removed") == true || G.field(marker, "parent") != G.field(window, "scroll")) continue;
+            // Every native ActivityMarker owns the same styled eventTimer text,
+            // including when the game's Rift countdown is not currently visible.
+            var timer = G.field(marker, "eventTimer");
+            if (timerStyle == null && G.field(timer, "font") != null) timerStyle = timer;
             var layer = G.integer(G.call("h2d.Layers", "getChildLayer", G.field(window, "scroll"), [marker]));
             var point:MapPoint = null;
             var activity = G.field(marker, "activity"), element = G.field(marker, "element"), player = G.field(marker, "hero");
@@ -111,8 +118,7 @@ class BigMapNativeMarkers {
             var enabled = travelParent != null && travelRadius > 0 && point != null && point.kind == "obelisk"
                 && G.field(record.marker, "removed") != true;
             if (!enabled) {
-                if (record.target != null) G.call("h2d.Object", "remove", record.target);
-                record.target = null;
+                removeTarget(record);
                 continue;
             }
             if (record.target == null) {
@@ -129,8 +135,17 @@ class BigMapNativeMarkers {
                 });
                 G.set(target, "onPush", (event:Dynamic) -> G.set(event, "propagate", false));
                 for (name in ["onOver", "onMove", "onCheck"])
-                    G.set(target, name, (event:Dynamic) -> { if (travelHover != null) travelHover(target, event); });
-                G.set(target, "onOut", (_:Dynamic) -> { if (travelOut != null) travelOut(); });
+                    G.set(target, name, (event:Dynamic) -> {
+                        if (hoveredTravel != record) {
+                            leaveTravel();
+                            hoveredTravel = record;
+                            // Native onOver builds the flight route. The expanded
+                            // hit area must delegate hover as well as click.
+                            G.call("ui.UIElement", "_onOver", G.field(record.marker, "content"));
+                        }
+                        if (travelHover != null) travelHover(target, event);
+                    });
+                G.set(target, "onOut", (_:Dynamic) -> { if (hoveredTravel == record) leaveTravel(); });
             }
             if (G.field(record.target, "width") != travelRadius * 2) {
                 G.set(record.target, "width", travelRadius * 2);
@@ -176,17 +191,33 @@ class BigMapNativeMarkers {
     }
 
     function restore(record:NativeMarker):Void {
-        if (record.target != null) G.call("h2d.Object", "remove", record.target);
-        record.target = null;
+        removeTarget(record);
         restoreTip(record);
         if (G.field(record.marker, "removed") == true) return;
         G.set(record.artwork, "alpha", record.alpha);
         G.call("ui.UIElement", "set_visible", record.marker, [record.visible]);
     }
 
+    function leaveTravel():Void {
+        var record = hoveredTravel;
+        if (record == null) return;
+        hoveredTravel = null;
+        var content = G.field(record.marker, "content");
+        if (content != null && G.field(content, "removed") != true)
+            G.call("ui.UIElement", "_onOut", content);
+        if (travelOut != null) travelOut();
+    }
+
+    function removeTarget(record:NativeMarker):Void {
+        if (hoveredTravel == record) leaveTravel();
+        if (record.target != null) G.call("h2d.Object", "remove", record.target);
+        record.target = null;
+    }
+
     public function dispose():Void {
         for (record in originals) restore(record);
         originals = new haxe.ds.ObjectMap();
+        timerStyle = null;
         corrections = []; dirty = true;
     }
 }

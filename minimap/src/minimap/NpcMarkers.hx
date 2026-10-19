@@ -5,7 +5,7 @@ import minimap.GameAccess as G;
 /** Service roles from resolved world definitions, shared by static and live markers. */
 class NpcMarkers {
     // Shared by classification and drawing: every recognized service is drawn.
-    public static final KINDS:Array<String> = ["npc", "quest", "bank", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "soulWell", "pilgrim"];
+    public static final KINDS:Array<String> = ["npc", "quest", "bank", "soulWell", "demon", "recycler", "upgrade", "craft", "glory", "infusion", "pilgrim"];
 
     public static function stationKind(type:Int):String return switch type {
         // Data.Element_type.

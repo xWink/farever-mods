@@ -111,8 +111,8 @@ class MinimapMarkers {
         this.level = level;
         this.sizeMultiplier = sizeMultiplier;
         this.iconCache = iconCache;
-        // Ordinary players stay below landmarks. Party members get a separate
-        // foreground layer on both maps, above services and other markers.
+        // Ordinary players stay below landmarks. Friends and then party members
+        // share the foreground layer on both maps, above services and landmarks.
         playerIcons = G.create("h2d.Object", [parent]);
         playerElevations = G.create("h2d.Object", [parent]);
         mapIcons = G.create("h2d.Object", [foreground]);
@@ -834,6 +834,7 @@ class MinimapMarkers {
         // Cull before sorting or touching native artwork. The complete sample
         // remains available for panning and native click-target reconciliation.
         var groups:Map<String, Array<MapPoint>> = [];
+        var friendPoints:Array<MapPoint> = [];
         var partyPoints:Array<MapPoint> = [];
         var padding = 32 * markerScale; // Includes outlines and height arrows.
         for (point in points) {
@@ -843,6 +844,7 @@ class MinimapMarkers {
             }
             point.elevation = showElevations ? elevationDirection(point.z, heroHeight) : 0;
             if (point.partyMember == true) partyPoints.push(point);
+            else if (point.kind == "player" && point.friend == true) friendPoints.push(point);
             else {
                 var group = groups[point.kind];
                 if (group == null) { group = []; groups[point.kind] = group; }
@@ -853,12 +855,13 @@ class MinimapMarkers {
             var group = groups[kind];
             if (group != null) for (point in group) hitPoints.push(point);
         }
-        for (point in partyPoints) hitPoints.push(point);
-        var playerPoints = [for (point in hitPoints) if (point.kind == "player" && point.partyMember != true) point];
+        var priorityPoints = friendPoints.concat(partyPoints);
+        for (point in priorityPoints) hitPoints.push(point);
+        var playerPoints = [for (point in hitPoints) if (point.kind == "player" && !outlinedPlayer(point)) point];
         var mapPoints = [for (point in hitPoints) if (point.kind != "player" && !isNpc(point.kind)) point];
         var npcPoints = [for (point in hitPoints) if (isNpc(point.kind)) point];
-        updateIcons(partyPoints, partyIconMarkers, partyIcons, scale);
-        updateElevations([for (point in partyPoints) if (point.elevation != 0) point], partyElevationMarkers, partyElevations, scale);
+        updateIcons(priorityPoints, partyIconMarkers, partyIcons, scale);
+        updateElevations([for (point in priorityPoints) if (point.elevation != 0) point], partyElevationMarkers, partyElevations, scale);
         updateIcons(playerPoints, playerIconMarkers, playerIcons, scale);
         updateIcons(mapPoints, mapIconMarkers, mapIcons, scale);
         updateIcons(npcPoints, npcIconMarkers, npcIcons, scale);

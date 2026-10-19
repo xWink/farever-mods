@@ -18,6 +18,10 @@ class MapRefinementsTest {
         checks++;
         if (a != b) throw message + ': expected ' + b + ', got ' + a;
     }
+    static function near(a:Float, b:Float, message:String):Void {
+        checks++;
+        if (Math.abs(a-b) > 0.000001) throw message + ': expected ' + b + ', got ' + a;
+    }
     static function main():Void {
         var region = {id:'region', type:1};
         var cave = {id:'cave', type:2};
@@ -45,8 +49,8 @@ class MapRefinementsTest {
         eq(MinimapMarkers.markerRadius('demon'), 9 * 0.8, 'Huntress icon twenty percent smaller');
         eq(MinimapMarkers.markerRadius('soulWell'), 10 * 0.8, 'Soul well icon twenty percent smaller');
 
-        var icons:Map<String,Dynamic> = ['Dungeon'=>{gfx:{tile:{width:128.,height:128.,source:'Dungeon'}}},
-            'Dungeon_BonusReward'=>{gfx:{tile:{width:24.,height:24.,source:'Bonus'}}}];
+        var icons:Map<String,Dynamic> = ['Dungeon'=>{gfx:{tile:{x:256.,y:0.,width:128.,height:128.,source:'Dungeon'}}},
+            'Dungeon_BonusReward'=>{gfx:{tile:{x:48.,y:24.,width:24.,height:24.,source:'Bonus'}}}];
         G.globals['Data.icon'] = {byId:icons};
         G.globals['Data.faction'] = {byId:['Pilgrims'=>{gfx:{tile:{width:200.,height:248.,source:'Pilgrims'}}}]};
         var art = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta');
@@ -57,6 +61,31 @@ class MapRefinementsTest {
         eq(icons['Dungeon'].gfx.tile.width,128.,'Resizing does not mutate native tile');
         art.drawIcon({kind:'pilgrim', x:0,y:0,z:0});
         eq(G.tileDraws[G.tileDraws.length-1].source,'Pilgrims','Faction merchant uses native banner');
+        var regions = G.textureRegions;
+        var dungeon = regions[regions.length-3], bonus = regions[regions.length-2], pilgrim = regions[regions.length-1];
+        near(dungeon.x,256,'Dungeon begins at the atlas cell origin');
+        near(dungeon.width,128,'Complete dungeon artwork is sampled, not a transparent corner');
+        near(dungeon.height,128,'Complete dungeon artwork height');
+        near(bonus.x,48,'Bonus symbol atlas X origin');
+        near(bonus.y,24,'Bonus symbol atlas Y origin');
+        near(bonus.width,24,'Full bonus symbol sampled');
+        near(pilgrim.width,200,'Full Pilgrims banner width sampled');
+        near(pilgrim.height,248,'Full Pilgrims banner height sampled');
+
+        var friend:minimap.MapPoint = {kind:'player',friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Friend'}};
+        var party:minimap.MapPoint = {kind:'player',partyMember:true,friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Party'}};
+        var services:Array<minimap.MapPoint> = [{kind:'demon',x:0,y:0,z:0},{kind:'soulWell',x:0,y:0,z:0}];
+        art.showOwn = false;
+        art.draw(services.concat([party,friend]),1);
+        eq(art.hitPoints[0].kind,'soulWell','Soul Well is behind Demon Huntress');
+        eq(art.hitPoints[1].kind,'demon','Demon Huntress is above Soul Well');
+        eq(art.hitPoints[2],friend,'Friends are above services');
+        eq(art.hitPoints[3],party,'Party remains above friends');
+        eq(art.partyIconMarkers.length,2,'Friends and party share the foreground layer');
+        eq(art.playerIconMarkers.length,0,'Friends are removed from ordinary player layer');
+        eq(art.hoverAt(0,0,1,100,100,hero).name,'Party','Party wins overlapping hover');
+        art.draw(services.concat([friend]),1);
+        eq(art.hoverAt(0,0,1,100,100,hero).name,'Friend','Friend wins hover over services');
 
         G.globals['HElement.obelisks'] = [{mapId:world.level, inf:point.inf, prefab:{_41:50.,_42:60.,_43:0.}}];
         G.globals['HActivity.allActivities'] = new Map<String,Dynamic>();
@@ -67,6 +96,9 @@ class MapRefinementsTest {
         window.mapContainer = {interactive:{width:1000.,height:800.}};
         var native = BigMapTest.nativeMarker(window,15,50,60); native.element = point.inf;
         var clicks = 0; native.content.onClick = () -> clicks++;
+        var routeEnters = 0, routeExits = 0;
+        native.content.onOver = () -> routeEnters++;
+        native.content.onOut = () -> routeExits++;
         var view = new BigMapView(); var config = BigMapTest.config();
         view.update(window,config);
         eq(view.markers.points.length,1,'Unlocked travel marker visible');
@@ -82,6 +114,12 @@ class MapRefinementsTest {
         // The native boundary normally supplies the target's global transform.
         hit.absX = hit.x; hit.absY = hit.y;
         hit.onOver(event); view.updateHover();
+        eq(routeEnters,1,'Outer ring invokes native route preview');
+        hit.onMove(event);
+        eq(routeEnters,1,'Moving within ring does not rebuild route');
+        hit.onOut(event);
+        eq(routeExits,1,'Leaving ring clears native route preview');
+        hit.onOver(event); view.updateHover();
         eq(view.caption.text, 'tower', 'Hover near outer ring resolves obelisk caption');
         hit.onClick(event);
         eq(clicks,1,'Outer ring delegates to native travel action');
@@ -92,12 +130,22 @@ class MapRefinementsTest {
         eq(view.markers.points.length,0,'Locked destination disappears');
         eq(native.visible,false,'Locked native destination cannot remain clickable');
         eq(hit.removed,true,'Stale expanded hit area removed');
+        eq(routeExits,2,'Filtering hovered destination clears route preview');
         progress.lockedElement = null;
+        var timerMarker = BigMapTest.nativeMarker(window,13,100,120);
+        timerMarker.activity = {id:'Rift'};
+        timerMarker.eventTimer = {font:{size:18},scaleX:1.,textColor:0xffffff,smooth:true,
+            letterSpacing:0.5,dropShadow:{dx:0.,dy:1.,color:0,alpha:0.5}};
         window.selector = false; view.update(window,config);
         view.markers.sampledPoints = [{kind:'nextRift',x:100.,y:120.,z:0.}];
         view.markers.revision++; view.rifts.remaining = 125;
         config.clockTimerMode = 'None'; view.updateRiftLabel();
         eq(view.riftLabel.text,'02:05','Map countdown independent of minimap None setting');
+        eq(view.riftLabel.font,timerMarker.eventTimer.font,'Countdown uses the native event timer font');
+        eq(view.riftLabel.color,0xffffff,'Countdown uses native timer color');
+        eq(view.riftLabel.dropShadow,timerMarker.eventTimer.dropShadow,'Countdown uses native timer shadow');
+        eq(view.riftLabel.letterSpacing,0.5,'Countdown uses native timer spacing');
+        eq(G.field(view.riftLabel,'filter'),null,'Countdown has no custom thick outline');
         config.clockTimerMode = 'Clock'; view.updateRiftLabel();
         eq(view.riftLabel.text,'02:05','Map countdown independent of minimap Clock setting');
         eq(view.riftLabel.y > 120,true,'Countdown appears below the next rift');

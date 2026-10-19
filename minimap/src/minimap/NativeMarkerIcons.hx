@@ -2,12 +2,12 @@ package minimap;
 
 import minimap.GameAccess as G;
 
-/** Borrow native atlas artwork; resize clones without modifying the game's tiles. */
+/** Draw complete native atlas regions without modifying the game's tiles. */
 class NativeMarkerIcons {
     static var tiles:Map<String, Dynamic> = [];
 
     public static function draw(g:Dynamic, sheet:String, id:String, size:Float, x:Float = 0, y:Float = 0):Bool {
-        var key = sheet + ":" + id + ":" + size;
+        var key = sheet + ":" + id;
         var tile = tiles[key];
         if (tile == null) {
             var data = G.field(G.current("Data", sheet), "byId");
@@ -19,12 +19,19 @@ class NativeMarkerIcons {
             if (source == null) return false;
             var w = G.number(G.field(source, "width")), h = G.number(G.field(source, "height"));
             if (w <= 0 || h <= 0) return false;
-            tile = G.call("h2d.Tile", "clone", source);
-            G.call("h2d.Tile", "scaleToSize", tile, [w * size / Math.max(w, h), h * size / Math.max(w, h)]);
+            tile = source;
             tiles[key] = tile;
         }
-        G.call("h2d.Graphics", "drawTile", g, [x - G.number(G.field(tile, "width")) / 2,
-            y - G.number(G.field(tile, "height")) / 2, tile]);
+        var w = G.number(G.field(tile, "width")), h = G.number(G.field(tile, "height"));
+        var scale = size / Math.max(w, h);
+        var left = x - w * scale / 2, top = y - h * scale / 2;
+        // Graphics.drawTile ignores Tile.scaleToSize when mapping texture pixels.
+        // Scale the fill explicitly, compensating for the atlas region's origin.
+        G.call("h2d.Graphics", "beginTileFill", g, [
+            left + G.number(G.field(tile, "x")) * (1 - scale),
+            top + G.number(G.field(tile, "y")) * (1 - scale), scale, scale, tile]);
+        G.call("h2d.Graphics", "drawRect", g, [left, top, w * scale, h * scale]);
+        G.call("h2d.Graphics", "endFill", g);
         return true;
     }
 }
