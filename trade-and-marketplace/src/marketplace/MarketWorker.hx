@@ -44,7 +44,7 @@ class MarketWorker {
                         if(current(id))events.add({generation:id,op:"request",response:response});
                     default:
                 }
-            } catch(_:Dynamic) { if(current(id))events.add({generation:id,op:job.op=="request"?"request":"error",message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}}); }
+            } catch(_:Dynamic) { if(current(id))events.add({generation:id,op:job.op=="request"?"request":job.op=="auth"?"auth-end":"error",message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}}); }
             if(!current(id)||account=="") { Sys.sleep(0.1);continue; }
             var now=Date.now().getTime()/1000;
             if(auth.active) {

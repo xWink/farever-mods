@@ -116,6 +116,7 @@ class MarketController {
     public function signIn():Void {
         if(player==null)return;
         view.open();
+        if(server==""){message="Reconnect to a game server before signing in.";view.dirty=true;return;}
         if(signingIn)return;
         if(!SessionLease.acquire(HlxRuntime.moduleName())){message="A Fareverly sign-in is already running in another mod.";view.dirty=true;return;}
         try {worker.send({generation:generation,op:"auth",entropy:MarketNative.random()});signingIn=true;message="Preparing Steam sign-in...";}
