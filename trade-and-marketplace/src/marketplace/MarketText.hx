@@ -24,6 +24,15 @@ class MarketText {
         return "Asking price: "+number(trays*500)+" gold / "+price(value);
     }
     public static function conversion(trays:Int):String return count(trays,"Silver Tray")+" = "+number(trays*500)+" gold";
+    public static function expiry(iso:String):String {
+        // Format the UTC components directly; do not interpret them as local time.
+        var pattern=~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}(\.\d+)?Z$/;
+        if(iso==null||!pattern.match(iso))return "Unavailable";
+        var month=Std.parseInt(pattern.matched(2)),day=Std.parseInt(pattern.matched(3));
+        if(month<1||month>12||day<1||day>31)return "Unavailable";
+        var months=["Jan.","Feb.","Mar.","Apr.","May","Jun.","Jul.","Aug.","Sep.","Oct.","Nov.","Dec."];
+        return months[month-1]+" "+Std.string(day)+", "+pattern.matched(1)+" - "+pattern.matched(4)+":"+pattern.matched(5)+" UTC";
+    }
     public static function detail(text:String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
         return ~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");

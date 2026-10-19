@@ -43,6 +43,7 @@ class MarketController {
     var expectedBody="";
     var requestId="";
     var contactAfter=0.0;
+    var opened=false;
     public function new() {
         view=new MarketWindow(this);
         Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null)try {if(readKey(CommonSettings.read())!=key)reconnect();}catch(_:Dynamic){}});
@@ -117,6 +118,7 @@ class MarketController {
         view.close(); if(player!=null)generation=worker.session("","");
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
+        opened=false;page=pages=1;total=0;cursors=[null];
         SessionLease.release(HlxRuntime.moduleName());
     }
     public function fail(error:Dynamic):Void {
@@ -125,7 +127,10 @@ class MarketController {
     }
     public function open():Void {
         if(!trade.TradeMod.enabled()||player==null||inv==null)return;
-        view.open(); if(tab!="Sell an item")refresh();else loadInventory();
+        view.open();
+        // Closing a window is not navigation: retain the page, selection and sell draft.
+        // Mutations still validate fresh inventory/listing data before acting.
+        if(!opened){opened=true;if(tab!="Sell an item")refresh();else loadInventory();}
     }
     public function signIn():Void {
         if(player==null)return;
@@ -140,6 +145,7 @@ class MarketController {
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
     public function chooseTab(value:String):Void {
         if(busy)return;
+        opened=true;
         tab=value;page=1;pages=1;total=0;rows=[];selected=null;chosen=null;
         if(tab=="Sell an item")loadInventory();else refresh();
         view.dirty=true;

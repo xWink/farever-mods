@@ -4,6 +4,7 @@ class MarketController {
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySearches=0;
+ public var refreshes=0;
  public var connectionIssue=false;
  public var ready=true; public var busy=false; public var signingIn=false;
  public var server="north-america"; public var account="tester"; public var tab="Browse"; public var message="";
@@ -13,7 +14,7 @@ class MarketController {
  public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>"price-asc"];
  public function new(){}
  public function chooseTab(s:String):Void tab=s;
- public function refresh():Void{}
+ public function refresh():Void {refreshes++;}
  public function searchInventory():Void {inventorySearches++;}
  public function cancelSignIn():Void{}
  public function signIn():Void{}

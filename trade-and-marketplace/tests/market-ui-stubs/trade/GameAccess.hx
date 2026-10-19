@@ -26,12 +26,15 @@ class GameAccess {
   return switch(n){
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
+   case "getBounds": o.inkBounds;
+   case "set_getTip": o.getTip=a[0];null;
    case "displayDialog": dialogs++;null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
    case "set_text": o.text=a[0];null;
    case "set_textColor": o.textColor=a[0];null;
-   case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height", "set_visible": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "moveTo", "lineTo": if(field(o,"points")==null)o.points=[]; (cast o.points:Array<Dynamic>).push(a);null;
    case "get_textWidth": Std.string(o.text).length*8.0;
    case "get_textHeight": 18.0;
    case "get_numChildren": (cast o.children:Array<Dynamic>).length;

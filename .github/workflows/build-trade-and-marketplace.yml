@@ -70,6 +70,8 @@ jobs:
           ../.trade-oracle-hashlink/hl build/marketplace-test.hl
           haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-ui-stubs -main MarketplaceUiTest -hl build/marketplace-ui-test.hl
           ../.trade-oracle-hashlink/hl build/marketplace-ui-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-state-stubs -main MarketplaceStateTest -hl build/marketplace-state-test.hl
+          ../.trade-oracle-hashlink/hl build/marketplace-state-test.hl
 
   build:
     needs: test

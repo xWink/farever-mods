@@ -12,6 +12,7 @@ class TradeInventory {
   inventory={};
  }
  public function find(uid:String):Dynamic return Reflect.hasField(inventory,"content")?findStored(uid):stack;
+ public function stacks():Array<Dynamic> return Reflect.hasField(inventory,"content")?cast inventory.content:stack==null?[]:[stack];
  function findStored(uid:String):Dynamic {
   for(s in (cast inventory.content:Array<Dynamic>))if(s.item.uid==uid)return s;
   return null;
@@ -21,5 +22,8 @@ class TradeInventory {
  public static function definition(s:String):Dynamic return {};
  public static function itemName(s:String):String return s;
  public static function preview(i:Dynamic):TradeItemPreview return {flags:2,level:35,upgrade:2,rarity:"",infusion:"Infusion_Manfish_DPS",bonus:"",mastery:"",slots:["DivinedEmbroidery"],effects:[]};
- public static function describe(i:Dynamic,count:Int):Dynamic return {detail:"8 Intellect\n7 Faith"};
+ public static function describe(i:Dynamic,count:Int):TradeItem return {
+  uid:Reflect.field(i,"uid")==null?"item":i.uid,kind:"Shoulders_EManfish_WizCle",name:"Shoulders",count:count,
+  detail:"8 Intellect\n7 Faith",color:0,fingerprint:fp,preview:preview(i)
+ };
 }
