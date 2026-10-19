@@ -37,8 +37,7 @@ class MainMapControls {
         return result;
     }
     public function beforeClamp(window:Dynamic, config:MinimapSettings):Void {
-        if (config.enabled
-            && G.call("ui.win.MapWindow", "isSelector", window) != true)
+        if (config.enabled)
             zoomRequests.set(window, G.number(G.field(window, "targetZoom")));
         else zoomRequests.remove(window);
     }
@@ -46,10 +45,14 @@ class MainMapControls {
         if (!zoomRequests.exists(window)) return;
         var requested:Float = zoomRequests.get(window);
         zoomRequests.remove(window);
-        // Extend the actual native maximum, preserving its minimum and the
-        // native mouse-anchor/panning math around this clamp.
+        // Keep the native anchor/panning math, then extend only the requested
+        // end of its range: travel zooms farther out, the regular map farther in.
         var clamped = G.number(G.field(window, "targetZoom"));
-        if (clamped > 0 && requested > clamped) {
+        var travel = G.call("ui.win.MapWindow", "isSelector", window) == true;
+        if (clamped > 0 && travel && requested < clamped) {
+            G.set(window, "targetZoom", Math.max(requested, clamped * 0.5));
+            extendedWindows.set(window, true);
+        } else if (clamped > 0 && !travel && requested > clamped) {
             G.set(window, "targetZoom", Math.min(requested, clamped * 2));
             extendedWindows.set(window, true);
         }

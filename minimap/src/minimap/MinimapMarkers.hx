@@ -105,7 +105,7 @@ class MinimapMarkers {
     var landmarkSources:Map<String, Dynamic> = [];
     var landmarkCounts:Map<String, Int> = [];
     static var reportedError:Bool = false;
-    static final DRAW_ORDER = ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "vaultChest", "recipeChest", "companion", "enemy", "boss", "targetDummy", "respawn", "obelisk", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal"].concat(NpcMarkers.KINDS);
+    static final DRAW_ORDER = ["player", "activity", "ascension", "dungeon", "plant", "ore", "secretOrb", "chest", "vaultChest", "recipeChest", "companion", "enemy", "boss", "targetDummy", "respawn", "soulstone", "inactiveRift", "nextRift", "upcomingRift", "riftPortal"].concat(NpcMarkers.KINDS).concat(["obelisk"]);
 
     public function new(parent:Dynamic, foreground:Dynamic, overlay:Dynamic, level:String, sizeMultiplier:Float = 1, ?priorityParent:Dynamic, ?iconCache:MainMapIconCache) {
         this.level = level;
@@ -858,8 +858,10 @@ class MinimapMarkers {
         var priorityPoints = friendPoints.concat(partyPoints);
         for (point in priorityPoints) hitPoints.push(point);
         var playerPoints = [for (point in hitPoints) if (point.kind == "player" && !outlinedPlayer(point)) point];
-        var mapPoints = [for (point in hitPoints) if (point.kind != "player" && !isNpc(point.kind)) point];
-        var npcPoints = [for (point in hitPoints) if (isNpc(point.kind)) point];
+        var mapPoints = [for (point in hitPoints) if (point.kind != "player" && point.kind != "obelisk" && !isNpc(point.kind)) point];
+        // Obelisks follow services in the same foreground pool, so their visual
+        // stacking and reverse-order hit testing agree on both maps.
+        var npcPoints = [for (point in hitPoints) if (isNpc(point.kind) || point.kind == "obelisk") point];
         updateIcons(priorityPoints, partyIconMarkers, partyIcons, scale);
         updateElevations([for (point in priorityPoints) if (point.elevation != 0) point], partyElevationMarkers, partyElevations, scale);
         updateIcons(playerPoints, playerIconMarkers, playerIcons, scale);
@@ -951,6 +953,7 @@ class MinimapMarkers {
             return;
         }
         if (kind == "pilgrim" && NativeMarkerIcons.draw(graphics, "faction", "Pilgrims", 20)) return;
+        if (kind == "demon" && NativeMarkerIcons.draw(graphics, "faction", "Riftstalkers", 16)) return;
         if (kind == "quest" || kind == "activity" && point.activityIcon != null && point.activityIcon != "activity") {
             ActivityIcons.draw(graphics, kind == "quest" ? "quest" : point.activityIcon, markerRadius(kind));
             return;
@@ -987,7 +990,17 @@ class MinimapMarkers {
         };
         var sparkling = point.sparkling == true;
         var radius = markerRadius(kind);
-        if (kind == "companion" && sparkling) LandmarkIcons.sparklingRing(graphics, radius + 3.5);
+        if (kind == "companion") {
+            if (sparkling) LandmarkIcons.sparklingRing(graphics, radius + 3.5);
+            // Stroke each toe and the pad at their original positions. Scaling
+            // a second paw shifts its pieces and leaves their inner edges bare.
+            G.call("h2d.Graphics", "lineStyle", graphics, [1.3, 0x201b1b, 1.]);
+            G.call("h2d.Graphics", "beginFill", graphics, [color, 1.]);
+            shape(point, radius);
+            G.call("h2d.Graphics", "endFill", graphics);
+            G.call("h2d.Graphics", "lineStyle", graphics, [0., 0, 0.]);
+            return;
+        }
         G.call("h2d.Graphics", "beginFill", graphics, [0x201b1b, 0.95]);
         shape(point, radius + (sparkling && kind != "companion" ? 3.5 : 1));
         G.call("h2d.Graphics", "endFill", graphics);

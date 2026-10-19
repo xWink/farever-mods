@@ -52,7 +52,10 @@ class MapRefinementsTest {
         var icons:Map<String,Dynamic> = ['Dungeon'=>{gfx:{tile:{x:256.,y:0.,width:128.,height:128.,source:'Dungeon'}}},
             'Dungeon_BonusReward'=>{gfx:{tile:{x:48.,y:24.,width:24.,height:24.,source:'Bonus'}}}];
         G.globals['Data.icon'] = {byId:icons};
-        G.globals['Data.faction'] = {byId:['Pilgrims'=>{gfx:{tile:{width:200.,height:248.,source:'Pilgrims'}}}]};
+        G.globals['Data.faction'] = {byId:[
+            'Pilgrims'=>{gfx:{tile:{width:200.,height:248.,source:'Pilgrims'}}},
+            'Riftstalkers'=>{gfx:{tile:{x:200.,y:0.,width:200.,height:248.,source:'Riftstalkers'}}}
+        ]};
         var art = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta');
         art.graphics = {};
         art.drawIcon({kind:'dungeon', x:0, y:0, z:0, bonusDungeon:true});
@@ -71,6 +74,29 @@ class MapRefinementsTest {
         near(bonus.width,24,'Full bonus symbol sampled');
         near(pilgrim.width,200,'Full Pilgrims banner width sampled');
         near(pilgrim.height,248,'Full Pilgrims banner height sampled');
+        art.drawIcon({kind:'demon',x:0,y:0,z:0});
+        eq(G.tileDraws[G.tileDraws.length-1].source,'Riftstalkers','Demon Huntress uses the native faction banner');
+        var faction = G.textureRegions[G.textureRegions.length-1];
+        near(faction.x,200,'Riftstalkers samples the second faction banner');
+        near(faction.width,200,'Full Riftstalkers banner width sampled');
+        near(faction.height,248,'Full Riftstalkers banner height sampled');
+
+        G.recordShapes = true; G.shapes = [];
+        art.drawIcon({kind:'companion',x:0,y:0,z:0});
+        G.recordShapes = false;
+        var stroke = 0., toes = 0, pads = 0;
+        for (command in G.shapes) {
+            if (command.name == 'lineStyle') stroke = G.number(command.args[0]);
+            if (command.name == 'drawCircle') {
+                toes++;
+                eq(stroke > 0,true,'Every toe has a real outline');
+                near(G.number(command.args[2]),7*0.23,'Outline preserves each toe size and position');
+            }
+            if (command.name == 'moveTo') { pads++; eq(stroke > 0,true,'Paw pad has a real outline'); }
+        }
+        eq(toes,4,'Exactly four outlined toes, without a displaced silhouette');
+        eq(pads,1,'Exactly one outlined pad');
+        eq(stroke,0.,'Paw resets line style for subsequent artwork');
 
         var friend:minimap.MapPoint = {kind:'player',friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Friend'}};
         var party:minimap.MapPoint = {kind:'player',partyMember:true,friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Party'}};
@@ -86,6 +112,14 @@ class MapRefinementsTest {
         eq(art.hoverAt(0,0,1,100,100,hero).name,'Party','Party wins overlapping hover');
         art.draw(services.concat([friend]),1);
         eq(art.hoverAt(0,0,1,100,100,hero).name,'Friend','Friend wins hover over services');
+        var obelisk:minimap.MapPoint = {kind:'obelisk',x:0,y:0,z:0,name:'Obelisk'};
+        art.draw(services.concat([obelisk,friend,party]),1);
+        eq(art.hitPoints[2],obelisk,'Obelisk is above all services');
+        eq(art.hitPoints[3],friend,'Friends remain above obelisks');
+        eq(art.hitPoints[4],party,'Party remains top priority');
+        eq(art.npcIconMarkers[2].key,'obelisk','Obelisk artwork follows NPCs in their foreground layer');
+        art.draw(services.concat([obelisk]),1);
+        eq(art.hoverAt(0,0,1,100,100,hero).name,'Obelisk','Obelisk wins hover over services');
 
         G.globals['HElement.obelisks'] = [{mapId:world.level, inf:point.inf, prefab:{_41:50.,_42:60.,_43:0.}}];
         G.globals['HActivity.allActivities'] = new Map<String,Dynamic>();

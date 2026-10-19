@@ -130,7 +130,7 @@ class BigMapTest {
             view.markers.nextRefresh = 0;
             view.update(window, c);
             eq(kinds(view), 'obelisk', 'Travel keeps obelisk across height changes: ' + height);
-            eq(view.markers.mapIconMarkers.length, 1, 'Travel draws distant obelisk: ' + height);
+            eq(view.markers.npcIconMarkers.length, 1, 'Travel draws distant obelisk: ' + height);
             eq(obelisk.visible, true, 'Travel keeps distant destination clickable: ' + height);
             eq(obelisk.content.onClick, click, 'Travel keeps native action: ' + height);
         }
@@ -149,10 +149,10 @@ class BigMapTest {
         // Put the obelisk onscreen to check actual icon size and smooth zoom.
         window.scroll.x = -8500.; window.scroll.y = -6500.;
         view.update(window, c);
-        eq(view.markers.mapIconMarkers[0].icon.scale, 2.25, 'Travel obelisk actual rendered size');
+        eq(view.markers.npcIconMarkers[0].icon.scale, 2.25, 'Travel obelisk actual rendered size');
         window.zoom = 1.; window.scroll.x = -17500.; window.scroll.y = -13500.;
         view.update(window, c);
-        eq(view.markers.mapIconMarkers[0].icon.scale, 1.125, 'Travel obelisk retains enlargement during smooth zoom');
+        eq(view.markers.npcIconMarkers[0].icon.scale, 1.125, 'Travel obelisk retains enlargement during smooth zoom');
         window.zoom = 0.5; window.scroll.x = 13.; window.scroll.y = 27.;
         window.selector = false;
         view.update(window, c);

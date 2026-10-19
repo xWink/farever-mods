@@ -13,6 +13,8 @@ class GameAccess {
     public static var failBake:Bool = false;
     public static var created:Array<Dynamic> = [];
     public static var textureRegions:Array<Dynamic> = [];
+    public static var recordShapes:Bool = false;
+    public static var shapes:Array<Dynamic> = [];
     public static var failGraphics:Bool = false;
     public static var arraysRead:Int = 0;
     public static var restored:Int = 0;
@@ -150,6 +152,7 @@ class GameAccess {
             default: throw "Tile " + name;
         };
         if (type == "h2d.Graphics") {
+            if (recordShapes) shapes.push({name:name,args:args.copy()});
             if (name == "clear") o.fills = [];
             if (name == "beginFill") {
                 if (field(o, "fills") == null) o.fills = [];

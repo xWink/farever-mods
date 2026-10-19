@@ -36,6 +36,12 @@ class MainMapControlsTest {
         eq(clamp(c,w,s,0.1),0.5,'Native minimum retained'); eq(clamp(c,w,s,1.5),1.5,'Normal zoom retained');
         eq(clamp(c,w,s,3.),3.,'Extra zoom works'); eq(clamp(c,w,s,20.),4.,'Maximum doubled');
         eq(clamp(c,w,s,3.5),3.5,'Zoom out from extra range works'); eq(clamp(c,selector,s,20.),2.,'Selector zoom unchanged');
+        eq(clamp(c,selector,s,0.1),0.25,'Fast travel can zoom out to half the native minimum');
+        eq(clamp(c,selector,s,0.35),0.35,'Fast travel retains intermediate zoom-out requests');
+        eq(clamp(c,selector,s,1.5),1.5,'Fast travel normal zoom is unchanged');
+        s.enabled=false; c.update(selector,s);
+        eq(clamp(c,selector,s,0.1),0.5,'Disabled mod restores fast-travel minimum');
+        s.enabled=true;
         Reflect.setField(s, 'overrideBigMapMarkers', false); c.update(w,s);
         eq(clamp(c,w,s,5.),4.,'Retired override preference cannot disable extra zoom');
         s.enabled=false; c.update(w,s); eq(w.targetZoom,2.,'Disable mod restores normal range');
