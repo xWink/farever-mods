@@ -15,13 +15,14 @@ class MarketController {
     public var account="";
     public var message="";
     public var ready=false;
+    public var connectionIssue=false;
     public var busy=false;
     public var signingIn=false;
     public var view:MarketWindow;
     public var tab="Browse";
     public var rows:Array<Dynamic>=[];
     public var inventory:Array<TradeItem>=[];
-    public var includeBank=false;
+    public var bankOnly=false;
     var locations:Map<String,String>=[];
     public var selected:Dynamic;
     public var chosen:TradeItem;
@@ -66,13 +67,15 @@ class MarketController {
                     busy=false;var response=event.response,data:Dynamic=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
+                        if(ready)connectionIssue=false;
                         var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(_:Dynamic)message="Unsupported marketplace response. Update the mod and try again.";
                     } else {pending=null;message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
-                        if(response.status==401||response.status==403)ready=false;
+                        if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
+                        if(response.status==0||response.status>=500)connectionIssue=true;
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
                     view.dirty=true;
-                case "ready":ready=true;message=event.message;view.dirty=true;
-                case "error":ready=false;message=event.message;view.dirty=true;
+                case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
+                case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
                 case "auth","auth-end":
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
                     if(!signingIn)SessionLease.release(HlxRuntime.moduleName());view.dirty=true;
@@ -99,11 +102,11 @@ class MarketController {
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
         generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;requestAfter=0;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
-        message=!Protocol.validKey(key)?"Sign in with Steam to list items and show your online status.":"Connecting to Fareverly...";view.dirty=true;
+        connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
-        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;pending=null;
+        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
         rows=[];inventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         SessionLease.release(HlxRuntime.moduleName());
     }
@@ -134,7 +137,7 @@ class MarketController {
     }
     public function loadInventory():Void {
         inventory=[];chosen=null;locations=[];
-        for(source in MarketInventory.sources(inv,includeBank))for(s in source.stacks())if(source.canDrop(s,1))try {
+        for(source in MarketInventory.sources(inv,bankOnly))for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
             if(!locations.exists(item.uid)) {
                 inventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
@@ -142,9 +145,9 @@ class MarketController {
         }catch(_:Dynamic){}
         total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/PAGE_SIZE)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
     }
-    public function setIncludeBank(value:Bool):Void {
+    public function setBankOnly(value:Bool):Void {
         if(busy)return;
-        includeBank=value;page=1;loadInventory();
+        bankOnly=value;page=1;loadInventory();
     }
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     public function refresh():Void {
@@ -168,14 +171,14 @@ class MarketController {
     public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void):Void {
         if(busy)return;
         if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return;}
-        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){message="Sign in with Steam before managing listings.";view.dirty=true;return;}
+        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){connectionIssue=true;message=MarketText.CONNECTION_ERROR;view.dirty=true;return;}
         busy=true;pending=done;message="Loading...";view.dirty=true;
         worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
         if(chosen==null||busy)return;
         try {
-            var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,includeBank),body=haxe.Json.stringify(value);
+            var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
             request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});

@@ -5,10 +5,10 @@ import trade.TradeInventory;
 
 /** Read-only listing sources. Direct trades continue to use the backpack only. */
 class MarketInventory {
-    public static function sources(backpack:TradeInventory,includeBank:Bool):Array<TradeInventory> {
+    public static function sources(backpack:TradeInventory,bankOnly:Bool):Array<TradeInventory> {
         if(backpack==null)return [];
-        var result=[backpack];
-        if(includeBank) {
+        var result:Array<TradeInventory>=bankOnly?[]:[backpack];
+        if(bankOnly) {
             var loadout=G.field(backpack.hero,"loadout");
             for(bank in G.array(G.field(loadout,"banks"),true)) {
                 if(bank==null||bank==backpack.inventory)continue;
@@ -21,8 +21,8 @@ class MarketInventory {
         }
         return result;
     }
-    public static function source(backpack:TradeInventory,uid:String,includeBank:Bool):TradeInventory {
-        for(source in sources(backpack,includeBank))if(source.find(uid)!=null)return source;
+    public static function source(backpack:TradeInventory,uid:String,bankOnly:Bool):TradeInventory {
+        for(source in sources(backpack,bankOnly))if(source.find(uid)!=null)return source;
         return null;
     }
 }

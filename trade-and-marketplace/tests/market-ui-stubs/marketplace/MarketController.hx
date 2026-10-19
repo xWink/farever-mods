@@ -1,7 +1,8 @@
 package marketplace;
 class MarketController {
  public static inline var PAGE_SIZE=8;
- public var includeBank=false;
+ public var bankOnly=false;
+ public var connectionIssue=false;
  public var ready=true; public var busy=false; public var signingIn=false;
  public var server="north-america"; public var account="tester"; public var tab="Browse"; public var message="";
  public var rows:Array<Dynamic>=[]; public var inventory:Array<trade.TradeTypes.TradeItem>=[];
@@ -14,8 +15,8 @@ class MarketController {
  public function cancelSignIn():Void{}
  public function signIn():Void{}
  public function list(q:Int,t:Int,o:Bool):Void{}
- public function setIncludeBank(v:Bool):Void {includeBank=v;chosen=null;page=1;}
- public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return includeBank?"In bank":"In backpack";
+ public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
+ public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return bankOnly?"In bank":"In backpack";
  public function remove():Void{}
  public function contact():Void{}
 }

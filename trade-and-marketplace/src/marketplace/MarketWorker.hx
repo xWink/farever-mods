@@ -65,7 +65,9 @@ class MarketWorker {
                     verified=true;events.add({generation:id,op:"ready",message:"Connected to Fareverly."});
                 } else if(response.status==401||response.status==403||response.status==200) {
                     verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Sign in with Steam to connect this Farever account to the marketplace."});
-                } else { verifyFailures++;verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
+                } else { verifyFailures++;
+                    if(verifyFailures==1)events.add({generation:id,op:"error",message:MarketText.CONNECTION_ERROR});
+                    verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
             } else if(verified && presence.due(now)) {
                 var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString("{}"),key);
                 if(!current(id))continue;

@@ -3,6 +3,7 @@ class GameAccess {
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];
+ public static var dialogs=0;
  public static var failNextTooltip=false;
  public static var ui:Dynamic={root:{}};
  public static function object(?parent:Dynamic):Dynamic {
@@ -15,12 +16,21 @@ class GameAccess {
  public static function number(v:Dynamic,f:Float=0):Float return v==null?f:cast v;
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
  public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null)Reflect.setField(o,k,v);}
+ public static function enumeration(t:String,n:String):Dynamic return n;
+ public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t;
  public static function current(t:String,n:String):Dynamic return ui;
  public static function create(t:String,a:Array<Dynamic>):Dynamic return object(a.length>1?a[1]:null);
  public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return n=="isPressed"?false:n=="getVersion"?"test":{id:"Epic"};
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
+   case "getSize":
+    if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
+   case "displayDialog": dialogs++;null;
+   case "set_options": o.options=a[0];null;
+   case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
+   case "set_text": o.text=a[0];null;
+   case "set_textColor": o.textColor=a[0];null;
    case "set_selected", "set_enable", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis": Reflect.setField(o,n.substr(4),a[0]);null;
    case "get_textWidth": Std.string(o.text).length*8.0;
    case "get_textHeight": 18.0;

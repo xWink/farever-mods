@@ -30,7 +30,7 @@ class MarketplaceTest {
   var bank:Dynamic={content:[{item:{uid:"item",inf:{}},count:6}]};
   inv.hero.loadout.banks=[bank,bank];
   check(MarketInventory.sources(inv,false).length==1);
-  check(MarketInventory.sources(inv,true).length==2);
+  check(MarketInventory.sources(inv,true).length==1);
   fails(()->MarketExport.snapshot(inv,item,3,8,false,"europe",app));
   var bankListing=MarketExport.snapshot(inv,item,3,8,false,"europe",app,true);
   check(bankListing.item.quantity==3);
@@ -43,6 +43,11 @@ class MarketplaceTest {
   TradeInventory.fp="changed";fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));TradeInventory.fp="fp";
   inv.hero.loadout.banks=[];
   fails(()->MarketExport.snapshot(inv,item,1,8,false,"europe",app,true));
+  inv.stack={item:{inf:{}},count:10};
+  check(MarketInventory.sources(inv,true).length==0);
+  fails(()->MarketExport.snapshot(inv,item,1,1,false,"europe",app,true));
+  var shortage="";try MarketExport.snapshot(inv,item,11,1,false,"europe",app)catch(e:Dynamic)shortage=Std.string(e);
+  check(shortage=="Not enough of this item. You have 10 available.");
   Sys.println("Marketplace checks passed: "+checks);
  }
 }
