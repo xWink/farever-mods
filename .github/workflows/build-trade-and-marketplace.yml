@@ -61,6 +61,13 @@ jobs:
           python recovery/tools/make_oracle.py build/reference.hl build/original-oracle.hl
           haxe -cp src -cp tests -main OracleTest -hl build/oracle-test.hl
           ../.trade-oracle-hashlink/hl build/original-oracle.hl
+      - name: Exercise marketplace rendering and recovery in HashLink
+        working-directory: trade-and-marketplace
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.trade-oracle-hashlink
+        run: |
+          haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-ui-stubs -main MarketplaceUiTest -hl build/marketplace-ui-test.hl
+          ../.trade-oracle-hashlink/hl build/marketplace-ui-test.hl
 
   build:
     needs: test

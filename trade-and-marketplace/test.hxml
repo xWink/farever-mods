@@ -36,3 +36,12 @@
 -cp tests/market-stubs
 -main MarketplaceTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/market-stubs
+-cp tests/market-ui-stubs
+-main MarketplaceUiTest
+--interp

@@ -27,6 +27,12 @@
       "buttonText": "Open"
     },
     {
+      "type": "keybinding",
+      "key": "marketplaceHotkey",
+      "label": "Open marketplace hotkey",
+      "modifiers": true
+    },
+    {
       "type": "button",
       "key": "fareverlySignIn",
       "label": "Connect to Fareverly",

@@ -3,10 +3,12 @@ import hlx.runtime.HlxPrefixResult;
 import hlx.runtime.ModConfig;
 import hlx.runtime.Bus;
 import trade.GameAccess as G;
-typedef TradeConfig = {enabled:Bool,rejectAllRequests:Bool,requestX:Null<Float>,requestY:Null<Float>,tradeX:Null<Float>,tradeY:Null<Float>};
+import modinput.Hotkey;
+import modinput.NativeHotkey;
+typedef TradeConfig = {enabled:Bool,rejectAllRequests:Bool,marketplaceHotkey:Dynamic,requestX:Null<Float>,requestY:Null<Float>,tradeX:Null<Float>,tradeY:Null<Float>};
 @:build(hlx.runtime.Mod.build())
 class TradeMod {
-    @:hlx.config static var config:TradeConfig = {enabled:true,rejectAllRequests:false,requestX:null,requestY:null,tradeX:null,tradeY:null};
+    @:hlx.config static var config:TradeConfig = {enabled:true,rejectAllRequests:false,marketplaceHotkey:118,requestX:null,requestY:null,tradeX:null,tradeY:null};
     static var controller:TradeController;
     static var market:marketplace.MarketController;
     static var menuUi:Dynamic;
@@ -22,15 +24,25 @@ class TradeMod {
         config.tradeX = x; config.tradeY = y; ModConfig.save(HlxRuntime.moduleName(),config);
     }
     static function main():Void {
+        config.marketplaceHotkey = Hotkey.normalize(config.marketplaceHotkey,118);
         ModConfig.save(HlxRuntime.moduleName(),config); controller = new TradeController(); market = new marketplace.MarketController();
-        Bus.subscribe("better-mod-settings/config-changed/"+HlxRuntime.moduleName(),(_)->config = ModConfig.load(HlxRuntime.moduleName(),config));
+        Bus.subscribe("better-mod-settings/config-changed/"+HlxRuntime.moduleName(),(_)->{
+            config = ModConfig.load(HlxRuntime.moduleName(),config);
+            config.marketplaceHotkey = Hotkey.normalize(config.marketplaceHotkey,118);
+        });
     }
     @:hlx.postfix(GameApp.update)
     static function afterFrame(instance:Dynamic,dt:Float,result:Void):Void {
         if (controller != null) try {
             controller.update(instance,haxe.Timer.stamp());
         } catch(e:Dynamic) controller.fail(e);
-        if (market != null) try market.update(instance,haxe.Timer.stamp()) catch (_:Dynamic) market.fail();
+        if (market != null) try {
+            market.update(instance,haxe.Timer.stamp());
+            if (enabled() && market.player != null && NativeHotkey.isPressed(config.marketplaceHotkey)) {
+                var ui=G.current("ui.BaseUI","current");
+                if(ui!=null && G.call("ui.BaseUI","getFocusedTextInput",ui)==null)market.open();
+            }
+        } catch (error:Dynamic) market.fail(error);
     }
     @:hlx.postfix(ui.Tooltip.sync)
     static function fitTradeTooltip(instance:Dynamic,engine:Dynamic,result:Void):Void {

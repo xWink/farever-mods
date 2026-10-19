@@ -37,7 +37,7 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 
 ## Marketplace
 
-Open `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings.
+Press **F7**, type `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings. The hotkey can be rebound there and is ignored while typing in a text field.
 
 - Browse listings for your game server, filter items and inspect native tooltips.
 - Sign in with Steam to list unlocked, tradable backpack items. The API key is shared with DPS Meter and other Fareverly mods.

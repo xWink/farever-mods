@@ -105,10 +105,9 @@ class MarketController {
         rows=[];inventory=[];selected=null;chosen=null;expectedBody="";requestId="";
         SessionLease.release(HlxRuntime.moduleName());
     }
-    public function fail():Void {
+    public function fail(error:Dynamic):Void {
         // A marketplace UI failure must not cancel an unrelated direct trade.
-        view.close();message="Could not open the marketplace UI. Please report the game and mod versions.";
-        trade.TradeDiagnostics.log(message);
+        view.recover(error);
     }
     public function open():Void {
         if(!trade.TradeMod.enabled()||player==null||inv==null)return;

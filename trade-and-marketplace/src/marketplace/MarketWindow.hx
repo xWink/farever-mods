@@ -25,13 +25,31 @@ class MarketWindow {
     var trays = "1";
     var offers = false;
     var contentY = 284;
+    var stage = "initialization";
+    var recovery = false;
+    var partialRow:Dynamic;
+    var reported:Map<String,Bool> = [];
     public var dirty = true;
 
     public function new(controller:MarketController) c = controller;
-    public function open():Void { shown = true; dirty = true; }
+    public function open():Void { shown = true; recovery = false; dirty = true; }
     public function close():Void {
         shown = false; closeDropdowns();
-        if (frame != null) { px = frame.x; py = frame.y; frame.dispose(); frame = null; }
+        if (frame != null) {
+            var old=frame;frame=null;px=old.x;py=old.y;
+            old.dispose();
+        }
+    }
+    public function recover(error:Dynamic):Void {
+        report(stage,error);
+        if(recovery) {try close()catch(_:Dynamic){}return;}
+        recovery=true;dirty=true;
+    }
+    function report(where:String,error:Dynamic):Void {
+        var detail=Std.string(error),key=where+":"+detail;
+        if(reported.exists(key))return;
+        reported[key]=true;
+        trade.TradeDiagnostics.log("Marketplace "+where+": "+detail+"\n"+haxe.CallStack.toString(haxe.CallStack.exceptionStack()));
     }
     public function closeFromBack(window:Dynamic):Bool {
         if (frame == null || frame.window != window) return false;
@@ -42,14 +60,17 @@ class MarketWindow {
     }
     public function update():Void {
         if (!shown) return;
+        stage="window state";
         if (frame != null && !frame.intact()) { close(); return; }
         if (frame == null) {
+            stage="create window";
             var ui = G.current("ui.BaseUI", "current"); if (ui == null) return;
             frame = new trade.TradeFrame(ui, "Trade and Marketplace", 1120, 860, close);
             frame.x = px; frame.y = py; frame.onMoved = (x,y) -> { px = x; py = y; }; dirty = true;
         }
         if (dirty) { dirty = false; render(); }
-        frame.layout(); dismissOutsideDropdowns();
+        stage="window layout";frame.layout();
+        stage="dropdown input";dismissOutsideDropdowns();
     }
     function closeDropdowns(clear = true):Void {
         for (control in controls) try G.call("ui.comp.Dropdown", "close", control, [null]) catch (_:Dynamic) {}
@@ -69,9 +90,21 @@ class MarketWindow {
         && (parent == child || G.call("h2d.Object", "contains", parent, [child]) == true);
 
     function render():Void {
+        stage="clear old controls";
         closeDropdowns();
         for (child in children(frame.container)) G.call("h2d.Object", "remove", child);
         var root = frame.container;
+        if(recovery) {
+            stage="recovery screen";
+            labelAt(root,"The marketplace could not display this page.",28,38,1000,true);
+            labelAt(root,"Any listing already submitted is kept. You can reload the page or switch tabs below.",28,78,1000);
+            button("Browse",28,130,190,()->{recovery=false;c.chooseTab("Browse");},"");
+            button("Sell an item",234,130,190,()->{recovery=false;c.chooseTab("Sell an item");},"");
+            button("My listings",440,130,190,()->{recovery=false;c.chooseTab("My listings");},"");
+            labelAt(root,"The underlying error was recorded in the HLX log.",28,196,1000,false,MUTED);
+            return;
+        }
+        stage="navigation and filters";
         for (i in 0...3) {
             var title = ["Browse", "Sell an item", "My listings"][i];
             button(title,16+i*182,12,174,()->c.chooseTab(title),c.tab == title ? "unaccept" : "");
@@ -107,16 +140,11 @@ class MarketWindow {
             }
             sellPanel();
         } else {
-            for (i in 0...c.rows.length) {
-                var listing = c.rows[i], item:TradeItem = null;
-                try item = MarketExport.offer(listing) catch (_:Dynamic) {}
-                if (item != null) row(item,contentY+48+i*rowHeight,rowHeight,
-                    listing.price.mode=="offers"?"Open to offers":listing.price.silverTrays+" Silver Trays",
-                    listing.seller.characterName,listing.item.rarity,isOnline(listing),
-                    ()->{c.selected=listing;offers=listing.price.mode=="offers";trays=Std.string(offers?1:listing.price.silverTrays);dirty=true;},c.selected==listing);
-            }
+            for (i in 0...c.rows.length) savedRow(c.rows[i],contentY+48+i*rowHeight,rowHeight,i);
+            stage="selected listing";
             listingPanel();
         }
+        stage="footer";
         if (c.total == 0) emptyList();
         button("Previous",16,748,118,()->{c.page--;c.refresh();},"",c.page>1);
         labelAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:""),152,758,172,true);
@@ -127,6 +155,25 @@ class MarketWindow {
         var message = c.message;
         if (message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message,20,786,1064,false,INK,true);
+    }
+    function savedRow(listing:Dynamic,y:Int,height:Int,index:Int):Void {
+        stage="listing "+(index+1)+" data";
+        var select=()->{
+            c.selected=listing;offers=G.text(G.field(G.field(listing,"price"),"mode"))=="offers";
+            trays=offers?"1":G.text(G.field(G.field(listing,"price"),"silverTrays"));dirty=true;
+        };
+        try {
+            var item=MarketExport.offer(listing);
+            var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
+            var priceText=G.text(G.field(price,"mode"))=="offers"?"Open to offers":G.text(G.field(price,"silverTrays"))+" Silver Trays";
+            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing);
+        } catch(error:Dynamic) {
+            report(stage,error);
+            if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
+            // Keep the listing selectable/removable even if its icon or tooltip cannot be drawn.
+            var name=G.text(G.field(G.field(listing,"item"),"name"),"Listing");
+            button(name.substr(0,55)+" — details unavailable",28,y,680,select,"");
+        }
     }
 
     function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true):Dynamic {
@@ -210,7 +257,9 @@ class MarketWindow {
     }
 
     function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool):Void {
+        stage="item row container";
         var root=frame.container, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
+        partialRow=row;
         absolute(root,row);padding(row,0);size(row,680,height-4);position(row,28,y);
         var bg=graphic(row);
         function draw(over:Bool):Void {
@@ -223,13 +272,17 @@ class MarketWindow {
         G.call("ui.UIElement","set_onOver",row,[()->draw(true)]);
         G.call("ui.UIElement","set_onOut",row,[()->draw(false)]);
         var iconY=Std.int((height-4-38)/2);
+        stage="item row icon";
         itemIcon(row,item,8,iconY,38);
+        stage="item row labels";
         labelAt(row,item.name+(item.count>1?" ×"+item.count:""),58,Std.int((height-4)/2)-17,426,true,INK,true);
         labelAt(row,rarity==""?seller:rarity+"  ·  "+seller,58,Std.int((height-4)/2)+3,426,false,MUTED,true);
         labelAt(row,price,502,Std.int((height-4)/2)-16,166,true,INK,true);
         labelAt(row,c.tab=="Sell an item"?"items":online?"Online":"Offline",502,Std.int((height-4)/2)+4,166,false,online?0x426138:MUTED,true);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
+        stage="item row tooltip";
         tooltip(row,item);
+        partialRow=null;
     }
     function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int):Void {
         var bg=graphic(parent);rounded(bg,x,y,sizePx,sizePx,5,EDGE);rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,0xF5EBDD);
@@ -287,7 +340,7 @@ class MarketWindow {
     }
     function listingPanel():Void {
         if(c.selected==null){emptyDetails(false);return;}
-        var row=c.selected;try selectedItem(MarketExport.offer(row))catch(_:Dynamic){}
+        var row=c.selected;try selectedItem(MarketExport.offer(row))catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
             labelAt(frame.container,"Expires "+G.text(row.expiresAt).substr(0,16).split("T").join(" ")+" UTC",754,contentY+222,316,false,MUTED);
             priceFields(contentY+260);
