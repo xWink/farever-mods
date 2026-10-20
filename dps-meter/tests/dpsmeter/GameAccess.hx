@@ -44,11 +44,16 @@ class GameAccess {
         case "st.skill.ScriptHitData.get_source": field(object.skill, "instigator") == null ? object.skill.owner : object.skill.instigator;
         case "st.skill.BaseSkill.getSourceObject", "st.skill.Skill.getSourceObject": field(object, "owner");
         case "st.skill.Status.getSourceObject": field(object, "instigator");
-        case "st.skill.BaseSkill.getSourceSkill", "st.skill.Skill.getSourceSkill", "st.skill.Status.getSourceSkill": field(object, "origin") == null ? object : field(object, "origin");
-        case "st.skill.BaseSkill.getSourceItem": field(object, "originItem") != null ? field(object, "originItem") : field(field(object, "origin"), "originItem");
+        case "st.skill.BaseSkill.getSourceSkill", "st.skill.Skill.getSourceSkill", "st.skill.Status.getSourceSkill":
+            var origin = field(object, "instigatorSkill");
+            if (origin == null) origin = field(object, "origin");
+            origin == null ? object : call("st.skill.BaseSkill", "getSourceSkill", origin);
+        case "st.skill.BaseSkill.getSourceItem": field(object, "originItem") != null ? field(object, "originItem")
+            : field(call("st.skill.BaseSkill", "getSourceSkill", object), "originItem");
         case "st.skill.BaseSkill.isBlock": field(object, "isBlock") == true;
         case "st.skill.Skill.shouldHighlight": field(object, "highlight") == true;
         case "st.skill.Status.isInfinite": field(object, "infinite") == true;
+        case "st.skill.Status.isPeriodic": field(object, "periodic") == true;
         case "st.skill.BaseSkill.getDurationLeft": field(object, "duration");
         case "st.skill.BaseSkill.checkAlignment": field(args[0], "aligned") != false;
         case "st.skill.DamageResult.get_source": field(object, "source");
@@ -88,6 +93,8 @@ class GameAccess {
         case "HActivity.getInf": (cast globals["activities"]:Map<String, Dynamic>).get(args[0]);
         case "HActivity.isOfType": (cast field(args[0], "types"):Array<String>).indexOf(args[1]) >= 0;
         case "HSkill.getSkillRef": (cast globals["skillRefs"]:Map<String, Dynamic>).get(args[0]);
+        case "HSkill.isPassive": field(args[0], "nature") == 5;
+        case "HSkill.isStatus": field(args[0], "nature") == 4;
         case "HItem.isSameType":
             enchantTypeReads++;
             args[0].id == args[1] || args[0].inherit == args[1];

@@ -521,8 +521,8 @@ class MarketWindow {
         afterReflow(details,()->{
             var bounds=G.call("h2d.Object","getSize",name,[null]);
             var below=G.number(G.field(name,"y"))+G.number(G.field(bounds,"yMax"),22)+10;
-            position(quantityLabel,72,below);
-            if(rarityLabel!=null)position(rarityLabel,72,below+24);
+            if(rarityLabel!=null)position(rarityLabel,72,below);
+            position(quantityLabel,72,below+(rarityLabel==null?0:24));
         });
     }
     function emptyList():Void {

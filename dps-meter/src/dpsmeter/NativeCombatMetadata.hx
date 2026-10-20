@@ -104,6 +104,7 @@ class NativeCombatMetadata {
         return result;
     }
     public static function skillName(id:String):String {
+        if (id == "ConsumeItem") return "Use item";
         // Names live directly in texts.name. Do not manufacture a native
         // SkillSpec (with typed mastery arrays) just to read a display string:
         // a bridge/type failure there used to discard even simple valid names.
@@ -115,6 +116,10 @@ class NativeCombatMetadata {
                 return {name:name == "" ? "Hess'tuss Flask" : name, nameRef:"", source:""};
             }
             var inf = skillDefinition(key);
+            if (inf == null) {
+                var item = itemDefinition(key);
+                if (item != null) return {name:itemName(key), nameRef:"", source:""};
+            }
             var texts = G.field(inf, "texts");
             var name = G.text(G.field(texts, "name"));
             var type = G.integer(G.field(inf, "type"), -1);
@@ -179,6 +184,7 @@ class NativeCombatMetadata {
     public static function skillIcon(id:String):Dynamic {
         try {
             var inf = skillDefinition(id);
+            if (inf == null && itemDefinition(id) != null) return itemIcon(id);
             var gfx = id == "ConsumeFlask" ? G.field(skillItem(id), "gfx") : G.field(inf, "gfx");
             var source:Dynamic = null;
             if (gfx == null && id != "ConsumeFlask") {

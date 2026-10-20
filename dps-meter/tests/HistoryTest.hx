@@ -1239,6 +1239,13 @@ class HistoryTest {
         GameAccess.globals.remove("Data.item");
         check(NativeCombatMetadata.skillName("ConsumeFlask") == "Hess'tuss Flask" && NativeCombatMetadata.skillIcon("ConsumeFlask") == null,
             "Missing item metadata never reintroduces the movement buff name or icon");
+        var cubeGfx:Dynamic = {file:"spark-cube.png"};
+        GameAccess.globals["Data.item"] = {byId:["SparkCube" => {texts:{name:"Spark Cube"}, gfx:cubeGfx}]};
+        definitions["ConsumeItem"] = {texts:{name:"ConsumeItem (bugged)"}};
+        check(NativeCombatMetadata.skillName("SparkCube") == "Spark Cube" && NativeCombatMetadata.skillIcon("SparkCube") == cubeGfx,
+            "Consumed-item damage uses its localized name and portrait in breakdowns");
+        check(NativeCombatMetadata.skillName("ConsumeItem") == "Use item", "Unidentified item uses never display the internal debug label");
+        GameAccess.globals.remove("Data.item");
         var flameGfx:Dynamic = {file:"flaming-scroll.png"}, lifeGfx:Dynamic = {file:"lifestealing-scroll.png"};
         definitions["Enchant_FlamingWeapon"] = {texts:{name:"Flaming Weapon"}};
         definitions["Enchant_Lifestealing"] = {texts:{name:"Lifestealing"}};

@@ -18,6 +18,7 @@ class Collector {
     var phrixes:Dynamic;
     var cleodora:Dynamic;
     var riftWait:Dynamic;
+    var appliedStatuses:Map<String, Bool> = [];
     public function new(config:MeterSettings, ?timeline:NativeTimeline) {
         this.config = config;
         this.timeline = timeline;
@@ -40,6 +41,7 @@ class Collector {
             phrixes = null;
             cleodora = null;
             riftWait = null;
+            appliedStatuses = [];
         }
         healingCapture.flush(now);
         if (timeline != null) timeline.update(hero, now);
@@ -105,10 +107,27 @@ class Collector {
         if (!config.enabled || hero == null || skill == null || sourceContext != null
             || G.field(skill, "simulatingServer") == true) return;
         // Child/status/summon starts are consequences, not another activation.
-        if (NativeCasts.origin(skill) != skill) return;
+        if (NativeCasts.origin(skill) != skill || NativeCasts.passive(skill)) return;
         var owner = G.field(skill, "owner");
         if (profile(owner) == null) return;
-        model.recordCast(G.uid(owner), G.text(G.field(skill, "kind")));
+        model.recordCast(G.uid(owner), NativeCasts.id(skill));
+    }
+    public function statusApplied(status:Dynamic, refreshed = false):Void {
+        if (!config.enabled || hero == null || status == null || G.field(status, "simulatingServer") == true
+            || G.call("st.skill.Status", "isPeriodic", status) != true) return;
+        var origin = NativeCasts.origin(status);
+        // Active abilities already count at Skill.start. Passive DoTs/HoTs have
+        // no such activation: count each application/refresh, never each tick.
+        if (origin != status && !NativeCasts.applicationDriven(origin)) return;
+        var owner = NativeHealing.owner(null, status).source;
+        if (profile(owner) == null) return;
+        var instance = G.uid(status);
+        if (instance == "" || instance == "0" || (!refreshed && appliedStatuses.exists(instance))) return;
+        appliedStatuses[instance] = true;
+        model.recordCast(G.uid(owner), NativeCasts.id(origin));
+    }
+    public function statusRemoved(status:Dynamic):Void {
+        appliedStatuses.remove(G.uid(status));
     }
     public function combatEnter(uid:String, now:Float):Void {
         if (uid == model.me) refreshPhrixes(now);
@@ -249,7 +268,7 @@ class Collector {
         var amount = G.number(G.field(result, "_amount"));
         if (amount <= 0) return;
         var e = HealingCapture.event(now, owner == null ? observation.source : owner.uid, G.uid(target),
-            owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), amount);
+            owner == null ? observation.skill : NativeCasts.id(owner.skill), amount);
         e.critical = G.field(result, "_critical") == true;
         e.timeline = observation;
         e.activation = model.activation(e.source, e.skill);
@@ -267,7 +286,7 @@ class Collector {
         var estimate:Null<Float> = null;
         try estimate = NativeHealing.estimate(hit, target) catch (_:Dynamic) {}
         var e = HealingCapture.event(now, owner == null ? observation.source : owner.uid, G.uid(target),
-            owner == null ? observation.skill : G.text(G.field(owner.skill, "kind")), estimate == null ? 0 : estimate);
+            owner == null ? observation.skill : NativeCasts.id(owner.skill), estimate == null ? 0 : estimate);
         e.unknownHealing = estimate == null;
         e.timeline = observation;
         e.activation = model.activation(e.source, e.skill);
@@ -324,7 +343,7 @@ class Collector {
             // A newly arrived player's hit can precede the next roster refresh.
             if (G.field(source, "layer") == layer) model.party[uid] = true;
         }
-        var skillId = G.text(G.field(skill, "kind"));
+        var skillId = NativeCasts.id(skill);
         // Remote heroes may not have populated equipment caches. As in the
         // original meter, an observed class skill can fill in their class.
         var attributed = model.profiles[uid];

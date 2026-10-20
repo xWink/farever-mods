@@ -151,6 +151,8 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==0);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
   var count=GameAccess.labels.filter(l->l.text=="Quantity: 1")[0];check(count.y>70);
+  var detailRarity=GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==detailName.parent)[0];
+  check(detailRarity.y>70&&count.y==detailRarity.y+24);
   var inputs=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0),quantityBox=inputs[1],priceBox=inputs[2];
   priceBox.input.text="5";priceBox.onChange();
   check(GameAccess.labels.filter(l->l.text=="5 Silver Trays").length==1&&GameAccess.labels.filter(l->l.text=="2,500 gold").length==1);

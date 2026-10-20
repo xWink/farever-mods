@@ -91,6 +91,11 @@ class NativeTimelineTest {
         var itemUses = rows("skill_use").filter(e -> e.skill == "ConsumeItem");
         check(itemUses[0].item == "SparkCube" && itemUses[0].itemName == "Spark Cube", "Generic consume uses capture the actual source item before execution");
         check(dpsmeter.NativeCombatMetadata.itemIcon("SparkCube") == cubeGfx, "Consumed items use their item portrait");
+        var cubeEffect:Dynamic = {__uid:"cube-effect", __type:"st.skill.Status", kind:"CubeEffect", owner:boss,
+            instigator:hero, instigatorSkill:consume};
+        var cubeHit=recorder.hit("damage", hero, boss, cubeEffect);
+        check(cubeHit.item == "SparkCube" && cubeHit.itemName == "Spark Cube",
+            "An item's child effect retains its item name and portrait in detailed reports");
         consume.originItem = {kind:"TestPotion"}; recorder.use(hero, consume);
         consume.originItem = null; recorder.use(hero, consume);
         itemUses = rows("skill_use").filter(e -> e.skill == "ConsumeItem");

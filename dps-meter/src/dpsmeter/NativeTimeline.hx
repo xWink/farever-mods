@@ -96,11 +96,10 @@ class NativeTimeline {
             var origin = G.call(hl.Type.getDynamic(skill).getTypeName(), "getSourceSkill", skill);
             e.origin = G.text(G.field(origin, "kind"));
             e.instance = G.uid(skill);
-            if (e.skill == "ConsumeItem") {
+            if (e.skill == "ConsumeItem" || e.origin == "ConsumeItem") {
                 // This skill is shared by Spark Cube and other consumables.
                 // Capture identity while the native item reference still exists.
-                var item = G.call("st.skill.BaseSkill", "getSourceItem", skill);
-                var id = G.text(G.field(item, "kind"));
+                var id = NativeCasts.item(skill);
                 if (id != "") { e.item = id; e.itemName = NativeCombatMetadata.itemName(id); }
             }
         }

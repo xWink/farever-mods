@@ -61,8 +61,59 @@ class CastCountingTest {
         hit(unknown, me, 32); hit(unknown, me, 35);
         check(p.skills["Unobserved"].casts == 0 && p.skills["Unobserved"].hits == 2,
             "Missing activation evidence preserves hits without guessing casts");
+        for (id in ["Rogue_Talent_LethalPoison", "Rogue_Talent_VirulentMagic", "Infusion_Bee_DPS"]) {
+            var passive:Dynamic = {__type:"st.skill.Skill", owner:me, kind:id, inf:{nature:5}};
+            var dot:Dynamic = {__type:"st.skill.Status", __uid:id+"-dot", owner:target, instigator:me,
+                kind:id+"_Status", instigatorSkill:passive, periodic:true};
+            c.skillUse(passive, null);
+            check(c.model.activation("me", id) == 0, "Equipping a passive is not applying its effect");
+            c.statusApplied(dot); c.statusApplied(dot);
+            hit(dot, me, 36); hit(dot, me, 37);
+            check(p.skills[id].casts == 1 && p.skills[id].hits == 2,
+                id+": one application counts once, duplicate init and damage ticks do not");
+            c.statusApplied(dot, true); hit(dot, me, 38); hit(dot, me, 39);
+            check(p.skills[id].casts == 2 && p.skills[id].hits == 4,
+                id+": reapplication counts independently of ticks");
+            var other:Dynamic = {__type:"st.skill.Status", __uid:id+"-other", owner:{__uid:"add"}, instigator:me,
+                kind:id+"_Status", instigatorSkill:passive, periodic:true};
+            c.statusApplied(other);
+            check(p.skills[id].casts == 3, "Applications on another target count too");
+            c.statusRemoved(dot); c.statusRemoved(other);
+            check(!c.appliedStatuses.exists(dot.__uid), "Removed status instances are released");
+        }
+        status.__uid="leap-dot";status.periodic=true;
+        c.statusApplied(status); c.statusApplied(status, true); hit(status, me, 39.1);
+        check(p.skills["BroodLeap"].casts == 3, "An active skill's periodic status does not add another cast");
+        var independent:Dynamic = {__type:"st.skill.Status", __uid:"independent", owner:target,
+            instigator:ally, kind:"IndependentDot", periodic:true};
+        c.statusApplied(independent); hit(independent, ally, 39.2);
+        check(fight.players["ally"].skills["IndependentDot"].casts == 1,
+            "Standalone status applications belong to their instigator, not the target");
+        var statusProc:Dynamic = {__type:"st.skill.Status", kind:"StatusProc", inf:{nature:4}, instigator:me};
+        var procDot:Dynamic = {__type:"st.skill.Status", __uid:"proc-dot", owner:target, instigator:me,
+            kind:"ProcDot", instigatorSkill:statusProc, periodic:true};
+        c.statusApplied(procDot);hit(procDot, me, 39.25);
+        check(p.skills["StatusProc"].casts == 1, "Periodic procs from persistent statuses count applications too");
+        var cube:Dynamic = {__type:"st.skill.Skill", owner:me, kind:"ConsumeItem", originItem:{kind:"SparkCube"}};
+        c.skillUse(cube, null); hit(cube, me, 39.3); hit(cube, me, 39.4);
+        check(p.skills["SparkCube"].casts == 1 && p.skills["SparkCube"].hits == 2 && !p.skills.exists("ConsumeItem"),
+            "Spark Cube damage and casts retain the item identity");
+        cube.originItem={kind:"OtherConsumable"};c.skillUse(cube, null);hit(cube, me, 39.5);
+        check(p.skills["OtherConsumable"].casts == 1 && p.skills["SparkCube"].hits == 2,
+            "Different consumables do not merge under ConsumeItem or Spark Cube");
+        independent.simulatingServer=true;c.statusApplied(independent, true);
+        independent.simulatingServer=false;config.enabled=false;c.statusApplied(independent, true);config.enabled=true;
+        check(fight.players["ally"].skills["IndependentDot"].casts == 1, "Disabled and simulated applications are ignored");
         c.model.reset(40);
         check(c.model.activation("me", "BroodLeap") == 0, "Zone/character resets clear activation state");
+        c.model.me="me";c.model.party["me"]=true;
+        var opener:Dynamic = {__type:"st.skill.Status", __uid:"opener", owner:target, instigator:me,
+            kind:"OpeningDot", periodic:true};
+        c.statusApplied(opener);
+        check(c.model.current == null, "Applying a status alone never starts the encounter timer");
+        c.combatEnter("me", 41);hit(opener, me, 41);hit(opener, me, 42);
+        check(c.model.current.players["me"].skills["OpeningDot"].casts == 1,
+            "A status applied before the opening damage keeps its application count");
         Sys.println('Cast counting: $checks checks passed');
     }
 }

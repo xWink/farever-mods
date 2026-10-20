@@ -199,11 +199,15 @@ class DpsMeterMod {
     }
     @:hlx.postfix(st.skill.Status.postInit)
     static function recordStatusInit(instance:Dynamic, result:Bool):Bool {
+        if (result && collector != null) try collector.statusApplied(instance)
+            catch (error:Dynamic) trace("[DPS Meter] Status cast capture: " + Std.string(error));
         if (result && timeline != null) try timeline.statusChanged(instance, "status_applied") catch (error:Dynamic) timeline.report(error);
         return result;
     }
     @:hlx.postfix(st.skill.Status.clientRefresh__impl)
     static function recordStatusRefresh(instance:Dynamic, result:Void):Void {
+        if (collector != null) try collector.statusApplied(instance, true)
+            catch (error:Dynamic) trace("[DPS Meter] Status cast capture: " + Std.string(error));
         if (timeline != null) try timeline.statusChanged(instance, "status_refreshed") catch (error:Dynamic) timeline.report(error);
     }
     @:hlx.postfix(st.skill.Status.setDuration__impl)
@@ -230,6 +234,7 @@ class DpsMeterMod {
     }
     @:hlx.prefix(st.skill.Status.onRemove)
     static function recordStatusRemove(instance:Dynamic):HlxPrefixResult<Void> {
+        if (collector != null) collector.statusRemoved(instance);
         if (timeline != null) try timeline.statusRemoved(instance) catch (error:Dynamic) timeline.report(error);
         return Continue;
     }
