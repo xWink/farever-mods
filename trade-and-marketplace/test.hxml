@@ -43,6 +43,7 @@
 -cp tests
 -cp tests/market-stubs
 -cp tests/market-ui-stubs
+-resource assets/cart.png@trade-and-marketplace/cart.png
 -main MarketplaceUiTest
 --interp
 

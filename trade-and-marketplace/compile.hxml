@@ -2,6 +2,7 @@
 -D hl-ver=1.16.0
 -cp src
 -cp ../shared/src
+-resource assets/cart.png@trade-and-marketplace/cart.png
 -main trade.TradeMod
 -dce full
 -hl build/trade-and-marketplace/implementation/trade-and-marketplace.hl

@@ -15,9 +15,13 @@ class MarketplaceUiTest {
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
   var collapsedRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
   check(collapsedRow.y==224);
-  GameAccess.buttons.filter(b->b.text=="Show filters")[0].action();
+  var filterToggle=GameAccess.buttons.filter(b->b.text=="Show filters")[0];
+  var originalSearch=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
+  filterToggle.action();
   GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.update();
   check(c.filtersExpanded&&c.pageSize()==6);
+  check(GameAccess.buttons.filter(b->b.text=="Hide filters")[0]==filterToggle&&GameAccess.removed.indexOf(filterToggle)<0);
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0]==originalSearch&&GameAccess.removed.indexOf(originalSearch)<0);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].y==388);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
@@ -31,6 +35,11 @@ class MarketplaceUiTest {
   check(moneyLabels[0].text=="500"&&moneyLabels[1].text=="/"&&moneyLabels[2].text=="1");
   check(moneyIcons.length==2&&moneyIcons[0].tile.id=="Gold"&&moneyIcons[1].tile.id=="SilverTray");
   check(money.x>0);
+  var shortPriceWidth=GameAccess.number(name.maxWidthText);
+  check(shortPriceWidth>350&&name.x<130&&GameAccess.number(name.x)+shortPriceWidth+14<=GameAccess.number(money.parent.x)+GameAccess.number(money.x));
+  moneyLabels[0].bounds={xMin:0.,yMin:4.,xMax:120.,yMax:22.};moneyLabels[2].bounds={xMin:0.,yMin:4.,xMax:70.,yMax:22.};
+  money.parent.onAfterReflow();
+  check(GameAccess.number(name.maxWidthText)<shortPriceWidth&&GameAccess.number(name.x)+GameAccess.number(name.maxWidthText)+14<=GameAccess.number(money.parent.x)+GameAccess.number(money.x));
   check(moneyLabels[0].x<moneyIcons[0].x&&moneyIcons[0].x<moneyLabels[1].x&&moneyLabels[2].x<moneyIcons[1].x);
   check(GameAccess.labels.filter(l->l.text=="Region: North America").length==1);
   var region=GameAccess.labels.filter(l->l.text=="Region: North America")[0];
@@ -39,9 +48,10 @@ class MarketplaceUiTest {
   check(TradeFrame.latest.header.children.length==2);
   var cart:Dynamic=TradeFrame.latest.header.children[1];check(cart.x>TradeFrame.latest.title.x+11*8);
   check(cart.nativeType=="h2d.Bitmap"&&cart.smooth==true&&cart.blendMode=="AlphaAdd");
-  check(GameAccess.textures.length==3&&GameAccess.textures[2].width==64);
+  check(GameAccess.textures.length==4&&GameAccess.textures[0].sourcePng&&GameAccess.textures[3].width==64&&GameAccess.maskWhitened);
   check(GameAccess.textures.filter(t->t.clearAlpha!=0.0).length==0);
-  check(GameAccess.textures[0].disposed&&GameAccess.textures[1].disposed&&GameAccess.textures[2].disposed!=true);
+  check(GameAccess.textures.slice(0,3).filter(t->t.disposed!=true).length==0&&GameAccess.textures[3].disposed!=true);
+  check(cart.color.x==0xEE/255.0&&cart.color.y==0xDD/255.0&&cart.color.z==0xCC/255.0);
   var next=GameAccess.buttons.filter(b->b.text=="Next")[0],page=GameAccess.labels.filter(l->l.text=="Page 1")[0];
   check(next.parent==page.parent&&next.x-6*8==18);
   check(GameAccess.buttons.filter(b->b.text=="Refresh")[0].x==970);
@@ -69,6 +79,9 @@ class MarketplaceUiTest {
   check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==3);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0&&n.enable!=true).length==0);
   check(GameAccess.buttons.filter(b->b.text=="Refresh").length==1&&GameAccess.buttons.filter(b->b.text=="Loading...").length==0);
+  check(GameAccess.nodes.indexOf(search)>=0&&GameAccess.nodes.indexOf(select)>=0&&GameAccess.nodes.indexOf(online)>=0&&GameAccess.buttons.indexOf(classButton)>=0);
+  var retained:Array<Dynamic>=[search,select,online,classButton,filterToggle];
+  check(retained.filter(control->GameAccess.removed.indexOf(control)>=0).length==0);
   c.busy=false;
   var sellers=GameAccess.labels.filter(l->l.text=="Seller: Tester"),seller=sellers[0],sellerBox=seller.parent;
   var dot:Dynamic=sellerBox.children.filter(n->n.shapes!=null)[0];
@@ -162,6 +175,22 @@ class MarketplaceUiTest {
   GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();GameAccess.nodes=[];view.update();
   check(!c.filtersExpanded&&c.filters["rarity"]=="Epic"&&c.filters["search"]=="shield"&&c.filters["online"]=="false");
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
+  // Reused controls must receive current values and fresh category-dependent callbacks.
+  var toggle=GameAccess.buttons.filter(b->b.text=="Show filters")[0];
+  var searchField=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
+  toggle.action();view.update();
+  var dropdowns=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0);
+  var category=dropdowns[0],subcategory=dropdowns[1];
+  category.selectedIndex=2;category.onSelectOption(null);view.update();
+  check(c.filters["category"]=="Equipment"&&subcategory.options[1].name=="Weapons");
+  check(GameAccess.nodes.indexOf(category)>=0&&GameAccess.nodes.indexOf(subcategory)>=0);
+  category.selectedIndex=3;category.onSelectOption(null);view.update();
+  check(c.filters["category"]=="Consumables"&&subcategory.options[1].name=="Food");
+  subcategory.selectedIndex=1;subcategory.onSelectOption(null);view.update();check(c.filters["subcategory"]=="Food");
+  check(GameAccess.removed.indexOf(category)<0&&GameAccess.removed.indexOf(subcategory)<0);
+  check(GameAccess.nodes.indexOf(searchField)>=0&&GameAccess.buttons.indexOf(toggle)>=0);
+  toggle.action();view.update();
+  check(!c.filtersExpanded&&GameAccess.removed.indexOf(category)>=0&&GameAccess.removed.indexOf(toggle)<0);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();

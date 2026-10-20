@@ -18,6 +18,7 @@ class MarketWindow {
     var frame:trade.TradeFrame;
     var cart:MarketCartIcon;
     var controls:Array<Dynamic> = [];
+    final filterControls=new MarketFilterControls();
     var sequence = 0;
     var shown = false;
     var connectionNoticeShown=false;
@@ -38,6 +39,7 @@ class MarketWindow {
     public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
     public function close():Void {
         shown = false; closeDropdowns();
+        filterControls.clear();
         if(cart!=null){cart.dispose();cart=null;}
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",frame.ui,[connectionDialog]);
@@ -101,9 +103,11 @@ class MarketWindow {
     function render():Void {
         stage="clear old controls";
         closeDropdowns();
-        for (child in children(frame.container)) G.call("h2d.Object", "remove", child);
+        filterControls.begin();
+        for (child in children(frame.container)) if(!filterControls.contains(child))G.call("h2d.Object", "remove", child);
         var root = frame.container;
         if(recovery) {
+            filterControls.finish();
             stage="recovery screen";
             labelAt(root,"The marketplace could not display this page.",28,38,1000,true);
             labelAt(root,"Any listing already submitted is kept. You can reload the page or switch tabs below.",28,78,1000);
@@ -135,7 +139,11 @@ class MarketWindow {
             labelAt(root,"Choose an unlocked, tradable item to list on the marketplace. It won't be removed from your inventory until you trade it.",20,116,1064,false,MUTED);
         }
         contentY = c.tab == "Browse" ? (c.filtersExpanded?340:176) : 146;
-        if (c.tab == "Browse") filters();
+        if (c.tab == "Browse") {
+            filterControls.active=true;
+            try filters()catch(error:Dynamic){filterControls.active=false;throw error;}
+        }
+        filterControls.finish();
         card(root,16,contentY,704,806-contentY);
         card(root,736,contentY,352,806-contentY);
         labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
@@ -193,7 +201,10 @@ class MarketWindow {
     }
 
     function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true):Dynamic {
-        var obj = frame.button(label,x,y,width,()->{if(!c.busy&&enabled)action();},kind);
+        var click=()->{if(!c.busy&&enabled)action();};
+        var obj=filterControls.get("button:"+x+":"+y,()->frame.button(label,x,y,width,click,kind));
+        setText(G.field(obj,"btnText"),label);trade.TradeFrame.setClass(obj,kind);
+        G.call("ui.UIElement","set_onClick",obj,[click]);
         G.call("ui.UIElement", "set_enable", obj, [enabled]); return obj;
     }
     function tabButton(label:String,x:Int,y:Int,width:Int,action:Void->Void,selected:Bool):Void {
@@ -201,18 +212,24 @@ class MarketWindow {
         G.call("ui.UIElement","set_selected",button(label,x,y,width,action,""),[selected]);
     }
     function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint="",?submit:Void->Void):Dynamic {
-        var root = frame.container, box = G.field(node("input-box",G.field(root,"dom"),[],"marketInput"+(sequence++)),"obj");
-        absolute(root,box); padding(box,0); size(box,width,36); position(box,x,y);
-        var input = G.field(box,"input");
-        G.call("h2d.TextInput","set_text",input,[value]); style(input,"width",width-20); style(input,"color",0xF5F0E8);
-        G.call("ui.comp.InputBox","set_hintText",box,[hint]); style(G.field(box,"inputHint"),"color",0xE0D8CD);
-        for(text in [input,G.field(box,"inputHint")]) {
-            absolute(G.field(text,"parent"),text);centerControlText(text,36,12);
-            G.call("h2d.Text","set_maxWidth",text,[(width-24)*1.0]);style(text,"width",width-24);
-        }
-        afterReflow(box,()->{
-            for(text in [input,G.field(box,"inputHint")])centerControlText(text,36,12);
+        var root=frame.container;
+        var box=filterControls.get("input:"+x+":"+y,()->{
+            var box = G.field(node("input-box",G.field(root,"dom"),[],"marketInput"+(sequence++)),"obj");
+            absolute(root,box); padding(box,0); size(box,width,36); position(box,x,y);
+            var input = G.field(box,"input");
+            style(input,"width",width-20); style(input,"color",0xF5F0E8);
+            G.call("ui.comp.InputBox","set_hintText",box,[hint]); style(G.field(box,"inputHint"),"color",0xE0D8CD);
+            for(text in [input,G.field(box,"inputHint")]) {
+                absolute(G.field(text,"parent"),text);centerControlText(text,36,12);
+                G.call("h2d.Text","set_maxWidth",text,[(width-24)*1.0]);style(text,"width",width-24);
+            }
+            afterReflow(box,()->{
+                for(text in [input,G.field(box,"inputHint")])centerControlText(text,36,12);
+            });
+            return box;
         });
+        var input=G.field(box,"input");
+        if(G.text(G.field(input,"text"))!=value)G.call("h2d.TextInput","set_text",input,[value]);
         G.set(box,"onChange",()->changed(G.text(G.field(input,"text"))));
         if(submit!=null) {
             G.set(input,"ignoreEnter",true);
@@ -260,28 +277,36 @@ class MarketWindow {
     function dropdown(label:String,values:Array<String>,labels:Array<String>,selected:String,x:Int,y:Int,width:Int,changed:String->Void):Void {
         var root = frame.container;
         labelAt(root,label,x,y-28,width,false,MUTED);
-        var control = G.field(node("dropdown",G.field(root,"dom"),[false,false,"options-dropdown-list"],"marketSelect"+(sequence++)),"obj");
-        absolute(root,control); padding(control,0); size(control,width,36); position(control,x,y);
-        // The nested select retains a large native minimum width unless sized too.
-        var select = G.field(control,"select"); padding(select,0); size(select,width,36);
-        var options = G.call("hl.types.ArrayObj","slice",G.field(control,"items"),[0,0]);
-        for (i in 0...values.length) G.call("hl.types.ArrayObj","pushDyn",options,[{name:escape(labels[i]),value:i,icon:null,group:null}]);
-        G.call("ui.comp.Dropdown","set_options",control,[options]);
-        G.call("ui.comp.Dropdown","initSelectedIndex",control,[Std.int(Math.max(0,values.indexOf(selected)))]);
-        var caption = G.field(control,"selectText");
-        absolute(G.field(caption,"parent"),caption);
-        G.call("ui.comp.FmtText","set_maxWidthText",caption,[width-54]);
-        var arrows=[for(child in children(select))if(G.isA(child,"ui.comp.Icon"))child];
-        for(arrow in arrows) {absolute(select,arrow);padding(arrow,0);size(arrow,22,22);}
-        afterReflow(select,()->{
-            centerDropdownCaption(caption,36,12);
-            for(arrow in arrows) {
-                var bounds=G.call("h2d.Object","getSize",arrow,[null]);
-                var right=G.number(G.field(bounds,"xMax"),22);
-                centerControlText(arrow,36,width-10-right+G.number(G.field(bounds,"xMin")));
-            }
+        var control=filterControls.get("dropdown:"+x+":"+y,()->{
+            var control = G.field(node("dropdown",G.field(root,"dom"),[false,false,"options-dropdown-list"],"marketSelect"+(sequence++)),"obj");
+            absolute(root,control); padding(control,0); size(control,width,36); position(control,x,y);
+            // The nested select retains a large native minimum width unless sized too.
+            var select = G.field(control,"select"); padding(select,0); size(select,width,36);
+            var caption = G.field(control,"selectText");
+            absolute(G.field(caption,"parent"),caption);
+            G.call("ui.comp.FmtText","set_maxWidthText",caption,[width-54]);
+            var arrows=[for(child in children(select))if(G.isA(child,"ui.comp.Icon"))child];
+            for(arrow in arrows) {absolute(select,arrow);padding(arrow,0);size(arrow,22,22);}
+            afterReflow(select,()->{
+                centerDropdownCaption(caption,36,12);
+                for(arrow in arrows) {
+                    var bounds=G.call("h2d.Object","getSize",arrow,[null]);
+                    var right=G.number(G.field(bounds,"xMax"),22);
+                    centerControlText(arrow,36,width-10-right+G.number(G.field(bounds,"xMin")));
+                }
+            });
+            G.call("ui.comp.FmtText","set_useEllipsis",caption,[true]); textColor(caption,INK);
+            return control;
         });
-        G.call("ui.comp.FmtText","set_useEllipsis",caption,[true]); textColor(caption,INK);
+        var oldOptions=G.array(G.field(control,"options")),same=oldOptions.length==values.length;
+        if(same)for(i in 0...labels.length)if(G.text(G.field(oldOptions[i],"name"))!=escape(labels[i])){same=false;break;}
+        if(!same) {
+            var options=G.call("hl.types.ArrayObj","slice",G.field(control,"items"),[0,0]);
+            for(i in 0...values.length)G.call("hl.types.ArrayObj","pushDyn",options,[{name:escape(labels[i]),value:i,icon:null,group:null}]);
+            G.call("ui.comp.Dropdown","set_options",control,[options]);
+        }
+        G.call("ui.comp.Dropdown","initSelectedIndex",control,[Std.int(Math.max(0,values.indexOf(selected)))]);
+        var select=G.field(control,"select");
         var popupRoot = G.field(frame.ui,"root");
         G.set(control,"getListLayout",()->popupRoot);
         G.call("ui.UIElement","set_onClick",select,[()->{
@@ -357,33 +382,43 @@ class MarketWindow {
         itemIcon(row,item,8,iconY,44);
         stage="item row labels";
         var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
-        var nameX=rarity==""?64:162;
+        var nameX=64;
         var nameRight=c.tab=="Sell"?484:414;
         var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,nameRight-nameX,true,INK,true);
         largeLabel(nameLabel);
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
         if(c.tab!="Sell")sellerLine(row,seller,online,64,33,350);
         var priceLabel:Dynamic=null;
-        if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
-        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true);
-        afterReflow(row,()->{
-            if(rarityLabel!=null)centerControlText(rarityLabel,24,64,5);
+        function layoutLabels():Void {
+            if(rarityLabel!=null) {
+                centerControlText(rarityLabel,24,64,5);
+                var bounds=G.call("h2d.Object","getBounds",rarityLabel,[rarityLabel,null]);
+                nameX=64+Std.int(Math.ceil((G.number(G.field(bounds,"xMax"))-G.number(G.field(bounds,"xMin")))*G.number(G.field(rarityLabel,"scaleX"),1)))+10;
+            }
+            G.call("ui.comp.FmtText","set_maxWidthText",nameLabel,[Std.int(Math.max(1,nameRight-nameX))]);
             centerControlText(nameLabel,24,nameX,5);
             if(sellerLabel!=null)centerControlText(sellerLabel,24,64,33);
             if(priceLabel!=null){centerControlText(priceLabel,height-4,502);position(priceLabel,502,G.number(G.field(priceLabel,"y")));}
-        });
+        }
+        if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
+        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true,left->{nameRight=Std.int(left)-14;layoutLabels();});
+        afterReflow(row,layoutLabels);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         partialRow=null;
     }
-    function priceDisplay(parent:Dynamic,value:Dynamic,x:Int,y:Int,width:Int,right=false):Void {
+    function priceDisplay(parent:Dynamic,value:Dynamic,x:Int,y:Int,width:Int,right=false,?leftEdge:Float->Void):Void {
         if(value==null||G.field(value,"mode")=="offers") {
             var label=labelAt(parent,MarketText.price(value),x,y,width,true,INK,true);
             if(right)rightText(label,width);
             centerControlText(label,28,x,y);if(right)position(label,x,G.number(G.field(label,"y")));
-        } else currencyLine(parent,G.integer(G.field(value,"silverTrays")),x,y,width,false,right);
+            if(leftEdge!=null)afterReflow(parent,()->{
+                var bounds=G.call("h2d.Object","getBounds",label,[label,null]);
+                leftEdge(x+G.number(G.field(bounds,"xMin"))*G.number(G.field(label,"scaleX"),1));
+            });
+        } else currencyLine(parent,G.integer(G.field(value,"silverTrays")),x,y,width,false,right,leftEdge);
     }
     /** Reuses the native item artwork and existing text objects when the price changes. */
-    function currencyLine(parent:Dynamic,amount:Int,x:Int,y:Int,width:Int,conversion=false,right=false):Int->Void {
+    function currencyLine(parent:Dynamic,amount:Int,x:Int,y:Int,width:Int,conversion=false,right=false,?leftEdge:Float->Void):Int->Void {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketMoney"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,28);position(box,x,y);
         var content=G.field(node("element",G.field(box,"dom"),[],"marketMoneyContent"+(sequence++)),"obj");
@@ -407,6 +442,7 @@ class MarketWindow {
             }
             var scale=Math.min(1,width/Math.max(1,cursor-5));
             G.call("h2d.Object","setScale",content,[scale]);position(content,right?width-(cursor-5)*scale:0,(28-24*scale)/2);
+            if(leftEdge!=null)leftEdge(x+G.number(G.field(content,"x")));
         }
         function update(value:Int):Void {
             setText(first,conversion?MarketText.count(value,"Silver Tray"):MarketText.number(value*500));
@@ -541,21 +577,25 @@ class MarketWindow {
         });
     }
     function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void):Void {
-        var root=frame.container,box=G.field(node("check-box",G.field(root,"dom"),[text],"marketCheck"+(sequence++)),"obj");
-        absolute(root,box);size(box,width,36);position(box,x,y);
-        padding(box,0);G.call("h2d.Flow","set_paddingLeft",box,[12]);style(box,"padding-left",12);
-        G.call("h2d.Flow","set_paddingRight",box,[12]);style(box,"padding-right",12);
-        G.call("ui.comp.CheckBox","set_selected",box,[value]);
-        textColor(G.field(box,"fmtText"),0xF5F0E8);
-        afterReflow(box,()->{
-            var caption=G.field(box,"fmtText");
-            if(caption!=null) {
-                // CheckBox creates/replaces its label during native initialization.
-                var tint=G.field(caption,"color");
-                if(tint!=null)for(channel in ["x","y","z"])G.set(tint,channel,1.0);
-                G.call("h2d.HtmlText","set_textColor",caption,[0xF5F0E8]);
-            }
+        var root=frame.container;
+        var box=filterControls.get("checkbox:"+x+":"+y,()->{
+            var box=G.field(node("check-box",G.field(root,"dom"),[text],"marketCheck"+(sequence++)),"obj");
+            absolute(root,box);size(box,width,36);position(box,x,y);
+            padding(box,0);G.call("h2d.Flow","set_paddingLeft",box,[12]);style(box,"padding-left",12);
+            G.call("h2d.Flow","set_paddingRight",box,[12]);style(box,"padding-right",12);
+            textColor(G.field(box,"fmtText"),0xF5F0E8);
+            afterReflow(box,()->{
+                var caption=G.field(box,"fmtText");
+                if(caption!=null) {
+                    // CheckBox creates/replaces its label during native initialization.
+                    var tint=G.field(caption,"color");
+                    if(tint!=null)for(channel in ["x","y","z"])G.set(tint,channel,1.0);
+                    G.call("h2d.HtmlText","set_textColor",caption,[0xF5F0E8]);
+                }
+            });
+            return box;
         });
+        G.call("ui.comp.CheckBox","set_selected",box,[value]);
         G.call("ui.UIElement","set_enable",box,[true]);
         G.set(box,"onValueChange",(selected:Bool)->{
             if(c.busy)G.call("ui.comp.CheckBox","set_selected",box,[value]);else changed(selected);
@@ -634,6 +674,8 @@ class MarketWindow {
     }
     static function card(parent:Dynamic,x:Int,y:Int,w:Int,h:Int,color=PAPER):Void {
         var g=graphic(parent);rounded(g,x,y,w,h,8,EDGE);rounded(g,x+1,y+1,w-2,h-2,7,color);
+        // New backdrops must stay behind retained filter controls.
+        G.call("h2d.Flow","addChildAt",parent,[g,0]);absolute(parent,g);
     }
     static function line(parent:Dynamic,x:Int,y:Int,w:Int):Void {var g=graphic(parent);rounded(g,x,y,w,1,0,0xCFB99D);}
     static function serverLabel(value:String):String return switch(value) {

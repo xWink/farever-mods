@@ -6,13 +6,22 @@ class TradeFrame {
  public var x:Null<Float>;public var y:Null<Float>;public var onMoved:Float->Float->Void;
  public function new(ui:Dynamic,title:String,w:Int,h:Int,close:Void->Void){this.ui=ui;container=GameAccess.object();container.height=h-60;header=GameAccess.object();this.title=textAt(header,title,28,17,1000);this.title.textColor=0xEEDDCC;latest=this;active++;}
  public function intact():Bool return true;
- public function layout():Void{}
+ public function layout():Void {
+  var live:Array<Dynamic>=[];
+  function visit(o:Dynamic):Void {live.push(o);for(child in (cast o.children:Array<Dynamic>))visit(child);}
+  visit(container);visit(header);
+  GameAccess.nodes=live.filter(o->GameAccess.field(o,"id")!=null);
+  GameAccess.labels=live.filter(o->GameAccess.field(o,"testLabel")==true);
+  GameAccess.buttons=live.filter(o->GameAccess.field(o,"testButton")==true);
+  for(button in GameAccess.buttons)button.text=button.btnText.text;
+ }
  public function dispose():Void active--;
  public function button(s:String,x:Int,y:Int,w:Int,action:Void->Void,kind:String):Dynamic {
-  var o=GameAccess.object(container);o.text=s;o.action=action;o.x=x;o.y=y;o.width=w;o.kind=kind;GameAccess.buttons.push(o);return o;
+  var o=GameAccess.object(container);o.text=s;o.testButton=true;o.btnText=GameAccess.object(o);o.btnText.text=s;o.action=action;o.x=x;o.y=y;o.width=w;o.kind=kind;GameAccess.buttons.push(o);return o;
  }
+ public static function setClass(o:Dynamic,kind:String):Void {o.kind=kind;}
  public static function textAt(p:Dynamic,s:String,x:Float,y:Float,w:Int,b=false):Dynamic {
-  var o=GameAccess.object(p);o.text=s;o.maxWidthText=w;o.x=x;o.y=y;GameAccess.labels.push(o);return o;
+  var o=GameAccess.object(p);o.text=s;o.testLabel=true;o.maxWidthText=w;o.x=x;o.y=y;GameAccess.labels.push(o);return o;
  }
  public static function graphic(p:Dynamic):Dynamic return GameAccess.object(p);
  public static function rounded(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,c:Int,a=1.0):Void {

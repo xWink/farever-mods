@@ -5,6 +5,8 @@ class GameAccess {
  public static var nodes:Array<Dynamic>=[];
  public static var dialogs=0;
  public static var textures:Array<Dynamic>=[];
+ public static var removed:Array<Dynamic>=[];
+ public static var maskWhitened=false;
  public static var failNextTooltip=false;
  public static var ui:Dynamic={root:{}};
  public static function object(?parent:Dynamic):Dynamic {
@@ -29,8 +31,11 @@ class GameAccess {
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
    case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];null;
    case "dispose": o.disposed=true;null;
+   case "toTexture": var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture;
+   case "set_colorAdd": maskWhitened=true;null;
    case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
    case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;
+   case "addChildAt": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).insert(a[1],child);null;
    case "setScale": o.scaleX=a[0];o.scaleY=a[0];null;
    case "set_enableInteractive": o.enableInteractive=a[0];null;
    case "set_getTip":
@@ -54,7 +59,7 @@ class GameAccess {
    case "get_numChildren": (cast o.children:Array<Dynamic>).length;
    case "slice": [];
    case "pushDyn": (cast o:Array<Dynamic>).push(a[0]);
-   case "remove": if(o.parent!=null)(cast o.parent.children:Array<Dynamic>).remove(o);null;
+   case "remove": removed.push(o);if(o.parent!=null)(cast o.parent.children:Array<Dynamic>).remove(o);null;
    case "isOpen": false;
    case "set_onClick": o.action=a[0];null;
    case "getName": "Tester";
