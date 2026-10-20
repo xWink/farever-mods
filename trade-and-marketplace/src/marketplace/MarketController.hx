@@ -216,7 +216,11 @@ class MarketController {
         request("GET",path+"?"+params.join("&"),null,null,data->{
             if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>limit)throw "Invalid listings";
             rows=data.listings;total=rows.length;pages=page+(data.nextCursor==null?0:1);
-            cursors[page]=data.nextCursor;selected=null;message=total==0?"No matching listings.":"Listings updated.";
+            var selectedId=G.text(G.field(selected,"id"));
+            selected=null;
+            // Responses contain new objects: retain the listing by ID and use its fresh data.
+            if(selectedId!="")for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}
+            cursors[page]=data.nextCursor;message=total==0?"No matching listings.":"Listings updated.";
         });
     }
     public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void):Void {

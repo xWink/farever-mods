@@ -15,5 +15,8 @@ class TradeFrame {
   var o=GameAccess.object(p);o.text=s;o.maxWidthText=w;o.x=x;o.y=y;GameAccess.labels.push(o);return o;
  }
  public static function graphic(p:Dynamic):Dynamic return GameAccess.object(p);
- public static function rounded(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,c:Int,a=1.0):Void{}
+ public static function rounded(g:Dynamic,x:Float,y:Float,w:Float,h:Float,r:Float,c:Int,a=1.0):Void {
+  if(GameAccess.field(g,"shapes")==null)g.shapes=[];
+  (cast g.shapes:Array<Dynamic>).push({x:x,y:y,width:w,height:h,radius:r,color:c,alpha:a});
+ }
 }

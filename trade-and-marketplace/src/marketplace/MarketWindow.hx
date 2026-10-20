@@ -361,16 +361,15 @@ class MarketWindow {
         var nameRight=c.tab=="Sell"?484:414;
         var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,nameRight-nameX,true,INK,true);
         largeLabel(nameLabel);
-        var sellerLabel=labelAt(row,c.tab=="Sell"?seller:"Seller: "+seller,64,0,c.tab=="Sell"?270:212,false,MUTED,true);
-        var status=c.tab=="Sell"?null:labelAt(row,"Status: "+(online?"Online":"Offline"),288,0,126,false,online?0x426138:MUTED,true);
+        var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
+        if(c.tab!="Sell")sellerLine(row,seller,online,64,33,350);
         var priceLabel:Dynamic=null;
         if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
         else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true);
         afterReflow(row,()->{
             if(rarityLabel!=null)centerControlText(rarityLabel,24,64,5);
             centerControlText(nameLabel,24,nameX,5);
-            centerControlText(sellerLabel,24,64,33);
-            if(status!=null)centerControlText(status,24,288,33);
+            if(sellerLabel!=null)centerControlText(sellerLabel,24,64,33);
             if(priceLabel!=null){centerControlText(priceLabel,height-4,502);position(priceLabel,502,G.number(G.field(priceLabel,"y")));}
         });
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
@@ -522,12 +521,24 @@ class MarketWindow {
             button("Remove listing",754,752,316,c.remove,"cancel");
         } else {
             line(frame.container,754,contentY+222,316);
-            labelAt(frame.container,"Seller: "+G.text(row.seller.characterName),754,contentY+238,220,true,INK,true);
-            labelAt(frame.container,isOnline(row)?"Online":"Offline",988,contentY+238,82,false,isOnline(row)?0x426138:MUTED);
+            sellerLine(frame.container,G.text(row.seller.characterName),isOnline(row),754,contentY+238,316,true);
             labelAt(frame.container,"Asking price:",754,contentY+278,316,true);
             priceDisplay(frame.container,row.price,754,contentY+306,316);
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
+    }
+    function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false):Void {
+        var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
+        absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
+        var caption=labelAt(box,"Seller: "+name,0,0,width-18,bold,bold?INK:MUTED,true);
+        var dot=graphic(box);
+        rounded(dot,0,0,10,10,5,online?0x426138:0x888888);
+        afterReflow(box,()->{
+            centerDropdownCaption(caption,24,0);
+            var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
+            var right=G.number(G.field(caption,"x"))+G.number(G.field(bounds,"xMax"))*G.number(G.field(caption,"scaleX"),1);
+            position(dot,Math.min(width-10,Math.round(right)+6),7);
+        });
     }
     function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void):Void {
         var root=frame.container,box=G.field(node("check-box",G.field(root,"dom"),[text],"marketCheck"+(sequence++)),"obj");

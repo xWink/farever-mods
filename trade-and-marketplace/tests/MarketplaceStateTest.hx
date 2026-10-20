@@ -61,8 +61,19 @@ class MarketplaceStateTest {
         c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
         c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&c.page==1);
         check(Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=6")>=0);
-        ownReply(c,app,[]);c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
-        ownReply(c,app,[]);
+        var previous=c.selected;
+        ownReply(c,app,[{id:"remaining",revision:2}]);
+        check(c.selected==c.rows[0]&&c.selected!=previous&&c.selected.revision==2);
+        c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
+        ownReply(c,app,[{id:"other"},{id:"remaining",revision:3}]);
+        check(c.selected==c.rows[1]&&c.selected.revision==3);
+        c.filters["search"]="new search";c.refresh();ownReply(c,app,[{id:"remaining",revision:4}]);
+        check(c.selected==c.rows[0]&&c.selected.revision==4);
+        c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:400,error:"HTTP Error #400",retryAfter:"",body:'{"error":{"code":"invalid_query"}}'}});
+        c.update(app,0);check(c.selected==c.rows[0]&&!c.busy);
+        c.filters["search"]="filtered out";c.refresh();ownReply(c,app,[{id:"other"}]);
+        check(c.selected==null);
         var stack=c.inv.stacks()[0],offer=TradeInventory.describe(stack.item,stack.count);
         var listed=marketplace.MarketExport.itemData(stack.item,offer,1);
         c.chooseTab("Sell");
