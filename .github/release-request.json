@@ -1,7 +1,7 @@
 {
-  "project": "minimap",
-  "version": "2.2.0",
-  "commit": "4db214c94a4e80a4829e564f5c7442d765468941",
-  "notes": "- Minimap and main map no longer show information in undiscovered regions\n- Added rift timer below the \"Next Rift\" marker on the main map\n- Added reputation markers for the reputation merchants (Pilgrim and Rifstalkers)\n- Changed the dungeon marker to match the game's original dungeon markers\n- Added the green \"+\" to the bonus heroic dungeon marker\n- Increased the amount you can zoom out in the fast-travel map\n- Increased the size of the yellow circle around obelisks in the fast-travel map\n- Increased the area you can click on to select an obelisks in the fast-travel map\n- Removed height arrow indicators in the fast-travel map\n- Removed undiscovered obelisks from the fast-travel map\n- Adjusted marker priority so that friends and obelisks appear in front of more markers\n- Adjusted the outlines on the companion marker\n- Fixed an issue where some markers would take too long to appear in the main map\n",
+  "project": "more-settings",
+  "version": "1.21.0",
+  "commit": "a0a5e0343aafd874c1840e418d36dd04d865b3df",
+  "notes": "Added Leave Rift button\n",
   "dry_run": false
 }
