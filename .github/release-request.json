@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.21.0",
-  "commit": "a0a5e0343aafd874c1840e418d36dd04d865b3df",
-  "notes": "Added Leave Rift button\n",
+  "project": "dps-meter",
+  "version": "1.11.4",
+  "commit": "00f8510505c364a5d7d0ddc22bbb36af6f2d5dca",
+  "notes": "- Fixed an issue where Spark Cube appeared as ConsumeItem in logs\n- Fixed an issue where casts of DoT effects weren't properly counted (damage was still counted)\n",
   "dry_run": false
 }
