@@ -170,7 +170,7 @@
       "label": "Enable missing slash commands",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "/box: Teleport to Navelin's Guild Merchant while on the same overworld map.\n/invite <player>: Invite a player to your party.\n/leave: Leave your party.\n/w <player>: Open a whisper to a player. Add a message after their name to send it immediately.\n\nNames are matched from your area, party, friends, or players seen in chat. Use quotes around names containing spaces."
+        "tooltipText": "/invite <player>: Invite a player to your party.\n/leave: Leave your party.\n/w <player>: Open a whisper to a player. Add a message after their name to send it immediately.\n\nNames are matched from your area, party, friends, or players seen in chat. Use quotes around names containing spaces."
       }
     },
     {

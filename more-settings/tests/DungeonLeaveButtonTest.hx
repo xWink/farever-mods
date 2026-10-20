@@ -15,7 +15,7 @@ class DungeonLeaveButtonTest {
         var layer:Dynamic = {mainActivity: {types: ["st.activity.Dungeon"]}};
         var player:Dynamic = {hero: hero, layer: layer};
         G.data = {player: player};
-        var button:Dynamic = {visible: false,btnText:{text:"Leave"}};
+        var button:Dynamic = {visible: false,minWidth:100,maxWidth:100,btnText:{text:"Leave",textMultiline:true,lineBreak:true}};
         var hud:Dynamic = {leaveBtn: button, removed: false};
         DungeonLeaveButton.attach(hud);
         eq(DungeonLeaveButton.visibility(button, false), true, "exit portal no longer hides the button outside combat");
@@ -38,6 +38,8 @@ class DungeonLeaveButtonTest {
         DungeonLeaveButton.enabled=false;
         eq(DungeonLeaveButton.visibility(button,false),true,"rift option works independently of dungeon option");
         eq(button.btnText.text=="Leave Rift",true,"rift caption");
+        eq(button.minWidth>=140&&button.maxWidth>=140,true,"rift caption gets a wider button");
+        eq(button.btnText.textMultiline||button.btnText.lineBreak,false,"rift caption stays on one line");
         hero.isInCombat=true;
         eq(DungeonLeaveButton.visibility(button,true),false,"combat hides rift exit");
         hero.dead=true;
@@ -56,6 +58,8 @@ class DungeonLeaveButtonTest {
         DungeonLeaveButton.riftEnabled=false;
         eq(DungeonLeaveButton.visibility(button,false),false,"disabled rift option restores native visibility");
         eq(button.btnText.text=="Leave",true,"disabled rift option restores native caption");
+        eq(button.minWidth==100&&button.maxWidth==100,true,"native button width restored");
+        eq(button.btnText.textMultiline&&button.btnText.lineBreak,true,"native wrapping restored");
         DungeonLeaveButton.riftEnabled=true;
         eq(DungeonLeaveButton.visibility(button,false),true,"rift toggle works without rebuilding HUD");
         layer.mainActivity={types:["st.Activity"]};
@@ -74,6 +78,11 @@ class DungeonLeaveButtonTest {
         DungeonLeaveButton.attach({leaveBtn: replacement, removed: false});
         eq(DungeonLeaveButton.visibility(button, false), false, "old button released on rebuild");
         eq(DungeonLeaveButton.visibility(replacement, false), true, "replacement button uses current setting");
+        layer.mainActivity={types:["st.activity.Rift"]};
+        eq(DungeonLeaveButton.visibility(replacement,false),true,"unconstrained replacement can show rift exit");
+        DungeonLeaveButton.riftEnabled=false;
+        eq(DungeonLeaveButton.visibility(replacement,false),false,"disable unconstrained replacement");
+        eq(replacement.minWidth==null&&replacement.maxWidth==null,true,"unset native constraints are restored as null");
         DungeonLeaveButton.clear();
         eq(DungeonLeaveButton.visibility(replacement, false), false, "world disposal releases the HUD");
         Sys.println('Dungeon leave button: $checks checks passed.');

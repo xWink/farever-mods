@@ -75,6 +75,8 @@ class GameAccess {
     public static function current(type:String, name:String):Dynamic
         return field(data, name);
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic return switch name {
+        case "set_minWidth", "set_maxWidth", "set_textMultiline", "set_lineBreak":
+            set(o,name.substr(4),args[0]);args[0];
         case "isDead": field(o,"dead")==true;
         case "get_myPlayer": field(data, "player");
         case "set_visible": set(o, "visible", args[0]); args[0];
