@@ -39,7 +39,7 @@
       "label": "Leave rift button",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Displays a Leave Rift button while in a rift and not in combat."
+        "tooltipText": "Displays a Leave Rift button while in a rift and either out of combat or dead."
       }
     },
     {

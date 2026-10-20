@@ -39,9 +39,11 @@ class DungeonLeaveButton {
             riftCaption=showRift;
         }
         if (!showRift && !(enabled&&G.isA(activity,"st.activity.Dungeon"))) return nativeValue;
-        // Only a confirmed out-of-combat hero can show the override. Loading
-        // and missing heroes must not expose a stale leave button.
-        return G.field(G.field(player, "hero"), "isInCombat") == false;
+        // Rifts can also be left while dead, even if the encounter is still active.
+        // A missing hero must never expose a stale leave button.
+        var hero=G.field(player,"hero");
+        return hero!=null && (G.field(hero,"isInCombat")==false
+            || (showRift && G.call("ent.GameObject","isDead",hero)==true));
     }
 
     public static function clear():Void {

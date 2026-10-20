@@ -11,7 +11,7 @@ class DungeonLeaveButtonTest {
 
     static function main():Void {
         eq(SettingsData.defaults().leaveDungeonButton, true, "enabled by default");
-        var hero:Dynamic = {isInCombat: false};
+        var hero:Dynamic = {isInCombat: false,dead:false};
         var layer:Dynamic = {mainActivity: {types: ["st.activity.Dungeon"]}};
         var player:Dynamic = {hero: hero, layer: layer};
         G.data = {player: player};
@@ -40,6 +40,16 @@ class DungeonLeaveButtonTest {
         eq(button.btnText.text=="Leave Rift",true,"rift caption");
         hero.isInCombat=true;
         eq(DungeonLeaveButton.visibility(button,true),false,"combat hides rift exit");
+        hero.dead=true;
+        eq(DungeonLeaveButton.visibility(button,false),true,"dead hero can leave an active rift");
+        DungeonLeaveButton.riftEnabled=false;
+        eq(DungeonLeaveButton.visibility(button,false),false,"dead hero still respects disabled rift setting");
+        DungeonLeaveButton.riftEnabled=true;
+        layer.mainActivity={types:["st.activity.Dungeon"]};DungeonLeaveButton.enabled=true;
+        eq(DungeonLeaveButton.visibility(button,true),false,"death exception does not change dungeon combat rule");
+        layer.mainActivity={types:["st.activity.Rift"]};
+        hero.dead=false;
+        eq(DungeonLeaveButton.visibility(button,true),false,"reviving during combat hides rift exit again");
         hero.isInCombat=false;player.hero=null;
         eq(DungeonLeaveButton.visibility(button,true),false,"missing hero hides rift exit");player.hero=hero;
         eq(DungeonLeaveButton.visibility(button,false),true,"leaving combat restores rift exit");

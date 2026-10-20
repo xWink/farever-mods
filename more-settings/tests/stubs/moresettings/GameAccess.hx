@@ -75,6 +75,7 @@ class GameAccess {
     public static function current(type:String, name:String):Dynamic
         return field(data, name);
     public static function call(type:String, name:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic return switch name {
+        case "isDead": field(o,"dead")==true;
         case "get_myPlayer": field(data, "player");
         case "set_visible": set(o, "visible", args[0]); args[0];
         case "isOwner": field(o, "isOwner") == true;
