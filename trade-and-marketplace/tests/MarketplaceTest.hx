@@ -58,8 +58,8 @@ class MarketplaceTest {
   for(text in ["five","1.5","-1","0x10","1e4","1 2"])check(MarketQuantity.normalize(text,1,10,"5")=="5");
   check(MarketQuantity.normalize("",1,10,"5")=="");
   check(MarketQuantity.normalize("999999999999999999999999999",1,200000,"1")=="200000");
-  check(marketplace.MarketText.expiry("2026-08-10T21:26:00.000Z")=="Aug. 10, 2026 - 21:26 UTC");
-  check(marketplace.MarketText.expiry("2027-01-01T00:05:59Z")=="Jan. 1, 2027 - 00:05 UTC");
+  check(StringTools.endsWith(marketplace.MarketText.expiry("2026-08-10T21:26:00.000Z")," (local)"));
+  check(marketplace.MarketText.expiry("2026-02-29T00:05:59Z")=="Unavailable");
   check(marketplace.MarketText.expiry("not a date")=="Unavailable");
   var secret="fv1_"+StringTools.lpad("", "X",43);
   var response:fareverly.Protocol.Response={status:422,body:haxe.Json.stringify({error:{code:"invalid_export",field:"item.quantity",message:"Invalid item quantity",secret:secret},accessToken:secret}),error:"",retryAfter:""};

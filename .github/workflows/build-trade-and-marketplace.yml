@@ -72,6 +72,10 @@ jobs:
           ../.trade-oracle-hashlink/hl build/marketplace-ui-test.hl
           haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-state-stubs -main MarketplaceStateTest -hl build/marketplace-state-test.hl
           ../.trade-oracle-hashlink/hl build/marketplace-state-test.hl
+          haxe -cp src -cp tests -main MarketplaceTimeTest -hl build/marketplace-time-test.hl
+          for timezone in UTC America/Vancouver Asia/Kathmandu; do
+            TZ="$timezone" ../.trade-oracle-hashlink/hl build/marketplace-time-test.hl
+          done
 
   build:
     needs: test

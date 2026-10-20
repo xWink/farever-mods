@@ -15,18 +15,20 @@ class GameAccess {
  public static function text(v:Dynamic,f=""):String return v==null?f:Std.string(v);
  public static function number(v:Dynamic,f:Float=0):Float return v==null?f:cast v;
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
- public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null)Reflect.setField(o,k,v);}
+ public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null){if(k=="onAfterReflow"&&field(o,"text")!=null)throw "Text is not a Flow";Reflect.setField(o,k,v);}}
  public static function enumeration(t:String,n:String):Dynamic return n;
  public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t;
  public static function current(t:String,n:String):Dynamic return ui;
- public static function create(t:String,a:Array<Dynamic>):Dynamic return object(a.length>1?a[1]:null);
- public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return n=="isPressed"?false:n=="getVersion"?"test":{id:"Epic"};
+ public static function create(t:String,a:Array<Dynamic>):Dynamic {var o=object(a.length>1?a[1]:null);o.nativeType=t;if(t=="h2d.Bitmap")o.tile=a[0];return o;}
+ public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return n=="isPressed"?false:n=="getVersion"?"test":n=="getGfx"?a[0]:{id:"Epic"};
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
-   case "getBounds": o.inkBounds;
+   case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
+   case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;
+   case "setScale": o.scaleX=a[0];o.scaleY=a[0];null;
    case "set_getTip": o.getTip=a[0];null;
    case "displayDialog": dialogs++;null;
    case "set_options": o.options=a[0];null;

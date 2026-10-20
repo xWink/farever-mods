@@ -71,6 +71,7 @@ class MarketWindow {
             stage="create window";
             var ui = G.current("ui.BaseUI", "current"); if (ui == null) return;
             frame = new trade.TradeFrame(ui, "Marketplace", 1120, 948, close);
+            headerCart();
             frame.x = px; frame.y = py; frame.onMoved = (x,y) -> { px = x; py = y; }; dirty = true;
         }
         if (dirty) { dirty = false; render(); }
@@ -105,21 +106,26 @@ class MarketWindow {
             labelAt(root,"The marketplace could not display this page.",28,38,1000,true);
             labelAt(root,"Any listing already submitted is kept. You can reload the page or switch tabs below.",28,78,1000);
             button("Browse",28,130,190,()->{recovery=false;c.chooseTab("Browse");},"");
-            button("Sell an item",234,130,190,()->{recovery=false;c.chooseTab("Sell an item");},"");
+            button("Sell",234,130,190,()->{recovery=false;c.chooseTab("Sell");},"");
             button("My listings",440,130,190,()->{recovery=false;c.chooseTab("My listings");},"");
             labelAt(root,"The underlying error was recorded in the HLX log.",28,196,1000,false,MUTED);
             return;
         }
         stage="navigation and filters";
         for (i in 0...3) {
-            var title = ["Browse", "Sell an item", "My listings"][i];
+            var title = ["Browse", "Sell", "My listings"][i];
             tabButton(title,16+i*182,12,174,()->c.chooseTab(title),c.tab==title);
         }
-        var region=labelAt(root,serverLabel(c.server),866,24,222,false,MUTED,true);
+        var regionBox=G.field(node("element",G.field(root,"dom"),[],"marketRegion"+(sequence++)),"obj");
+        absolute(root,regionBox);padding(regionBox,0);size(regionBox,286,36);position(regionBox,802,12);
+        var region=labelAt(regionBox,"Region: "+serverLabel(c.server),0,0,286,false,MUTED,true);
         G.call("h2d.Text","set_textAlign",region,[G.enumeration("h2d.Align","Right")]);
-        G.call("h2d.Text","set_maxWidth",region,[222.0]);
+        G.call("h2d.Text","set_maxWidth",region,[286.0]);
+        afterReflow(regionBox,()->{
+            centerDropdownCaption(region,36,0);position(region,0,G.number(G.field(region,"y")));
+        });
         if(c.tab=="My listings")labelAt(root,"You can have up to 10 active listings. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
-        if(c.tab=="Sell an item") {
+        if(c.tab=="Sell") {
             labelAt(root,"Choose an unlocked, tradable item to list on the marketplace. It won't be removed from your inventory until you trade it.",20,76,1064,false,MUTED);
             tabButton("Inventory",20,104,150,()->c.setBankOnly(false),!c.bankOnly);
             tabButton("Bank",182,104,150,()->c.setBankOnly(true),c.bankOnly);
@@ -130,14 +136,14 @@ class MarketWindow {
         if (c.tab == "Browse") filters();
         card(root,16,contentY,704,806-contentY);
         card(root,736,contentY,352,806-contentY);
-        labelAt(root,c.tab == "Sell an item" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
-        labelAt(root,c.tab == "Sell an item" ? "AVAILABLE" : "TOTAL PRICE",530,contentY+16,170,true);
+        labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
+        labelAt(root,c.tab == "Sell" ? "AVAILABLE" : "TOTAL PRICE",c.tab=="Sell"?530:456,contentY+16,238,true);
         labelAt(root,"ITEM DETAILS",754,contentY+16,300,true);
         line(root,30,contentY+42,676); line(root,750,contentY+42,324);
         var rowHeight = 68;
-        if (c.tab == "Sell an item") {
-            var start = (c.page-1)*MarketController.PAGE_SIZE;
-            for (i in 0...MarketController.PAGE_SIZE) if (start+i < c.inventory.length) {
+        if (c.tab == "Sell") {
+            var start = (c.page-1)*c.pageSize();
+            for (i in 0...c.pageSize()) if (start+i < c.inventory.length) {
                 var item = c.inventory[start+i];
                 row(item,contentY+48+i*rowHeight,rowHeight,Std.string(item.count),c.inventoryLocation(item),item.detail.split("\n")[0],false,
                     ()->{c.chosen=item;quantity=Std.string(item.count);dirty=true;},c.chosen==item);
@@ -151,10 +157,18 @@ class MarketWindow {
         stage="footer";
         if (c.total == 0) emptyList();
         button("Previous",16,820,118,()->{c.page--;c.refresh();},"",c.page>1);
-        labelAt(root,"Page "+c.page+(c.tab=="Sell an item"?" of "+c.pages:""),152,830,172,true);
-        button("Next",342,820,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
-        button("Refresh",458,820,118,c.refresh,"");
-        labelAt(root,c.tab=="Sell an item"?MarketText.count(c.total,"tradable item"):MarketText.count(c.rows.length,"listing")+" on this page",594,830,326,false,MUTED);
+        var pageLabel=labelAt(root,"Page "+c.page+(c.tab=="Sell"?" of "+c.pages:""),152,830,172,true);
+        var next=button("Next",342,820,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
+        var footer=G.field(node("element",G.field(root,"dom"),[],"marketPagination"+(sequence++)),"obj");
+        absolute(root,footer);padding(footer,0);size(footer,430,36);position(footer,152,820);
+        G.call("h2d.Object","addChild",footer,[pageLabel]);absolute(footer,pageLabel);position(pageLabel,0,10);
+        G.call("h2d.Object","addChild",footer,[next]);absolute(footer,next);
+        // Observe an actual Flow's reflow; FmtText does not have this callback.
+        afterReflow(footer,()->{
+            var bounds=G.call("h2d.Object","getSize",pageLabel,[null]);
+            position(next,G.number(G.field(bounds,"xMax"))*G.number(G.field(pageLabel,"scaleX"),1)+18,0);
+        });
+        button("Refresh",970,820,118,c.refresh,"");
         var message = c.message;
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
@@ -166,7 +180,7 @@ class MarketWindow {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
             var priceText=MarketText.price(price);
-            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing);
+            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price);
         } catch(error:Dynamic) {
             report(stage,error);
             if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
@@ -229,18 +243,13 @@ class MarketWindow {
             var arrow=G.field(node("button-icon",G.field(frame.container,"dom"),[i==0?"ArrowUp":"ArrowDown"],"marketCounterArrow"+(sequence++)),"obj");
             absolute(frame.container,arrow);padding(arrow,0);size(arrow,28,17);position(arrow,x+width-28,y+i*19);
             G.call("h2d.Object","set_visible",G.field(arrow,"iconBmp"),[false]);
-            // Draw at the intended visible size, independently of atlas padding/tint.
-            var glyph=graphic(arrow),tint=0xF5F0E8,opacity=1.0;
-            #if hl
-            var color:hl.Ref<Int>=tint,alpha:hl.Ref<Float>=opacity;
-            #else
-            var color=tint,alpha=opacity;
-            #end
-            G.call("h2d.Graphics","beginFill",glyph,[color,alpha]);
-            G.call("h2d.Graphics","moveTo",glyph,[6.0,i==0?12.0:5.0]);
-            G.call("h2d.Graphics","lineTo",glyph,[14.0,i==0?5.0:12.0]);
-            G.call("h2d.Graphics","lineTo",glyph,[22.0,i==0?12.0:5.0]);
-            G.call("h2d.Graphics","endFill",glyph);
+            var glyph=graphic(arrow);
+            // Identical mirrored triangles, including the fractional-pixel fringe.
+            // Keep both paths clockwise so native triangulation sees the same shape.
+            for(layer in [{grow:0.7,alpha:0.18},{grow:0.3,alpha:0.45},{grow:0.0,alpha:1.0}]) {
+                var left=7.0-layer.grow,right=21.0+layer.grow,tip=4.5-layer.grow,base=12.5+layer.grow;
+                polygon(glyph,i==0?[left,base,14.0,tip,right,base]:[left,17-base,right,17-base,14.0,17-tip],0xF5F0E8,layer.alpha);
+            }
             G.call("ui.UIElement","set_onClick",arrow,[function():Void {commit(Std.string(Std.int(Math.max(1,int(current)+delta))));}]);
             G.call("ui.UIElement","set_enable",arrow,[true]);
         }
@@ -324,7 +333,7 @@ class MarketWindow {
         }
     }
 
-    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool):Void {
+    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic):Void {
         stage="item row container";
         var root=frame.container, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
         partialRow=row;
@@ -345,20 +354,98 @@ class MarketWindow {
         stage="item row labels";
         var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
         var nameX=rarity==""?64:162;
-        var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,484-nameX,true,INK,true);
+        var nameRight=c.tab=="Sell"?484:414;
+        var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,nameRight-nameX,true,INK,true);
         largeLabel(nameLabel);
-        var sellerLabel=labelAt(row,c.tab=="Sell an item"?seller:"Seller: "+seller,64,0,270,false,MUTED,true);
-        var status=c.tab=="Sell an item"?null:labelAt(row,"Status: "+(online?"Online":"Offline"),344,0,140,false,online?0x426138:MUTED,true);
-        var priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);
+        var sellerLabel=labelAt(row,c.tab=="Sell"?seller:"Seller: "+seller,64,0,c.tab=="Sell"?270:212,false,MUTED,true);
+        var status=c.tab=="Sell"?null:labelAt(row,"Status: "+(online?"Online":"Offline"),288,0,126,false,online?0x426138:MUTED,true);
+        var priceLabel:Dynamic=null;
+        if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);}
+        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240);
         afterReflow(row,()->{
             if(rarityLabel!=null)centerControlText(rarityLabel,24,64,5);
             centerControlText(nameLabel,24,nameX,5);
             centerControlText(sellerLabel,24,64,33);
-            if(status!=null)centerControlText(status,24,344,33);
-            centerControlText(priceLabel,height-4,502);
+            if(status!=null)centerControlText(status,24,288,33);
+            if(priceLabel!=null)centerControlText(priceLabel,height-4,502);
         });
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         partialRow=null;
+    }
+    function priceDisplay(parent:Dynamic,value:Dynamic,x:Int,y:Int,width:Int):Void {
+        if(value==null||G.field(value,"mode")=="offers") {
+            var label=labelAt(parent,MarketText.price(value),x,y,width,true,INK,true);
+            centerControlText(label,28,x,y);
+        } else currencyLine(parent,G.integer(G.field(value,"silverTrays")),x,y,width);
+    }
+    /** Reuses the native item artwork and existing text objects when the price changes. */
+    function currencyLine(parent:Dynamic,amount:Int,x:Int,y:Int,width:Int,conversion=false):Int->Void {
+        var box=G.field(node("element",G.field(parent,"dom"),[],"marketMoney"+(sequence++)),"obj");
+        absolute(parent,box);padding(box,0);size(box,width,28);position(box,x,y);
+        var content=G.field(node("element",G.field(box,"dom"),[],"marketMoneyContent"+(sequence++)),"obj");
+        absolute(box,content);padding(content,0);
+        var first=labelAt(content,"",0,0,600,!conversion,conversion?MUTED:INK,true);
+        var firstIcon=currencyIcon(content,conversion?"SilverTray":"Gold");
+        var separator=labelAt(content,conversion?"=":"/",0,0,30,!conversion,conversion?MUTED:INK,true);
+        var second=labelAt(content,"",0,0,600,!conversion,conversion?MUTED:INK,true);
+        var secondIcon=currencyIcon(content,conversion?"Gold":"SilverTray");
+        function layout():Void {
+            var cursor=0.0;
+            for(part in [first,firstIcon,separator,second,secondIcon]) {
+                if(part==null)continue;
+                if(part==firstIcon||part==secondIcon) {position(part,cursor,2);cursor+=20;}
+                else {
+                    centerDropdownCaption(part,24,cursor);
+                    var bounds=G.call("h2d.Object","getSize",part,[null]);
+                    cursor+=(G.number(G.field(bounds,"xMax"))-G.number(G.field(bounds,"xMin")))*G.number(G.field(part,"scaleX"),1);
+                }
+                cursor+=5;
+            }
+            var scale=Math.min(1,width/Math.max(1,cursor-5));
+            G.call("h2d.Object","setScale",content,[scale]);position(content,0,(28-24*scale)/2);
+        }
+        function update(value:Int):Void {
+            setText(first,conversion?MarketText.count(value,"Silver Tray"):MarketText.number(value*500));
+            setText(second,conversion?MarketText.number(value*500)+" gold":MarketText.number(value));
+            layout();
+        }
+        afterReflow(box,layout);
+        update(amount);
+        return update;
+    }
+    function currencyIcon(parent:Dynamic,kind:String):Dynamic {
+        var definition=TradeInventory.definition(kind);
+        if(definition==null)return null;
+        var bitmap=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
+        absolute(parent,bitmap);G.set(bitmap,"smooth",true);
+        G.call("h2d.Bitmap","set_width",bitmap,[20.0]);G.call("h2d.Bitmap","set_height",bitmap,[20.0]);
+        return bitmap;
+    }
+    function headerCart():Void {
+        var cart=graphic(frame.header),lastColor=-1;
+        afterReflow(frame.header,()->{
+            var title=frame.title,bounds=G.call("h2d.Object","getBounds",title,[title,null]);
+            var sx=G.number(G.field(title,"scaleX"),1),sy=G.number(G.field(title,"scaleY"),1);
+            position(cart,G.number(G.field(title,"x"))+G.number(G.field(bounds,"xMax"))*sx+10,
+                G.number(G.field(title,"y"))+(G.number(G.field(bounds,"yMin"))+G.number(G.field(bounds,"yMax")))*sy/2-12);
+            var color=G.integer(G.field(title,"textColor"),0xF5F0E8);
+            if(color==lastColor)return;
+            lastColor=color;G.call("h2d.Graphics","clear",cart);
+            polygon(cart,[1.0,2.0,6.0,2.0,7.2,6.0,25.0,6.0,22.0,16.0,9.5,16.0,10.0,18.0,22.0,18.0,22.0,20.0,8.5,20.0,4.5,4.0,1.0,4.0],color);
+            rounded(cart,9,21,4,4,2,color);rounded(cart,19,21,4,4,2,color);
+        });
+    }
+    static function polygon(graphics:Dynamic,points:Array<Float>,tint:Int,opacity=1.0):Void {
+        #if hl
+        var color:hl.Ref<Int>=tint,alpha:hl.Ref<Float>=opacity;
+        #else
+        var color=tint,alpha=opacity;
+        #end
+        G.call("h2d.Graphics","beginFill",graphics,[color,alpha]);
+        G.call("h2d.Graphics","moveTo",graphics,[points[0],points[1]]);
+        for(i in 1...Std.int(points.length/2))G.call("h2d.Graphics","lineTo",graphics,[points[i*2],points[i*2+1]]);
+        G.call("h2d.Graphics","lineTo",graphics,[points[0],points[1]]);
+        G.call("h2d.Graphics","endFill",graphics);
     }
     function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int):Void {
         var bg=graphic(parent);rounded(bg,x,y,sizePx,sizePx,5,EDGE);rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,0xF5EBDD);
@@ -370,7 +457,7 @@ class MarketWindow {
         }
     }
     function tooltip(object:Dynamic,item:TradeItem):Void {
-        G.call("ui.UIElement","set_getTip",object,[()->item.preview==null?null:TradeTooltips.create(item,c.tab=="Sell an item"?c.inv:null)]);
+        G.call("ui.UIElement","set_getTip",object,[()->item.preview==null?null:TradeTooltips.create(item,c.tab=="Sell"?c.inv:null)]);
         G.set(object,"showTipOnOver",true);style(object,"show-tip-on-over",true);
     }
     function selectedItem(item:TradeItem):Void {
@@ -397,17 +484,17 @@ class MarketWindow {
     }
     function emptyList():Void {
         var root=frame.container, y=contentY+Std.int((806-contentY)/2)-40;
-        labelAt(root,c.busy?"Finding listings...":c.tab=="Sell an item"?"No tradable items":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
-        labelAt(root,c.tab=="Sell an item"?"Unlocked items that can be traded will appear here.":c.tab=="My listings"?c.ready?"Select Sell an item to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
-        if(!c.busy&&c.tab=="My listings"&&c.ready)button("Sell an item",64,y+94,152,()->c.chooseTab("Sell an item"),"");
+        labelAt(root,c.busy?"Finding listings...":c.tab=="Sell"?"No tradable items":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
+        labelAt(root,c.tab=="Sell"?"Unlocked items that can be traded will appear here.":c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
+        if(!c.busy&&c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"");
     }
     function priceFields(y:Int):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);
         button(offers?"Open to offers":"Fixed price",754,y+28,316,()->{offers=!offers;dirty=true;},offers?"unaccept":"");
         if(!offers) {
-            var conversion=labelAt(frame.container,MarketText.conversion(int(trays)),754,y+120,316,false,MUTED);
+            var conversion=currencyLine(frame.container,int(trays),754,y+120,316,true);
             var box=counter(trays,754,y+76,132,200000,s->{
-                trays=s.substr(0,6);setText(conversion,MarketText.conversion(int(trays)));
+                trays=s.substr(0,6);conversion(int(trays));
             });
             var unit=labelAt(frame.container,"Silver Trays",900,y+76,170,true);
             afterReflow(box,()->centerControlText(unit,36,900,y+76));
@@ -428,13 +515,15 @@ class MarketWindow {
         var row=c.selected;try selectedItem(MarketExport.offer(row))catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
             labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,contentY+222,316,false,MUTED);
-            labelAt(frame.container,MarketText.askingPrice(row.price),754,contentY+260,316,true);
+            labelAt(frame.container,"Asking price:",754,contentY+260,316,true);
+            priceDisplay(frame.container,row.price,754,contentY+288,316);
             button("Remove listing",754,752,316,c.remove,"cancel");
         } else {
             line(frame.container,754,contentY+222,316);
             labelAt(frame.container,"Seller: "+G.text(row.seller.characterName),754,contentY+238,220,true,INK,true);
             labelAt(frame.container,isOnline(row)?"Online":"Offline",988,contentY+238,82,false,isOnline(row)?0x426138:MUTED);
-            labelAt(frame.container,MarketText.askingPrice(row.price),754,contentY+278,316,true);
+            labelAt(frame.container,"Asking price:",754,contentY+278,316,true);
+            priceDisplay(frame.container,row.price,754,contentY+306,316);
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
     }

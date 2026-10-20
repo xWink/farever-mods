@@ -1,6 +1,7 @@
 package marketplace;
 class MarketController {
  public static inline var PAGE_SIZE=6;
+ public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySearches=0;

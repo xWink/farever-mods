@@ -8,6 +8,7 @@ import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
     public static inline var PAGE_SIZE = 6;
+    public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -130,7 +131,7 @@ class MarketController {
         view.open();
         // Closing a window is not navigation: retain the page, selection and sell draft.
         // Mutations still validate fresh inventory/listing data before acting.
-        if(!opened){opened=true;if(tab!="Sell an item")refresh();else loadInventory();}
+        if(!opened){opened=true;if(tab!="Sell")refresh();else loadInventory();}
     }
     public function signIn():Void {
         if(player==null)return;
@@ -147,7 +148,7 @@ class MarketController {
         if(busy)return;
         opened=true;
         tab=value;page=1;pages=1;total=0;rows=[];selected=null;chosen=null;
-        if(tab=="Sell an item")loadInventory();else refresh();
+        if(tab=="Sell")loadInventory();else refresh();
         view.dirty=true;
     }
     public function loadInventory():Void {
@@ -164,7 +165,7 @@ class MarketController {
     function applyInventorySearch():Void {
         inventory=MarketInventory.filter(availableInventory,sellSearch);
         if(chosen!=null&&inventory.indexOf(chosen)<0)chosen=null;
-        total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/PAGE_SIZE)));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
+        total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/pageSize())));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
     }
     public function setBankOnly(value:Bool):Void {
         if(busy)return;
@@ -172,10 +173,10 @@ class MarketController {
     }
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     public function refresh():Void {
-        if(tab=="Sell an item"){loadInventory();return;}
+        if(tab=="Sell"){loadInventory();return;}
         var path="/api/v1/marketplace/listings";
         if(page==1)cursors=[null];
-        var params=["limit="+PAGE_SIZE];
+        var limit=pageSize(),params=["limit="+limit];
         if(tab=="My listings")params.push("mine=true");
         if(page>1&&cursors[page-1]!=null)params.push("cursor="+StringTools.urlEncode(cursors[page-1]));
         if(tab=="Browse") {
@@ -184,7 +185,7 @@ class MarketController {
             for(k=>v in filters)if(v!="")params.push(k+"="+StringTools.urlEncode(v));
         }
         request("GET",path+"?"+params.join("&"),null,null,data->{
-            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>PAGE_SIZE)throw "Invalid listings";
+            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>limit)throw "Invalid listings";
             rows=data.listings;total=rows.length;pages=page+(data.nextCursor==null?0:1);
             cursors[page]=data.nextCursor;selected=null;message=total==0?"No matching listings.":"Listings updated.";
         });
@@ -207,8 +208,12 @@ class MarketController {
     }
     public function remove():Void {
         if(selected==null||busy)return;
-        var row=selected;
-        request("DELETE","/api/v1/marketplace/listings/"+row.id,null,["If-Match"=>'"'+row.revision+'"'],data->refresh());
+        var id=G.text(G.field(selected,"id")),revision=G.integer(G.field(selected,"revision"));
+        if(id==""||revision<1){message="This listing changed. Refresh before removing it.";view.dirty=true;return;}
+        // Explicit conversion is required for numeric API fields on HashLink.
+        request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
+            selected=null;page=1;refresh();
+        });
     }
     public function contact():Void {
         if(selected==null||haxe.Timer.stamp()<contactAfter)return;

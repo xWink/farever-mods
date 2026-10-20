@@ -16,7 +16,23 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
   var name=GameAccess.labels.filter(l->l.text==trade.TradeInventory.itemName("Shield_OrbitWater"))[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==true);
-  check(GameAccess.labels.filter(l->l.text=="1 Silver Tray").length==MarketController.PAGE_SIZE);
+  check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
+  var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
+  var moneyLabels=GameAccess.labels.filter(l->l.parent==money);
+  var moneyIcons=(cast money.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
+  check(moneyLabels[0].text=="500"&&moneyLabels[1].text=="/"&&moneyLabels[2].text=="1");
+  check(moneyIcons.length==2&&moneyIcons[0].tile.id=="Gold"&&moneyIcons[1].tile.id=="SilverTray");
+  check(moneyLabels[0].x<moneyIcons[0].x&&moneyIcons[0].x<moneyLabels[1].x&&moneyLabels[2].x<moneyIcons[1].x);
+  check(GameAccess.labels.filter(l->l.text=="Region: North America").length==1);
+  var region=GameAccess.labels.filter(l->l.text=="Region: North America")[0];
+  check(region.parent.y==12&&region.y+13==18);
+  check(GameAccess.buttons.filter(b->b.text=="Sell").length==1&&GameAccess.buttons.filter(b->b.text=="Sell an item").length==0);
+  check(TradeFrame.latest.header.children.length==2);
+  var cart:Dynamic=TradeFrame.latest.header.children[1];check(cart.x>TradeFrame.latest.title.x+11*8);
+  var next=GameAccess.buttons.filter(b->b.text=="Next")[0],page=GameAccess.labels.filter(l->l.text=="Page 1")[0];
+  check(next.parent==page.parent&&next.x-6*8==18);
+  check(GameAccess.buttons.filter(b->b.text=="Refresh")[0].x==970);
+  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("on this page")>=0||Std.string(l.text).indexOf("tradable items")>=0).length==0);
   check(MarketText.price(haxe.Json.parse('{"mode":"fixed","silverTrays":12500}'))=="12,500 Silver Trays");
   check(MarketText.price({mode:"offers"})=="Open to offers");
   check(MarketText.count(1,"listing")=="1 listing"&&MarketText.count(2,"listing")=="2 listings");
@@ -58,7 +74,7 @@ class MarketplaceUiTest {
   c.tab="My listings";GameAccess.buttons=[];view.dirty=true;view.update();
   check(GameAccess.buttons.filter(b->b.text=="Save price"||b.text=="Mark sold").length==0);
   check(GameAccess.buttons.filter(b->b.text=="Remove listing").length==1);
-  c.tab="Sell an item";view.dirty=true;GameAccess.nodes=[];GameAccess.buttons=[];view.update();
+  c.tab="Sell";view.dirty=true;GameAccess.nodes=[];GameAccess.buttons=[];view.update();
   var bank=GameAccess.buttons.filter(b->b.text=="Bank")[0];
   check(bank!=null);bank.action();check(c.bankOnly);
   var inventory=GameAccess.buttons.filter(b->b.text=="Inventory")[0];inventory.action();check(!c.bankOnly);
@@ -85,11 +101,23 @@ class MarketplaceUiTest {
   var count=GameAccess.labels.filter(l->l.text=="Quantity: 1")[0];check(count.y>70);
   var inputs=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0),quantityBox=inputs[1],priceBox=inputs[2];
   priceBox.input.text="5";priceBox.onChange();
-  check(GameAccess.labels.filter(l->l.text=="5 Silver Trays = 2,500 gold").length==1);
+  check(GameAccess.labels.filter(l->l.text=="5 Silver Trays").length==1&&GameAccess.labels.filter(l->l.text=="2,500 gold").length==1);
+  var conversion=GameAccess.labels.filter(l->l.text=="5 Silver Trays")[0].parent;
+  var conversionIcons=(cast conversion.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
+  check(conversionIcons[0].tile.id=="SilverTray"&&conversionIcons[1].tile.id=="Gold");
   check(!view.dirty); // Updating a price must not rebuild/focus-reset the input.
   var arrows=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0);
   check(arrows.length==4);
   check(arrows[0].iconBmp.visible==false&&arrows[0].children.filter(n->n.points!=null).length==1);
+  var up:Array<Dynamic>=arrows[0].children.filter(n->n.points!=null)[0].points;
+  var down:Array<Dynamic>=arrows[1].children.filter(n->n.points!=null)[0].points;
+  // Every triangle has mirrored vertices, the same winding and a closed path.
+  for(layer in 0...3) {
+   var k=layer*4;
+   check(up[k][0]+up[k+2][0]==28&&up[k+1][0]==14&&up[k][1]==up[k+2][1]);
+   check(up[k][1]+down[k][1]==17&&up[k+1][1]+down[k+2][1]==17);
+   check(up[k][0]==up[k+3][0]&&up[k][1]==up[k+3][1]);
+  }
   arrows[2].action();check(priceBox.input.text=="6");arrows[3].action();check(priceBox.input.text=="5");
   priceBox.input.text="nope";priceBox.onChange();check(priceBox.input.text=="5");
   priceBox.input.text="9999999999999999999999999999";priceBox.onChange();check(priceBox.input.text=="200000");
@@ -101,6 +129,11 @@ class MarketplaceUiTest {
   view.close();GameAccess.nodes=[];view.open();view.update();
   var reopened=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0);
   check(c.chosen==selected&&c.page==2&&reopened[0].input.text=="bow"&&reopened[2].input.text=="25");
+  c.inventory=[for(i in 0...21)selected];c.page=1;c.total=21;c.pages=3;
+  GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
+  var sellRows=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0);
+  check(sellRows.length==9&&sellRows[8].y+sellRows[8].height==802);
+  check(GameAccess.labels.filter(l->l.text=="Page 1 of 3").length==1);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();

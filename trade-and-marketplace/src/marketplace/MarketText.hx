@@ -25,14 +25,25 @@ class MarketText {
     }
     public static function conversion(trays:Int):String return count(trays,"Silver Tray")+" = "+number(trays*500)+" gold";
     public static function expiry(iso:String):String {
-        // Format the UTC components directly; do not interpret them as local time.
-        var pattern=~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):\d{2}(\.\d+)?Z$/;
+        var pattern=~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$/;
         if(iso==null||!pattern.match(iso))return "Unavailable";
-        var month=Std.parseInt(pattern.matched(2)),day=Std.parseInt(pattern.matched(3));
-        if(month<1||month>12||day<1||day>31)return "Unavailable";
+        var year=Std.parseInt(pattern.matched(1)),month=Std.parseInt(pattern.matched(2)),day=Std.parseInt(pattern.matched(3));
+        var hour=Std.parseInt(pattern.matched(4)),minute=Std.parseInt(pattern.matched(5)),second=Std.parseInt(pattern.matched(6));
+        var leap=year%4==0&&(year%100!=0||year%400==0);
+        var monthDays=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+        if(year<1970||month<1||month>12||day<1||day>monthDays[month-1]||hour>23||minute>59||second>59)return "Unavailable";
+        // DateTools.makeUtc is unimplemented on HashLink. Construct the UTC epoch
+        // directly, then let Date apply the OS timezone/DST for the expiry instant.
+        // Parsing as a local date first misinterprets instants around DST changes.
+        var last=year-1;
+        var days=365.0*(year-1970)+Math.floor(last/4)-492-Math.floor(last/100)+19+Math.floor(last/400)-4+day-1;
+        for(i in 0...month-1)days+=monthDays[i];
+        var local=Date.fromTime((days*86400+hour*3600+minute*60+second)*1000);
         var months=["Jan.","Feb.","Mar.","Apr.","May","Jun.","Jul.","Aug.","Sep.","Oct.","Nov.","Dec."];
-        return months[month-1]+" "+Std.string(day)+", "+pattern.matched(1)+" - "+pattern.matched(4)+":"+pattern.matched(5)+" UTC";
+        return months[local.getMonth()]+" "+local.getDate()+", "+local.getFullYear()+" - "
+            +StringTools.lpad(Std.string(local.getHours()),"0",2)+":"+StringTools.lpad(Std.string(local.getMinutes()),"0",2)+" (local)";
     }
+
     public static function detail(text:String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
         return ~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");

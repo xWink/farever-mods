@@ -2,9 +2,9 @@ package trade;
 class TradeFrame {
  public static var active=0;
  public static var latest:TradeFrame;
- public var ui:Dynamic;public var window:Dynamic={};public var container:Dynamic;
+ public var ui:Dynamic;public var window:Dynamic={};public var container:Dynamic;public var header:Dynamic;public var title:Dynamic;
  public var x:Null<Float>;public var y:Null<Float>;public var onMoved:Float->Float->Void;
- public function new(ui:Dynamic,title:String,w:Int,h:Int,close:Void->Void){this.ui=ui;container=GameAccess.object();container.height=h-60;latest=this;active++;}
+ public function new(ui:Dynamic,title:String,w:Int,h:Int,close:Void->Void){this.ui=ui;container=GameAccess.object();container.height=h-60;header=GameAccess.object();this.title=textAt(header,title,28,17,1000);this.title.textColor=0xEEDDCC;latest=this;active++;}
  public function intact():Bool return true;
  public function layout():Void{}
  public function dispose():Void active--;
