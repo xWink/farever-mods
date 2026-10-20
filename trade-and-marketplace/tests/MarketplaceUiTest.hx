@@ -262,7 +262,7 @@ class MarketplaceUiTest {
   check(category.options[2].name=="Weapons"&&category.options[3].name=="Armors"&&category.options[4].name=="Accessories");
   subcategory.selectedIndex=20;subcategory.select.action();
   var popup=subcategory.listWindow.content;
-  check(subcategory.listWindow.filter.nativeType=="h2d.filter.DropShadow");
+  check(GameAccess.field(subcategory.listWindow,"filter")==null);
   check(popup.overflow=="Scroll"&&popup.maxHeight==300&&popup.minHeight==300&&subcategory.items.length>10);
   popup.onAfterReflow();check(popup.scrollPosY==330&&popup.verticalSpacing==0);
   var currentHolder=TradeFrame.latest.header.children[1],oldX=currentHolder.x,oldY=currentHolder.y;

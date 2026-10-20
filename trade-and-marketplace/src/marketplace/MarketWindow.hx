@@ -356,10 +356,7 @@ class MarketWindow {
             for (other in controls) if(other!=control) G.call("ui.comp.Dropdown","close",other,[null]);
             G.call("ui.comp.Dropdown","toggle",control,[null]);
             var popup=G.field(control,"listWindow");
-            if(popup!=null) {
-                if(G.field(popup,"parent")==popupRoot)absolute(popupRoot,popup);
-                dropdownShadow(popup);
-            }
+            if(popup!=null&&G.field(popup,"parent")==popupRoot)absolute(popupRoot,popup);
             limitDropdown(control);
             for(item in G.array(G.field(control,"items"))) for(child in children(item))
                 if(G.field(child,"font")!=null)textColor(child,INK);
@@ -369,16 +366,6 @@ class MarketWindow {
             if(i>=0&&i<values.length)changed(values[i]);
         });
         G.call("ui.comp.Dropdown","set_enable",control,[true]); controls.push(control);
-    }
-    static function dropdownShadow(popup:Dynamic):Void {
-        var distanceValue=1.5,angleValue=Math.PI/2,colorValue=0x302018,alphaValue=0.28,radiusValue=1.5;
-        #if hl
-        var distance:hl.Ref<Float>=distanceValue,angle:hl.Ref<Float>=angleValue,color:hl.Ref<Int>=colorValue;
-        var alpha:hl.Ref<Float>=alphaValue,radius:hl.Ref<Float>=radiusValue;
-        #else
-        var distance=distanceValue,angle=angleValue,color=colorValue,alpha=alphaValue,radius=radiusValue;
-        #end
-        G.call("h2d.Object","set_filter",popup,[G.create("h2d.filter.DropShadow",[distance,angle,color,alpha,radius,null,null,null])]);
     }
     function limitDropdown(control:Dynamic):Void {
         var popup=G.field(control,"listWindow"),content=G.field(popup,"content");
@@ -586,16 +573,14 @@ class MarketWindow {
         });
     }
     static function selectionBorder(slot:Dynamic,size:Int):Void {
-        var border=graphic(slot),segments=24;
+        var border=graphic(slot);
         for(layer in [{width:5.0,color:0x5B4334},{width:3.0,color:0xF3CD70},{width:1.0,color:0xFFF1B5}]) {
-            var thickness=layer.width,tint=layer.color,opacity=1.0;
-            #if hl
-            var w:hl.Ref<Float>=thickness,c:hl.Ref<Int>=tint,a:hl.Ref<Float>=opacity,n:hl.Ref<Int>=segments;
-            #else
-            var w=thickness,c=tint,a=opacity,n=segments;
-            #end
-            G.call("h2d.Graphics","lineStyle",border,[w,c,a]);
-            G.call("h2d.Graphics","drawRoundedRect",border,[3.0,3.0,size-6.0,size-6.0,4.0,n]);
+            var outer=3-layer.width/2,far=size-outer,inner=outer+layer.width,near=size-inner;
+            // Filled edges meet at clean mitred corners without rounded stroke caps.
+            polygon(border,[outer,outer,far,outer,near,inner,inner,inner],layer.color);
+            polygon(border,[far,outer,far,far,near,near,near,inner],layer.color);
+            polygon(border,[far,far,outer,far,inner,near,near,near],layer.color);
+            polygon(border,[outer,far,outer,outer,inner,inner,inner,near],layer.color);
         }
     }
     static function alignScrollContent(viewport:Dynamic,content:Dynamic):Void {
