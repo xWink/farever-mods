@@ -213,13 +213,19 @@ class MarketplaceUiTest {
   check(sellSlots[0].component=="item-slot"&&sellSlots[0].innerSlot.nativeRarity=="Epic"&&sellSlots[0].innerSlot.width==58);
   check(sellSlots[1].stack==null&&sellSlots[1].innerSlot.nativeRarity==null&&sellSlots[1].action==null);
   check(sellSlots[0].button.width==52&&sellSlots[0].button.parent.x==3&&sellSlots[0].button.getTip!=null);
+  var stackCount=sellSlots[0].button.countTxt;
+  check(stackCount.parent==sellSlots[0]);
+  // Native count glyphs can extend past their line box, especially after scaling.
+  stackCount.inkBounds={xMin:-2.,yMin:5.,xMax:30.,yMax:26.};stackCount.scaleX=0.8;stackCount.scaleY=0.8;
+  sellSlots[0].onAfterReflow();
+  check(Math.abs(stackCount.x+30*0.8-53)<0.001&&Math.abs(stackCount.y+26*0.8-53)<0.001);
   sellSlots[0].button.action();check(c.chosen==selected);
   GameAccess.nodes=[];view.update();
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);
   var saleBadge=GameAccess.labels.filter(l->l.text=="For sale")[0];
   saleBadge.needUpdateScale=true;saleBadge.parent.onAfterReflow();
-  check(saleBadge.scaleX==0.55&&saleBadge.x>3&&saleBadge.y+4*0.55>=0&&saleBadge.y+22*0.55<=14);
+  check(saleBadge.scaleX==0.65&&saleBadge.x>3&&saleBadge.y+4*0.65>=0&&saleBadge.y+22*0.65<=16);
   check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
   c.listed=false;GameAccess.nodes=[];view.dirty=true;view.update();
   var gridViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];
@@ -283,11 +289,18 @@ class MarketplaceUiTest {
   row.item.itemLevel=35;row.item.requiredLevel=15;row.item.category="Collections";c.rows=[row];c.selected=row;
   GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();
   var levelCell=GameAccess.labels.filter(l->l.text=="15")[0];
-  check(levelCell!=null&&Std.string(levelCell.parent.id).indexOf("marketRow")==0&&levelCell.x==404);
+  check(levelCell!=null&&Std.string(levelCell.parent.id).indexOf("marketRow")==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Collectibles")>=0).length==1);
   check(GameAccess.buttons.filter(b->b.x==1048||b.text=="Search item"||StringTools.startsWith(b.text,"Level")).length==0);
   var levelHeader=GameAccess.nodes.filter(n->n.id=="marketSortrequired-level")[0];
   check(levelHeader.component=="element"&&levelHeader.x==420&&GameAccess.labels.filter(l->l.parent==levelHeader&&l.text=="LEVEL").length==1);
+  var levelTitle=GameAccess.labels.filter(l->l.parent==levelHeader&&l.text=="LEVEL")[0];
+  levelCell.inkBounds={xMin:3.,yMin:4.,xMax:29.,yMax:22.};levelCell.scaleX=0.8;
+  levelTitle.inkBounds={xMin:1.,yMin:4.,xMax:45.,yMax:22.};levelTitle.scaleX=0.9;
+  levelCell.parent.onAfterReflow();levelHeader.onAfterReflow();
+  var cellCenter=GameAccess.number(levelCell.parent.x)+GameAccess.number(levelCell.x)+16*0.8;
+  var titleCenter=GameAccess.number(levelHeader.x)+GameAccess.number(levelTitle.x)+23*0.9;
+  check(Math.abs(cellCenter-titleCenter)<0.5); // Allow subpixel rounding in native text positions.
   levelHeader.action();view.update();check(c.listingSort()=="required-level-asc");
   GameAccess.nodes.filter(n->n.id=="marketSortrequired-level")[0].action();view.update();
   check(c.listingSort()=="required-level-desc"&&GameAccess.labels.filter(l->l.text=="LEVEL ↓").length==1);

@@ -11,7 +11,9 @@ class TradeUi {
    o.stack=args[0];o.inf=args[1];o.innerSlot=GameAccess.object(o);
    o.innerSlot.nativeRarity=args[1]==null?null:GameAccess.staticCall("HItem","getRarity",[args[1]]).id;
    o.item=o.stack==null?null:o.stack.item;
-   if(o.item!=null){var mask=GameAccess.object(o.innerSlot);o.button=GameAccess.object(mask);o.button.item=o.item;}
+   if(o.item!=null){var mask=GameAccess.object(o.innerSlot);o.button=GameAccess.object(mask);o.button.item=o.item;
+    o.button.countTxt=GameAccess.object(o.button);o.button.countTxt.text=Std.string(o.stack.count);
+   }
   }
   GameAccess.nodes.push(o);
   o.input=GameAccess.object(o);o.inputHint=GameAccess.object(o);o.iconBmp=GameAccess.object(o);return o.dom;
