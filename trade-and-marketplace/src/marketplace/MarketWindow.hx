@@ -160,11 +160,11 @@ class MarketWindow {
         card(736,contentY,352,806-contentY);
         labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
         if(c.tab!="Sell") {
-            button("Level"+(c.levelSort()=="required-level-asc"?" ↑":c.levelSort()=="required-level-desc"?" ↓":""),374,contentY+4,84,c.sortByLevel,"");
-            rightText(labelAt(root,"TOTAL PRICE",474,contentY+16,222,true),222);
+            sortHeader("LEVEL","required-level",420,84,c.sortByLevel);
+            sortHeader("TOTAL PRICE","price",512,184,c.sortByPrice,true);
         }
         labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);
-        button("Search item",946,contentY+4,124,c.searchSelectedItem,"",c.tab=="Sell"?c.chosen!=null:c.selected!=null);
+        if(c.tab=="Sell")searchItemButton();
         line(root,30,contentY+42,676); line(root,750,contentY+42,324);
         var rowHeight = 68;
         if (c.tab == "Sell") {
@@ -228,6 +228,28 @@ class MarketWindow {
     function tabButton(label:String,x:Int,y:Int,width:Int,action:Void->Void,selected:Bool):Void {
         // Match Better Mod Settings' native brown selected state.
         G.call("ui.UIElement","set_selected",button(label,x,y,width,action,""),[selected]);
+    }
+    function sortHeader(title:String,column:String,x:Int,width:Int,action:Void->Void,right=false):Void {
+        var root=frame.container;
+        var header=G.field(node("element",G.field(root,"dom"),[],"marketSort"+column),"obj");
+        absolute(root,header);padding(header,0);size(header,width,36);position(header,x,contentY+4);
+        var order=c.listingSort();
+        var caption=labelAt(header,title+(order==column+"-asc"?" ↑":order==column+"-desc"?" ↓":""),0,12,width,true);
+        if(right)rightText(caption,width);
+        else G.call("h2d.Text","set_textAlign",caption,[G.enumeration("h2d.Align","Center")]);
+        G.call("ui.UIElement","set_onClick",header,[()->{if(!c.busy)action();}]);
+    }
+    function searchItemButton():Void {
+        var control=button("",1048,contentY+7,28,c.searchSelectedItem,"",c.chosen!=null);
+        padding(control,0);size(control,28,28);
+        var icon=graphic(control);
+        // A small ring and handle stay crisp without relying on a font glyph.
+        for(i in 0...32) {
+            var a=i*Math.PI/16,b=(i+1)*Math.PI/16;
+            polygon(icon,[12+6*Math.cos(a),11+6*Math.sin(a),12+6*Math.cos(b),11+6*Math.sin(b),
+                12+4*Math.cos(b),11+4*Math.sin(b),12+4*Math.cos(a),11+4*Math.sin(a)],0xF5F0E8);
+        }
+        polygon(icon,[15,16,17,14,23,20,21,22],0xF5F0E8);
     }
     function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint="",?submit:Void->Void):Dynamic {
         var root=frame.container;
@@ -332,7 +354,10 @@ class MarketWindow {
             for (other in controls) if(other!=control) G.call("ui.comp.Dropdown","close",other,[null]);
             G.call("ui.comp.Dropdown","toggle",control,[null]);
             var popup=G.field(control,"listWindow");
-            if(popup!=null&&G.field(popup,"parent")==popupRoot)absolute(popupRoot,popup);
+            if(popup!=null) {
+                if(G.field(popup,"parent")==popupRoot)absolute(popupRoot,popup);
+                dropdownShadow(popup);
+            }
             limitDropdown(control);
             for(item in G.array(G.field(control,"items"))) for(child in children(item))
                 if(G.field(child,"font")!=null)textColor(child,INK);
@@ -342,6 +367,16 @@ class MarketWindow {
             if(i>=0&&i<values.length)changed(values[i]);
         });
         G.call("ui.comp.Dropdown","set_enable",control,[true]); controls.push(control);
+    }
+    static function dropdownShadow(popup:Dynamic):Void {
+        var distanceValue=3.0,angleValue=Math.PI/2,colorValue=0x302018,alphaValue=0.28,radiusValue=3.0;
+        #if hl
+        var distance:hl.Ref<Float>=distanceValue,angle:hl.Ref<Float>=angleValue,color:hl.Ref<Int>=colorValue;
+        var alpha:hl.Ref<Float>=alphaValue,radius:hl.Ref<Float>=radiusValue;
+        #else
+        var distance=distanceValue,angle=angleValue,color=colorValue,alpha=alphaValue,radius=radiusValue;
+        #end
+        G.call("h2d.Object","set_filter",popup,[G.create("h2d.filter.DropShadow",[distance,angle,color,alpha,radius,null,null,null])]);
     }
     function limitDropdown(control:Dynamic):Void {
         var popup=G.field(control,"listWindow"),content=G.field(popup,"content");
@@ -377,7 +412,7 @@ class MarketWindow {
     }
     function resetFilters():Void {
         if(c.busy)return;
-        for(key in c.filters.keys())c.filters[key]=key=="sort"?"price-asc":key=="online"?"true":"";
+        for(key in c.filters.keys())c.filters[key]=key=="online"?"true":"";
         c.page=1;c.refresh();dirty=true;
     }
     function filters():Void {
@@ -429,7 +464,7 @@ class MarketWindow {
         stage="item row labels";
         var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
         var nameX=64;
-        var nameRight=c.tab=="Sell"?484:338;
+        var nameRight=c.tab=="Sell"?484:392;
         var fullName=item.name+(item.count>1?" ×"+item.count:"");
         var nameLabel=labelAt(row,fullName,nameX,0,nameRight-nameX,true,INK,true);
         // FmtText's native ellipsis overwrites its source text; fit from the original
@@ -442,9 +477,9 @@ class MarketWindow {
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
         if(c.tab!="Sell") {
             sellerLine(row,seller,online,64,33,350);
-            var level=labelAt(row,requiredLevel==null?"—":MarketText.number(requiredLevel),350,0,70,true,INK,true);
+            var level=labelAt(row,requiredLevel==null?"—":MarketText.number(requiredLevel),404,0,56,true,INK,true);
             G.call("h2d.Text","set_textAlign",level,[G.enumeration("h2d.Align","Center")]);
-            centerControlText(level,height-4,350);
+            centerControlText(level,height-4,404);
         }
         var priceLabel:Dynamic=null;
         function layoutLabels():Void {
@@ -461,7 +496,7 @@ class MarketWindow {
             if(priceLabel!=null){centerControlText(priceLabel,height-4,502);position(priceLabel,502,G.number(G.field(priceLabel,"y")));}
         }
         if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
-        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true,left->{nameRight=Std.int(Math.min(338,left-14));layoutLabels();});
+        else priceDisplay(row,listingPrice,484,Std.int((height-4-28)/2),184,true);
         afterReflow(row,layoutLabels);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         partialRow=null;
@@ -488,21 +523,44 @@ class MarketWindow {
             var item=c.inventorySlots[index];
             var x=(index%columns)*pitch,y=Std.int(index/columns)*pitch;
             var selected=item!=null&&c.chosen!=null&&c.chosen.uid==item.uid;
-            rounded(backgrounds,x,y,slotSize,slotSize,5,selected?0xA4743E:0xC9B69C);
-            rounded(backgrounds,x+1,y+1,slotSize-2,slotSize-2,4,selected?0xE9D4B5:0xDDCCB5);
-            if(item==null)continue;
-            var stack=c.inventoryStack(item);
-            if(stack==null)continue;
-            var slot=G.field(node("item-button",G.field(content,"dom"),[stack,null],"marketInventorySlot"+(sequence++)),"obj");
+            var stack=item==null?null:c.inventoryStack(item);
+            // ItemSlot uses the game's rarity-styled inner frame, without the
+            // transfer/equip/drag actions attached by InventorySlot.
+            if(selected)rounded(backgrounds,x-2,y-2,slotSize+4,slotSize+4,6,0xA4743E);
+            var slot=G.field(node("item-slot",G.field(content,"dom"),[stack,G.field(G.field(stack,"item"),"inf")],"marketInventorySlot"+(sequence++)),"obj");
             absolute(content,slot);padding(slot,0);size(slot,slotSize,slotSize);position(slot,x,y);
-            G.call("ui.UIElement","set_selected",slot,[c.chosen!=null&&c.chosen.uid==item.uid]);
+            var inner=G.field(slot,"innerSlot"),itemButton=G.field(slot,"button");
+            if(inner!=null){padding(inner,0);size(inner,slotSize,slotSize);}
+            if(item==null||stack==null)continue;
+            if(itemButton!=null) {
+                var mask=G.field(itemButton,"parent");
+                if(mask!=null&&inner!=null) {
+                    absolute(inner,mask);position(mask,3,3);
+                    G.set(mask,"width",slotSize-6);G.set(mask,"height",slotSize-6);
+                    style(mask,"width",slotSize-6);style(mask,"height",slotSize-6);
+                    padding(itemButton,0);size(itemButton,slotSize-6,slotSize-6);position(itemButton,0,0);
+                }
+            }
             tooltip(slot,item);
             if(c.isListed(item)) {
-                var badge=graphic(slot);rounded(badge,2,2,54,18,4,0x5B4334,0.95);
-                var caption=labelAt(slot,"For sale",5,2,64,true,0xF5EEE4,true);
-                G.call("h2d.Object","setScale",caption,[0.75]);
+                var badge=G.field(node("element",G.field(slot,"dom"),[],"marketSaleBadge"+(sequence++)),"obj");
+                absolute(G.field(badge,"parent"),badge);padding(badge,0);size(badge,52,14);position(badge,3,3);
+                rounded(graphic(badge),0,0,52,14,3,0x5B4334,0.95);
+                var caption=labelAt(badge,"For sale",0,0,80,false,0xF5EEE4,true);
+                // FmtText applies its own scale during reflow; fit after that pass.
+                afterReflow(badge,()->{
+                    if(G.field(caption,"needUpdateScale")==true) {
+                        G.call("ui.comp.FmtText","updateScale",caption);G.set(caption,"needUpdateScale",false);
+                    }
+                    G.call("h2d.Object","setScale",caption,[0.55]);
+                    centerDropdownCaption(caption,14,0);
+                    var width=G.number(G.call("h2d.Text","get_textWidth",caption))*G.number(G.field(caption,"scaleX"),1);
+                    position(caption,Math.round((52-width)/2),G.number(G.field(caption,"y")));
+                });
             }
-            G.call("ui.UIElement","set_onClick",slot,[()->{if(!c.busy){c.chosen=item;quantity=Std.string(item.count);dirty=true;}}]);
+            var select=()->{if(!c.busy){c.chosen=item;quantity=Std.string(item.count);dirty=true;}};
+            G.call("ui.UIElement","set_onClick",slot,[select]);
+            if(itemButton!=null){tooltip(itemButton,item);G.call("ui.UIElement","set_onClick",itemButton,[select]);}
         }
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;

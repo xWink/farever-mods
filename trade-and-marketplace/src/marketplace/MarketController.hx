@@ -47,8 +47,8 @@ class MarketController {
     var prefetch:Null<{cache:MarketPages,page:Int,ticket:Int,waiting:Bool}>;
     var nextTicket=0;
     var ownedFetched=0.0;
-    var mineSort="price-asc";
-    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>"price-asc"];
+    var mineSort="";
+    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>""];
     final worker=new MarketWorker();
     var generation=0;
     var key="";
@@ -190,16 +190,19 @@ class MarketController {
         if(busy)return;
         filtersExpanded=!filtersExpanded;page=pages=1;refresh();view.dirty=true;
     }
-    public function levelSort():String return tab=="My listings"?mineSort:filters["sort"];
-    public function sortByLevel():Void {
+    public function listingSort():String return tab=="My listings"?mineSort:filters["sort"];
+    public function sortByLevel():Void cycleSort("required-level");
+    public function sortByPrice():Void cycleSort("price");
+    function cycleSort(column:String):Void {
         if(busy||tab=="Sell")return;
-        var value=levelSort()=="required-level-asc"?"required-level-desc":"required-level-asc";
+        var current=listingSort();
+        var value=current==column+"-asc"?column+"-desc":current==column+"-desc"?"":column+"-asc";
         if(tab=="My listings")mineSort=value;else filters["sort"]=value;
         page=1;refresh();
     }
     public function searchSelectedItem():Void {
-        if(busy)return;
-        var name=tab=="Sell"?(chosen==null?"":chosen.name):G.text(G.field(G.field(selected,"item"),"name"));
+        if(busy||tab!="Sell")return;
+        var name=chosen==null?"":chosen.name;
         if(name=="")return;
         // The shortcut searches the item, not the old category/rarity/class restrictions.
         for(k in filters.keys())if(k!="online"&&k!="sort")filters[k]="";
@@ -268,10 +271,12 @@ class MarketController {
     public function isListed(item:TradeItem):Bool return item!=null&&listedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
-        var limit=pageSize(),params=["limit="+limit];
-        if(tab=="My listings")params.push("mine=true&sort="+mineSort);
+        var limit=pageSize(),params=["limit="+limit,"server="+StringTools.urlEncode(server)];
+        if(tab=="My listings") {
+            params.push("mine=true");
+            if(mineSort!="")params.push("sort="+mineSort);
+        }
         else {
-            params.push("server="+server);
             var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
             for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
         }
@@ -289,7 +294,7 @@ class MarketController {
         rememberTab();page=value;showListings(false);
     }
     function showListings(force:Bool):Void {
-        if(tab=="Browse"&&server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
+        if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
         var cache=cacheForTab();activePages=cache;
         if(page>1&&cache.cursors[page-1]==null)page=1;
         cache.current=page;cache.trim();

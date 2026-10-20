@@ -48,12 +48,27 @@ class MarketplaceCacheTest {
         c.chooseTab("Browse");check(c.selected!=null&&c.selected.id=="1"&&!c.busy);
         sent=MarketWorker.current.sent.length;c.inv.inventory={content:[{item:{uid:"fresh",inf:{}},count:3}]};
         c.chooseTab("Sell");check(!c.busy&&MarketWorker.current.sent.length==sent&&c.inventory[0].uid=="fresh"&&c.chosen==null);
-        c.chooseTab("My listings");respond(c,app,last(),[{id:"mine"}],null);
+        c.chooseTab("My listings");
+        check(Std.string(last().path).indexOf("server=europe")>=0&&Std.string(last().path).indexOf("mine=true")>=0);
+        respond(c,app,last(),[{id:"mine"}],null);
         c.chooseTab("Browse");sent=MarketWorker.current.sent.length;c.chooseTab("My listings");
         check(!c.busy&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
         c.sortByLevel();check(Std.string(last().path).indexOf("mine=true")>=0&&Std.string(last().path).indexOf("sort=required-level-asc")>=0);
         respond(c,app,last(),[{id:"mine"}],null);c.sortByLevel();
-        check(Std.string(last().path).indexOf("sort=required-level-desc")>=0&&c.filters["sort"]=="price-asc");
+        check(Std.string(last().path).indexOf("sort=required-level-desc")>=0&&c.filters["sort"]=="");
+        respond(c,app,last(),[{id:"mine"}],null);
+        c.sortByLevel();check(c.listingSort()==""&&Std.string(last().path).indexOf("sort=")<0&&c.page==1);
+        respond(c,app,last(),[{id:"mine"}],null);
+        c.sortByPrice();check(c.listingSort()=="price-asc"&&Std.string(last().path).indexOf("sort=price-asc")>=0);
+        respond(c,app,last(),[{id:"mine"}],null);
+        c.sortByPrice();check(c.listingSort()=="price-desc"&&Std.string(last().path).indexOf("sort=price-desc")>=0);
+        respond(c,app,last(),[{id:"mine"}],null);
+        c.sortByPrice();check(c.listingSort()==""&&Std.string(last().path).indexOf("sort=")<0);
+        respond(c,app,last(),[{id:"mine"}],null);
+        c.server="north-america";c.chooseTab("My listings");
+        check(c.busy&&c.rows.length==0&&Std.string(last().path).indexOf("server=north-america")>=0);
+        respond(c,app,last(),[{id:"na-mine"}],null);c.server="europe";c.chooseTab("My listings");
+        check(c.busy&&Std.string(last().path).indexOf("server=europe")>=0);
         respond(c,app,last(),[{id:"mine"}],null);
 
         c.chooseTab("Browse");c.filters["rarity"]="Epic";c.filters["prismatic"]="true";c.page=1;c.refresh();
@@ -63,7 +78,8 @@ class MarketplaceCacheTest {
         check(Std.string(ordinary.path).indexOf("prismatic=")<0&&Std.string(ordinary.path).indexOf("cursor=")<0);
         respond(c,app,stale,[{id:"stale"}],null);check(c.busy&&c.rows[0].id=="prism");
         respond(c,app,ordinary,[{id:"epic",item:{name:"Corrupted Gift (+Fervor/-Crit)"}}],null);
-        c.selected=c.rows[0];c.filters["category"]="Weapon";c.filters["classes"]="Mage";c.searchSelectedItem();
+        c.selected=c.rows[0];c.filters["category"]="Weapon";c.filters["classes"]="Mage";
+        c.chooseTab("Sell");c.chosen=c.inventory[0];c.chosen.name="Corrupted Gift (+Fervor/-Crit)";c.searchSelectedItem();
         check(c.tab=="Browse"&&c.page==1&&Std.string(last().path).indexOf("search=Corrupted%20Gift")>=0
             &&Std.string(last().path).indexOf("category=")<0&&Std.string(last().path).indexOf("rarity=")<0&&Std.string(last().path).indexOf("classes=")<0);
         respond(c,app,last(),[{id:"search"}],"next");var failed=last();
