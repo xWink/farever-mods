@@ -8,7 +8,8 @@ import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
     public static inline var PAGE_SIZE = 6;
-    public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
+    public var filtersExpanded=false;
+    public function pageSize():Int return tab=="Browse"?(filtersExpanded?PAGE_SIZE:8):9;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -27,13 +28,16 @@ class MarketController {
     public var sellSearch="";
     var availableInventory:Array<TradeItem>=[];
     var locations:Map<String,String>=[];
+    var ownedKnown=false;
+    var ownedItems:Map<String,Bool>=[];
+    var ownedKinds:Map<String,Bool>=[];
     public var selected:Dynamic;
     public var chosen:TradeItem;
     public var page=1;
     public var pages=1;
     public var total=0;
     var cursors:Array<String>=[null];
-    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>"price-asc"];
+    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>"price-asc"];
     final worker=new MarketWorker();
     var generation=0;
     var key="";
@@ -86,6 +90,7 @@ class MarketController {
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
                     view.dirty=true;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
+                    if(opened&&tab=="Sell"&&!ownedKnown&&!busy)refreshSell();
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
                 case "auth","auth-end":
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
@@ -113,13 +118,15 @@ class MarketController {
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
         generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;requestAfter=0;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
+        ownedKnown=false;ownedItems=[];ownedKinds=[];
+        if(tab=="Sell"){availableInventory=[];inventory=[];chosen=null;total=0;}
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
-        opened=false;page=pages=1;total=0;cursors=[null];
+        opened=false;page=pages=1;total=0;cursors=[null];ownedKnown=false;ownedItems=[];ownedKinds=[];
         SessionLease.release(HlxRuntime.moduleName());
     }
     public function fail(error:Dynamic):Void {
@@ -131,7 +138,7 @@ class MarketController {
         view.open();
         // Closing a window is not navigation: retain the page, selection and sell draft.
         // Mutations still validate fresh inventory/listing data before acting.
-        if(!opened){opened=true;if(tab!="Sell")refresh();else loadInventory();}
+        if(!opened){opened=true;refresh();}
     }
     public function signIn():Void {
         if(player==null)return;
@@ -148,14 +155,36 @@ class MarketController {
         if(busy)return;
         opened=true;
         tab=value;page=1;pages=1;total=0;rows=[];selected=null;chosen=null;
-        if(tab=="Sell")loadInventory();else refresh();
+        refresh();
         view.dirty=true;
+    }
+    public function toggleFilters():Void {
+        if(busy)return;
+        filtersExpanded=!filtersExpanded;page=pages=1;cursors=[null];refresh();view.dirty=true;
+    }
+    function refreshSell():Void {
+        if(busy)return;
+        ownedKnown=false;availableInventory=[];inventory=[];chosen=null;total=0;view.dirty=true;
+        // No server/character/online filter: duplicate rules are account-wide.
+        // Fifty is the API maximum and exceeds the account's ten-listing cap.
+        request("GET","/api/v1/marketplace/listings?mine=true&limit=50",null,null,data->{
+            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50||data.nextCursor!=null)
+                throw "Incomplete owned listings";
+            var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[];
+            for(row in (cast data.listings:Array<Dynamic>)) {
+                var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
+                items[MarketItemIdentity.key(item)]=true;kinds[G.text(G.field(item,"baseId"))]=true;
+            }
+            ownedItems=items;ownedKinds=kinds;ownedKnown=true;loadInventory();message="";
+        });
     }
     public function loadInventory():Void {
         availableInventory=[];chosen=null;locations=[];
+        if(!ownedKnown){applyInventorySearch();return;}
         for(source in MarketInventory.sources(inv,bankOnly))for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
             if(!locations.exists(item.uid)) {
+                if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))continue;
                 availableInventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
             }
         }catch(_:Dynamic){}
@@ -173,7 +202,7 @@ class MarketController {
     }
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     public function refresh():Void {
-        if(tab=="Sell"){loadInventory();return;}
+        if(tab=="Sell"){refreshSell();return;}
         var path="/api/v1/marketplace/listings";
         if(page==1)cursors=[null];
         var limit=pageSize(),params=["limit="+limit];
@@ -198,12 +227,13 @@ class MarketController {
         worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
-        if(chosen==null||busy)return;
+        if(chosen==null||busy||!ownedKnown)return;
         try {
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
+            if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
-            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
+            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{ownedKnown=false;expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
     public function remove():Void {
@@ -212,7 +242,7 @@ class MarketController {
         if(id==""||revision<1){message="This listing changed. Refresh before removing it.";view.dirty=true;return;}
         // Explicit conversion is required for numeric API fields on HashLink.
         request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
-            selected=null;page=1;refresh();
+            ownedKnown=false;selected=null;page=1;refresh();
         });
     }
     public function contact():Void {

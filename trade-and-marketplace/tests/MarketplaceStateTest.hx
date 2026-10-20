@@ -9,6 +9,10 @@ class MarketplaceStateTest {
             response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({listings:[listing],nextCursor:cursor})}});
         c.update(app,0);
     }
+    static function ownReply(c:MarketController,app:Dynamic,rows:Array<Dynamic>):Void {
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({listings:rows,nextCursor:null})}});c.update(app,0);
+    }
     static function main():Void {
         var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player};
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
@@ -20,14 +24,14 @@ class MarketplaceStateTest {
         c.view.close();c.open();
         check(MarketWorker.current.sent.length==2&&!c.busy);
         check(c.page==2&&c.selected==selected&&c.rows[0]==selected&&c.view.shown);
-        c.chooseTab("Sell");c.chosen=c.inventory[0];var chosen=c.chosen;
+        c.chooseTab("Sell");check(c.busy&&c.inventory.length==0);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
         c.sellSearch="should";c.searchInventory();c.view.close();c.open();
         check(c.tab=="Sell"&&c.chosen==chosen&&c.sellSearch=="should"&&c.inventory[0]==chosen);
         c.sellSearch="no match";c.searchInventory();check(c.chosen==null&&c.total==0);
         c.sellSearch="";c.searchInventory();check(c.total==1&&c.page==1);
         c.inv.inventory={content:[for(i in 0...21){item:{uid:Std.string(i),inf:{}},count:1}]};
         c.loadInventory();check(c.total==21&&c.pages==3&&c.pageSize()==9);
-        c.page=3;c.refresh();check(c.page==3&&c.pages==3&&c.total==21);
+        c.page=3;c.refresh();ownReply(c,app,[]);check(c.page==3&&c.pages==3&&c.total==21);
         c.chooseTab("Browse");reply(c,app,{id:"third"},null);c.selected=c.rows[0];c.page=2;
         c.disconnect();check(c.selected==null&&c.rows.length==0&&c.page==1&&!c.view.shown);
         c.player=player;c.inv=new TradeInventory(player);c.server="europe";
@@ -54,6 +58,24 @@ class MarketplaceStateTest {
         c.update(app,0);
         check(!c.busy&&c.rows[0].id=="remaining"&&MarketWorker.current.sent.length==sent+1);
         check(c.message=="This listing changed. Refresh before removing it.");
+        c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
+        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&c.page==1);
+        check(Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=6")>=0);
+        ownReply(c,app,[]);c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
+        ownReply(c,app,[]);
+        var stack=c.inv.stacks()[0],offer=TradeInventory.describe(stack.item,stack.count);
+        var listed=marketplace.MarketExport.itemData(stack.item,offer,1);
+        c.chooseTab("Sell");
+        var path=Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path);
+        check(path=="/api/v1/marketplace/listings?mine=true&limit=50");
+        ownReply(c,app,[{item:listed}]);check(c.inventory.length==0&&c.chosen==null);
+        c.inv.hero.loadout.banks=[{content:[{item:{uid:"bank-item",inf:{}},count:20}]}];
+        c.setBankOnly(true);check(c.inventory.length==0);
+        // Refresh after cancellation/expiry restores the same bank item.
+        c.refresh();ownReply(c,app,[]);check(c.inventory.length==1&&c.inventory[0].count==20);
+        c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
+        c.update(app,0);check(!c.busy&&c.inventory.length==0&&c.message!="");
         Sys.println("Marketplace state checks passed: "+checks);
     }
 }

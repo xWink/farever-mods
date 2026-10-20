@@ -10,7 +10,15 @@ class MarketplaceUiTest {
   // The successful listing shape, including a detached item and ISO presence expiry.
   var row:Dynamic=haxe.Json.parse('{"id":"test","price":{"mode":"fixed","silverTrays":1},"item":{"baseId":"Shield_OrbitWater","name":"Test shield","quantity":1,"rarity":"Epic","upgradeLevel":0,"native":{"flags":0,"level":25,"upgrade":0,"rarity":"Epic","infusion":"","bonus":"","mastery":"","slots":[],"effects":[]},"detail":"Epic"},"seller":{"accountId":"seller","characterName":"Tester","onlineUntil":"2099-01-01T00:00:00.000Z"}}');
   var c=new MarketController();c.rows=[for(i in 0...MarketController.PAGE_SIZE)row];c.total=c.rows.length;
-  var view=new MarketWindow(c);view.open();view.update();check(TradeFrame.active==1);
+  var view=new MarketWindow(c);c.view=view;view.open();view.update();check(TradeFrame.active==1);
+  check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["online"]=="true");
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
+  var collapsedRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
+  check(collapsedRow.y==224);
+  GameAccess.buttons.filter(b->b.text=="Show filters")[0].action();
+  GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.update();
+  check(c.filtersExpanded&&c.pageSize()==6);
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].y==388);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
@@ -22,6 +30,7 @@ class MarketplaceUiTest {
   var moneyIcons=(cast money.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
   check(moneyLabels[0].text=="500"&&moneyLabels[1].text=="/"&&moneyLabels[2].text=="1");
   check(moneyIcons.length==2&&moneyIcons[0].tile.id=="Gold"&&moneyIcons[1].tile.id=="SilverTray");
+  check(money.x>0);
   check(moneyLabels[0].x<moneyIcons[0].x&&moneyIcons[0].x<moneyLabels[1].x&&moneyLabels[2].x<moneyIcons[1].x);
   check(GameAccess.labels.filter(l->l.text=="Region: North America").length==1);
   var region=GameAccess.labels.filter(l->l.text=="Region: North America")[0];
@@ -29,6 +38,10 @@ class MarketplaceUiTest {
   check(GameAccess.buttons.filter(b->b.text=="Sell").length==1&&GameAccess.buttons.filter(b->b.text=="Sell an item").length==0);
   check(TradeFrame.latest.header.children.length==2);
   var cart:Dynamic=TradeFrame.latest.header.children[1];check(cart.x>TradeFrame.latest.title.x+11*8);
+  check(cart.nativeType=="h2d.Bitmap"&&cart.smooth==true&&cart.blendMode=="AlphaAdd");
+  check(GameAccess.textures.length==3&&GameAccess.textures[2].width==64);
+  check(GameAccess.textures.filter(t->t.clearAlpha!=0.0).length==0);
+  check(GameAccess.textures[0].disposed&&GameAccess.textures[1].disposed&&GameAccess.textures[2].disposed!=true);
   var next=GameAccess.buttons.filter(b->b.text=="Next")[0],page=GameAccess.labels.filter(l->l.text=="Page 1")[0];
   check(next.parent==page.parent&&next.x-6*8==18);
   check(GameAccess.buttons.filter(b->b.text=="Refresh")[0].x==970);
@@ -37,7 +50,7 @@ class MarketplaceUiTest {
   check(MarketText.price({mode:"offers"})=="Open to offers");
   check(MarketText.count(1,"listing")=="1 listing"&&MarketText.count(2,"listing")=="2 listings");
   var online=GameAccess.nodes.filter(n->n.fmtText.text=="Online only")[0];
-  check(online!=null&&online.selected==false);online.onValueChange(true);check(c.filters["online"]=="true");
+  check(online!=null&&online.selected==true);online.onValueChange(true);check(c.filters["online"]=="true");
   var search=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
   check(search.input.x==search.inputHint.x&&search.input.x>0);
   var select=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0)[0];
@@ -45,15 +58,15 @@ class MarketplaceUiTest {
   var selects=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0);
   check(selects.length==4&&selects.filter(n->n.y!=190).length==0);
   var classButton=GameAccess.buttons.filter(b->b.text=="Warrior")[0],clear=GameAccess.buttons.filter(b->b.text=="Clear filters")[0];
-  check(select.y-search.y==classButton.y-select.y&&search.width>900);
+  check(select.y-search.y==classButton.y-select.y&&search.width>750);
   check(online.y==clear.y&&online.x+online.width<clear.x&&clear.x-(online.x+online.width)==16);
   check(GameAccess.labels.filter(l->l.text=="Sort by").length==0);
   var browse=GameAccess.buttons.filter(b->b.text=="Browse")[0];check(browse.selected==true&&browse.kind=="");
-  search.input.text="ore";search.input.onEnter();check(c.filters["search"]=="ore"&&c.refreshes==2&&search.input.ignoreEnter);
+  search.input.text="ore";search.input.onEnter();check(c.filters["search"]=="ore"&&c.refreshes==3&&search.input.ignoreEnter);
   c.message="Loading...";c.busy=true;view.dirty=true;GameAccess.labels=[];GameAccess.buttons=[];GameAccess.nodes=[];view.update();
   check(GameAccess.labels.filter(l->l.text=="Loading...").length==0);
   var searchButton=GameAccess.buttons.filter(b->b.text=="Search")[0];
-  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==2);
+  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==3);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0&&n.enable!=true).length==0);
   check(GameAccess.buttons.filter(b->b.text=="Refresh").length==1&&GameAccess.buttons.filter(b->b.text=="Loading...").length==0);
   c.busy=false;
@@ -68,6 +81,8 @@ class MarketplaceUiTest {
   GameAccess.nodes=[];view.update();
   var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
   check(picture.getTip!=null&&picture.width==60&&picture.height==60&&picture.showTipOnOver);
+  check(picture.interactive!=null&&picture.interactive.onOver!=null);
+  picture.interactive.onOver();check(picture.displayedTip!=null&&picture.displayedTip.item.kind==row.item.baseId);
   // A failing details tooltip must not close the window or remove listing actions.
   GameAccess.failNextTooltip=true;view.dirty=true;view.update();
   check(TradeFrame.active==1);check(!GameAccess.failNextTooltip);
@@ -79,6 +94,8 @@ class MarketplaceUiTest {
   check(bank!=null);bank.action();check(c.bankOnly);
   var inventory=GameAccess.buttons.filter(b->b.text=="Inventory")[0];inventory.action();check(!c.bankOnly);
   check(inventory.selected==true&&inventory.kind==""&&bank.selected==false);
+  var sellHint=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Choose an unlocked,")==0).pop();
+  check(sellHint.y>inventory.y+36&&sellHint.y<146);
   var sellSearch=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
   sellSearch.input.text="shield";sellSearch.onChange();GameAccess.buttons.filter(b->b.text=="Search")[0].action();
   check(c.sellSearch=="shield"&&c.inventorySearches==1);
@@ -134,12 +151,18 @@ class MarketplaceUiTest {
   var sellRows=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0);
   check(sellRows.length==9&&sellRows[8].y+sellRows[8].height==802);
   check(GameAccess.labels.filter(l->l.text=="Page 1 of 3").length==1);
+  c.tab="Browse";c.filters["rarity"]="Epic";c.filters["search"]="shield";c.filters["online"]="false";
+  GameAccess.buttons=[];view.dirty=true;view.update();
+  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();GameAccess.nodes=[];view.update();
+  check(!c.filtersExpanded&&c.filters["rarity"]=="Epic"&&c.filters["search"]=="shield"&&c.filters["online"]=="false");
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();
   check(TradeFrame.active==1);check(GameAccess.buttons.filter(b->b.text=="My listings").length==1);
   c.connectionIssue=false;view.close();check(TradeFrame.active==0);view.open();view.update();check(TradeFrame.active==1);
   view.close();check(TradeFrame.active==0);
+  check(GameAccess.textures.filter(t->t.disposed!=true).length==0);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

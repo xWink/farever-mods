@@ -1,7 +1,9 @@
 package marketplace;
 class MarketController {
  public static inline var PAGE_SIZE=6;
- public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
+ public var filtersExpanded=false;public var view:MarketWindow;
+ public function pageSize():Int return tab=="Browse"?(filtersExpanded?PAGE_SIZE:8):9;
+ public function toggleFilters():Void {if(busy)return;filtersExpanded=!filtersExpanded;page=1;refresh();if(view!=null)view.dirty=true;}
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySearches=0;
@@ -12,7 +14,7 @@ class MarketController {
  public var rows:Array<Dynamic>=[]; public var inventory:Array<trade.TradeTypes.TradeItem>=[];
  public var page=1; public var pages=1; public var total=0; public var selected:Dynamic; public var chosen:trade.TradeTypes.TradeItem;
  public var inv:trade.TradeInventory=null;
- public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>"price-asc"];
+ public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>"price-asc"];
  public function new(){}
  public function chooseTab(s:String):Void tab=s;
  public function refresh():Void {refreshes++;}

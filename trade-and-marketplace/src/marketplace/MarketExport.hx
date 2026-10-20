@@ -28,19 +28,21 @@ class MarketExport {
         if(quantity<1||quantity>10000||(!offers&&(trays<1||trays>200000)))throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
         var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
         if(character==""||character=="0")throw "Your character is still loading. Try again shortly.";
-        var item=stack.item,p=TradeInventory.preview(item),rarity=G.text(G.field(G.staticCall("HItem","getRarity",[G.field(item,"inf")]),"id"));
-        // Only persistent visual flags belong in detached tooltip objects, never bound/network flags.
-        p.flags&=3;
-        if(!trade.TradePreview.valid(p))throw "This item's modifiers are not supported yet.";
-        var detail=TradeInventory.describe(item,quantity).detail;
         var data:Dynamic={schemaVersion:2,server:server,gameVersion:G.text(G.staticCall("Config","getVersion",[])),
             character:{id:character,name:G.text(G.call("st.Player","getName",inv.player))},
-            item:{baseId:offer.kind,quantity:quantity,rarity:rarity,requiredLevel:G.integer(G.call("st.Item","getRequiredLevel",item)),
-                itemLevel:G.integer(G.call("st.Item","getILevel",item)),upgradeLevel:p.upgrade,prismatic:(p.flags&2)!=0,flawless:(p.flags&1)!=0,
-                stats:[],modifiers:[],native:p,detail:detail},
-            price:offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays}};
+            item:itemData(stack.item,offer,quantity),price:offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays}};
         if(haxe.io.Bytes.ofString(haxe.Json.stringify(data)).length>16384)throw "This item contains too much data to list.";
         return data;
+    }
+    /** The same item state is used for submission and account-wide duplicate checks. */
+    public static function itemData(item:Dynamic,offer:TradeItem,quantity:Int):Dynamic {
+        var p=TradeInventory.preview(item),rarity=G.text(G.field(G.staticCall("HItem","getRarity",[G.field(item,"inf")]),"id"));
+        p.flags&=3;
+        if(!trade.TradePreview.valid(p))throw "This item's modifiers are not supported yet.";
+        return {baseId:offer.kind,quantity:quantity,rarity:rarity,
+            requiredLevel:G.integer(G.call("st.Item","getRequiredLevel",item)),itemLevel:G.integer(G.call("st.Item","getILevel",item)),
+            upgradeLevel:p.upgrade,prismatic:(p.flags&2)!=0,flawless:(p.flags&1)!=0,
+            stats:[],modifiers:[],native:p,detail:offer.detail};
     }
     public static function offer(row:Dynamic):TradeItem {
         var i=row.item,p:TradeItemPreview=i.native;

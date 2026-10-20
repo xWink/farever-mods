@@ -81,6 +81,21 @@ class MarketplaceTest {
   log=MarketApiLog.failure("POST","/api/v1/auth/token",response);check(log.indexOf("invalid_grant")>=0&&log.indexOf("one-time")<0);
   response.status=200;response.error="";check(MarketApiLog.failure("GET","/api/v1/account",response)=="");
   response.error="Session ended";check(MarketApiLog.failure("GET","/api/v1/account",response)=="");
+  var identity=marketplace.MarketExport.itemData(inv.stack.item,item,1);
+  var same:Dynamic=haxe.Json.parse(haxe.Json.stringify(identity));same.quantity=99;same.detail="A translated description";
+  check(marketplace.MarketItemIdentity.key(identity)==marketplace.MarketItemIdentity.key(same));
+  same.native.upgrade++;same.upgradeLevel++;
+  check(marketplace.MarketItemIdentity.key(identity)!=marketplace.MarketItemIdentity.key(same));
+  same=haxe.Json.parse(haxe.Json.stringify(identity));same.native.slots=["DifferentGift"];
+  check(marketplace.MarketItemIdentity.key(identity)!=marketplace.MarketItemIdentity.key(same));
+  same=haxe.Json.parse(haxe.Json.stringify(identity));same.native.infusion="AnotherInfusion";
+  check(marketplace.MarketItemIdentity.key(identity)!=marketplace.MarketItemIdentity.key(same));
+  identity.stats=[{attributeId:"Armor",value:20,unit:"flat"},{attributeId:"Strength",value:5,unit:"flat"}];
+  identity.native.effects=[{skill:"B",source:"RoguePoison"},{skill:"A",source:"RoguePoison"}];
+  same=haxe.Json.parse(haxe.Json.stringify(identity));
+  (cast same.stats:Array<Dynamic>).reverse();(cast same.native.effects:Array<Dynamic>).reverse();
+  check(marketplace.MarketItemIdentity.key(identity)==marketplace.MarketItemIdentity.key(same));
+  same.stats[0].value=9;check(marketplace.MarketItemIdentity.key(identity)!=marketplace.MarketItemIdentity.key(same));
   Sys.println("Marketplace checks passed: "+checks);
  }
 }
