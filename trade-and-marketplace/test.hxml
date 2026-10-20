@@ -55,3 +55,10 @@
 -cp tests/market-state-stubs
 -main MarketplaceStateTest
 --interp
+
+--next
+-cp src
+-cp tests
+-cp tests/chat-stubs
+-main ChatTest
+--interp

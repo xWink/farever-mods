@@ -33,6 +33,7 @@ class MoreSettingsMod {
         StallMetrics.configure(config.performanceDiagnostics);
         DungeonPartyGuard.enabled = config.waitForParty;
         DungeonLeaveButton.enabled = config.leaveDungeonButton;
+        DungeonLeaveButton.riftEnabled = config.leaveRiftButton;
         CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
         MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
         ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);
@@ -49,6 +50,7 @@ class MoreSettingsMod {
             StallMetrics.configure(config.performanceDiagnostics);
             DungeonPartyGuard.enabled = config.waitForParty;
             DungeonLeaveButton.enabled = config.leaveDungeonButton;
+            DungeonLeaveButton.riftEnabled = config.leaveRiftButton;
             CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
             MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
             ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);

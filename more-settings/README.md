@@ -6,7 +6,7 @@ Additional camera, combat, social, and visual settings for Farever.
 
 ## Features
 
-- **General:** field-of-view slider, hide-UI hotkey, leave-dungeon button, and optional performance improvements and diagnostics.
+- **General:** field-of-view slider, hide-UI hotkey, leave-dungeon and leave-rift buttons, and optional performance improvements and diagnostics.
 - **Combat:** damage-number styles and skill icons, skill-proc alerts, outlined buff stacks, boss health, clearer Crabgantua warnings, and allied minion health-bar visibility.
 - **Social:** message timestamps, profanity-filter control, friend notes and notifications, self chat bubbles, chat behavior, and social-interact bindings.
 - **Effects:** separate controls for your own and allied attacks/buffs in rifts, dungeons, and the overworld, plus ally visibility controls.

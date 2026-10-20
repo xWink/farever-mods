@@ -34,6 +34,15 @@
       }
     },
     {
+      "key": "leaveRiftButton",
+      "type": "checkbox",
+      "label": "Leave rift button",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Displays a Leave Rift button while in a rift and not in combat."
+      }
+    },
+    {
       "key": "hideUiKey",
       "type": "keybinding", "modifiers": true,
       "label": "Hide UI hotkey"

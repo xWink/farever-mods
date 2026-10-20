@@ -92,6 +92,7 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({seller:{accountId:"seller",characterName:"Wink"},item:{baseId:"Sword",quantity:12},price:{mode:"fixed",silverTrays:5}})}});
         c.update(app,0);
+        check(trade.TradeChat.lastEcho);
         check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
         check(c.message.indexOf("Whisper sent to Wink.")==0);
         Sys.println("Marketplace state checks passed: "+checks);

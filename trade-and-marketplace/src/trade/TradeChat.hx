@@ -9,7 +9,7 @@ class TradeChat {
         var uid = G.text(G.field(G.field(message,"sender"),"uid"));
         return uid != "" && G.text(G.enumArgument(channel,0)) == uid ? uid : "";
     }
-    public static function send(player:Dynamic,to:String,name:String,text:String,reply:Bool->Void):Void {
+    public static function send(player:Dynamic,to:String,name:String,text:String,reply:Bool->Void,echo=false):Void {
         var whispers = G.field(player,"whispers");
         if (whispers == null || to == "" || to == G.text(G.field(player,"uid"))) { reply(false); return; }
         if (G.field(whispers,"__host") == null) throw "Private whisper service is not connected.";
@@ -20,6 +20,16 @@ class TradeChat {
         var check = G.enumArgument(message,0), channel = G.field(check,"channel");
         if (G.text(G.field(check,"text")) != text || G.enumName(channel) != "Player" || G.text(G.enumArgument(channel,0)) != to
             || G.text(G.field(G.field(check,"sender"),"uid")) != G.text(G.field(player,"uid"))) throw "The native trade whisper lost its address or content.";
-        G.call("st.player.Whispers","sendMessage",whispers,[to,message,reply]);
+        var client=G.field(player,"chatClient"),completed=false;
+        G.call("st.player.Whispers","sendMessage",whispers,[to,message,(ok:Bool)->{
+            if(completed)return;
+            completed=true;
+            // Echo only explicit human-readable marketplace messages, never trade protocol packets.
+            if(ok&&echo&&isLocalClient(client,player)&&G.field(player,"removed")!=true&&G.field(client,"removed")!=true) {
+                try G.call("st.player.ChatClient","localReceiveMessage",client,[check])
+                catch(error:Dynamic) trace("[Trade and Marketplace] Could not display sent whisper: "+Std.string(error));
+            }
+            reply(ok);
+        }]);
     }
 }

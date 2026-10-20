@@ -26,6 +26,7 @@ typedef MoreSettingsConfig = {
     var performanceDiagnostics:Bool;
     var waitForParty:Bool;
     var leaveDungeonButton:Bool;
+    var leaveRiftButton:Bool;
     var hideUiKey:Dynamic;
     var fieldOfView:Int;
     var riftHideAllyAttacks:Bool;
@@ -70,6 +71,7 @@ class SettingsData {
         performanceDiagnostics: false,
         waitForParty: true,
         leaveDungeonButton: true,
+        leaveRiftButton: true,
         fieldOfView: 100,
         hideUiKey: 113, // hxd.Key.F2
         riftHideAllyAttacks: false, riftHideAllyBuffs: false, riftHideAllies: false,
