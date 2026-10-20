@@ -126,6 +126,16 @@ class MarketplaceTest {
   check(gift.name==item.name&&gift.detail=="Rare");
   listing.item.upgradeLevel=3;
   check(MarketExport.offer(listing).detail=="Rare\nUpgrade +3");
+  check(MarketText.detail("44 ArmorPenetrationRating\n44 SpellPenetrationRating\n12 CritChanceRating\n18 FervorRating")=="44 Armor Penetration\n44 Magic Penetration\n12 Critical\n18 Fervor");
+  check(MarketText.detail("44 ETAttribute(SpellPenetrationRating)")=="44 Magic Penetration");
+  check(MarketText.detail("5 Magic Penetration\n10 MagicArmor\n12 CooldownReduction")=="5 Magic Penetration\n10 Magic Resistance\n12 Cooldown Reduction");
+  var title="Corrupted Gift (+Magic Penetration/-Armor Penetration)",measure=(text:String)->text.length*8.0;
+  check(MarketText.ellipsis(title,measure(title),measure)==title);
+  check(MarketText.ellipsis(title,measure(title)+10,measure)==title);
+  var cropped=MarketText.ellipsis(title,200,measure);
+  check(StringTools.endsWith(cropped,"…")&&measure(cropped)<=200&&cropped.length<title.length);
+  check(MarketText.ellipsis(title,measure(title),measure)==title);
+  check(MarketText.ellipsis(title,0,measure)=="");
   Sys.println("Marketplace checks passed: "+checks);
  }
 }

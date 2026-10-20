@@ -39,7 +39,7 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
   var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
-  check(name!=null&&name.lineBreak==false&&name.useEllipsis==true);
+  check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
   check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
   var moneyLabels=GameAccess.labels.filter(l->l.parent==money);
@@ -47,11 +47,11 @@ class MarketplaceUiTest {
   check(moneyLabels[0].text=="500"&&moneyLabels[1].text=="/"&&moneyLabels[2].text=="1");
   check(moneyIcons.length==2&&moneyIcons[0].tile.id=="Gold"&&moneyIcons[1].tile.id=="SilverTray");
   check(money.x>0);
-  var shortPriceWidth=GameAccess.number(name.maxWidthText);
+  var shortPriceWidth=GameAccess.number(money.parent.x)+GameAccess.number(money.x)-14-GameAccess.number(name.x);
   check(shortPriceWidth>350&&name.x<130&&GameAccess.number(name.x)+shortPriceWidth+14<=GameAccess.number(money.parent.x)+GameAccess.number(money.x));
   moneyLabels[0].bounds={xMin:0.,yMin:4.,xMax:120.,yMax:22.};moneyLabels[2].bounds={xMin:0.,yMin:4.,xMax:70.,yMax:22.};
   money.parent.onAfterReflow();
-  check(GameAccess.number(name.maxWidthText)<shortPriceWidth&&GameAccess.number(name.x)+GameAccess.number(name.maxWidthText)+14<=GameAccess.number(money.parent.x)+GameAccess.number(money.x));
+  check(GameAccess.number(money.parent.x)+GameAccess.number(money.x)-14-GameAccess.number(name.x)<shortPriceWidth&&GameAccess.number(name.x)+Std.string(name.text).length*8+14<=GameAccess.number(money.parent.x)+GameAccess.number(money.x));
   check(moneyLabels[0].x<moneyIcons[0].x&&moneyIcons[0].x<moneyLabels[1].x&&moneyLabels[2].x<moneyIcons[1].x);
   check(GameAccess.labels.filter(l->l.text=="Region: North America").length==1);
   var region=GameAccess.labels.filter(l->l.text=="Region: North America")[0];
@@ -117,6 +117,8 @@ class MarketplaceUiTest {
   check(meta.scaleX==0.85&&meta.textColor==0x806B5B);
   var viewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
   check(viewport.y+viewport.height==736);
+  check(viewport.verticalAlign=="Top"&&viewport.horizontalAlign=="Left");
+  check(meta.parent.flowProperties.verticalAlign=="Top"&&meta.parent.flowProperties.horizontalAlign=="Left"&&meta.parent.flowProperties.isAbsolute==false);
   var onlineStatus=GameAccess.labels.filter(l->l.text=="Online")[0];
   var statusDot=onlineStatus.parent.children.filter(n->n.shapes!=null)[0];
   check(onlineStatus.x==statusDot.x+16);

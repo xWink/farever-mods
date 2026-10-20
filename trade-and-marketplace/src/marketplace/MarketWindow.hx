@@ -390,7 +390,14 @@ class MarketWindow {
         var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
         var nameX=64;
         var nameRight=c.tab=="Sell"?484:414;
-        var nameLabel=labelAt(row,item.name+(item.count>1?" ×"+item.count:""),nameX,0,nameRight-nameX,true,INK,true);
+        var fullName=item.name+(item.count>1?" ×"+item.count:"");
+        var nameLabel=labelAt(row,fullName,nameX,0,nameRight-nameX,true,INK,true);
+        // FmtText's native ellipsis overwrites its source text; fit from the original
+        // name after the font, rarity and price columns have their final bounds.
+        G.call("ui.comp.FmtText","set_useEllipsis",nameLabel,[false]);
+        G.call("ui.comp.FmtText","set_maxWidthText",nameLabel,[null]);
+        G.call("h2d.Text","set_maxWidth",nameLabel,[null]);
+        var displayedName=fullName;
         largeLabel(nameLabel);
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
         if(c.tab!="Sell")sellerLine(row,seller,online,64,33,350);
@@ -401,7 +408,9 @@ class MarketWindow {
                 var bounds=G.call("h2d.Object","getBounds",rarityLabel,[rarityLabel,null]);
                 nameX=64+Std.int(Math.ceil((G.number(G.field(bounds,"xMax"))-G.number(G.field(bounds,"xMin")))*G.number(G.field(rarityLabel,"scaleX"),1)))+10;
             }
-            G.call("ui.comp.FmtText","set_maxWidthText",nameLabel,[Std.int(Math.max(1,nameRight-nameX))]);
+            var available=Std.int(Math.max(1,nameRight-nameX));
+            var fitted=MarketText.ellipsis(fullName,available,text->G.number(G.call("h2d.Text","calcTextWidth",nameLabel,[text])));
+            if(fitted!=displayedName){setText(nameLabel,fitted);displayedName=fitted;}
             centerControlText(nameLabel,24,nameX,5);
             if(sellerLabel!=null)centerControlText(sellerLabel,24,64,33);
             if(priceLabel!=null){centerControlText(priceLabel,height-4,502);position(priceLabel,502,G.number(G.field(priceLabel,"y")));}
@@ -512,6 +521,14 @@ class MarketWindow {
         var details=G.field(node("element",G.field(viewport,"dom"),[],"marketDetails"+(sequence++)),"obj");
         // Keep the content in normal flow so the viewport measures its scrollable height.
         padding(details,0);size(details,300,164);
+        var top=G.enumeration("h2d.FlowAlign","Top"),left=G.enumeration("h2d.FlowAlign","Left");
+        G.call("h2d.Flow","set_verticalAlign",viewport,[top]);
+        G.call("h2d.Flow","set_horizontalAlign",viewport,[left]);
+        style(viewport,"content-valign",top);style(viewport,"content-halign",left);
+        var contentLayout=G.call("h2d.Flow","getProperties",viewport,[details]);
+        G.call("h2d.FlowProperties","set_isAbsolute",contentLayout,[false]);style(details,"position",false);
+        G.set(contentLayout,"verticalAlign",top);G.set(contentLayout,"horizontalAlign",left);
+        style(details,"valign",top);style(details,"halign",left);
         var picture=G.field(node("element",G.field(details,"dom"),[],"marketDetailsIcon"+(sequence++)),"obj");
         absolute(details,picture);padding(picture,0);size(picture,60,60);position(picture,0,0);
         // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.

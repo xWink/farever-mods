@@ -44,9 +44,89 @@ class MarketText {
             +StringTools.lpad(Std.string(local.getHours()),"0",2)+":"+StringTools.lpad(Std.string(local.getMinutes()),"0",2)+" (local)";
     }
 
+    // English labels from the game's attribute catalog, including serialized stat IDs.
+    static var attributeNames:Map<String,String>=[
+        "CritChanceRating"=>"Critical",
+        "CritChance"=>"Critical Chance",
+        "CritDamage"=>"Critical Bonus",
+        "ArmorPenetrationRating"=>"Armor Penetration",
+        "ArmorPenetration"=>"Armor Penetration",
+        "SpellPenetrationRating"=>"Magic Penetration",
+        "SpellPenetration"=>"Magic Penetration",
+        "FervorRating"=>"Fervor",
+        "BlockMitigation"=>"Block",
+        "DodgeChance"=>"Dodge chance",
+        "MagicMastery"=>"Magic Mastery",
+        "PhysicalMastery"=>"Physical Mastery",
+        "SpellCastTimeReduction"=>"Spell Cast Time reduction",
+        "KnockResistance"=>"Knock Resistance",
+        "PoiseDamage"=>"Poise Damage",
+        "CooldownReduction"=>"Cooldown Reduction",
+        "FoePower"=>"Foe Power",
+        "MagicArmor"=>"Magic Resistance",
+        "MagicReduction"=>"Magic Reduction",
+        "MaxHealth"=>"Maximum Health",
+        "HealthRegen"=>"Health Regen",
+        "MaxPoise"=>"Stamina",
+        "PoiseConsume"=>"Poise Consume",
+        "PoiseRegen"=>"Poise Regen",
+        "SpecialEnergy"=>"Energy",
+        "MaxSpecialEnergy"=>"Max Special Energy",
+        "SpecialEnergyRegen"=>"Special Energy Regen",
+        "Lifetime"=>"Lifetime left",
+        "MaxLifetime"=>"Lifetime",
+        "Oxygen"=>"Breath",
+        "MaxOxygen"=>"Maximum Oxygen",
+        "OxygenRegen"=>"Oxygen Regen",
+        "OxygenLoss"=>"Oxygen consumption",
+        "MaxRage"=>"Maximum Rage",
+        "RageRegen"=>"Rage Regen",
+        "RageGainFactor"=>"Rage Gain",
+        "MaxSpark"=>"Max Spark",
+        "SparkRegen"=>"Spark Regen",
+        "ComboPoint"=>"Combo Point",
+        "MaxComboPoint"=>"Max Combo Points",
+        "MaxFocus"=>"Max Focus",
+        "MaxSparkParticle"=>"Max Spark Particle",
+        "SparkParticle"=>"Spark Particle",
+        "RestedXP"=>"Rested XP",
+        "DamageModifier"=>"Bonus Damage",
+        "DamageTakenModifier"=>"Damage Taken",
+        "HealGivenMultiplier"=>"Healing",
+        "ShieldPowerMultiplier"=>"Shield Power",
+        "MoveSpeedFactor"=>"Movement speed",
+        "SprintSpeed"=>"Sprint Speed",
+        "RunSpeed"=>"Run Speed",
+        "WalkSpeed"=>"Walk Speed",
+        "GlideSpeed"=>"Glide Speed",
+        "AggroRange"=>"Aggro Range",
+        "AggroReleaseRange"=>"Aggro Release Range",
+        "AggroFacingRange"=>"Aggro Facing Range",
+        "AggroFacingRangeAmplitude"=>"Aggro Facing Range Amplitude",
+        "AggroFacingSpacingCooldown"=>"Aggro Facing Spacing Cooldown",
+        "AggroHeight"=>"Aggro Height",
+        "AggroFactor"=>"Threat",
+        "ScaleFactor"=>"Scale Factor",
+        "WeaponPower"=>"Weapon Power",
+        "AllAttributes"=>"All Attributes"
+    ];
+    public static function ellipsis(text:String,width:Float,measure:String->Float):String {
+        if(measure(text)<=width)return text;
+        var suffix="…";
+        if(measure(suffix)>width)return "";
+        var low=0,high=text.length-1;
+        while(low<high) {
+            var mid=Std.int((low+high+1)/2);
+            if(measure(text.substr(0,mid)+suffix)<=width)low=mid;else high=mid-1;
+        }
+        return StringTools.rtrim(text.substr(0,low))+suffix;
+    }
     public static function detail(text:String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
         text=~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");
+        text=~/\b[A-Za-z][A-Za-z0-9]*\b/g.map(text,match->{
+            var id=match.matched(0),name=attributeNames[id];return name==null?id:name;
+        });
         var lines=[];
         for(line in text.split("\n")) {
             line=~/(?:[ \t]*[|·][ \t]*)?Upgrade \+0$/.replace(StringTools.rtrim(line),"");

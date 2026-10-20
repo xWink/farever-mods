@@ -27,6 +27,9 @@ class GameAccess {
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
+   case "getProperties":
+    var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
+   case "calcTextWidth": Std.string(a[0]).length*8.0;
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
    case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics")o.shapes=[];null;
@@ -52,7 +55,7 @@ class GameAccess {
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
    case "set_text": o.text=a[0];null;
    case "set_textColor": o.textColor=a[0];null;
-   case "set_selected", "set_enable", "set_textAlign", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height", "set_visible": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_verticalAlign", "set_horizontalAlign", "set_isAbsolute", "set_selected", "set_enable", "set_textAlign", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height", "set_visible": Reflect.setField(o,n.substr(4),a[0]);null;
    case "moveTo", "lineTo": if(field(o,"points")==null)o.points=[]; (cast o.points:Array<Dynamic>).push(a);null;
    case "get_textWidth": Std.string(o.text).length*8.0;
    case "get_textHeight": 18.0;
