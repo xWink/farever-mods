@@ -6,6 +6,11 @@ class MarketController {
  public function toggleFilters():Void {if(busy)return;filtersExpanded=!filtersExpanded;page=1;refresh();if(view!=null)view.dirty=true;}
  public var bankOnly=false;
  public var sellSearch="";
+ public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];
+ public var bankTab=0;
+ public var bankNames:Array<String>=["First tab","Second tab"];
+ public function setBankTab(i:Int):Void {bankTab=i;if(view!=null)view.dirty=true;}
+ public function inventoryStack(i:trade.TradeTypes.TradeItem):Dynamic return {item:{kind:i.kind,inf:trade.TradeInventory.definition(i.kind)},count:i.count};
  public var inventorySearches=0;
  public var refreshes=0;
  public var connectionIssue=false;

@@ -26,6 +26,11 @@ class MarketController {
     public var inventory:Array<TradeItem>=[];
     public var bankOnly=false;
     public var sellSearch="";
+    public var bankTab=0;
+    public var bankNames:Array<String>=[];
+    public var inventorySlots:Array<TradeItem>=[];
+    var inventoryIndexes:Map<String,Int>=[];
+    var inventorySource:TradeInventory;
     var availableInventory:Array<TradeItem>=[];
     var locations:Map<String,String>=[];
     var ownedKnown=false;
@@ -119,13 +124,14 @@ class MarketController {
         generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;requestAfter=0;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
         ownedKnown=false;ownedItems=[];ownedKinds=[];
-        if(tab=="Sell"){availableInventory=[];inventory=[];chosen=null;total=0;}
+        if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
+        inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
         opened=false;page=pages=1;total=0;cursors=[null];ownedKnown=false;ownedItems=[];ownedKinds=[];
         SessionLease.release(HlxRuntime.moduleName());
     }
@@ -164,7 +170,7 @@ class MarketController {
     }
     function refreshSell():Void {
         if(busy)return;
-        ownedKnown=false;availableInventory=[];inventory=[];chosen=null;total=0;view.dirty=true;
+        ownedKnown=false;availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;view.dirty=true;
         // No server/character/online filter: duplicate rules are account-wide.
         // Fifty is the API maximum and exceeds the account's ten-listing cap.
         request("GET","/api/v1/marketplace/listings?mine=true&limit=50",null,null,data->{
@@ -179,14 +185,22 @@ class MarketController {
         });
     }
     public function loadInventory():Void {
-        availableInventory=[];chosen=null;locations=[];
+        var chosenId=chosen==null?"":chosen.uid;
+        availableInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
+        var sources=MarketInventory.sources(inv,bankOnly);
+        bankNames=MarketInventory.bankNames(inv);
+        bankTab=Std.int(Math.max(0,Math.min(bankTab,bankNames.length-1)));
+        inventorySource=sources.length==0?null:sources[bankOnly?bankTab:0];
         if(!ownedKnown){applyInventorySearch();return;}
-        for(source in MarketInventory.sources(inv,bankOnly))for(s in source.stacks())if(source.canDrop(s,1))try {
+        var source=inventorySource;
+        if(source!=null)for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
             item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
                 if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))continue;
-                availableInventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";
+                availableInventory.push(item);locations[item.uid]=bankOnly?bankNames[bankTab]:"In backpack";
+                inventoryIndexes[item.uid]=s.index;
+                if(item.uid==chosenId)chosen=item;
             }
         }catch(_:Dynamic){}
         applyInventorySearch();
@@ -194,12 +208,23 @@ class MarketController {
     public function searchInventory():Void {if(busy)return;page=1;applyInventorySearch();}
     function applyInventorySearch():Void {
         inventory=MarketInventory.filter(availableInventory,sellSearch);
+        inventorySlots=[for(_ in 0...MarketInventory.slotCount(inventorySource)) null];
+        for(item in inventory)if(inventoryIndexes.exists(item.uid))inventorySlots[inventoryIndexes[item.uid]]=item;
         if(chosen!=null&&inventory.indexOf(chosen)<0)chosen=null;
-        total=inventory.length;pages=Std.int(Math.max(1,Math.ceil(total/pageSize())));page=Std.int(Math.max(1,Math.min(page,pages)));view.dirty=true;
+        total=inventory.length;pages=page=1;view.dirty=true;
     }
     public function setBankOnly(value:Bool):Void {
         if(busy)return;
         bankOnly=value;page=1;loadInventory();
+    }
+    public function setBankTab(value:Int):Void {
+        if(busy||value<0||value>=bankNames.length||value==bankTab)return;
+        bankTab=value;chosen=null;loadInventory();
+    }
+    public function inventoryStack(item:TradeItem):Dynamic {
+        if(inventorySource==null||!inventoryIndexes.exists(item.uid))return null;
+        var stack=G.call("st.Inventory","getStack",inventorySource.inventory,[inventoryIndexes[item.uid]]);
+        return G.uid(G.field(stack,"item"))==item.uid?stack:null;
     }
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     public function refresh():Void {

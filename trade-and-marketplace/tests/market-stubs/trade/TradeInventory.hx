@@ -12,7 +12,10 @@ class TradeInventory {
   inventory={};
  }
  public function find(uid:String):Dynamic return Reflect.hasField(inventory,"content")?findStored(uid):stack;
- public function stacks():Array<Dynamic> return Reflect.hasField(inventory,"content")?cast inventory.content:stack==null?[]:[stack];
+ public function stacks():Array<Dynamic> {
+  var content:Array<Dynamic>=Reflect.hasField(inventory,"content")?cast inventory.content:stack==null?[]:[stack];
+  return [for(i in 0...content.length)if(content[i]!=null&&content[i].item!=null){index:i,item:content[i].item,count:content[i].count}];
+ }
  function findStored(uid:String):Dynamic {
   for(s in (cast inventory.content:Array<Dynamic>))if(s.item.uid==uid)return s;
   return null;

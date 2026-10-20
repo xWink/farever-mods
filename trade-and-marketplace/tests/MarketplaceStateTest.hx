@@ -30,8 +30,8 @@ class MarketplaceStateTest {
         c.sellSearch="no match";c.searchInventory();check(c.chosen==null&&c.total==0);
         c.sellSearch="";c.searchInventory();check(c.total==1&&c.page==1);
         c.inv.inventory={content:[for(i in 0...21){item:{uid:Std.string(i),inf:{}},count:1}]};
-        c.loadInventory();check(c.total==21&&c.pages==3&&c.pageSize()==9);
-        c.page=3;c.refresh();ownReply(c,app,[]);check(c.page==3&&c.pages==3&&c.total==21);
+        c.loadInventory();check(c.total==21&&c.pages==1&&c.inventorySlots.length==21);
+        c.page=3;c.refresh();ownReply(c,app,[]);check(c.page==1&&c.pages==1&&c.total==21);
         c.chooseTab("Browse");reply(c,app,{id:"third"},null);c.selected=c.rows[0];c.page=2;
         c.disconnect();check(c.selected==null&&c.rows.length==0&&c.page==1&&!c.view.shown);
         c.player=player;c.inv=new TradeInventory(player);c.server="europe";
@@ -84,6 +84,20 @@ class MarketplaceStateTest {
         c.setBankOnly(true);check(c.inventory.length==0);
         // Refresh after cancellation/expiry restores the same bank item.
         c.refresh();ownReply(c,app,[]);check(c.inventory.length==1&&c.inventory[0].count==20);
+        var firstBank=c.inv.hero.loadout.banks[0];
+        c.inv.hero.loadout.banks=[firstBank,{content:[null,{item:{uid:"tab-two",inf:{}},count:3},{item:{uid:"locked",locked:true,inf:{}},count:1}]}];
+        player.accountProgress={bankTabs:[{name:"Crafting"},{name:"Equipment"}]};
+        c.loadInventory();check(c.bankNames.join(",")=="Crafting,Equipment"&&c.inventory[0].uid=="bank-item");
+        c.setBankTab(1);check(c.inventory.length==1&&c.inventory[0].uid=="tab-two"&&c.inventorySlots.length==3);
+        check(c.inventorySlots[0]==null&&c.inventorySlots[1].uid=="tab-two"&&c.inventorySlots[2]==null);
+        check(c.inventoryStack(c.inventory[0]).item.uid=="tab-two");
+        c.chosen=c.inventory[0];c.loadInventory();check(c.chosen.uid=="tab-two");
+        c.sellSearch="not found";c.searchInventory();check(c.inventorySlots.length==3&&c.inventorySlots[1]==null&&c.chosen==null);
+        c.sellSearch="";c.searchInventory();check(c.inventorySlots[1].uid=="tab-two");
+        c.setBankOnly(false);check(c.bankTab==1&&c.inventory.length==1&&c.inventory[0].uid!="tab-two");
+        c.setBankOnly(true);check(c.bankTab==1&&c.inventorySlots[1].uid=="tab-two");
+        c.setBankTab(5);check(c.bankTab==1);
+        c.inv.hero.loadout.banks=[firstBank];c.loadInventory();check(c.bankTab==0&&c.inventory[0].uid=="bank-item");
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
         c.update(app,0);check(!c.busy&&c.inventory.length==0&&c.message!="");

@@ -6,6 +6,7 @@ class TradeUi {
   o.selectText.inkBounds={xMin:1.,yMin:8.,xMax:101.,yMax:22.};
   o.fmtText=GameAccess.object(o);o.fmtText.text=args.length>0?Std.string(args[0]):"";
   o.arrow=GameAccess.object(o.select);o.arrow.defaultIcon="ArrowDown";o.arrow.nativeType="ui.comp.Icon";
+  if(c=="item-button"){o.stack=args[0];o.item=args[0].item;}
   GameAccess.nodes.push(o);
   o.input=GameAccess.object(o);o.inputHint=GameAccess.object(o);o.iconBmp=GameAccess.object(o);return o.dom;
  }

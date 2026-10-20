@@ -40,7 +40,7 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 Press **F7**, type `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings. The hotkey can be rebound there and is ignored while typing in a text field.
 
 - Browse listings for your game server, filter items and inspect native tooltips.
-- Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell an item** to browse and list items from that location. The API key is shared with DPS Meter and other Fareverly mods.
+- Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
 - Manage up to 10 active listings under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.
 - **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.

@@ -51,6 +51,8 @@ class GameAccess {
     }
     null;
    case "displayDialog": dialogs++;null;
+   case "setItem": o.item=a[0];null;
+   case "set_scrollPosY", "set_overflow": Reflect.setField(o,n.substr(4),a[0]);null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
    case "set_text": o.text=a[0];null;
