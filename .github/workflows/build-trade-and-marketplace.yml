@@ -73,7 +73,7 @@ jobs:
           haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-state-stubs -main MarketplaceStateTest -hl build/marketplace-state-test.hl
           ../.trade-oracle-hashlink/hl build/marketplace-state-test.hl
           haxe -cp src -cp tests -main MarketplaceTimeTest -hl build/marketplace-time-test.hl
-          for timezone in UTC America/Vancouver Asia/Kathmandu; do
+          for timezone in UTC "PST8PDT,M3.2.0/2,M11.1.0/2" Asia/Kathmandu; do
             TZ="$timezone" ../.trade-oracle-hashlink/hl build/marketplace-time-test.hl
           done
 
