@@ -60,7 +60,7 @@ class MarketExport {
             if(Std.isOfType(i.modifiers,Array))for(m in (cast i.modifiers:Array<Dynamic>))lines.push(G.text(m.name));
             detail=lines.join("\n");
         }
-        return {uid:"",kind:i.baseId,count:i.quantity,name:MarketText.itemName(G.text(i.baseId),G.text(i.name,TradeInventory.itemName(i.baseId))),detail:MarketText.detail(detail),
+        return {uid:"",kind:i.baseId,count:i.quantity,name:MarketText.itemName(G.text(i.baseId),G.text(i.name,TradeInventory.itemName(i.baseId))),detail:MarketText.detail(detail,TradeInventory.skillName),
             color:0xDAC9AA,fingerprint:"",preview:p};
     }
 }

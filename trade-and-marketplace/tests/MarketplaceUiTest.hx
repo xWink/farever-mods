@@ -152,7 +152,7 @@ class MarketplaceUiTest {
   select.select.onAfterReflow();
   check(select.selectText.y+19.0==18.0&&select.arrow.x+22==select.width-10);
   check(MarketText.detail("549 ETAAttribute(Armor)")=="549 Armor");
-  check(MarketText.detail("Infusion: Infusion_Manfish_DPS")=="Infusion: Overwhelming Tides");
+  check(MarketText.detail("Infusion: Infusion_Manfish_DPS",trade.TradeInventory.skillName)=="Infusion: Overwhelming Tides");
   check(MarketText.detail("549 ETAttribute(Armor), 12 ETAttribute(Strength)")=="549 Armor, 12 Strength");
   check(MarketText.askingPrice(row.price)=="Asking price: 500 gold / 1 Silver Tray");
   check(MarketText.conversion(5)=="5 Silver Trays = 2,500 gold");

@@ -121,7 +121,7 @@ class MarketText {
         }
         return StringTools.rtrim(text.substr(0,low))+suffix;
     }
-    public static function detail(text:String):String {
+    public static function detail(text:String,?skillName:String->String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
         text=~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");
         text=~/\b[A-Za-z][A-Za-z0-9]*\b/g.map(text,match->{
@@ -129,9 +129,9 @@ class MarketText {
         });
         var lines=[];
         for(line in text.split("\n")) {
-            if(StringTools.startsWith(line,"Infusion: ")) {
+            if(skillName!=null&&StringTools.startsWith(line,"Infusion: ")) {
                 var id=StringTools.trim(line.substr(10));
-                line="Infusion: "+trade.TradeInventory.skillName(id);
+                line="Infusion: "+skillName(id);
             }
             line=~/(?:[ \t]*[|·][ \t]*)?Upgrade \+0$/.replace(StringTools.rtrim(line),"");
             if(StringTools.trim(line)!="")lines.push(line);

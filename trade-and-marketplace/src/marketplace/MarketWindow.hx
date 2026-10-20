@@ -654,7 +654,7 @@ class MarketWindow {
         var meta=labelAt(details,lines.join("\n"),0,0,352,false,MUTED);
         G.call("h2d.Object","setScale",meta,[0.85]);
         lines=[];
-        var itemLines=MarketText.detail(item.detail).split("\n");
+        var itemLines=MarketText.detail(item.detail,TradeInventory.skillName).split("\n");
         if(rarityLabel!=null)itemLines.shift();
         for(entry in itemLines) {
             // Level belongs beside the portrait; keep an actual upgrade in the stats.
