@@ -17,6 +17,7 @@ class MarketWindow {
     final c:MarketController;
     var frame:trade.TradeFrame;
     var cart:MarketCartIcon;
+    var backdrop:Dynamic;
     var controls:Array<Dynamic> = [];
     final filterControls=new MarketFilterControls();
     var sequence = 0;
@@ -41,6 +42,7 @@ class MarketWindow {
         shown = false; closeDropdowns();
         filterControls.clear();
         if(cart!=null){cart.dispose();cart=null;}
+        backdrop=null;
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",frame.ui,[connectionDialog]);
         connectionDialog=null;
@@ -104,8 +106,12 @@ class MarketWindow {
         stage="clear old controls";
         closeDropdowns();
         filterControls.begin();
-        for (child in children(frame.container)) if(!filterControls.contains(child))G.call("h2d.Object", "remove", child);
+        for (child in children(frame.container)) if(child!=backdrop&&!filterControls.contains(child))G.call("h2d.Object", "remove", child);
         var root = frame.container;
+        // Keep one background below the retained inputs. Inserting new cards into
+        // a native Flow during refresh can put them over its first controls.
+        if(backdrop==null)backdrop=graphic(root);
+        else G.call("h2d.Graphics","clear",backdrop);
         if(recovery) {
             filterControls.finish();
             stage="recovery screen";
@@ -144,8 +150,8 @@ class MarketWindow {
             try filters()catch(error:Dynamic){filterControls.active=false;throw error;}
         }
         filterControls.finish();
-        card(root,16,contentY,704,806-contentY);
-        card(root,736,contentY,352,806-contentY);
+        card(16,contentY,704,806-contentY);
+        card(736,contentY,352,806-contentY);
         labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
         rightText(labelAt(root,c.tab == "Sell" ? "AVAILABLE" : "TOTAL PRICE",456,contentY+16,240,true),240);
         labelAt(root,"ITEM DETAILS",754,contentY+16,300,true);
@@ -336,7 +342,7 @@ class MarketWindow {
     }
     function filters():Void {
         var f=c.filters, root=frame.container;
-        card(root,16,64,1072,c.filtersExpanded?260:96,0xDCCAB5);
+        card(16,64,1072,c.filtersExpanded?260:96,0xDCCAB5);
         labelAt(root,"Search items",28,80,792,false,MUTED);
         input(f["search"],28,108,792,s->f["search"]=s.substr(0,100),"Item name...",()->filter("search",f["search"]));
         button("Search",836,108,96,()->filter("search",f["search"]),"");
@@ -672,10 +678,8 @@ class MarketWindow {
         if(tint!=null)for(channel in ["x","y","z"])G.set(tint,channel,1.0);
         G.call("h2d.HtmlText","set_textColor",obj,[value]);
     }
-    static function card(parent:Dynamic,x:Int,y:Int,w:Int,h:Int,color=PAPER):Void {
-        var g=graphic(parent);rounded(g,x,y,w,h,8,EDGE);rounded(g,x+1,y+1,w-2,h-2,7,color);
-        // New backdrops must stay behind retained filter controls.
-        G.call("h2d.Flow","addChildAt",parent,[g,0]);absolute(parent,g);
+    function card(x:Int,y:Int,w:Int,h:Int,color=PAPER):Void {
+        rounded(backdrop,x,y,w,h,8,EDGE);rounded(backdrop,x+1,y+1,w-2,h-2,7,color);
     }
     static function line(parent:Dynamic,x:Int,y:Int,w:Int):Void {var g=graphic(parent);rounded(g,x,y,w,1,0,0xCFB99D);}
     static function serverLabel(value:String):String return switch(value) {

@@ -73,6 +73,15 @@ class MarketplaceTest {
   response.status=503;response.body="<html>private service debug</html>";response.error="HTTP Error #503";response.retryAfter="60";
   log=MarketApiLog.failure("GET","/api/v1/marketplace/listings",response);
   check(log.indexOf("HTTP 503")>=0&&log.indexOf("retryAfter=60")>=0&&log.indexOf("private service debug")<0);
+  response.status=429;response.body='{"error":{"code":"heartbeat_too_soon"}}';response.error="Http Error #429";response.retryAfter="52";
+  check(MarketApiLog.failure("POST","https://fareverly.com/api/v1/marketplace/heartbeat",response)=="");
+  response.body='{"error":"heartbeat_too_soon"}';
+  check(MarketApiLog.failure("POST","/api/v1/marketplace/heartbeat",response)=="");
+  check(MarketApiLog.failure("POST","/api/v1/marketplace/listings",response)!="");
+  response.body='{"error":{"code":"rate_limited"}}';
+  check(MarketApiLog.failure("POST","/api/v1/marketplace/heartbeat",response)!="");
+  response.status=401;response.body='{"error":{"code":"invalid_token"}}';
+  check(MarketApiLog.failure("POST","/api/v1/marketplace/heartbeat",response)!="");
   response.status=429;response.body='{"error":"slow_down"}';
   check(MarketApiLog.failure("POST","/api/v1/auth/token",response)=="");
   response.status=400;response.body='{"error":"authorization_pending"}';

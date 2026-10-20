@@ -6,6 +6,16 @@ import trade.TradeFrame;
 class MarketplaceUiTest {
  static var checks=0;
  static function check(b:Bool):Void {checks++;if(!b)throw "Marketplace UI assertion "+checks;}
+ static function searchUncovered(search:Dynamic):Bool {
+  var children:Array<Dynamic>=search.parent.children;
+  for(child in children.slice(children.indexOf(search)+1)) {
+   var shapes:Array<Dynamic>=GameAccess.field(child,"shapes");
+   if(shapes==null)continue;
+   for(shape in shapes)if(shape.alpha==1&&shape.x<search.x+search.width&&shape.x+shape.width>search.x
+       &&shape.y<search.y+search.height&&shape.y+shape.height>search.y)return false;
+  }
+  return true;
+ }
  static function main():Void {
   // The successful listing shape, including a detached item and ISO presence expiry.
   var row:Dynamic=haxe.Json.parse('{"id":"test","price":{"mode":"fixed","silverTrays":1},"item":{"baseId":"Shield_OrbitWater","name":"Test shield","quantity":1,"rarity":"Epic","upgradeLevel":0,"native":{"flags":0,"level":25,"upgrade":0,"rarity":"Epic","infusion":"","bonus":"","mastery":"","slots":[],"effects":[]},"detail":"Epic"},"seller":{"accountId":"seller","characterName":"Tester","onlineUntil":"2099-01-01T00:00:00.000Z"}}');
@@ -17,11 +27,13 @@ class MarketplaceUiTest {
   check(collapsedRow.y==224);
   var filterToggle=GameAccess.buttons.filter(b->b.text=="Show filters")[0];
   var originalSearch=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
+  check(searchUncovered(originalSearch));
   filterToggle.action();
   GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.update();
   check(c.filtersExpanded&&c.pageSize()==6);
   check(GameAccess.buttons.filter(b->b.text=="Hide filters")[0]==filterToggle&&GameAccess.removed.indexOf(filterToggle)<0);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0]==originalSearch&&GameAccess.removed.indexOf(originalSearch)<0);
+  check(searchUncovered(originalSearch));
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].y==388);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
@@ -48,9 +60,9 @@ class MarketplaceUiTest {
   check(TradeFrame.latest.header.children.length==2);
   var cart:Dynamic=TradeFrame.latest.header.children[1];check(cart.x>TradeFrame.latest.title.x+11*8);
   check(cart.nativeType=="h2d.Bitmap"&&cart.smooth==true&&cart.blendMode=="AlphaAdd");
-  check(GameAccess.textures.length==4&&GameAccess.textures[0].sourcePng&&GameAccess.textures[3].width==64&&GameAccess.maskWhitened);
+  check(GameAccess.textures.length==5&&GameAccess.textures[0].sourcePng&&GameAccess.textures[4].width==32&&GameAccess.maskWhitened);
   check(GameAccess.textures.filter(t->t.clearAlpha!=0.0).length==0);
-  check(GameAccess.textures.slice(0,3).filter(t->t.disposed!=true).length==0&&GameAccess.textures[3].disposed!=true);
+  check(GameAccess.textures.slice(0,4).filter(t->t.disposed!=true).length==0&&GameAccess.textures[4].disposed!=true);
   check(cart.color.x==0xEE/255.0&&cart.color.y==0xDD/255.0&&cart.color.z==0xCC/255.0);
   var next=GameAccess.buttons.filter(b->b.text=="Next")[0],page=GameAccess.labels.filter(l->l.text=="Page 1")[0];
   check(next.parent==page.parent&&next.x-6*8==18);
@@ -82,6 +94,10 @@ class MarketplaceUiTest {
   check(GameAccess.nodes.indexOf(search)>=0&&GameAccess.nodes.indexOf(select)>=0&&GameAccess.nodes.indexOf(online)>=0&&GameAccess.buttons.indexOf(classButton)>=0);
   var retained:Array<Dynamic>=[search,select,online,classButton,filterToggle];
   check(retained.filter(control->GameAccess.removed.indexOf(control)>=0).length==0);
+  check(searchUncovered(search)&&search.input.text=="ore"&&search.x==28&&search.y==108&&search.width==792);
+  var backgrounds=(cast search.parent.children:Array<Dynamic>).filter(n->GameAccess.field(n,"shapes")!=null
+      &&(cast n.shapes:Array<Dynamic>).filter(s->s.y==64&&s.width==1072).length>0);
+  check(backgrounds.length==1&&backgrounds[0].shapes.length==6);
   c.busy=false;
   var sellers=GameAccess.labels.filter(l->l.text=="Seller: Tester"),seller=sellers[0],sellerBox=seller.parent;
   var dot:Dynamic=sellerBox.children.filter(n->n.shapes!=null)[0];

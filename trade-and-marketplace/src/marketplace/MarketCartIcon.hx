@@ -22,7 +22,9 @@ class MarketCartIcon {
             var nativeBytes=G.create("haxe.io.Bytes",[raw,bytes.length]);
             var resource=G.staticCall("hxd.res.Any","fromBytes",["marketplace-cart.png",nativeBytes]);
             texture=G.call("hxd.res.Any","toTexture",resource);targets.push(texture);
-            for(pixels in [256,128,64]) {
+            // Finish near the displayed 28px size: jumping from 64px directly
+            // to 28px skips source samples and leaves the thin diagonals jagged.
+            for(pixels in [256,128,64,32]) {
                 var source=G.staticCall("h2d.Tile","fromTexture",[texture]);
                 G.call("h2d.Tile","scaleToSize",source,[pixels*1.0,pixels*1.0]);
                 holder=G.create("h2d.Bitmap",[source,null]);released=false;

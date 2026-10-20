@@ -29,7 +29,7 @@ class GameAccess {
   return switch(n){
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
-   case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];null;
+   case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics")o.shapes=[];null;
    case "dispose": o.disposed=true;null;
    case "toTexture": var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture;
    case "set_colorAdd": maskWhitened=true;null;

@@ -30,6 +30,8 @@ class MarketApiLog {
         var error=data==null?null:Reflect.field(data,"error");
         var code=Std.isOfType(error,String)?Std.string(error):field(error,"code");
         if(code!=""&&!~/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.match(code))code="unrecognized_error";
+        if(method=="POST"&&endpoint(url)=="/api/v1/marketplace/heartbeat"
+            &&response.status==429&&code=="heartbeat_too_soon")return "";
         var auth=endpoint(url).indexOf("/api/v1/auth/")==0;
         if(auth&&(response.status==400||response.status==429)&&(code=="authorization_pending"||code=="slow_down"))return "";
         var parts:Array<String>=[];
