@@ -506,7 +506,7 @@ class MarketWindow {
     function selectedItem(item:TradeItem,?metadata:Dynamic):Void {
         var root=frame.container, y=contentY+58;
         var viewport=G.field(node("element",G.field(root,"dom"),[],"marketDetailViewport"+(sequence++)),"obj");
-        absolute(root,viewport);padding(viewport,0);size(viewport,316,164);position(viewport,754,y);
+        absolute(root,viewport);padding(viewport,0);size(viewport,316,c.tab=="Sell"?164:(c.tab=="My listings"?704:736)-y);position(viewport,754,y);
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
         var details=G.field(node("element",G.field(viewport,"dom"),[],"marketDetails"+(sequence++)),"obj");
@@ -527,6 +527,9 @@ class MarketWindow {
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+category);
         if(subcategory!="")lines.push("Subcategory: "+subcategory);
+        var meta=labelAt(details,lines.join("\n"),0,0,352,false,MUTED);
+        G.call("h2d.Object","setScale",meta,[0.85]);
+        lines=[];
         var itemLines=MarketText.detail(item.detail).split("\n");
         if(rarityLabel!=null)itemLines.shift();
         for(entry in itemLines)if(StringTools.trim(entry)!="")lines.push(entry);
@@ -539,6 +542,11 @@ class MarketWindow {
             var quantityY=below+(rarityLabel==null?0:24);
             position(quantityLabel,72,quantityY);
             var statsY=Std.int(Math.max(72,quantityY+32));
+            position(meta,0,statsY);
+            if(category!=""||subcategory!="") {
+                var metaBounds=G.call("h2d.Object","getSize",meta,[null]);
+                statsY+=Std.int(Math.ceil(G.number(G.field(metaBounds,"yMax"),22)*0.85))+12;
+            }
             position(stats,0,statsY);
             var statsBounds=G.call("h2d.Object","getSize",stats,[null]);
             size(details,300,Std.int(Math.max(164,statsY+G.number(G.field(statsBounds,"yMax"),22)+12)));
@@ -576,29 +584,26 @@ class MarketWindow {
         if(c.selected==null)return;
         var row=c.selected;try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
-            labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,contentY+222,316,false,MUTED);
-            labelAt(frame.container,"Asking price:",754,contentY+260,316,true);
-            priceDisplay(frame.container,row.price,754,contentY+288,316);
+            labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,714,316,false,MUTED);
             button("Remove listing",754,752,316,c.remove,"cancel");
         } else {
-            line(frame.container,754,contentY+222,316);
-            sellerLine(frame.container,G.text(row.seller.characterName),isOnline(row),754,contentY+238,316,true);
-            labelAt(frame.container,"Asking price:",754,contentY+278,316,true);
-            priceDisplay(frame.container,row.price,754,contentY+306,316);
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
     }
     function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false):Void {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
-        var caption=labelAt(box,"Seller: "+name,0,0,width-18,bold,bold?INK:MUTED,true);
+        var caption=labelAt(box,"Seller: "+name,0,0,width-90,bold,bold?INK:MUTED,true);
+        var status=labelAt(box,online?"Online":"Offline",0,0,70,false,MUTED,true);
         var dot=graphic(box);
         rounded(dot,0,0,10,10,5,online?0x426138:0x888888);
         afterReflow(box,()->{
             centerDropdownCaption(caption,24,0);
             var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
             var right=G.number(G.field(caption,"x"))+G.number(G.field(bounds,"xMax"))*G.number(G.field(caption,"scaleX"),1);
-            position(dot,Math.min(width-10,Math.round(right)+6),7);
+            var dotX=Math.min(width-84,Math.round(right)+6);
+            position(dot,dotX,7);
+            centerDropdownCaption(status,24,dotX+16);
         });
     }
     function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void):Void {

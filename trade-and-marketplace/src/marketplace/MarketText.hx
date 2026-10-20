@@ -46,7 +46,24 @@ class MarketText {
 
     public static function detail(text:String):String {
         // Older exports contain the enum's debug name instead of the attribute label.
-        return ~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");
+        text=~/ETA?Attribute\(([^()]+)\)/g.replace(text,"$1");
+        var lines=[];
+        for(line in text.split("\n")) {
+            line=~/(?:[ \t]*[|·][ \t]*)?Upgrade \+0$/.replace(StringTools.rtrim(line),"");
+            if(StringTools.trim(line)!="")lines.push(line);
+        }
+        return lines.join("\n");
     }
 
+    public static function itemName(kind:String,name:String):String {
+        name=~/<[^>]*>/g.replace(name,"");
+        var gift=~/^DemonGearUpgrade(?:Rare)?_([A-Za-z]+)To([A-Za-z]+)$/;
+        if(!gift.match(kind)||name.indexOf(" (+")>=0)return name;
+        var loss=giftStat(gift.matched(1)),gain=giftStat(gift.matched(2));
+        return loss==""||gain==""?name:name+" (+"+gain+"/-"+loss+")";
+    }
+    static function giftStat(code:String):String return switch(code.toLowerCase()) {
+        case "ferv":"Fervor";case "crit":"Crit";
+        case "ap":"Armor Pen";case "mp":"Magic Pen";default:"";
+    };
 }

@@ -38,7 +38,7 @@ class MarketplaceUiTest {
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
-  var name=GameAccess.labels.filter(l->l.text==trade.TradeInventory.itemName("Shield_OrbitWater"))[0];
+  var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==true);
   check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
@@ -101,7 +101,7 @@ class MarketplaceUiTest {
   c.busy=false;
   var sellers=GameAccess.labels.filter(l->l.text=="Seller: Tester"),seller=sellers[0],sellerBox=seller.parent;
   var dot:Dynamic=sellerBox.children.filter(n->n.shapes!=null)[0];
-  check(GameAccess.labels.filter(l->l.text=="Status: Online"||l.text=="Online"||l.text=="Offline").length==0);
+  check(GameAccess.labels.filter(l->l.text=="Online").length==MarketController.PAGE_SIZE);
   check(sellers.length==MarketController.PAGE_SIZE&&dot.shapes[0].color==0x426138&&dot.shapes[0].radius==5);
   check(dot.x==seller.x+14*8+6&&dot.y+5==12);
   check(sellers[sellers.length-1].parent.parent.y+sellerBox.parent.height<=806);
@@ -112,9 +112,17 @@ class MarketplaceUiTest {
   GameAccess.nodes=[];GameAccess.labels=[];view.update();
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0&&Std.string(l.text).indexOf("Subcategory: Armour")>=0).length==1);
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
-  check(detailSeller!=null&&detailSeller.parent.children.filter(n->n.shapes!=null)[0].shapes[0].color==0x426138);
+  check(detailSeller==null&&GameAccess.labels.filter(l->l.text=="Asking price:").length==0);
+  var meta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0)[0];
+  check(meta.scaleX==0.85&&meta.textColor==0x806B5B);
+  var viewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
+  check(viewport.y+viewport.height==736);
+  var onlineStatus=GameAccess.labels.filter(l->l.text=="Online")[0];
+  var statusDot=onlineStatus.parent.children.filter(n->n.shapes!=null)[0];
+  check(onlineStatus.x==statusDot.x+16);
   row.seller.onlineUntil=null;GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="Seller: Tester").filter(l->l.parent.children.filter(n->n.shapes!=null)[0].shapes[0].color!=0x888888).length==0);
+  check(GameAccess.labels.filter(l->l.text=="Offline").length==MarketController.PAGE_SIZE);
   var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
   check(picture.getTip!=null&&picture.width==60&&picture.height==60&&picture.showTipOnOver);
   check(picture.interactive!=null&&picture.interactive.onOver!=null);

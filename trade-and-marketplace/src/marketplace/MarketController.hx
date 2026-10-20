@@ -183,6 +183,7 @@ class MarketController {
         if(!ownedKnown){applyInventorySearch();return;}
         for(source in MarketInventory.sources(inv,bankOnly))for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
+            item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
                 if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))continue;
                 availableInventory.push(item);locations[item.uid]=source==inv?"In backpack":"In bank";

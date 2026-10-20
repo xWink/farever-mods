@@ -1,4 +1,5 @@
 import marketplace.MarketPresence;
+import marketplace.MarketText;
 import marketplace.MarketInventory;
 import marketplace.MarketExport;
 import marketplace.MarketEndpoints;
@@ -105,6 +106,26 @@ class MarketplaceTest {
   (cast same.stats:Array<Dynamic>).reverse();(cast same.native.effects:Array<Dynamic>).reverse();
   check(marketplace.MarketItemIdentity.key(identity)==marketplace.MarketItemIdentity.key(same));
   same.stats[0].value=9;check(marketplace.MarketItemIdentity.key(identity)!=marketplace.MarketItemIdentity.key(same));
+  // Listing IDs work in the actual HL runtime with no desktop plugin installed.
+  var ids=new Map<String,Bool>(),uuid=~/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  for(_ in 0...100) {var id=MarketExport.uuid();check(uuid.match(id)&&!ids.exists(id));ids[id]=true;}
+  check(MarketText.detail("Uncommon\nLevel 25  |  Upgrade +0\n22 Armor")=="Uncommon\nLevel 25\n22 Armor");
+  check(MarketText.detail("Rare\nUpgrade +0\n5 Strength")=="Rare\n5 Strength");
+  check(MarketText.detail("Level 25  |  Upgrade +2")=="Level 25  |  Upgrade +2");
+  check(MarketText.detail("Upgrade +10")=="Upgrade +10");
+  item.kind="DemonGearUpgradeRare_CritToFerv";
+  item.name=MarketText.itemName(item.kind,"Corrupted Gift");
+  check(item.name=="Corrupted Gift (+Fervor/-Crit)");
+  check(MarketInventory.filter([item],"+fervor/-crit")[0]==item);
+  check(MarketText.itemName(item.kind,item.name)==item.name);
+  check(MarketText.itemName("DemonGearUpgrade_FervToAp","Corrupted Gift")=="Corrupted Gift (+Armor Pen/-Fervor)");
+  check(MarketText.itemName("DemonGearUpgrade_APToMP","Corrupted Gift")=="Corrupted Gift (+Magic Pen/-Armor Pen)");
+  check(MarketText.itemName("UnknownGift","Corrupted Gift")=="Corrupted Gift");
+  var listing:Dynamic={item:{baseId:item.kind,name:item.name,quantity:1,rarity:"Rare",upgradeLevel:0,stats:[],modifiers:[],native:null}};
+  var gift=MarketExport.offer(listing);
+  check(gift.name==item.name&&gift.detail=="Rare");
+  listing.item.upgradeLevel=3;
+  check(MarketExport.offer(listing).detail=="Rare\nUpgrade +3");
   Sys.println("Marketplace checks passed: "+checks);
  }
 }

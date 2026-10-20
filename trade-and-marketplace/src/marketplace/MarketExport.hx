@@ -12,8 +12,13 @@ class MarketExport {
         case "cn","china","mainland-china": "mainland-china";
         default: "";
     };
+    static var requestSequence=0;
     public static function uuid():String {
-        var b=MarketNative.random(); b.set(6,(b.get(6)&15)|64);b.set(8,(b.get(8)&63)|128);
+        // This is a non-secret idempotency token, not authentication entropy.
+        // Keep listing submission independent of the optional sign-in desktop plugin.
+        var seed=Std.string(Date.now().getTime())+":"+Std.string(haxe.Timer.stamp())+":"+Std.string(requestSequence++);
+        for(_ in 0...4)seed+=":"+Std.string(Math.random());
+        var b=haxe.crypto.Sha256.make(haxe.io.Bytes.ofString(seed)); b.set(6,(b.get(6)&15)|64);b.set(8,(b.get(8)&63)|128);
         var hex=b.toHex().substr(0,32);b.fill(0,b.length,0);
         return hex.substr(0,8)+"-"+hex.substr(8,4)+"-"+hex.substr(12,4)+"-"+hex.substr(16,4)+"-"+hex.substr(20);
     }
@@ -49,12 +54,13 @@ class MarketExport {
         if(!trade.TradePreview.valid(p))throw "Update the mod to inspect this listing.";
         var detail:String=i.detail==null?"":i.detail;
         if(p==null||StringTools.trim(detail)==""||detail==G.text(i.rarity)) {
-            var lines=[G.text(i.rarity),"Upgrade +"+MarketText.number(i.upgradeLevel)];
+            var lines=[G.text(i.rarity)];
+            if(G.integer(i.upgradeLevel)>0)lines.push("Upgrade +"+MarketText.number(i.upgradeLevel));
             if(Std.isOfType(i.stats,Array)) for(stat in (cast i.stats:Array<Dynamic>))lines.push(G.text(stat.name)+": "+MarketText.number(stat.value)+(stat.unit=="percent"?"%":""));
             if(Std.isOfType(i.modifiers,Array))for(m in (cast i.modifiers:Array<Dynamic>))lines.push(G.text(m.name));
             detail=lines.join("\n");
         }
-        return {uid:"",kind:i.baseId,count:i.quantity,name:TradeInventory.itemName(i.baseId),detail:detail,
+        return {uid:"",kind:i.baseId,count:i.quantity,name:MarketText.itemName(G.text(i.baseId),G.text(i.name,TradeInventory.itemName(i.baseId))),detail:MarketText.detail(detail),
             color:0xDAC9AA,fingerprint:"",preview:p};
     }
 }
