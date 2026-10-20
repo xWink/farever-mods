@@ -87,6 +87,13 @@ class MarketplaceStateTest {
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
         c.update(app,0);check(!c.busy&&c.inventory.length==0&&c.message!="");
+        c.tab="Browse";c.selected={id:"whisper",server:"europe",seller:{accountId:"seller",characterName:"Wink"}};
+        c.contact();
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({seller:{accountId:"seller",characterName:"Wink"},item:{baseId:"Sword",quantity:12},price:{mode:"fixed",silverTrays:5}})}});
+        c.update(app,0);
+        check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
+        check(c.message.indexOf("Whisper sent to Wink.")==0);
         Sys.println("Marketplace state checks passed: "+checks);
     }
 }

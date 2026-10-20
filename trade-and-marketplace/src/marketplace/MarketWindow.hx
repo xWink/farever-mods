@@ -354,7 +354,7 @@ class MarketWindow {
         dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],300,190,312,s->filter("subcategory",s));
         var rarities=["","Common","Uncommon","Rare","Epic","Legendary"];
         dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],628,190,210,s->filter("rarity",s));
-        dropdown("Pricing",["","fixed","offers"],["Any price","Fixed price","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
+        dropdown("Pricing",["","fixed","offers"],["Any price","Buyout","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
         checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"));
         button("Clear filters",928,272,148,resetFilters,"");
         labelAt(root,"Class",28,244,464,false,MUTED);
@@ -503,26 +503,45 @@ class MarketWindow {
         G.call("ui.UIElement","set_getTip",object,[()->TradeTooltips.create(item,c.tab=="Sell"?MarketInventory.source(c.inv,item.uid,c.bankOnly):null)]);
         G.set(object,"showTipOnOver",true);style(object,"show-tip-on-over",true);
     }
-    function selectedItem(item:TradeItem):Void {
+    function selectedItem(item:TradeItem,?metadata:Dynamic):Void {
         var root=frame.container, y=contentY+58;
-        var details=G.field(node("element",G.field(root,"dom"),[],"marketDetails"+(sequence++)),"obj");
-        absolute(root,details);padding(details,0);size(details,316,164);position(details,754,y);
+        var viewport=G.field(node("element",G.field(root,"dom"),[],"marketDetailViewport"+(sequence++)),"obj");
+        absolute(root,viewport);padding(viewport,0);size(viewport,316,164);position(viewport,754,y);
+        var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
+        G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
+        var details=G.field(node("element",G.field(viewport,"dom"),[],"marketDetails"+(sequence++)),"obj");
+        // Keep the content in normal flow so the viewport measures its scrollable height.
+        padding(details,0);size(details,300,164);
         var picture=G.field(node("element",G.field(details,"dom"),[],"marketDetailsIcon"+(sequence++)),"obj");
         absolute(details,picture);padding(picture,0);size(picture,60,60);position(picture,0,0);
         // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.
         itemIcon(picture,item,0,0,60);
         tooltip(picture,item);
-        var name=labelAt(details,item.name,72,0,244,true);
+        var name=labelAt(details,item.name,72,0,228,true);
         largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
-        var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,244,false,MUTED);
+        var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,228,false,MUTED);
         var rarity=item.detail.split("\n")[0];
         var rarityLabel=["Common","Uncommon","Rare","Epic","Legendary"].indexOf(rarity)<0?null:
-            labelAt(details,rarity,72,0,244,true,rarityColor(rarity));
+            labelAt(details,rarity,72,0,228,true,rarityColor(rarity));
+        var lines=[];
+        var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
+        if(category!="")lines.push("Category: "+category);
+        if(subcategory!="")lines.push("Subcategory: "+subcategory);
+        var itemLines=MarketText.detail(item.detail).split("\n");
+        if(rarityLabel!=null)itemLines.shift();
+        for(entry in itemLines)if(StringTools.trim(entry)!="")lines.push(entry);
+        var stats=labelAt(details,lines.join("\n"),0,0,300,false);
+        G.call("h2d.Text","set_wordBreak",stats,[true]);
         afterReflow(details,()->{
             var bounds=G.call("h2d.Object","getSize",name,[null]);
             var below=G.number(G.field(name,"y"))+G.number(G.field(bounds,"yMax"),22)+10;
             if(rarityLabel!=null)position(rarityLabel,72,below);
-            position(quantityLabel,72,below+(rarityLabel==null?0:24));
+            var quantityY=below+(rarityLabel==null?0:24);
+            position(quantityLabel,72,quantityY);
+            var statsY=Std.int(Math.max(72,quantityY+32));
+            position(stats,0,statsY);
+            var statsBounds=G.call("h2d.Object","getSize",stats,[null]);
+            size(details,300,Std.int(Math.max(164,statsY+G.number(G.field(statsBounds,"yMax"),22)+12)));
         });
     }
     function emptyList():Void {
@@ -533,7 +552,7 @@ class MarketWindow {
     }
     function priceFields(y:Int):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);
-        button(offers?"Open to offers":"Fixed price",754,y+28,316,()->{offers=!offers;dirty=true;},offers?"unaccept":"");
+        button(offers?"Open to offers":"Buyout",754,y+28,316,()->{offers=!offers;dirty=true;},offers?"unaccept":"");
         if(!offers) {
             var conversion=currencyLine(frame.container,int(trays),754,y+120,316,true);
             var box=counter(trays,754,y+76,132,200000,s->{
@@ -545,7 +564,7 @@ class MarketWindow {
     }
     function sellPanel():Void {
         if(c.chosen==null)return;
-        selectedItem(c.chosen);
+        selectedItem(c.chosen,MarketCategory.item(c.chosen.kind));
         line(frame.container,754,contentY+224,316);
         labelAt(frame.container,"Quantity to sell",754,contentY+246,316,true);
         counter(quantity,754,contentY+274,132,Std.int(Math.min(10000,c.chosen.count)),s->quantity=s);
@@ -555,7 +574,7 @@ class MarketWindow {
     }
     function listingPanel():Void {
         if(c.selected==null)return;
-        var row=c.selected;try selectedItem(MarketExport.offer(row))catch(error:Dynamic){report("selected item details",error);}
+        var row=c.selected;try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
             labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,contentY+222,316,false,MUTED);
             labelAt(frame.container,"Asking price:",754,contentY+260,316,true);

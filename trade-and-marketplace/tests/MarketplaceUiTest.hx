@@ -18,7 +18,7 @@ class MarketplaceUiTest {
  }
  static function main():Void {
   // The successful listing shape, including a detached item and ISO presence expiry.
-  var row:Dynamic=haxe.Json.parse('{"id":"test","price":{"mode":"fixed","silverTrays":1},"item":{"baseId":"Shield_OrbitWater","name":"Test shield","quantity":1,"rarity":"Epic","upgradeLevel":0,"native":{"flags":0,"level":25,"upgrade":0,"rarity":"Epic","infusion":"","bonus":"","mastery":"","slots":[],"effects":[]},"detail":"Epic"},"seller":{"accountId":"seller","characterName":"Tester","onlineUntil":"2099-01-01T00:00:00.000Z"}}');
+  var row:Dynamic=haxe.Json.parse('{"id":"test","price":{"mode":"fixed","silverTrays":1},"item":{"baseId":"Shield_OrbitWater","name":"Test shield","quantity":1,"rarity":"Epic","category":"Equipment","subcategory":"Armour","upgradeLevel":0,"native":{"flags":0,"level":25,"upgrade":0,"rarity":"Epic","infusion":"","bonus":"","mastery":"","slots":[],"effects":[]},"detail":"Epic"},"seller":{"accountId":"seller","characterName":"Tester","onlineUntil":"2099-01-01T00:00:00.000Z"}}');
   var c=new MarketController();c.rows=[for(i in 0...MarketController.PAGE_SIZE)row];c.total=c.rows.length;
   var view=new MarketWindow(c);c.view=view;view.open();view.update();check(TradeFrame.active==1);
   check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["online"]=="true");
@@ -110,6 +110,7 @@ class MarketplaceUiTest {
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0&&n.getTip!=null).length==0);
   GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].action();check(c.selected==row);
   GameAccess.nodes=[];GameAccess.labels=[];view.update();
+  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0&&Std.string(l.text).indexOf("Subcategory: Armour")>=0).length==1);
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
   check(detailSeller!=null&&detailSeller.parent.children.filter(n->n.shapes!=null)[0].shapes[0].color==0x426138);
   row.seller.onlineUntil=null;GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
@@ -147,8 +148,8 @@ class MarketplaceUiTest {
   c.chosen=marketplace.MarketExport.offer(row);c.chosen.detail="Epic\n50 ETAttribute(Vitality)\n10 ETAttribute(Strength)";
   GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
   var detailName=GameAccess.labels.filter(l->l.text==c.chosen.name&&Std.string(l.parent.id).indexOf("marketDetails")==0)[0];
-  check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==244);
-  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==0);
+  check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==228);
+  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
   var count=GameAccess.labels.filter(l->l.text=="Quantity: 1")[0];check(count.y>70);
   var detailRarity=GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==detailName.parent)[0];

@@ -48,9 +48,9 @@ class MarketExport {
         var i=row.item,p:TradeItemPreview=i.native;
         if(!trade.TradePreview.valid(p))throw "Update the mod to inspect this listing.";
         var detail:String=i.detail==null?"":i.detail;
-        if(p==null) {
-            var lines=[i.rarity+" · Upgrade +"+i.upgradeLevel];
-            if(Std.isOfType(i.stats,Array)) for(stat in (cast i.stats:Array<Dynamic>))lines.push(G.text(stat.name)+": "+stat.value+(stat.unit=="percent"?"%":""));
+        if(p==null||StringTools.trim(detail)==""||detail==G.text(i.rarity)) {
+            var lines=[G.text(i.rarity),"Upgrade +"+MarketText.number(i.upgradeLevel)];
+            if(Std.isOfType(i.stats,Array)) for(stat in (cast i.stats:Array<Dynamic>))lines.push(G.text(stat.name)+": "+MarketText.number(stat.value)+(stat.unit=="percent"?"%":""));
             if(Std.isOfType(i.modifiers,Array))for(m in (cast i.modifiers:Array<Dynamic>))lines.push(G.text(m.name));
             detail=lines.join("\n");
         }
