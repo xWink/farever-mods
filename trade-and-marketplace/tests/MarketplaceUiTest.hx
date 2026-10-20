@@ -223,6 +223,10 @@ class MarketplaceUiTest {
   GameAccess.nodes=[];view.update();
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);
+  var selectedGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryGrid")==0)[0];
+  var overlays=(cast selectedGrid.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Object");
+  check(overlays.length==1&&overlays[0].parent==selectedGrid&&overlays[0].children[0].nativeType=="h2d.Graphics");
+  check(selectedGrid.children[selectedGrid.children.length-1]==overlays[0]);
   var saleBadge=GameAccess.labels.filter(l->l.text=="For sale")[0];
   saleBadge.needUpdateScale=true;saleBadge.parent.onAfterReflow();
   check(saleBadge.scaleX==0.65&&saleBadge.x>3&&saleBadge.y+4*0.65>=0&&saleBadge.y+22*0.65<=16);
@@ -311,6 +315,18 @@ class MarketplaceUiTest {
   GameAccess.nodes.filter(n->n.id=="marketSortprice")[0].action();view.update();
   check(c.listingSort()=="price-desc"&&GameAccess.labels.filter(l->l.text=="TOTAL PRICE ↓").length==1);
   GameAccess.nodes.filter(n->n.id=="marketSortprice")[0].action();view.update();check(c.listingSort()=="");
+  // Display rarity uses the native prismatic bit for local items and listing metadata.
+  for(tab in ["Browse","My listings","Sell"]) {
+   c.tab=tab;c.selected=row;c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,detail:"Epic",color:0,fingerprint:"",preview:row.item.native};
+   row.item.native.flags=2;row.item.prismatic=false;
+   GameAccess.labels=[];view.dirty=true;view.update();
+   check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==1);
+   row.item.native.flags=0;GameAccess.labels=[];view.dirty=true;view.update();
+   check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==0);
+  }
+  c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
+  check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==1);
+  row.item.prismatic=false;
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();

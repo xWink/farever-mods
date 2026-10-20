@@ -62,3 +62,10 @@
 -cp tests/chat-stubs
 -main ChatTest
 --interp
+
+--next
+-cp src
+-cp tests
+-cp tests/controller-stubs
+-main PartyTest
+--interp

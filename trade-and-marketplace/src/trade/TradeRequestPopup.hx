@@ -21,6 +21,8 @@ class TradeRequestPopup {
             countdown = TradeFrame.textAt(frame.header,"45s",372,17,50,true);
             TradeFrame.textAt(frame.container,controller.peerName,20,16,384,true);
             TradeFrame.textAt(frame.container,"would like to trade with you.",20,42,384);
+            if (controller.partyMember(controller.state.peer) == null)
+                TradeFrame.textAt(frame.container,"Accepting creates a new party for this trade.",20,66,384);
             frame.button("Decline",14,96,128,()->controller.cancel("Trade request declined."),"cancel");
             frame.button("Accept request",216,96,194,controller.join,"accept");
         }

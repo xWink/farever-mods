@@ -66,6 +66,8 @@ jobs:
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.trade-oracle-hashlink
         run: |
+          haxe -cp src -cp tests -cp tests/controller-stubs -main PartyTest -hl build/party-test.hl
+          ../.trade-oracle-hashlink/hl build/party-test.hl
           haxe -cp src -cp tests -cp tests/chat-stubs -main ChatTest -hl build/chat-test.hl
           ../.trade-oracle-hashlink/hl build/chat-test.hl
           haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -main MarketplaceTest -hl build/marketplace-test.hl

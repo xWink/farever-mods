@@ -149,7 +149,7 @@ class TradeMod {
         var uid = menuUid; menuUi = null; menuUid = null;
         try {
             var me = G.field(G.staticCall("GameApp","get",[]),"me");
-            if (controller.ensure(me) && uid != controller.state.self && controller.partyMember(uid) != null)
+            if (controller.ensure(me) && uid != controller.state.self && controller.nearbyPlayer(uid) != null)
                 G.call("hl.types.ArrayObj","pushDyn",entries,[{label:"Trade",onClick:()->controller.request(uid)}]);
         } catch(e:Dynamic) controller.fail(e);
         return Continue;

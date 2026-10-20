@@ -10,6 +10,7 @@ class TradeController {
     public var view:TradeWindow;
     public var requestPopup:TradeRequestPopup;
     var group:Dynamic;
+    var partySetup:TradeParty;
     var wire:TradeWire;
     var movement = new TradeMovement();
     var exchange:TradeExchange;
@@ -33,10 +34,16 @@ class TradeController {
             if (G.text(G.field(p,"uid")) == uid && G.field(p,"removed") != true) return p;
         return null;
     }
-    public function environment(?uid:String):String {
+    public function nearbyPlayer(uid:String):Dynamic {
+        var member = partyMember(uid); if (member != null) return member;
+        for (p in G.array(G.field(G.field(player,"layer"),"players"),true))
+            if (G.text(G.field(p,"uid")) == uid && G.field(p,"removed") != true) return p;
+        return null;
+    }
+    public function environment(?uid:String,requireParty = true):String {
         if (uid == null) uid = state.peer;
-        var peer = partyMember(uid), hero = G.field(peer,"hero");
-        if (peer == null || peer == player) return "Both players must be in the same party.";
+        var peer = requireParty ? partyMember(uid) : nearbyPlayer(uid), hero = G.field(peer,"hero");
+        if (peer == null || peer == player) return requireParty ? "Both players must be in the same party." : "Both players must be nearby to trade.";
         if (hero == null || G.field(hero,"removed") == true || G.field(inv.hero,"removed") == true || G.field(player,"layer") != G.field(peer,"layer")) return "Both players must be in the same area.";
         if (G.call("ent.GameObject","isDead",inv.hero) == true || G.call("ent.GameObject","isDead",hero) == true) return "Both players must be alive to trade.";
         if (state.phase != "exchanging" && TradeInventory.distance(inv.hero,hero) > 5) return "Move closer to each other to trade.";
@@ -45,21 +52,23 @@ class TradeController {
     public function requestName(name:String):Void {
         if (!TradeMod.enabled() || !ensure(G.field(G.staticCall("GameApp","get",[]),"me"))) return;
         name = StringTools.trim(name).toLowerCase();
-        var matches = [for(p in G.array(G.field(G.field(player,"group"),"players"),true))
+        var candidates = G.array(G.field(G.field(player,name == "" ? "group" : "layer"),"players"),true);
+        var matches = [for(p in candidates)
             if (p != player && (name == "" || G.text(G.call("st.Player","getName",p)).toLowerCase() == name)) p];
-        if (matches.length != 1) { chat(name == "" ? "Use /trade PlayerName to trade with a nearby party member." : "No unique party member matches that name."); return; }
+        if (matches.length != 1) { chat(name == "" ? "Use /trade PlayerName to trade with a nearby player." : "No unique nearby player matches that name."); return; }
         request(G.text(G.field(matches[0],"uid")));
     }
     public function request(uid:String):Void {
         if (!TradeMod.enabled() || !ensure(G.field(G.staticCall("GameApp","get",[]),"me"))) return;
         if (state.active()) { chat("Finish or cancel your current trade first."); return; }
-        var reason = environment(uid);
+        var reason = environment(uid,false);
         if (reason != "") { chat(reason); return; }
         var id = StringTools.hex(Std.random(0x3fffffff))+StringTools.hex(Std.random(0x3fffffff));
         if (state.start(uid,id,haxe.Timer.stamp())) { begin(); flush(); }
     }
     function begin():Void {
-        releaseMovement(); group = G.field(player,"group"); peerName = G.text(G.call("st.Player","getName",partyMember(state.peer)),"Player");
+        releaseMovement(); group = G.field(player,"group"); peerName = G.text(G.call("st.Player","getName",nearbyPlayer(state.peer)),"Player");
+        partySetup = null;
         exchange = null; exchangeId = ""; pendingCommits = 0; announcements = []; reportedEnd = "";
         outgoing = outgoing.filter(p->p.op == "cancel" || p.op == "reject"); status = ""; open = state.phase != "invited"; view.dispose(); requestPopup.dispose();
     }
@@ -67,7 +76,7 @@ class TradeController {
         var me = G.field(G.staticCall("GameApp","get",[]),"me");
         if (!TradeMod.enabled() || !TradeChat.isLocalClient(client,me) || !ensure(me)) return;
         var sender = TradeChat.sender(message);
-        if (sender == "" || sender == state.self || partyMember(sender) == null) return;
+        if (sender == "" || sender == state.self || nearbyPlayer(sender) == null) return;
         var p = wire.receive(sender,text,haxe.Timer.stamp());
         if (p == null) return;
         var previousId = state.id;
@@ -79,15 +88,27 @@ class TradeController {
             handledInvites.push(key); if (handledInvites.length > 128) handledInvites.shift();
             var reason = incomingRequestReason();
             if (reason != "") { rejectRequest(sender,p.id,reason); return; }
-            if (environment(sender) != "") return;
+            var unavailable = environment(sender,false);
+            if (unavailable != "") { rejectRequest(sender,p.id,unavailable); return; }
         }
         else if (sender != state.peer || p.id != state.id || p.to != state.self) return;
+        if (p.op == "party") {
+            if (state.leader && state.phase == "inviting") startParty();
+            return;
+        }
+        if (p.op == "party-ready" || p.op == "party-joined") {
+            if (partySetup != null) partySetup.receive(p.op);
+            return;
+        }
+        // A join is never allowed to unlock offers before native party membership exists.
+        if (p.op == "join" && (partyMember(sender) == null || (partySetup != null && !partySetup.joined))) return;
         if (p.key == state.key() && ((p.op == "prepare" && state.phase == "offering")
             || ((p.op == "prepared" || p.op == "commit") && state.phase == "preparing"))) {
             var reason = readyReason(); if (reason != "") { state.cancel(reason); flush(); return; }
         }
         if ((p.op == "drop" || p.op == "collected") && (state.phase == "exchanging" || state.phase == "preparing")) announcements.push(p);
         else state.receive(sender,p,haxe.Timer.stamp());
+        if (state.phase == "offering" && partySetup != null) finishParty();
         if (state.id != previousId) begin();
         flush();
     }
@@ -110,8 +131,17 @@ class TradeController {
     }
     public function join():Void {
         if (state == null || state.phase != "invited") return;
-        var reason = environment(); if (reason != "") { cancel(reason); return; }
+        var reason = environment(null,false); if (reason != "") { cancel(reason); return; }
+        if (partyMember(state.peer) == null) { state.emit("party"); startParty(); return; }
         state.join(haxe.Timer.stamp()); flush(); requestPopup.dispose(); open = true;
+    }
+    function startParty():Void {
+        state.phase = "joining"; state.deadline = haxe.Timer.stamp()+30; state.changed++;
+        partySetup = new TradeParty(player,state); status = "Joining party for trade...";
+        requestPopup.dispose(); open = true; releaseMovement(); flush();
+    }
+    function finishParty():Void {
+        group = G.field(player,"group"); partySetup = null; status = "";
     }
     public function readyReason():String {
         var reason = environment(); if (reason != "") return reason;
@@ -129,6 +159,7 @@ class TradeController {
     }
     public function canAccept():Bool return state != null && state.canAccept() && (state.accepted || (controlsHeld() && inventorySpaceReason() == ""));
     public function controlsLocked(?nativeController:Dynamic):Bool return open && TradeMod.enabled() && state != null && state.active() && inv != null
+        && state.phase != "joining" && partyMember(state.peer) != null
         && (nativeController == null || G.field(nativeController,"unit") == inv.hero);
     function controlsHeld():Bool return inv != null && movement.holding(G.current("client.PlayerController","inst"),inv.hero,state);
     function prepareExchangeAction():String {
@@ -184,7 +215,12 @@ class TradeController {
         if (!TradeMod.enabled() && state.active()) cancel("Trade disabled.");
         if (state.active() && now >= nextCheck) {
             nextCheck = now+0.2;
-            var reason = G.field(player,"group") != group ? "Your party changed." : environment();
+            var waiting = state.phase == "inviting" || state.phase == "invited" || state.phase == "joining";
+            var reason = !waiting && G.field(player,"group") != group ? "Your party changed." : environment(null,!waiting);
+            if (reason == "" && partySetup != null && now < state.deadline) {
+                reason = partySetup.update(nearbyPlayer(state.peer),partyMember(state.peer) != null);
+                if (reason == "" && !state.leader && partySetup.ready) { state.join(now); finishParty(); }
+            }
             if (reason == "" && state.phase != "exchanging") reason = inv.validate(state.mine);
             if (reason != "") state.cancel(reason);
         }
@@ -194,7 +230,7 @@ class TradeController {
             var p = outgoing[0], text = p.parts.shift(); if (p.parts.length == 0) outgoing.shift();
             var current = state, id = p.id, commit = p.op == "commit" && id == state.id;
             if (commit) pendingCommits++;
-            var peer = partyMember(p.to);
+            var peer = nearbyPlayer(p.to);
             TradeChat.send(player,p.to,peer == null ? "Player" : G.text(G.call("st.Player","getName",peer)),text,function(ok:Bool) {
                 if (p.op == "reject") return;
                 if (state != current || state.id != id) return;
@@ -239,6 +275,6 @@ class TradeController {
     }
     public function dispose():Void {
         open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = []; handledInvites = [];
-        state = null; player = group = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
+        partySetup = null; state = null; player = group = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
     }
 }

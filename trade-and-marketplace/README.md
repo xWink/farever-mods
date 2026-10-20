@@ -2,7 +2,7 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-trade-and-marketplace.yml)
 
-A native trade window for nearby party members. This is a testing build; both players need the mod installed.
+A native trade window for nearby players. This is a testing build; both players need the mod installed.
 
 ## Installation
 
@@ -14,9 +14,9 @@ If upgrading from the earlier test build, remove `hlx/mods/trade/` so both copie
 
 ## Trading
 
-1. Join the same party and stand within 5 world units of each other.
+1. Stand within 5 world units of each other. You do not need to be in the same party.
 2. Choose **Trade** in the other player's interaction menu or type `/trade PlayerName`. With exactly one other party member, `/trade` also works.
-3. The recipient accepts the request. The popup preserves cursor visibility; press Alt if the mouse is hidden.
+3. The recipient accepts the request. If you are in different parties, both players leave their old party, the requester sends a party invite, and the recipient joins automatically. The popup preserves cursor visibility; press Alt if the mouse is hidden.
 4. Drag items into **Your offer**, or right-click backpack items to offer a whole stack. Split-stack dragging preserves the selected quantity. Each offer holds six items/stacks; locked items cannot be offered.
 5. Hover items to inspect their details, then choose **Accept trade**. Changing either offer clears both acceptances. Cancel before both players commit.
 6. The mod exchanges the items and confirms receipt. **Trade complete** includes the number of received items, counting stack quantities.
@@ -43,7 +43,7 @@ Press **F7**, type `/market` or `/marketplace`, or choose **Open marketplace** i
 - Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
 - Manage up to 10 active listings under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.
-- **Whisper seller** contacts their account. Arrange a party and meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
+- **Whisper seller** contacts their account. Meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
 - Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 
 Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website marketplace remains a separate preview until its live-data rollout.

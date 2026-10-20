@@ -43,7 +43,7 @@ class TradeSession {
         if (usedOrder.length > 128) used.remove(usedOrder.shift());
     }
     public function join(now:Float):Void {
-        if (phase != "invited") return;
+        if (leader || (phase != "invited" && phase != "joining")) return;
         phase = "offering"; deadline = now+180; emit("join"); offer(); changed++;
     }
     public function setOffer(items:Array<TradeItem>,now:Float):Bool {
@@ -80,7 +80,7 @@ class TradeSession {
             case "cancel": cancel(TradeOffer.str(p.reason,160) ? p.reason : "The other player cancelled.",false);
             case "commit": if (!leader && phase == "preparing" && p.key == key()) { phase = "exchanging"; deadline = now+STALL_SECONDS; changed++; }
             case "done": if (phase == "exchanging" && p.key == key() && !peerReceived) { peerReceived = true; progress(now); finish(); changed++; }
-            case "join": if (phase == "inviting" && leader) { phase = "offering"; deadline = now+180; offer(); changed++; }
+            case "join": if ((phase == "inviting" || phase == "joining") && leader) { phase = "offering"; deadline = now+180; offer(); changed++; }
             case "offer":
                 if (!editable() || !TradePreview.integer(p.revision,0,100000) || p.revision < peerRevision || !TradeOffer.valid(p.items)) return;
                 if (p.revision == peerRevision && TradeOffer.hash(p.items) != TradeOffer.hash(theirs)) { cancel("The other player's offer changed unexpectedly."); return; }
@@ -108,6 +108,7 @@ class TradeSession {
     }
     public function tick(now:Float):Void {
         if (active() && now >= deadline) cancel(phase == "inviting" ? "Trade request timed out. Both players need Trade + Marketplace installed."
+            : phase == "joining" ? "Could not form the trade party. Please try again."
             : closingLocked() ? "Trade stalled for 10 seconds. Check your inventory and any items on the ground." : "Trade timed out.");
     }
     public function emit(op:String,?payload:Dynamic):Void {

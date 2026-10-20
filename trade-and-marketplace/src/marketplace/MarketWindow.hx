@@ -510,6 +510,7 @@ class MarketWindow {
         var columns=10,pitch=64,slotSize=58;
         padding(content,0);size(content,640,Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch);
         alignScrollContent(viewport,content);
+        var selection:Dynamic = null;
         for(index in 0...c.inventorySlots.length) {
             var item=c.inventorySlots[index];
             var x=(index%columns)*pitch,y=Std.int(index/columns)*pitch;
@@ -544,7 +545,7 @@ class MarketWindow {
                     });
                 }
             }
-            if(selected)selectionBorder(slot,slotSize);
+            if(selected)selection = slot;
             tooltip(slot,item);
             if(c.isListed(item)) {
                 var badge=G.field(node("element",G.field(slot,"dom"),[],"marketSaleBadge"+(sequence++)),"obj");
@@ -565,6 +566,14 @@ class MarketWindow {
             G.call("ui.UIElement","set_onClick",slot,[select]);
             if(itemButton!=null){tooltip(itemButton,item);G.call("ui.UIElement","set_onClick",itemButton,[select]);}
         }
+        if(selection != null) {
+            // A sibling overlay stays above ItemSlot's frame and icon mask. Native
+            // slot styling must not clip or offset any of the four selection edges.
+            var overlay=G.create("h2d.Object",[content]);absolute(content,overlay);
+            selectionBorder(overlay,slotSize);
+            var selectedSlot=selection;
+            afterReflow(content,()->position(overlay,G.number(G.field(selectedSlot,"x")),G.number(G.field(selectedSlot,"y"))));
+        }
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
         G.set(viewport,"onAfterReflow",()->{
@@ -573,7 +582,7 @@ class MarketWindow {
         });
     }
     static function selectionBorder(slot:Dynamic,size:Int):Void {
-        var border=graphic(slot);
+        var border=G.create("h2d.Graphics",[slot]);position(border,0,0);
         for(layer in [{width:5.0,color:0x5B4334},{width:3.0,color:0xF3CD70},{width:1.0,color:0xFFF1B5}]) {
             var outer=3-layer.width/2,far=size-outer,inner=outer+layer.width,near=size-inner;
             // Filled edges meet at clean mitred corners without rounded stroke caps.
@@ -717,8 +726,9 @@ class MarketWindow {
         var levelLabel=requiredLevel>0?labelAt(details,"Level "+requiredLevel,72,0,228,false,MUTED):null;
         var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,228,false,MUTED);
         var rarity=item.detail.split("\n")[0];
+        var prismatic=G.field(metadata,"prismatic")==true || (item.preview!=null && (item.preview.flags&2)!=0);
         var rarityLabel=["Common","Uncommon","Rare","Epic","Legendary"].indexOf(rarity)<0?null:
-            labelAt(details,rarity,72,0,228,true,rarityColor(rarity));
+            labelAt(details,rarity=="Epic"&&prismatic?"Epic (Prismatic)":rarity,72,0,228,true,rarityColor(rarity));
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+MarketCategory.label(category));
