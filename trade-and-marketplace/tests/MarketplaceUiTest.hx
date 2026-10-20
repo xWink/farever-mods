@@ -242,8 +242,28 @@ class MarketplaceUiTest {
   subcategory.selectedIndex=1;subcategory.onSelectOption(null);view.update();check(c.filters["subcategory"]=="Food");
   check(GameAccess.removed.indexOf(category)<0&&GameAccess.removed.indexOf(subcategory)<0);
   check(GameAccess.nodes.indexOf(searchField)>=0&&GameAccess.buttons.indexOf(toggle)>=0);
+  check(category.options[6].name=="Collectibles");
+  category.selectedIndex=6;category.onSelectOption(null);view.update();
+  check(c.filters["category"]=="Collections"&&subcategory.options[1].name=="Recipes");
+  var rarityFilter=dropdowns[2];
+  check(rarityFilter.options[4].name=="Epic"&&rarityFilter.options[5].name=="Epic (Prismatic)"&&rarityFilter.options[6].name=="Legendary");
+  rarityFilter.selectedIndex=5;rarityFilter.onSelectOption(null);view.update();
+  check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="true"&&rarityFilter.selectedIndex==5);
+  rarityFilter.selectedIndex=4;rarityFilter.onSelectOption(null);view.update();
+  check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="");
   toggle.action();view.update();
   check(!c.filtersExpanded&&GameAccess.removed.indexOf(category)>=0&&GameAccess.removed.indexOf(toggle)<0);
+  row.item.itemLevel=35;row.item.category="Collections";c.rows=[row];c.selected=row;
+  GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();
+  var levelCell=GameAccess.labels.filter(l->l.text=="35")[0];
+  check(levelCell!=null&&Std.string(levelCell.parent.id).indexOf("marketRow")==0&&levelCell.x==350);
+  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Collectibles")>=0).length==1);
+  var sameItem=GameAccess.buttons.filter(b->b.text=="Search item")[0];
+  check(sameItem.enable&&sameItem.y==180&&sameItem.x==946);sameItem.action();check(c.searchedItem);
+  GameAccess.buttons.filter(b->b.text=="Level")[0].action();GameAccess.buttons=[];view.update();
+  check(c.levelSort()=="item-level-asc");
+  GameAccess.buttons.filter(b->b.text=="Level ↑")[0].action();GameAccess.buttons=[];view.update();
+  check(c.levelSort()=="item-level-desc"&&GameAccess.buttons.filter(b->b.text=="Level ↓").length==1);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();

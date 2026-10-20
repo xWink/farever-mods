@@ -22,7 +22,7 @@ class MarketplaceStateTest {
         reply(c,app,{id:"second"},null);c.selected=c.rows[0];
         var selected=c.selected;
         c.view.close();c.open();
-        check(MarketWorker.current.sent.length==2&&!c.busy);
+        check(MarketWorker.current.sent.length==3&&!c.busy);
         check(c.page==2&&c.selected==selected&&c.rows[0]==selected&&c.view.shown);
         c.chooseTab("Sell");check(c.busy&&c.inventory.length==0);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
         c.sellSearch="should";c.searchInventory();c.view.close();c.open();
@@ -110,5 +110,6 @@ class MarketplaceStateTest {
         check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
         check(c.message.indexOf("Whisper sent to Wink.")==0);
         Sys.println("Marketplace state checks passed: "+checks);
+        MarketplaceCacheTest.run();
     }
 }

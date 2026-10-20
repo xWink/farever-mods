@@ -4,12 +4,14 @@ import haxe.io.Bytes;
 import sys.thread.Deque;
 import sys.thread.Mutex;
 import sys.thread.Thread;
-typedef MarketJob={generation:Int,op:String,?account:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
-typedef MarketEvent={generation:Int,op:String,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String};
-/** One bounded foreground request plus presence/auth work. Native objects never leave the game thread. */
+typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
+typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String};
+/** Foreground work takes priority over one speculative page request; presence/auth share the worker. Native objects never leave the game thread. */
 class MarketWorker {
     final jobs=new Deque<MarketJob>();
     final events=new Deque<MarketEvent>();
+    final background=new Deque<MarketJob>();
+    var prefetchTicket=-1;
     final mutex=new Mutex();
     var generation=0;
     var started=false;
@@ -19,7 +21,18 @@ class MarketWorker {
         if (!started) { started=true; Thread.create(run); }
         jobs.add({generation:id,op:"session",account:account,key:key}); return id;
     }
-    public function send(job:MarketJob):Void jobs.add(job);
+    public function cancelPrefetch():Void {
+        mutex.acquire();prefetchTicket=-1;mutex.release();
+        while(background.pop(false)!=null){}
+    }
+    public function send(job:MarketJob):Void {
+        if(job.op=="prefetch") {
+            mutex.acquire();prefetchTicket=job.ticket;mutex.release();background.add(job);
+        } else jobs.add(job);
+    }
+    function wanted(job:MarketJob):Bool {
+        mutex.acquire();var yes=job.ticket==prefetchTicket;mutex.release();return yes;
+    }
     public function receive():MarketEvent return events.pop(false);
     function current(id:Int):Bool { mutex.acquire();var yes=id==generation;mutex.release();return yes; }
     function run():Void {
@@ -29,6 +42,8 @@ class MarketWorker {
         var auth=new fareverly.AuthFlow((m,u,b,k)->http.authenticated(m,u,b,k),()->Date.now().getTime()/1000);
         while(true) {
             var job=jobs.pop(account=="");
+            if(job==null)job=background.pop(false);
+            if(job!=null&&job.op=="prefetch"&&!wanted(job))job=null;
             if(job!=null && current(job.generation)) try {
                 if(job.op=="session") {
                     id=job.generation; account=job.account; key=job.key; verified=false;verifyAt=0;verifyFailures=0;
@@ -37,17 +52,17 @@ class MarketWorker {
                     case "auth":
                         auth.begin(account,key!="",job.entropy);opened="";message="";
                     case "cancel-auth": auth.cancel();
-                    case "request":
+                    case "request","prefetch":
                         var needsKey=job.method!="GET" || job.path.indexOf("mine=true")>=0;
                         var response:Response=needsKey&&!verified?{status:401,body:'{"error":"sign_in_required"}',retryAfter:"",error:""}:
                             http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),needsKey?key:"",job.headers);
                         if(needsKey&&!verified)MarketApiLog.unexpected(job.method,job.path,401,"Account verification required",key);
-                        if(current(id))events.add({generation:id,op:"request",response:response});
+                        if(current(id))events.add({generation:id,op:job.op,ticket:job.ticket,response:response});
                     default:
                 }
             } catch(e:Dynamic) { if(current(id)) {
                 MarketApiLog.unexpected(job.method==null?job.op:job.method,job.path==null?"/api/v1/auth/":job.path,0,"Worker failure: "+Std.string(e),key);
-                events.add({generation:id,op:job.op=="request"?"request":job.op=="auth"?"auth-end":"error",message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
+                events.add({generation:id,op:job.op=="request"||job.op=="prefetch"?job.op:job.op=="auth"?"auth-end":"error",ticket:job.ticket,message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
             } }
             if(!current(id)||account=="") { Sys.sleep(0.1);continue; }
             var now=Date.now().getTime()/1000;

@@ -159,8 +159,12 @@ class MarketWindow {
         card(16,contentY,704,806-contentY);
         card(736,contentY,352,806-contentY);
         labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
-        if(c.tab!="Sell")rightText(labelAt(root,"TOTAL PRICE",456,contentY+16,240,true),240);
-        labelAt(root,"ITEM DETAILS",754,contentY+16,300,true);
+        if(c.tab!="Sell") {
+            button("Level"+(c.levelSort()=="item-level-asc"?" ↑":c.levelSort()=="item-level-desc"?" ↓":""),374,contentY+4,84,c.sortByLevel,"");
+            rightText(labelAt(root,"TOTAL PRICE",474,contentY+16,222,true),222);
+        }
+        labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);
+        button("Search item",946,contentY+4,124,c.searchSelectedItem,"",c.tab=="Sell"?c.chosen!=null:c.selected!=null);
         line(root,30,contentY+42,676); line(root,750,contentY+42,324);
         var rowHeight = 68;
         if (c.tab == "Sell") {
@@ -179,9 +183,9 @@ class MarketWindow {
                 dropdown("",values,c.bankNames,Std.string(c.bankTab),16,820,340,value->c.setBankTab(int(value)));
             }
         } else {
-            button("Previous",16,820,118,()->{c.page--;c.refresh();},"",c.page>1);
+            button("Previous",16,820,118,()->c.goPage(c.page-1),"",c.page>1);
             var pageLabel=labelAt(root,"Page "+c.page,152,830,172,true);
-            var next=button("Next",342,820,104,()->{c.page++;c.refresh();},"",c.page<c.pages);
+            var next=button("Next",342,820,104,()->c.goPage(c.page+1),"",c.page<c.pages);
             var footer=G.field(node("element",G.field(root,"dom"),[],"marketPagination"+(sequence++)),"obj");
             absolute(root,footer);padding(footer,0);size(footer,430,36);position(footer,152,820);
             G.call("h2d.Object","addChild",footer,[pageLabel]);absolute(footer,pageLabel);position(pageLabel,0,10);
@@ -204,7 +208,7 @@ class MarketWindow {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
             var priceText=MarketText.price(price);
-            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price);
+            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price,G.field(G.field(listing,"item"),"itemLevel"));
         } catch(error:Dynamic) {
             report(stage,error);
             if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
@@ -339,7 +343,12 @@ class MarketWindow {
         G.call("ui.comp.Dropdown","set_enable",control,[true]); controls.push(control);
     }
     function filter(key:String,value:String):Void {
-        if(c.busy)return; c.filters[key]=value; c.page=1;
+        if(c.busy)return;
+        if(key=="rarity") {
+            c.filters["prismatic"]=value=="Epic (Prismatic)"?"true":"";
+            value=value=="Epic (Prismatic)"?"Epic":value;
+        }
+        c.filters[key]=value; c.page=1;
         if(key=="category") {c.filters["subcategory"]="";if(!MarketCategory.supportsClasses(value))c.filters["classes"]="";}
         c.refresh(); dirty=true;
     }
@@ -357,11 +366,11 @@ class MarketWindow {
         button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"");
         if(!c.filtersExpanded)return;
         var cats=["","Components","Weapon","Armor","Accessory","Consumables","Collections","Containers","Miscellaneous"];
-        dropdown("Category",cats,["All items"].concat(cats.slice(1)),f["category"],28,190,256,s->filter("category",s));
+        dropdown("Category",cats,["All items"].concat(cats.slice(1).map(MarketCategory.label)),f["category"],28,190,256,s->filter("category",s));
         var subs=[""].concat(MarketCategory.subcategories(f["category"]));
         dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],300,190,312,s->filter("subcategory",s));
-        var rarities=["","Common","Uncommon","Rare","Epic","Legendary"];
-        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],628,190,210,s->filter("rarity",s));
+        var rarities=["","Common","Uncommon","Rare","Epic","Epic (Prismatic)","Legendary"];
+        dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"]=="Epic"&&f["prismatic"]=="true"?"Epic (Prismatic)":f["rarity"],628,190,210,s->filter("rarity",s));
         dropdown("Pricing",["","fixed","offers"],["Any price","Buyout","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
         checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"));
         button("Clear filters",928,272,148,resetFilters,"");
@@ -376,7 +385,7 @@ class MarketWindow {
         }
     }
 
-    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic):Void {
+    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic,?itemLevel:Dynamic):Void {
         stage="item row container";
         var root=frame.container, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
         partialRow=row;
@@ -397,7 +406,7 @@ class MarketWindow {
         stage="item row labels";
         var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
         var nameX=64;
-        var nameRight=c.tab=="Sell"?484:414;
+        var nameRight=c.tab=="Sell"?484:338;
         var fullName=item.name+(item.count>1?" ×"+item.count:"");
         var nameLabel=labelAt(row,fullName,nameX,0,nameRight-nameX,true,INK,true);
         // FmtText's native ellipsis overwrites its source text; fit from the original
@@ -408,7 +417,12 @@ class MarketWindow {
         var displayedName=fullName;
         largeLabel(nameLabel);
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
-        if(c.tab!="Sell")sellerLine(row,seller,online,64,33,350);
+        if(c.tab!="Sell") {
+            sellerLine(row,seller,online,64,33,350);
+            var level=labelAt(row,itemLevel==null?"—":MarketText.number(itemLevel),350,0,70,true,INK,true);
+            G.call("h2d.Text","set_textAlign",level,[G.enumeration("h2d.Align","Center")]);
+            centerControlText(level,height-4,350);
+        }
         var priceLabel:Dynamic=null;
         function layoutLabels():Void {
             if(rarityLabel!=null) {
@@ -424,7 +438,7 @@ class MarketWindow {
             if(priceLabel!=null){centerControlText(priceLabel,height-4,502);position(priceLabel,502,G.number(G.field(priceLabel,"y")));}
         }
         if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
-        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true,left->{nameRight=Std.int(left)-14;layoutLabels();});
+        else priceDisplay(row,listingPrice,428,Std.int((height-4-28)/2),240,true,left->{nameRight=Std.int(Math.min(338,left-14));layoutLabels();});
         afterReflow(row,layoutLabels);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         partialRow=null;
@@ -604,7 +618,7 @@ class MarketWindow {
             labelAt(details,rarity,72,0,228,true,rarityColor(rarity));
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
-        if(category!="")lines.push("Category: "+category);
+        if(category!="")lines.push("Category: "+MarketCategory.label(category));
         if(subcategory!="")lines.push("Subcategory: "+subcategory);
         var meta=labelAt(details,lines.join("\n"),0,0,352,false,MUTED);
         G.call("h2d.Object","setScale",meta,[0.85]);

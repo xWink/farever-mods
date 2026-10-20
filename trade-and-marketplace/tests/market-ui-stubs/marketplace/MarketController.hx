@@ -19,9 +19,14 @@ class MarketController {
  public var rows:Array<Dynamic>=[]; public var inventory:Array<trade.TradeTypes.TradeItem>=[];
  public var page=1; public var pages=1; public var total=0; public var selected:Dynamic; public var chosen:trade.TradeTypes.TradeItem;
  public var inv:trade.TradeInventory=null;
- public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>"price-asc"];
+ public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>"price-asc"];
  public function new(){}
  public function chooseTab(s:String):Void tab=s;
+ public var searchedItem=false;
+ public function searchSelectedItem():Void {searchedItem=true;}
+ public function levelSort():String return filters["sort"];
+ public function sortByLevel():Void {filters["sort"]=levelSort()=="item-level-asc"?"item-level-desc":"item-level-asc";if(view!=null)view.dirty=true;}
+ public function goPage(value:Int):Void {page=value;refresh();}
  public function refresh():Void {refreshes++;}
  public function searchInventory():Void {inventorySearches++;}
  public function cancelSignIn():Void{}
