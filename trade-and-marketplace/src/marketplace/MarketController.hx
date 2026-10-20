@@ -32,6 +32,7 @@ class MarketController {
     var inventoryIndexes:Map<String,Int>=[];
     var inventorySource:TradeInventory;
     var availableInventory:Array<TradeItem>=[];
+    var listedInventory:Map<String,Bool>=[];
     var locations:Map<String,String>=[];
     var ownedKnown=false;
     var ownedItems:Map<String,Bool>=[];
@@ -192,7 +193,7 @@ class MarketController {
     public function levelSort():String return tab=="My listings"?mineSort:filters["sort"];
     public function sortByLevel():Void {
         if(busy||tab=="Sell")return;
-        var value=levelSort()=="item-level-asc"?"item-level-desc":"item-level-asc";
+        var value=levelSort()=="required-level-asc"?"required-level-desc":"required-level-asc";
         if(tab=="My listings")mineSort=value;else filters["sort"]=value;
         page=1;refresh();
     }
@@ -224,7 +225,7 @@ class MarketController {
     }
     public function loadInventory():Void {
         var chosenId=chosen==null?"":chosen.uid;
-        availableInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
+        availableInventory=[];listedInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
         var sources=MarketInventory.sources(inv,bankOnly);
         bankNames=MarketInventory.bankNames(inv);
         bankTab=Std.int(Math.max(0,Math.min(bankTab,bankNames.length-1)));
@@ -235,7 +236,7 @@ class MarketController {
             var item=TradeInventory.describe(s.item,s.count);
             item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
-                if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))continue;
+                if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
                 availableInventory.push(item);locations[item.uid]=bankOnly?bankNames[bankTab]:"In backpack";
                 inventoryIndexes[item.uid]=s.index;
                 if(item.uid==chosenId)chosen=item;
@@ -264,6 +265,7 @@ class MarketController {
         var stack=G.call("st.Inventory","getStack",inventorySource.inventory,[inventoryIndexes[item.uid]]);
         return G.uid(G.field(stack,"item"))==item.uid?stack:null;
     }
+    public function isListed(item:TradeItem):Bool return item!=null&&listedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
         var limit=pageSize(),params=["limit="+limit];

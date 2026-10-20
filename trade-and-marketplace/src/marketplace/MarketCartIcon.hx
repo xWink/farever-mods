@@ -39,7 +39,7 @@ class MarketCartIcon {
             }
             var tile=G.staticCall("h2d.Tile","fromTexture",[texture]);
             G.call("h2d.Tile","scaleToSize",tile,[28.0,28.0]);
-            bitmap=G.create("h2d.Bitmap",[tile,parent]);absolute(parent,bitmap);
+            bitmap=G.create("h2d.Bitmap",[tile,parent]);
             G.set(bitmap,"smooth",true);G.set(bitmap,"blendMode",blend);
             G.call("h3d.mat.Texture","preventAutoDispose",texture);
         } catch(error:Dynamic) {

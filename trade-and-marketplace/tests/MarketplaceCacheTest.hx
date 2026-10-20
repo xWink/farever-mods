@@ -51,9 +51,9 @@ class MarketplaceCacheTest {
         c.chooseTab("My listings");respond(c,app,last(),[{id:"mine"}],null);
         c.chooseTab("Browse");sent=MarketWorker.current.sent.length;c.chooseTab("My listings");
         check(!c.busy&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
-        c.sortByLevel();check(Std.string(last().path).indexOf("mine=true")>=0&&Std.string(last().path).indexOf("sort=item-level-asc")>=0);
+        c.sortByLevel();check(Std.string(last().path).indexOf("mine=true")>=0&&Std.string(last().path).indexOf("sort=required-level-asc")>=0);
         respond(c,app,last(),[{id:"mine"}],null);c.sortByLevel();
-        check(Std.string(last().path).indexOf("sort=item-level-desc")>=0&&c.filters["sort"]=="price-asc");
+        check(Std.string(last().path).indexOf("sort=required-level-desc")>=0&&c.filters["sort"]=="price-asc");
         respond(c,app,last(),[{id:"mine"}],null);
 
         c.chooseTab("Browse");c.filters["rarity"]="Epic";c.filters["prismatic"]="true";c.page=1;c.refresh();

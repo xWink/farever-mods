@@ -160,7 +160,7 @@ class MarketWindow {
         card(736,contentY,352,806-contentY);
         labelAt(root,c.tab == "Sell" ? (c.bankOnly?"YOUR BANK":"YOUR INVENTORY") : "ITEM",32,contentY+16,420,true);
         if(c.tab!="Sell") {
-            button("Level"+(c.levelSort()=="item-level-asc"?" ↑":c.levelSort()=="item-level-desc"?" ↓":""),374,contentY+4,84,c.sortByLevel,"");
+            button("Level"+(c.levelSort()=="required-level-asc"?" ↑":c.levelSort()=="required-level-desc"?" ↓":""),374,contentY+4,84,c.sortByLevel,"");
             rightText(labelAt(root,"TOTAL PRICE",474,contentY+16,222,true),222);
         }
         labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);
@@ -179,8 +179,8 @@ class MarketWindow {
         if (c.total == 0) emptyList();
         if(c.tab=="Sell") {
             if(c.bankOnly&&c.bankNames.length>0) {
-                var values=[for(i in 0...c.bankNames.length)Std.string(i)];
-                dropdown("",values,c.bankNames,Std.string(c.bankTab),16,820,340,value->c.setBankTab(int(value)));
+                for(i in 0...Std.int(Math.min(4,c.bankNames.length)))
+                    tabButton(c.bankNames[i],16+i*176,820,166,()->c.setBankTab(i),c.bankTab==i);
             }
         } else {
             button("Previous",16,820,118,()->c.goPage(c.page-1),"",c.page>1);
@@ -208,7 +208,7 @@ class MarketWindow {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
             var priceText=MarketText.price(price);
-            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price,G.field(G.field(listing,"item"),"itemLevel"));
+            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price,G.field(G.field(listing,"item"),"requiredLevel"));
         } catch(error:Dynamic) {
             report(stage,error);
             if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
@@ -333,6 +333,7 @@ class MarketWindow {
             G.call("ui.comp.Dropdown","toggle",control,[null]);
             var popup=G.field(control,"listWindow");
             if(popup!=null&&G.field(popup,"parent")==popupRoot)absolute(popupRoot,popup);
+            limitDropdown(control);
             for(item in G.array(G.field(control,"items"))) for(child in children(item))
                 if(G.field(child,"font")!=null)textColor(child,INK);
         }]);
@@ -341,6 +342,28 @@ class MarketWindow {
             if(i>=0&&i<values.length)changed(values[i]);
         });
         G.call("ui.comp.Dropdown","set_enable",control,[true]); controls.push(control);
+    }
+    function limitDropdown(control:Dynamic):Void {
+        var popup=G.field(control,"listWindow"),content=G.field(popup,"content");
+        if(content==null)return;
+        var items=G.array(G.field(control,"items"));
+        if(items.length<=10)return;
+        var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
+        G.call("h2d.Flow","set_overflow",content,[scroll]);style(content,"overflow",scroll);
+        padding(content,0);G.call("h2d.Flow","set_verticalSpacing",content,[0]);
+        // Ten fixed-height rows prevent long weapon lists from leaving the screen.
+        for(item in items) {
+            G.call("h2d.Flow","set_minHeight",item,[30]);G.call("h2d.Flow","set_maxHeight",item,[30]);
+            style(item,"height",30);style(item,"min-height",30);style(item,"max-height",30);
+        }
+        G.call("h2d.Flow","set_minHeight",content,[300]);G.call("h2d.Flow","set_maxHeight",content,[300]);
+        style(content,"height",300);style(content,"min-height",300);style(content,"max-height",300);
+        // Scroll to the selected option when reopening a long list.
+        var previous=G.field(content,"onAfterReflow"),restored=false;
+        G.set(content,"onAfterReflow",()->{
+            if(previous!=null)Reflect.callMethod(content,previous,[]);
+            if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",content,[Math.max(0,G.integer(G.field(control,"selectedIndex"))-9)*30.0]);}
+        });
     }
     function filter(key:String,value:String):Void {
         if(c.busy)return;
@@ -385,7 +408,7 @@ class MarketWindow {
         }
     }
 
-    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic,?itemLevel:Dynamic):Void {
+    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic,?requiredLevel:Dynamic):Void {
         stage="item row container";
         var root=frame.container, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
         partialRow=row;
@@ -419,7 +442,7 @@ class MarketWindow {
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
         if(c.tab!="Sell") {
             sellerLine(row,seller,online,64,33,350);
-            var level=labelAt(row,itemLevel==null?"—":MarketText.number(itemLevel),350,0,70,true,INK,true);
+            var level=labelAt(row,requiredLevel==null?"—":MarketText.number(requiredLevel),350,0,70,true,INK,true);
             G.call("h2d.Text","set_textAlign",level,[G.enumeration("h2d.Align","Center")]);
             centerControlText(level,height-4,350);
         }
@@ -460,19 +483,25 @@ class MarketWindow {
         var columns=10,pitch=64,slotSize=58;
         padding(content,0);size(content,640,Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch);
         alignScrollContent(viewport,content);
+        var backgrounds=graphic(content);
         for(index in 0...c.inventorySlots.length) {
             var item=c.inventorySlots[index];
             var x=(index%columns)*pitch,y=Std.int(index/columns)*pitch;
-            if(item==null) {
-                var empty=graphic(content);rounded(empty,x,y,slotSize,slotSize,5,0xC9B69C);rounded(empty,x+1,y+1,slotSize-2,slotSize-2,4,0xDDCCB5);
-                continue;
-            }
+            var selected=item!=null&&c.chosen!=null&&c.chosen.uid==item.uid;
+            rounded(backgrounds,x,y,slotSize,slotSize,5,selected?0xA4743E:0xC9B69C);
+            rounded(backgrounds,x+1,y+1,slotSize-2,slotSize-2,4,selected?0xE9D4B5:0xDDCCB5);
+            if(item==null)continue;
             var stack=c.inventoryStack(item);
             if(stack==null)continue;
             var slot=G.field(node("item-button",G.field(content,"dom"),[stack,null],"marketInventorySlot"+(sequence++)),"obj");
             absolute(content,slot);padding(slot,0);size(slot,slotSize,slotSize);position(slot,x,y);
             G.call("ui.UIElement","set_selected",slot,[c.chosen!=null&&c.chosen.uid==item.uid]);
             tooltip(slot,item);
+            if(c.isListed(item)) {
+                var badge=graphic(slot);rounded(badge,2,2,54,18,4,0x5B4334,0.95);
+                var caption=labelAt(slot,"For sale",5,2,64,true,0xF5EEE4,true);
+                G.call("h2d.Object","setScale",caption,[0.75]);
+            }
             G.call("ui.UIElement","set_onClick",slot,[()->{if(!c.busy){c.chosen=item;quantity=Std.string(item.count);dirty=true;}}]);
         }
         // Restore only once, after Flow has measured the content and can clamp scrolling.
@@ -546,13 +575,16 @@ class MarketWindow {
         return bitmap;
     }
     function headerCart():Void {
-        try cart=new MarketCartIcon(frame.header,G.field(frame.ui,"windows"))catch(error:Dynamic){report("cart icon",error);return;}
+        var holder=G.create("h2d.Object",[frame.header]);absolute(frame.header,holder);
+        try cart=new MarketCartIcon(holder,G.field(frame.ui,"windows"))catch(error:Dynamic){report("cart icon",error);return;}
         afterReflow(frame.header,()->{
             if(cart==null)return;
-            var title=frame.title,bounds=G.call("h2d.Object","getBounds",title,[title,null]);
-            var sx=G.number(G.field(title,"scaleX"),1),sy=G.number(G.field(title,"scaleY"),1);
-            position(cart.bitmap,G.number(G.field(title,"x"))+G.number(G.field(bounds,"xMax"))*sx+8,
-                G.number(G.field(title,"y"))+(G.number(G.field(bounds,"yMin"))+G.number(G.field(bounds,"yMax")))*sy/2-14);
+            var title=frame.title,sx=G.number(G.field(title,"scaleX"),1);
+            // Measure only the title's glyph width; its max-width layout box can
+            // change during native dropdown reflow. Keep the bitmap out of Flow.
+            var textWidth=G.number(G.call("h2d.Text","get_textWidth",title));
+            position(holder,G.number(G.field(title,"x"))+textWidth*sx+8,12);
+            position(cart.bitmap,0,0);
             cart.tint(G.integer(G.field(title,"textColor"),INK));
         });
     }
@@ -605,13 +637,12 @@ class MarketWindow {
         tooltip(picture,item);
         var name=labelAt(details,item.name,72,0,228,true);
         largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
-        var itemLevel=G.integer(G.field(metadata,"itemLevel"));
+        var requiredLevel=G.integer(G.field(metadata,"requiredLevel"));
         if(c.tab=="Sell") {
             var stack=c.inventoryStack(item);
-            if(G.field(stack,"item")!=null)itemLevel=G.integer(G.call("st.Item","getILevel",G.field(stack,"item")));
+            if(G.field(stack,"item")!=null)requiredLevel=G.integer(G.call("st.Item","getRequiredLevel",G.field(stack,"item")));
         }
-        if(itemLevel<=0&&item.preview!=null)itemLevel=item.preview.level;
-        var levelLabel=itemLevel>0?labelAt(details,"Level "+itemLevel,72,0,228,false,MUTED):null;
+        var levelLabel=requiredLevel>0?labelAt(details,"Level "+requiredLevel,72,0,228,false,MUTED):null;
         var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,228,false,MUTED);
         var rarity=item.detail.split("\n")[0];
         var rarityLabel=["Common","Uncommon","Rare","Epic","Legendary"].indexOf(rarity)<0?null:
@@ -637,7 +668,7 @@ class MarketWindow {
             var below=G.number(G.field(name,"y"))+G.number(G.field(bounds,"yMax"),22)+10;
             if(levelLabel!=null){position(levelLabel,72,below);below+=24;}
             if(rarityLabel!=null)position(rarityLabel,72,below);
-            var quantityY=below+(rarityLabel==null?0:24);
+            var quantityY=below+(rarityLabel==null?0:18);
             position(quantityLabel,72,quantityY);
             var statsY=Std.int(Math.max(72,quantityY+32));
             position(meta,0,statsY);
@@ -672,6 +703,10 @@ class MarketWindow {
     function sellPanel():Void {
         if(c.chosen==null)return;
         selectedItem(c.chosen,MarketCategory.item(c.chosen.kind));
+        if(c.isListed(c.chosen)) {
+            labelAt(frame.container,"Already for sale",754,752,316,true,MUTED);
+            return;
+        }
         line(frame.container,754,SELL_FORM_Y-8,316);
         labelAt(frame.container,"Quantity to sell",754,SELL_FORM_Y+8,316,true);
         counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.min(10000,c.chosen.count)),s->quantity=s);

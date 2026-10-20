@@ -105,6 +105,8 @@ class ControllerTest {
         c.state.phase = "offering"; c.state.ack = c.state.revision; c.state.peerRevision = 0;
     }
     static function main() {
+        InfusionNamesTest.main();
+
         var c = fixture(); c.update(GameAccess.app, haxe.Timer.stamp());
         check(TradeChat.sent.length == 1 && TradeChat.sent[0].to == "peer", "Invitation is whispered to the selected player");
         var text = TradeChat.sent[0].text;

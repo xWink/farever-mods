@@ -27,20 +27,31 @@ class TradeInventory {
         var d = definition(kind); return d == null ? kind : clean(G.text(G.staticCall("HItem","getName",[d])),160);
     }
     public static function clean(text:String,max:Int):String return ~/<[^>]*>/g.replace(text,"").substr(0,max);
+    public static function skillName(id:String):String {
+        var key=id,seen:Map<String,Bool>=[];
+        for(_ in 0...8) {
+            if(key==""||seen.exists(key))break;
+            seen[key]=true;
+            var table=G.field(G.current("Data","skill"),"byId");
+            var row=table==null?null:G.call("haxe.ds.StringMap","get",table,[key]);
+            var texts=G.field(row,"texts"),name=G.text(G.field(texts,"name"));
+            if(name!="")return clean(name,120);
+            key=G.text(G.field(G.field(texts,"refs"),"ref"));
+        }
+        return id;
+    }
     public static function describe(item:Dynamic,count:Int):TradeItem {
         var rarity = G.staticCall("HItem","getRarity",[G.field(item,"inf")]), detail:Array<String> = [];
         var name = G.text(G.field(rarity,"name"),G.text(G.field(rarity,"id")));
         if (name != "") detail.push(clean(name,80));
         if (G.isA(item,"st.item.Gear")) {
-            detail.push("Level "+G.text(G.field(item,"level"))+"  |  Upgrade +"+G.text(G.field(item,"upgradeLevel"),"0"));
+            detail.push("Level "+G.integer(G.call("st.Item","getRequiredLevel",item))+"  |  Upgrade +"+G.text(G.field(item,"upgradeLevel"),"0"));
             var info = G.call("st.item.Gear","getDetailedInfos",item);
             for (s in G.array(G.field(info,"stats"))) detail.push(clean(G.text(s),100));
         }
         var infusion = G.text(G.field(item,"infusion"));
         if (infusion != "") {
-            var table = G.field(G.current("Data","infusion"),"byId");
-            var data = table == null ? null : G.call("haxe.ds.StringMap","get",table,[infusion]);
-            detail.push("Infusion: "+clean(G.text(G.field(data,"name"),infusion),120));
+            detail.push("Infusion: "+clean(skillName(infusion),120));
         }
         var bonus = G.text(G.field(item,"infusionBonusStat"));
         if (bonus != "") detail.push("Infusion bonus: "+bonus);

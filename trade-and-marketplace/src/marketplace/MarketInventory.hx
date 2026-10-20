@@ -30,7 +30,10 @@ class MarketInventory {
         var result:Array<TradeInventory>=bankOnly?[]:[backpack];
         if(bankOnly) {
             var loadout=G.field(backpack.hero,"loadout");
-            for(bank in G.array(G.field(loadout,"banks"),true)) {
+            var banks=G.array(G.field(loadout,"banks"),true);
+            var count=G.field(G.field(backpack.player,"accountProgress"),"nbBanks");
+            var unlocked=Std.int(Math.min(4,count==null?banks.length:G.integer(count)));
+            for(bank in banks.slice(0,Std.int(Math.max(0,unlocked)))) {
                 if(bank==null||bank==backpack.inventory)continue;
                 var duplicate=false;
                 for(source in result)if(source.inventory==bank)duplicate=true;

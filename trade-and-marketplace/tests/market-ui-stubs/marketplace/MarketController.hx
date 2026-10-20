@@ -25,7 +25,7 @@ class MarketController {
  public var searchedItem=false;
  public function searchSelectedItem():Void {searchedItem=true;}
  public function levelSort():String return filters["sort"];
- public function sortByLevel():Void {filters["sort"]=levelSort()=="item-level-asc"?"item-level-desc":"item-level-asc";if(view!=null)view.dirty=true;}
+ public function sortByLevel():Void {filters["sort"]=levelSort()=="required-level-asc"?"required-level-desc":"required-level-asc";if(view!=null)view.dirty=true;}
  public function goPage(value:Int):Void {page=value;refresh();}
  public function refresh():Void {refreshes++;}
  public function searchInventory():Void {inventorySearches++;}
@@ -33,6 +33,8 @@ class MarketController {
  public function signIn():Void{}
  public function list(q:Int,t:Int,o:Bool):Void{}
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
+ public var listed=false;
+ public function isListed(item:trade.TradeTypes.TradeItem):Bool return listed;
  public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return bankOnly?"In bank":"In backpack";
  public function remove():Void{}
  public function contact():Void{}

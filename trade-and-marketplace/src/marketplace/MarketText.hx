@@ -129,6 +129,10 @@ class MarketText {
         });
         var lines=[];
         for(line in text.split("\n")) {
+            if(StringTools.startsWith(line,"Infusion: ")) {
+                var id=StringTools.trim(line.substr(10));
+                line="Infusion: "+trade.TradeInventory.skillName(id);
+            }
             line=~/(?:[ \t]*[|·][ \t]*)?Upgrade \+0$/.replace(StringTools.rtrim(line),"");
             if(StringTools.trim(line)!="")lines.push(line);
         }

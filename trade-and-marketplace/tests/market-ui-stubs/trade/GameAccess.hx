@@ -52,7 +52,7 @@ class GameAccess {
     null;
    case "displayDialog": dialogs++;null;
    case "setItem": o.item=a[0];null;
-   case "set_scrollPosY", "set_overflow": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_scrollPosY", "set_overflow", "set_minHeight", "set_maxHeight", "set_verticalSpacing": Reflect.setField(o,n.substr(4),a[0]);null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
    case "set_text": o.text=a[0];null;
@@ -65,7 +65,15 @@ class GameAccess {
    case "slice": [];
    case "pushDyn": (cast o:Array<Dynamic>).push(a[0]);
    case "remove": removed.push(o);if(o.parent!=null)(cast o.parent.children:Array<Dynamic>).remove(o);null;
-   case "isOpen": false;
+   case "isOpen": field(o,"open")==true;
+   case "close": o.open=false;o.listWindow=null;null;
+   case "toggle":
+    if(field(o,"open")==true){o.open=false;o.listWindow=null;}
+    else {
+     o.open=true;if(field(ui.root,"children")==null)ui.root.children=[];
+     o.listWindow=object(ui.root);o.listWindow.content=object(o.listWindow);
+     o.items=[for(_ in (cast o.options:Array<Dynamic>))object(o.listWindow.content)];
+    }null;
    case "set_onClick": o.action=a[0];null;
    case "getName": "Tester";
    case "getRequiredLevel": 15;

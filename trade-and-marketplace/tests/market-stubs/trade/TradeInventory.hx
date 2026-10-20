@@ -23,6 +23,7 @@ class TradeInventory {
  public function canDrop(s:Dynamic,count:Int):Bool return allowed&&Reflect.field(s.item,"locked")!=true&&Reflect.field(s.item,"bound")!=true&&count>0&&count<=s.count;
  public static function fingerprint(i:Dynamic):String return fp;
  public static function definition(s:String):Dynamic return {id:s};
+ public static function skillName(s:String):String return s=="Infusion_Manfish_DPS"?"Overwhelming Tides":s;
  public static function itemName(s:String):String return s;
  public static function preview(i:Dynamic):TradeItemPreview return {flags:2,level:35,upgrade:2,rarity:"",infusion:"Infusion_Manfish_DPS",bonus:"",mastery:"",slots:["DivinedEmbroidery"],effects:[]};
  public static function describe(i:Dynamic,count:Int):TradeItem return {
