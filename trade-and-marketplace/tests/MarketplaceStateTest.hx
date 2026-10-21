@@ -109,8 +109,15 @@ class MarketplaceStateTest {
         ownReply(c,app,[]);
         check(c.tab=="Sell"&&c.bankOnly&&c.bankTab==1&&c.sellSearch=="should"&&c.chosen==null);
         check(c.busy&&c.isListed(c.inventory[0]));
+        c.chosen=c.inventory[0];
         ownReply(c,app,[]);
-        check(!c.busy&&c.tab=="Sell"&&c.inventorySlots[1].uid=="tab-two");
+        check(!c.busy&&c.tab=="Sell"&&c.inventorySlots[1].uid=="tab-two"&&c.chosen.uid=="tab-two");
+        c.inv.hero.loadout.banks[1].content.push({item:{uid:"next-item",inf:{}},count:2});
+        c.loadInventory();c.chosen=c.inventory[0];c.list(1,1,false);
+        c.chosen=c.inventory[1];
+        ownReply(c,app,[]);
+        check(c.busy&&c.chosen.uid=="next-item");
+        ownReply(c,app,[]);check(!c.busy&&c.chosen.uid=="next-item");
 
         c.inv.hero.loadout.banks=[firstBank];c.loadInventory();check(c.bankTab==0&&c.inventory[0].uid=="bank-item");
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",

@@ -228,7 +228,9 @@ class MarketplaceUiTest {
   stackCount.inkBounds={xMin:-2.,yMin:5.,xMax:30.,yMax:26.};stackCount.scaleX=0.8;stackCount.scaleY=0.8;
   sellSlots[0].onAfterReflow();
   check(Math.abs(stackCount.x+30*0.8-53)<0.001&&Math.abs(stackCount.y+26*0.8-53)<0.001);
-  sellSlots[0].button.action();check(c.chosen==selected);
+  c.busy=true;c.chosen=null;
+  sellSlots[0].button.action();check(c.chosen==selected&&view.dirty);
+  c.chosen=null;sellSlots[0].action();check(c.chosen==selected);c.busy=false;
   GameAccess.nodes=[];view.update();
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);

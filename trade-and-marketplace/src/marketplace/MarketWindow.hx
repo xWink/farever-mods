@@ -699,7 +699,7 @@ class MarketWindow {
                     position(caption,Math.round((52-width)/2),G.number(G.field(caption,"y")));
                 });
             }
-            var select=()->{if(!c.busy){c.chosen=item;quantity=Std.string(item.count);dirty=true;}};
+            var select=()->{c.chosen=item;quantity=Std.string(item.count);dirty=true;};
             G.call("ui.UIElement","set_onClick",slot,[select]);
             if(itemButton!=null){tooltip(itemButton,item);G.call("ui.UIElement","set_onClick",itemButton,[select]);}
         }

@@ -416,6 +416,7 @@ class MarketController {
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
         if(chosen==null||busy||!ownedKnown)return;
         try {
+            var submittedUid=chosen.uid;
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
             if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
@@ -425,7 +426,9 @@ class MarketController {
                 // Keep known markers while reconciling, including the item just accepted by the server.
                 ownedItems[MarketItemIdentity.key(value.item)]=true;
                 ownedKinds[G.text(G.field(value.item,"baseId"))]=true;
-                expectedBody="";requestId="";chosen=null;page=1;refresh();
+                expectedBody="";requestId="";
+                if(chosen!=null&&chosen.uid==submittedUid)chosen=null;
+                page=1;refresh();
             });
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
