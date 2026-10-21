@@ -36,6 +36,8 @@ class MarketController {
     var locations:Map<String,String>=[];
     var ownOnlineUntil=0.0;
     var ownedKnown=false;
+    var ownedListingCount=0;
+    public function listingLimitReached():Bool return ownedListingCount>=10;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
     var ownedExpiry:Map<String,Float>=[];
@@ -98,7 +100,10 @@ class MarketController {
                             MarketApiLog.unexpected(method,path,response.status,"Could not process response: "+Std.string(e),key);
                             message="Unsupported marketplace response. Update the mod and try again.";
                         }
-                    } else {pending=null;if(failed!=null)failed();message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
+                    } else {pending=null;if(failed!=null)failed();
+                        var code=data==null?"":G.text(G.field(data.error,"code"),G.text(data.error));
+                        if(code=="listing_limit")ownedListingCount=10;
+                        message=error(code);
                         if(response.status>=200&&response.status<300&&response.error=="")
                             MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
                         if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
@@ -179,7 +184,7 @@ class MarketController {
     }
     function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
     function invalidateListings():Void {
-        cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
+        cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function chooseTab(value:String):Void {
         if(busy)return;
@@ -243,6 +248,11 @@ class MarketController {
         });
     }
     function indexOwned():Void {
+        var now=Date.now().getTime()/1000;
+        ownedListingCount=ownedRows.filter(row->{
+            var expires=G.text(G.field(row,"expiresAt"));
+            return expires==""||Protocol.expiry(expires)>now;
+        }).length;
         var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
         for(row in ownedRows) {
             var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
@@ -414,15 +424,15 @@ class MarketController {
         return true;
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
-        if(chosen==null||busy||!ownedKnown)return;
+        if(chosen==null||busy||!ownedKnown||listingLimitReached())return;
         try {
-            var submittedUid=chosen.uid;
+            var submittedUid=chosen.uid,submittedCount=ownedListingCount;
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
             if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
             request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{
-                invalidateListings();
+                invalidateListings();ownedListingCount=submittedCount+1;
                 // Keep known markers while reconciling, including the item just accepted by the server.
                 ownedItems[MarketItemIdentity.key(value.item)]=true;
                 ownedKinds[G.text(G.field(value.item,"baseId"))]=true;

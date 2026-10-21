@@ -141,6 +141,13 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation-1,op:"presence",onlineUntil:until+180});c.update(app,0);
         check(!c.listingOnline(own,until+1));
         c.disconnect();c.account="self";check(!c.listingOnline(own));
+        var capped=new MarketController();capped.player=player;capped.inv=new TradeInventory(player);capped.ready=true;capped.server="europe";capped.tab="Sell";
+        capped.refresh();ownReply(capped,app,[for(i in 0...10){id:Std.string(i),revision:1,server:i==0?"europe":"north-america"}]);
+        check(capped.listingLimitReached());
+        capped.chosen=capped.inventory[0];var limitCalls=MarketWorker.current.sent.length;capped.list(1,1,false);
+        check(MarketWorker.current.sent.length==limitCalls);
+        capped.chooseTab("My listings");capped.selected=capped.rows[0];capped.remove();
+        ownReply(capped,app,[]);check(!capped.listingLimitReached());
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
     }

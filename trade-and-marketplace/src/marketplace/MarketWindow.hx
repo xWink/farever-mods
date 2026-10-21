@@ -969,7 +969,8 @@ class MarketWindow {
         counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.min(10000,c.chosen.count)),s->quantity=s);
         labelAt(frame.container,"of "+c.chosen.count+" available",900,SELL_FORM_Y+44,170,false,MUTED);
         priceFields(SELL_FORM_Y+92);
-        button("List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept");
+        var limited=c.listingLimitReached();
+        button(limited?"Too many listings":"List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept",!limited);
     }
     function listingPanel(row:Dynamic):Void {
         try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}

@@ -38,6 +38,8 @@ class MarketController {
  public function signIn():Void{}
  public function list(q:Int,t:Int,o:Bool):Void{}
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
+ public var atLimit=false;
+ public function listingLimitReached():Bool return atLimit;
  public var listed=false;
  public function isListed(item:trade.TradeTypes.TradeItem):Bool return listed;
  public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return bankOnly?"In bank":"In backpack";

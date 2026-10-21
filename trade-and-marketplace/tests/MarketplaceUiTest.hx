@@ -232,6 +232,9 @@ class MarketplaceUiTest {
   sellSlots[0].button.action();check(c.chosen==selected&&view.dirty);
   c.chosen=null;sellSlots[0].action();check(c.chosen==selected);c.busy=false;
   GameAccess.nodes=[];view.update();
+  c.atLimit=true;GameAccess.buttons=[];view.dirty=true;view.update();
+  var limitButton=GameAccess.buttons.filter(b->b.text=="Too many listings").pop();check(limitButton!=null&&!limitButton.enable);
+  c.atLimit=false;GameAccess.buttons=[];view.dirty=true;view.update();check(GameAccess.buttons.filter(b->b.text=="List item for sale").pop().enable);
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);
   var selectedGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryGrid")==0)[0];
