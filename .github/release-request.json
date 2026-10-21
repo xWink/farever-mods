@@ -1,7 +1,7 @@
 {
   "project": "dps-meter",
-  "version": "1.11.6",
-  "commit": "cdfe52183e8438f8c0d3e06b65274b261540d9f4",
-  "notes": "Fixed an issue where the Queenslayer's appearance was recorded as a victory in Honeyzabeth Heroic",
+  "version": "1.11.7",
+  "commit": "cf76b6e5430a258e813d78249bbf36fb0bfbbaf5",
+  "notes": "Fixed an issue where Honeyzabeth's death counted as a victory in Heroic Honeyzabeth",
   "dry_run": false
 }
