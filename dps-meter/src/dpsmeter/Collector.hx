@@ -19,6 +19,7 @@ class Collector {
     var cleodora:Dynamic;
     var riftWait:Dynamic;
     var appliedStatuses:Map<String, Bool> = [];
+    var countedSummons:Map<String, Bool> = [];
     public function new(config:MeterSettings, ?timeline:NativeTimeline) {
         this.config = config;
         this.timeline = timeline;
@@ -42,6 +43,7 @@ class Collector {
             cleodora = null;
             riftWait = null;
             appliedStatuses = [];
+            countedSummons = [];
         }
         healingCapture.flush(now);
         if (timeline != null) timeline.update(hero, now);
@@ -119,6 +121,8 @@ class Collector {
         // Active abilities already count at Skill.start. Passive DoTs/HoTs have
         // no such activation: count each application/refresh, never each tick.
         if (origin != status && !NativeCasts.applicationDriven(origin)) return;
+        // A summoned unit's periodic attacks belong to the summon cast too.
+        if (NativeCasts.summonEffect(status, origin)) return;
         var owner = NativeHealing.owner(null, status).source;
         if (profile(owner) == null) return;
         var instance = G.uid(status);
@@ -128,6 +132,22 @@ class Collector {
     }
     public function statusRemoved(status:Dynamic):Void {
         appliedStatuses.remove(G.uid(status));
+    }
+    public function summonCreated(summon:Dynamic):Void {
+        if (!config.enabled || hero == null || summon == null || G.field(summon, "removed") == true
+            || G.field(summon, "simulatingServer") == true) return;
+        var instance = G.uid(summon), skill = G.field(summon, "summonSourceSkill");
+        if (instance == "" || instance == "0" || skill == null || countedSummons.exists(instance)) return;
+        var attributed = NativeHealing.owner(summon, skill);
+        // Active summoning abilities already count at Skill.start. Passive and
+        // status-driven procs instead count once for each unit they create.
+        if (!NativeCasts.applicationDriven(attributed.skill) || profile(attributed.source) == null) return;
+        var id = NativeCasts.id(attributed.skill);
+        if (id == "") return;
+        countedSummons[instance] = true;
+        model.recordCast(G.uid(attributed.source), id);
+        // Keep only the UID until a zone/character reset: repeated replication
+        // or a summon returning to view must not become another cast.
     }
     public function combatEnter(uid:String, now:Float):Void {
         if (uid == model.me) refreshPhrixes(now);

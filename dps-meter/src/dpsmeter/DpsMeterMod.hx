@@ -162,6 +162,20 @@ class DpsMeterMod {
         }
         return Continue;
     }
+    @:hlx.postfix(ent.Foe.set_summonSourceSkill)
+    static function recordSummonSource(instance:Dynamic, skill:Dynamic, result:Dynamic):Dynamic {
+        // Used by both initial replication and later source-skill updates.
+        if (collector != null) try collector.summonCreated(instance)
+            catch (error:Dynamic) trace("[DPS Meter] Summon cast capture: " + Std.string(error));
+        return result;
+    }
+    @:hlx.postfix(ent.Foe.init)
+    static function recordSummonInit(instance:Dynamic, result:Void):Void {
+        // Retry after initialization if the source/player was not ready when
+        // its network fields were read. The collector deduplicates by unit UID.
+        if (collector != null) try collector.summonCreated(instance)
+            catch (error:Dynamic) trace("[DPS Meter] Summon cast capture: " + Std.string(error));
+    }
     @:hlx.prefix(st.skill.Skill.start)
     static function recordSkillUse(instance:Dynamic, duration:Dynamic, target:Dynamic, sourceContext:Dynamic,
         startConfig:Dynamic):HlxPrefixResult<Dynamic> {

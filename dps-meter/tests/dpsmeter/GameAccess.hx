@@ -46,7 +46,9 @@ class GameAccess {
         case "st.skill.Status.getSourceObject": field(object, "instigator");
         case "st.skill.BaseSkill.getSourceSkill", "st.skill.Skill.getSourceSkill", "st.skill.Status.getSourceSkill":
             var origin = field(object, "instigatorSkill");
+            if (origin == null) origin = field(field(object, "owner"), "summonSourceSkill");
             if (origin == null) origin = field(object, "origin");
+            if (origin == null && field(field(object, "parent"), "kind") != null) origin = field(object, "parent");
             origin == null ? object : call("st.skill.BaseSkill", "getSourceSkill", origin);
         case "st.skill.BaseSkill.getSourceItem": field(object, "originItem") != null ? field(object, "originItem")
             : field(call("st.skill.BaseSkill", "getSourceSkill", object), "originItem");
