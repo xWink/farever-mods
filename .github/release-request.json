@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.5",
-  "commit": "aa025222e72a50a72ab93f1e0662efb7c827e62a",
-  "notes": "Equipped weapons now appear in Fareverly DPS reports\n",
+  "project": "more-settings",
+  "version": "1.21.1",
+  "commit": "cdfe52183e8438f8c0d3e06b65274b261540d9f4",
+  "notes": "Fixed an issue where the camera would spin with the recent game update",
   "dry_run": false
 }
