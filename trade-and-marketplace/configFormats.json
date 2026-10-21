@@ -21,12 +21,6 @@
       "label": "Marketplace"
     },
     {
-      "type": "button",
-      "key": "openMarketplace",
-      "label": "Open marketplace",
-      "buttonText": "Open"
-    },
-    {
       "type": "keybinding",
       "key": "marketplaceHotkey",
       "label": "Open marketplace hotkey",

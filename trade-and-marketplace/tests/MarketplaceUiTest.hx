@@ -24,17 +24,17 @@ class MarketplaceUiTest {
   check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["online"]=="true");
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
   var collapsedRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
-  check(collapsedRow.y==224);
+  check(collapsedRow.y==0&&collapsedRow.parent.parent.y==224);
   var filterToggle=GameAccess.buttons.filter(b->b.text=="Show filters")[0];
   var originalSearch=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
   check(searchUncovered(originalSearch));
   filterToggle.action();
   GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.update();
-  check(c.filtersExpanded&&c.pageSize()==6);
+  check(c.filtersExpanded&&c.pageSize()==8);
   check(GameAccess.buttons.filter(b->b.text=="Hide filters")[0]==filterToggle&&GameAccess.removed.indexOf(filterToggle)<0);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0]==originalSearch&&GameAccess.removed.indexOf(originalSearch)<0);
   check(searchUncovered(originalSearch));
-  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].y==388);
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].parent.parent.y==388);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
@@ -84,11 +84,11 @@ class MarketplaceUiTest {
   check(online.y==clear.y&&online.x+online.width<clear.x&&clear.x-(online.x+online.width)==16);
   check(GameAccess.labels.filter(l->l.text=="Sort by").length==0);
   var browse=GameAccess.buttons.filter(b->b.text=="Browse")[0];check(browse.selected==true&&browse.kind=="");
-  search.input.text="ore";search.input.onEnter();check(c.filters["search"]=="ore"&&c.refreshes==3&&search.input.ignoreEnter);
+  search.input.text="ore";search.input.onEnter();check(c.filters["search"]=="ore"&&c.refreshes==2&&search.input.ignoreEnter);
   c.message="Loading...";c.busy=true;view.dirty=true;GameAccess.labels=[];GameAccess.buttons=[];GameAccess.nodes=[];view.update();
   check(GameAccess.labels.filter(l->l.text=="Loading...").length==0);
   var searchButton=GameAccess.buttons.filter(b->b.text=="Search")[0];
-  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==3);
+  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==2);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0&&n.enable!=true).length==0);
   check(GameAccess.buttons.filter(b->b.text=="Refresh").length==1&&GameAccess.buttons.filter(b->b.text=="Loading...").length==0);
   check(GameAccess.nodes.indexOf(search)>=0&&GameAccess.nodes.indexOf(select)>=0&&GameAccess.nodes.indexOf(online)>=0&&GameAccess.buttons.indexOf(classButton)>=0);
@@ -144,9 +144,12 @@ class MarketplaceUiTest {
   var sellHint=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Choose an unlocked,")==0).pop();
   check(sellHint.y>inventory.y+36&&sellHint.y<146);
   var sellSearch=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
-  sellSearch.input.text="shield";sellSearch.onChange();GameAccess.buttons.filter(b->b.text=="Search")[0].action();
+  sellSearch.input.text="shield";sellSearch.onChange();
+  check(GameAccess.buttons.filter(b->b.text=="Search").length==0);
+  view.update();check(GameAccess.removed.indexOf(sellSearch)<0);
   check(c.sellSearch=="shield"&&c.inventorySearches==1);
-  sellSearch.input.text="bow";sellSearch.input.onEnter();check(c.sellSearch=="bow"&&c.inventorySearches==2);
+  sellSearch.input.text="bow";sellSearch.onChange();sellSearch.input.onEnter();check(c.sellSearch=="bow"&&c.inventorySearches==2&&sellSearch.input.ignoreEnter);
+  view.update();check(GameAccess.removed.indexOf(sellSearch)<0);
   // Native fonts and bounds arrive after controls are constructed.
   select.selectText.inkBounds={xMin:0.0,yMin:10.0,xMax:90.0,yMax:28.0};
   select.selectText.y=100.;select.arrow.x=select.width;
@@ -227,6 +230,13 @@ class MarketplaceUiTest {
   var overlays=(cast selectedGrid.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Object");
   check(overlays.length==1&&overlays[0].parent==selectedGrid&&overlays[0].children[0].nativeType=="h2d.Graphics");
   check(selectedGrid.children[selectedGrid.children.length-1]==overlays[0]);
+  // A styled native frame may have an offset and exceed the nominal 58px box.
+  var selectedSlot=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0).pop();
+  selectedSlot.innerSlot.inkBounds={xMin:60.,yMin:70.,xMax:122.,yMax:131.};selectedGrid.onAfterReflow();
+  var outline=overlays[0].children[0],points:Array<Dynamic>=outline.points;
+  check(overlays[0].x==60&&overlays[0].y==70);
+  check(points[0][0]==0&&points[0][1]==0&&points[1][0]==62);
+  check(points.filter(p->p[1]==61).length>0); // All four native edges, not the old fixed square.
   var saleBadge=GameAccess.labels.filter(l->l.text=="For sale")[0];
   saleBadge.needUpdateScale=true;saleBadge.parent.onAfterReflow();
   check(saleBadge.scaleX==0.65&&saleBadge.x>3&&saleBadge.y+4*0.65>=0&&saleBadge.y+22*0.65<=16);
@@ -270,7 +280,8 @@ class MarketplaceUiTest {
   check(popup.overflow=="Scroll"&&popup.maxHeight==300&&popup.minHeight==300&&subcategory.items.length>10);
   popup.onAfterReflow();check(popup.scrollPosY==330&&popup.verticalSpacing==0);
   var currentHolder=TradeFrame.latest.header.children[1],oldX=currentHolder.x,oldY=currentHolder.y;
-  TradeFrame.latest.title.bounds={xMin:0.,yMin:0.,xMax:1000.,yMax:60.};TradeFrame.latest.header.onAfterReflow();
+  TradeFrame.latest.title.bounds={xMin:0.,yMin:0.,xMax:1000.,yMax:60.};
+  TradeFrame.latest.title.x=0;TradeFrame.latest.title.scaleX=0.5;TradeFrame.latest.header.onAfterReflow();
   check(currentHolder.x==oldX&&currentHolder.y==oldY&&currentHolder.children[0].x==0);
   GameAccess.call("ui.comp.Dropdown","close",subcategory,[null]);
   check(GameAccess.nodes.indexOf(category)>=0&&GameAccess.nodes.indexOf(subcategory)>=0);
@@ -302,7 +313,7 @@ class MarketplaceUiTest {
   levelCell.inkBounds={xMin:3.,yMin:4.,xMax:29.,yMax:22.};levelCell.scaleX=0.8;
   levelTitle.inkBounds={xMin:1.,yMin:4.,xMax:45.,yMax:22.};levelTitle.scaleX=0.9;
   levelCell.parent.onAfterReflow();levelHeader.onAfterReflow();
-  var cellCenter=GameAccess.number(levelCell.parent.x)+GameAccess.number(levelCell.x)+16*0.8;
+  var cellCenter=22+GameAccess.number(levelCell.parent.x)+GameAccess.number(levelCell.x)+16*0.8;
   var titleCenter=GameAccess.number(levelHeader.x)+GameAccess.number(levelTitle.x)+23*0.9;
   check(Math.abs(cellCenter-titleCenter)<0.5); // Allow subpixel rounding in native text positions.
   levelHeader.action();view.update();check(c.listingSort()=="required-level-asc");
@@ -327,6 +338,24 @@ class MarketplaceUiTest {
   c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==1);
   row.item.prismatic=false;
+  // Native detail formatting retains source-specific values and colour markup.
+  var nativeId:Dynamic={token:"gift-id"};
+  trade.TradeInventory.definitions["Gift"]={id:nativeId,skills:[]};GameAccess.slotIds=[nativeId];
+  var nativeItem:Dynamic={nativeType:"st.item.Weapon",slots:["Gift"]};
+  var offer=marketplace.MarketExport.offer(row);
+  var rich=marketplace.MarketDetails.text(offer,nativeItem);
+  check(rich.indexOf("75 Vitality")>=0&&rich.indexOf("[!Gift]")>=0&&GameAccess.slotReads==1);
+  check(rich.indexOf("-40</font> Magic Penetration")>=0&&rich.indexOf("+40</font> Armor Penetration")>=0);
+  check(rich.indexOf("#3399ff")>=0&&rich.indexOf("Enchant: Flaming Weapon")>=0);
+  check(marketplace.MarketDetails.text(offer,{nativeType:"st.Item"})==null);
+  c.tab="Browse";row.item.requiredLevel=25;row.item.native.upgrade=5;row.item.detail="Epic\nLevel 25  |  Upgrade +5\n75 Vitality";
+  GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
+  var stars=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketUpgrade")==0);
+  var level25=GameAccess.labels.filter(l->l.text=="Level 25")[0];
+  check(stars.length==5&&stars[0].fmtText.text=="GearUpgrade"&&stars[0].x>level25.x+64&&stars[0].y==level25.y-1);
+  check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Upgrade +")>=0).length==0);
+  row.item.native.upgrade=0;view.dirty=true;view.update();
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketUpgrade")==0).length==0);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
   // A page-level error keeps navigation available, and reopening clears recovery state.
   c.selected=null;view.recover("Injected page failure");GameAccess.buttons=[];view.update();

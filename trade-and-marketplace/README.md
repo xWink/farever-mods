@@ -37,7 +37,7 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 
 ## Marketplace
 
-Press **F7**, type `/market` or `/marketplace`, or choose **Open marketplace** in Better Mod Settings. The hotkey can be rebound there and is ignored while typing in a text field.
+Press **F7** or type `/market` or `/marketplace`. The hotkey can be rebound in Better Mod Settings and is ignored while typing in a text field.
 
 - Browse listings for your game server, filter items and inspect native tooltips.
 - Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.

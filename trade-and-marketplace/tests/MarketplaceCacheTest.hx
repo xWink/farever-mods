@@ -43,33 +43,35 @@ class MarketplaceCacheTest {
         check(c.rows[0].id=="1"&&!c.busy&&MarketWorker.current.sent.length==sent);
 
         // Fresh tab caches restore the page/selection, while Sell rereads native stacks.
-        c.selected=c.rows[0];c.chooseTab("Sell");respond(c,app,last(),[],null);
+        c.selected=c.rows[0];c.chooseTab("Sell");
+        check(c.busy&&c.inventory.length>0); // Local stacks render before the API reply.
+        respond(c,app,last(),[
+            {id:"mine",server:"europe",item:{baseId:"a",requiredLevel:20},price:{silverTrays:5}},
+            {id:"higher",server:"europe",item:{baseId:"b",requiredLevel:30},price:{silverTrays:2}},
+            {id:"expired-mine",server:"europe",expiresAt:"2000-01-01T00:00:00.000Z"},
+            {id:"na-mine",server:"north-america"}
+        ],null);
         c.chosen=c.inventory[0];var chosen=c.chosen;
         c.chooseTab("Browse");check(c.selected!=null&&c.selected.id=="1"&&!c.busy);
         sent=MarketWorker.current.sent.length;c.inv.inventory={content:[{item:{uid:"fresh",inf:{}},count:3}]};
         c.chooseTab("Sell");check(!c.busy&&MarketWorker.current.sent.length==sent&&c.inventory[0].uid=="fresh"&&c.chosen==null);
         c.chooseTab("My listings");
-        check(Std.string(last().path).indexOf("server=europe")>=0&&Std.string(last().path).indexOf("mine=true")>=0);
-        respond(c,app,last(),[{id:"mine"}],null);
-        c.chooseTab("Browse");sent=MarketWorker.current.sent.length;c.chooseTab("My listings");
-        check(!c.busy&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
-        c.sortByLevel();check(Std.string(last().path).indexOf("mine=true")>=0&&Std.string(last().path).indexOf("sort=required-level-asc")>=0);
-        respond(c,app,last(),[{id:"mine"}],null);c.sortByLevel();
-        check(Std.string(last().path).indexOf("sort=required-level-desc")>=0&&c.filters["sort"]=="");
-        respond(c,app,last(),[{id:"mine"}],null);
-        c.sortByLevel();check(c.listingSort()==""&&Std.string(last().path).indexOf("sort=")<0&&c.page==1);
-        respond(c,app,last(),[{id:"mine"}],null);
-        c.sortByPrice();check(c.listingSort()=="price-asc"&&Std.string(last().path).indexOf("sort=price-asc")>=0);
-        respond(c,app,last(),[{id:"mine"}],null);
-        c.sortByPrice();check(c.listingSort()=="price-desc"&&Std.string(last().path).indexOf("sort=price-desc")>=0);
-        respond(c,app,last(),[{id:"mine"}],null);
-        c.sortByPrice();check(c.listingSort()==""&&Std.string(last().path).indexOf("sort=")<0);
-        respond(c,app,last(),[{id:"mine"}],null);
+        check(!c.busy&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
+        c.selected=c.rows[0];c.chooseTab("Sell");c.chooseTab("My listings");
+        check(c.selected!=null&&c.selected.id=="mine"&&MarketWorker.current.sent.length==sent);
+        c.sortByLevel();check(c.listingSort()=="required-level-asc"&&c.rows[0].id=="mine");
+        c.sortByLevel();check(c.listingSort()=="required-level-desc"&&c.rows[0].id=="higher");
+        c.sortByLevel();check(c.listingSort()==""&&c.rows[0].id=="mine"&&c.filters["sort"]=="");
+        c.sortByPrice();check(c.listingSort()=="price-asc"&&c.rows[0].id=="higher");
+        c.sortByPrice();check(c.listingSort()=="price-desc"&&c.rows[0].id=="mine");
+        c.sortByPrice();check(c.listingSort()=="");
+        check(MarketWorker.current.sent.length==sent); // Owned sorting is local too.
         c.server="north-america";c.chooseTab("My listings");
-        check(c.busy&&c.rows.length==0&&Std.string(last().path).indexOf("server=north-america")>=0);
-        respond(c,app,last(),[{id:"na-mine"}],null);c.server="europe";c.chooseTab("My listings");
-        check(c.busy&&Std.string(last().path).indexOf("server=europe")>=0);
-        respond(c,app,last(),[{id:"mine"}],null);
+        check(!c.busy&&c.rows.length==1&&c.rows[0].id=="na-mine"&&MarketWorker.current.sent.length==sent);
+        c.server="europe";c.chooseTab("My listings");
+        check(!c.busy&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
+        c.refresh();check(c.busy&&MarketWorker.current.sent.length==sent+1&&last().path=="/api/v1/marketplace/listings?mine=true&limit=50");
+        respond(c,app,last(),[{id:"mine",server:"europe"}],null);
 
         c.chooseTab("Browse");c.filters["rarity"]="Epic";c.filters["prismatic"]="true";c.page=1;c.refresh();
         check(Std.string(last().path).indexOf("prismatic=true")>=0&&Std.string(last().path).indexOf("rarity=Epic")>=0);

@@ -8,6 +8,8 @@ class GameAccess {
  public static var removed:Array<Dynamic>=[];
  public static var maskWhitened=false;
  public static var failNextTooltip=false;
+ public static var slotIds:Array<Dynamic>=[];
+ public static var slotReads=0;
  public static var ui:Dynamic={root:{}};
  public static function object(?parent:Dynamic):Dynamic {
   var o:Dynamic={children:[],parent:parent,color:{x:1.,y:1.,z:1.}};o.dom={obj:o};
@@ -20,10 +22,17 @@ class GameAccess {
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
  public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null){if(k=="onAfterReflow"&&field(o,"text")!=null)throw "Text is not a Flow";Reflect.setField(o,k,v);}}
  public static function enumeration(t:String,n:String):Dynamic return n;
- public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t;
+ public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t||(t=="st.item.Gear"&&field(o,"nativeType")=="st.item.Weapon");
  public static function current(t:String,n:String):Dynamic return t=="ui.BaseUI"?ui:n;
  public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
- public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return n=="isPressed"?false:n=="getVersion"?"test":n=="getGfx"?a[0]:{id:"Epic"};
+ public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
+  case "makeAfxDescTextsComparisons":a[0];
+  case "weaponEffect":a[0].text;
+  case "isPressed":false;
+  case "getVersion":"test";
+  case "getGfx":a[0];
+  default:{id:"Epic"};
+ };
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
   return switch(n){
@@ -32,7 +41,7 @@ class GameAccess {
    case "calcTextWidth": Std.string(a[0]).length*8.0;
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
-   case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics")o.shapes=[];null;
+   case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics"){o.shapes=[];o.points=[];}null;
    case "dispose": o.disposed=true;null;
    case "toTexture": var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture;
    case "set_colorAdd": maskWhitened=true;null;
@@ -78,6 +87,11 @@ class GameAccess {
    case "set_onClick": o.action=a[0];null;
    case "getName": "Tester";
    case "getRequiredLevel": 15;
+   case "getItemAffixes": ["75 Vitality","58 Strength"];
+   case "getSlotAffixes":
+    if(slotIds.indexOf(a[0])<0)throw "Slot descriptions must use the native definition ID";
+    slotReads++;["<font color='#ff7575'>-40</font> Magic Penetration","<font color='#a8d332'>+40</font> Armor Penetration"];
+   case "getEffects":[{text:"<font color='#3399ff'>Enchant: Flaming Weapon</font>"}];
    case "getILevel": 35;
    default: null;
   };

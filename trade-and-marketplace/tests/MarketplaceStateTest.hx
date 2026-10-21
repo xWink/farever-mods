@@ -5,6 +5,7 @@ class MarketplaceStateTest {
     static var checks=0;
     static function check(value:Bool):Void {checks++;if(!value)throw "Marketplace state assertion "+checks;}
     static function reply(c:MarketController,app:Dynamic,listing:Dynamic,cursor:Null<String>):Void {
+        if(Reflect.field(listing,"server")==null)Reflect.setField(listing,"server",c.server);
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({listings:[listing],nextCursor:cursor})}});
         c.update(app,0);
@@ -24,7 +25,7 @@ class MarketplaceStateTest {
         c.view.close();c.open();
         check(MarketWorker.current.sent.length==3&&!c.busy);
         check(c.page==2&&c.selected==selected&&c.rows[0]==selected&&c.view.shown);
-        c.chooseTab("Sell");check(c.busy&&c.inventory.length==0);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
+        c.chooseTab("Sell");check(c.busy&&c.inventory.length==1);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
         c.sellSearch="should";c.searchInventory();c.view.close();c.open();
         check(c.tab=="Sell"&&c.chosen==chosen&&c.sellSearch=="should"&&c.inventory[0]==chosen);
         c.sellSearch="no match";c.searchInventory();check(c.chosen==null&&c.total==0);
@@ -49,7 +50,7 @@ class MarketplaceStateTest {
             response:{status:204,error:"",retryAfter:"",body:""}});
         c.update(app,0);
         check(MarketWorker.current.sent.length==sent+2&&MarketWorker.current.sent[sent+1].method=="GET");
-        check(c.selected==null&&c.page==1&&Std.string(MarketWorker.current.sent[sent+1].path).indexOf("limit=9")>=0);
+        check(c.selected==null&&c.page==1&&Std.string(MarketWorker.current.sent[sent+1].path).indexOf("limit=50")>=0);
         reply(c,app,{id:"remaining",revision:1},null);
         check(!c.busy&&c.selected==null&&c.rows.length==1&&c.rows[0].id=="remaining");
         c.selected=c.rows[0];sent=MarketWorker.current.sent.length;c.remove();
@@ -59,14 +60,11 @@ class MarketplaceStateTest {
         check(!c.busy&&c.rows[0].id=="remaining"&&MarketWorker.current.sent.length==sent+1);
         check(c.message=="This listing changed. Refresh before removing it.");
         c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
-        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&c.page==1);
-        check(Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=6")>=0);
-        var previous=c.selected;
-        ownReply(c,app,[{id:"remaining",revision:2}]);
-        check(c.selected==c.rows[0]&&c.selected!=previous&&c.selected.revision==2);
-        c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
-        ownReply(c,app,[{id:"other"},{id:"remaining",revision:3}]);
-        check(c.selected==c.rows[1]&&c.selected.revision==3);
+        var noFetch=MarketWorker.current.sent.length,previous=c.selected,previousPage=c.page;
+        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==8&&c.page==previousPage);
+        check(MarketWorker.current.sent.length==noFetch&&c.selected==previous&&!c.busy);
+        c.toggleFilters();check(!c.filtersExpanded&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
+        check(MarketWorker.current.sent.length==noFetch&&c.selected==previous);
         c.filters["search"]="new search";c.refresh();ownReply(c,app,[{id:"remaining",revision:4}]);
         check(c.selected==c.rows[0]&&c.selected.revision==4);
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
@@ -76,7 +74,7 @@ class MarketplaceStateTest {
         check(c.selected==null);
         var stack=c.inv.stacks()[0],offer=TradeInventory.describe(stack.item,stack.count);
         var listed=marketplace.MarketExport.itemData(stack.item,offer,1);
-        c.chooseTab("Sell");
+        c.chooseTab("Sell");c.refresh();
         var path=Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path);
         check(path=="/api/v1/marketplace/listings?mine=true&limit=50");
         ownReply(c,app,[{item:listed}]);check(c.inventory.length==1&&c.isListed(c.inventory[0]));
@@ -102,7 +100,7 @@ class MarketplaceStateTest {
         c.inv.hero.loadout.banks=[firstBank];c.loadInventory();check(c.bankTab==0&&c.inventory[0].uid=="bank-item");
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
-        c.update(app,0);check(!c.busy&&c.inventory.length==0&&c.message!="");
+        c.update(app,0);check(!c.busy&&c.inventory.length==1&&c.message!="");
         c.tab="Browse";c.selected={id:"whisper",server:"europe",seller:{accountId:"seller",characterName:"Wink"}};
         c.contact();
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",

@@ -7,9 +7,9 @@ import fareverly.SessionLease;
 import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
-    public static inline var PAGE_SIZE = 6;
+    public static inline var PAGE_SIZE = 8;
     public var filtersExpanded=false;
-    public function pageSize():Int return tab=="Browse"?(filtersExpanded?PAGE_SIZE:8):9;
+    public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -37,6 +37,10 @@ class MarketController {
     var ownedKnown=false;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
+    var ownedExpiry:Map<String,Float>=[];
+    var ownedRows:Array<Dynamic>=[];
+    var minePage=1;
+    var mineSelectedId="";
     public var selected:Dynamic;
     public var chosen:TradeItem;
     public var page=1;
@@ -46,7 +50,6 @@ class MarketController {
     var activePages:MarketPages;
     var prefetch:Null<{cache:MarketPages,page:Int,ticket:Int,waiting:Bool}>;
     var nextTicket=0;
-    var ownedFetched=0.0;
     var mineSort="";
     public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>""];
     final worker=new MarketWorker();
@@ -64,7 +67,6 @@ class MarketController {
         view=new MarketWindow(this);
         Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null)try {if(readKey(CommonSettings.read())!=key)reconnect();}catch(_:Dynamic){}});
         var action="better-mod-settings/action/"+HlxRuntime.moduleName()+"/";
-        Bus.subscribe(action+"openMarketplace",(_:Dynamic)->open());
         Bus.subscribe(action+"fareverlySignIn",(_:Dynamic)->signIn());
     }
     public function update(app:Dynamic,now:Float):Void {
@@ -102,7 +104,7 @@ class MarketController {
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
                     view.dirty=true;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
-                    if(opened&&tab=="Sell"&&!ownedKnown&&!busy)refreshSell();
+                    if(opened&&(tab=="Sell"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
                 case "auth","auth-end":
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
@@ -165,21 +167,25 @@ class MarketController {
     }
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
     function rememberTab():Void {
-        if(activePages!=null&&tab!="Sell") {
+        if(tab=="My listings"){minePage=page;mineSelectedId=G.text(G.field(selected,"id"));}
+        else if(activePages!=null&&tab=="Browse") {
             activePages.current=page;activePages.selectedId=G.text(G.field(selected,"id"));
         }
     }
     function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
     function invalidateListings():Void {
-        cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedFetched=0;
+        cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function chooseTab(value:String):Void {
         if(busy)return;
         rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];selected=null;total=0;page=pages=1;
         if(tab=="Sell") {
             activePages=null;
-            if(ownedKnown&&haxe.Timer.stamp()-ownedFetched<MarketPages.MAX_AGE){loadInventory();message="";}
+            if(ownedKnown){loadInventory();message="";}
             else refreshSell();
+        } else if(tab=="My listings") {
+            activePages=null;page=minePage;
+            if(ownedKnown)displayOwned();else refreshSell();
         } else {
             activePages=cacheForTab();page=activePages.current;
             showListings(false);
@@ -187,8 +193,8 @@ class MarketController {
         view.dirty=true;
     }
     public function toggleFilters():Void {
-        if(busy)return;
-        filtersExpanded=!filtersExpanded;page=pages=1;refresh();view.dirty=true;
+        // Layout only: keep the query, pagination, selection and prefetched rows.
+        filtersExpanded=!filtersExpanded;view.dirty=true;
     }
     public function listingSort():String return tab=="My listings"?mineSort:filters["sort"];
     public function sortByLevel():Void cycleSort("required-level");
@@ -198,7 +204,8 @@ class MarketController {
         var current=listingSort();
         var value=current==column+"-asc"?column+"-desc":current==column+"-desc"?"":column+"-asc";
         if(tab=="My listings")mineSort=value;else filters["sort"]=value;
-        page=1;refresh();
+        page=1;
+        if(tab=="My listings"&&ownedKnown)displayOwned();else refresh();
     }
     public function searchSelectedItem():Void {
         if(busy||tab!="Sell")return;
@@ -212,34 +219,62 @@ class MarketController {
     }
     function refreshSell():Void {
         if(busy)return;
-        ownedKnown=false;availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;view.dirty=true;
+        ownedKnown=false;
+        if(tab=="Sell")loadInventory();
+        view.dirty=true;
         // No server/character/online filter: duplicate rules are account-wide.
         // Fifty is the API maximum and exceeds the account's ten-listing cap.
         request("GET","/api/v1/marketplace/listings?mine=true&limit=50",null,null,data->{
             if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50||data.nextCursor!=null)
                 throw "Incomplete owned listings";
-            var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[];
+            var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
             for(row in (cast data.listings:Array<Dynamic>)) {
                 var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
-                items[MarketItemIdentity.key(item)]=true;kinds[G.text(G.field(item,"baseId"))]=true;
+                if(item==null)continue;
+                var id=MarketItemIdentity.key(item),expires=G.text(G.field(row,"expiresAt"));
+                items[id]=true;kinds[G.text(G.field(item,"baseId"))]=true;
+                if(expires!="")expiry[id]=Protocol.expiry(expires);
             }
-            ownedItems=items;ownedKinds=kinds;ownedKnown=true;ownedFetched=haxe.Timer.stamp();loadInventory();message="";
+            ownedItems=items;ownedKinds=kinds;ownedExpiry=expiry;ownedRows=data.listings;ownedKnown=true;
+            if(tab=="My listings")displayOwned();else loadInventory();
+            message="";
         });
     }
+    function displayOwned():Void {
+        var now=Date.now().getTime()/1000,id=G.text(G.field(selected,"id"),mineSelectedId);
+        var available=ownedRows.filter(row->{
+            var region=G.text(G.field(row,"server")),expiry=G.text(G.field(row,"expiresAt"));
+            return region==server&&(expiry==""||Protocol.expiry(expiry)>now);
+        });
+        if(mineSort!="")available.sort((a,b)->{
+            var price=StringTools.startsWith(mineSort,"price-");
+            var av:Dynamic=price?G.field(G.field(a,"price"),"silverTrays"):G.field(G.field(a,"item"),"requiredLevel");
+            var bv:Dynamic=price?G.field(G.field(b,"price"),"silverTrays"):G.field(G.field(b,"item"),"requiredLevel");
+            if(av==null||bv==null)return av==bv?0:av==null?1:-1;
+            return Reflect.compare(G.integer(av),G.integer(bv))*(StringTools.endsWith(mineSort,"-desc")?-1:1);
+        });
+        pages=Std.int(Math.max(1,Math.ceil(available.length/pageSize())));
+        page=Std.int(Math.max(1,Math.min(page,pages)));minePage=page;
+        rows=available.slice((page-1)*pageSize(),page*pageSize());total=rows.length;
+        selected=null;
+        for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
+        mineSelectedId=G.text(G.field(selected,"id"));view.dirty=true;message="";
+    }
     public function loadInventory():Void {
+        var now=Date.now().getTime()/1000;
+        for(id in [for(id in ownedExpiry.keys())id])if(ownedExpiry[id]<=now){ownedExpiry.remove(id);ownedItems.remove(id);}
         var chosenId=chosen==null?"":chosen.uid;
         availableInventory=[];listedInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
         var sources=MarketInventory.sources(inv,bankOnly);
         bankNames=MarketInventory.bankNames(inv);
         bankTab=Std.int(Math.max(0,Math.min(bankTab,bankNames.length-1)));
         inventorySource=sources.length==0?null:sources[bankOnly?bankTab:0];
-        if(!ownedKnown){applyInventorySearch();return;}
         var source=inventorySource;
         if(source!=null)for(s in source.stacks())if(source.canDrop(s,1))try {
             var item=TradeInventory.describe(s.item,s.count);
             item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
-                if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
+                if(ownedKnown&&ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
                 availableInventory.push(item);locations[item.uid]=bankOnly?bankNames[bankTab]:"In backpack";
                 inventoryIndexes[item.uid]=s.index;
                 if(item.uid==chosenId)chosen=item;
@@ -247,7 +282,7 @@ class MarketController {
         }catch(_:Dynamic){}
         applyInventorySearch();
     }
-    public function searchInventory():Void {if(busy)return;page=1;applyInventorySearch();}
+    public function searchInventory():Void {page=1;applyInventorySearch();}
     function applyInventorySearch():Void {
         inventory=MarketInventory.filter(availableInventory,sellSearch);
         inventorySlots=[for(_ in 0...MarketInventory.slotCount(inventorySource)) null];
@@ -272,26 +307,21 @@ class MarketController {
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
         var limit=pageSize(),params=["limit="+limit,"server="+StringTools.urlEncode(server)];
-        if(tab=="My listings") {
-            params.push("mine=true");
-            if(mineSort!="")params.push("sort="+mineSort);
-        }
-        else {
-            var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
-            for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
-        }
+        var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
+        for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
         var path="/api/v1/marketplace/listings?"+params.join("&"),cache=listingCaches[tab];
         if(cache==null||cache.path!=path) {cache=new MarketPages(path,limit);listingCaches[tab]=cache;}
         return cache;
     }
     public function refresh():Void {
         if(busy)return;
-        if(tab=="Sell"){refreshSell();return;}
+        if(tab=="Sell"||tab=="My listings"){refreshSell();return;}
         showListings(true);
     }
     public function goPage(value:Int):Void {
         if(busy||value<1||value>pages||value==page)return;
-        rememberTab();page=value;showListings(false);
+        rememberTab();page=value;
+        if(tab=="My listings")displayOwned();else showListings(false);
     }
     function showListings(force:Bool):Void {
         if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}

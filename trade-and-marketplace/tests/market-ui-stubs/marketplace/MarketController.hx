@@ -1,9 +1,9 @@
 package marketplace;
 class MarketController {
- public static inline var PAGE_SIZE=6;
+ public static inline var PAGE_SIZE=8;
  public var filtersExpanded=false;public var view:MarketWindow;
- public function pageSize():Int return tab=="Browse"?(filtersExpanded?PAGE_SIZE:8):9;
- public function toggleFilters():Void {if(busy)return;filtersExpanded=!filtersExpanded;page=1;refresh();if(view!=null)view.dirty=true;}
+ public function pageSize():Int return tab=="Browse"?8:9;
+ public function toggleFilters():Void {filtersExpanded=!filtersExpanded;if(view!=null)view.dirty=true;}
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];
@@ -30,7 +30,7 @@ class MarketController {
  function cycleSort(column:String):Void {var s=listingSort();filters["sort"]=s==column+"-asc"?column+"-desc":s==column+"-desc"?"":column+"-asc";if(view!=null)view.dirty=true;}
  public function goPage(value:Int):Void {page=value;refresh();}
  public function refresh():Void {refreshes++;}
- public function searchInventory():Void {inventorySearches++;}
+ public function searchInventory():Void {inventorySearches++;if(view!=null)view.dirty=true;}
  public function cancelSignIn():Void{}
  public function signIn():Void{}
  public function list(q:Int,t:Int,o:Bool):Void{}
