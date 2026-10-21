@@ -28,9 +28,11 @@ class MarketplaceDrawerTest {
             rows()[0].action();view.update();
             var panel=node("marketDetailsDrawer"),table=node("marketListingViewport"),originalRows=rows();
             check(c.selected==example&&panel!=null&&panel.x>0&&panel.x<=368);
-            var clip=panel.parent;
-            check(clip.nativeType=="h2d.Mask"&&clip.parent==TradeFrame.latest.container&&clip.width==1104&&clip.height==888);
+            var clip:Dynamic=panel.parent;
+            check(clip.component=="element"&&clip.overflow=="Hidden"&&clip.parent==TradeFrame.latest.container&&clip.width==1104&&clip.height==888);
             check(clip.x==0&&clip.y==0);
+            // The clipping parent must participate in native DOM style inheritance.
+            check(G.field(G.field(clip,"dom"),"obj")==clip&&G.field(G.field(panel,"dom"),"obj")==panel&&G.field(clip.parent,"dom")!=null);
             @:privateAccess view.advanceDetails(view.drawer.started+0.12);
             check(panel.parent==clip&&clip.x==0&&clip.y==0&&panel.x+1088>clip.width);
             check(table.width>692&&table.width<1060&&panel.x>0&&panel.x<368);

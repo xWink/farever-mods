@@ -23,7 +23,7 @@ class MarketWindow {
     var drawerTab="";
     var closingListing:Dynamic;
     var detailLayer:Dynamic;
-    var detailMask:Dynamic;
+    var detailClip:Dynamic;
     var detailBackdrop:Dynamic;
     var tableLayouts:Array<Int->Void>=[];
     var tableExtra=0;
@@ -61,7 +61,7 @@ class MarketWindow {
         shown = false; closeDropdowns();
         filterControls.clear();
         if(cart!=null){cart.dispose();cart=null;}
-        backdrop=null;presenceLabels=[];detailLayer=detailMask=detailBackdrop=null;tableLayouts=[];drawerTab="";closingListing=null;
+        backdrop=null;presenceLabels=[];detailLayer=detailClip=detailBackdrop=null;tableLayouts=[];drawerTab="";closingListing=null;
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",frame.ui,[connectionDialog]);
         connectionDialog=null;
@@ -125,7 +125,7 @@ class MarketWindow {
         && (parent == child || G.call("h2d.Object", "contains", parent, [child]) == true);
 
     function render():Void {
-        presenceLabels=[];tableLayouts=[];detailLayer=detailMask=detailBackdrop=null;
+        presenceLabels=[];tableLayouts=[];detailLayer=detailClip=detailBackdrop=null;
         var now=haxe.Timer.stamp(),changedTab=drawerTab!=c.tab;
         drawer.set(c.selected!=null,now,changedTab);drawer.update(now);
         if(changedTab)closingListing=null;
@@ -205,21 +205,22 @@ class MarketWindow {
             sortHeader("TOTAL PRICE","price",512,184,c.sortByPrice,true);
             listingRows(68);
             if(closingListing!=null) {
-                // Flow's Limit overflow constrains layout, not rendering. Use a
-                // stationary native scissor mask while the panel moves beneath it.
+                // Native UIElement ancestry supplies the window's fonts and button
+                // styles. Hidden overflow clips drawing without breaking that chain.
                 var previous=children(root);
-                detailMask=G.create("h2d.Mask",[1104,888,root]);
-                absolute(root,detailMask);position(detailMask,0,0);
-                detailLayer=G.field(node("element",G.field(root,"dom"),[],"marketDetailsDrawer"),"obj");
-                absolute(root,detailLayer);padding(detailLayer,0);size(detailLayer,1104,888);
-                G.call("h2d.Object","addChild",detailMask,[detailLayer]);
+                detailClip=G.field(node("element",G.field(root,"dom"),[],"marketDetailsClip"),"obj");
+                absolute(root,detailClip);padding(detailClip,0);size(detailClip,1104,888);position(detailClip,0,0);
+                var hidden=G.enumeration("h2d.FlowOverflow","Hidden");
+                G.call("h2d.Flow","set_overflow",detailClip,[hidden]);style(detailClip,"overflow",hidden);
+                detailLayer=G.field(node("element",G.field(detailClip,"dom"),[],"marketDetailsDrawer"),"obj");
+                absolute(detailClip,detailLayer);padding(detailLayer,0);size(detailLayer,1104,888);
                 detailBackdrop=graphic(root);
                 rounded(detailBackdrop,736,contentY,352,806-contentY,8,EDGE);
                 rounded(detailBackdrop,737,contentY+1,350,804-contentY,7,PAPER);
                 labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);
                 line(root,750,contentY+42,324);
                 stage="selected listing";listingPanel(closingListing);
-                for(child in children(root))if(child!=detailMask&&previous.indexOf(child)<0) {
+                for(child in children(root))if(child!=detailClip&&previous.indexOf(child)<0) {
                     G.call("h2d.Object","addChild",detailLayer,[child]);
                     absolute(detailLayer,child);
                 }
@@ -586,8 +587,8 @@ class MarketWindow {
         var extra=Math.round(368*(1-drawer.value));
         if(extra!=tableExtra){tableExtra=extra;applyDetailsLayout();}
         if(drawer.value==0&&drawer.target==0&&detailLayer!=null) {
-            G.call("h2d.Object","remove",detailLayer);G.call("h2d.Object","remove",detailMask);
-            detailLayer=detailMask=detailBackdrop=null;closingListing=null;
+            G.call("h2d.Object","remove",detailLayer);G.call("h2d.Object","remove",detailClip);
+            detailLayer=detailClip=detailBackdrop=null;closingListing=null;
         }
     }
     function rememberInventoryScroll():Void {
