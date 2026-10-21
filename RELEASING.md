@@ -20,7 +20,7 @@ notes, building a test artifact, or asking about a release does not publish it.
    add a repository secret named **NEXUSMODS_API_KEY**. Enter its value directly
    there; do not put it in chat, source control, a release request, or a log.
 3. The mappings in [tools/release/mods.json](tools/release/mods.json) already
-   identify all seven existing mod pages. The workflow resolves the Nexus v3
+   identify all eight existing mod pages. The workflow resolves the Nexus v3
    mod ID and main file ID through the API. Usually no other setup is needed.
 
 If a page has several main files with no unique primary download, set that
@@ -147,5 +147,7 @@ already published GitHub release. Report both platform outcomes accurately.
 | `mod-update-alerts` | [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17) | `farever-mod-update-alerts.zip` |
 
 Each ZIP starts with `hlx/` and contains only that mod and its native plugins.
+| `trade-and-marketplace` | [Trade and Marketplace](https://www.nexusmods.com/farever/mods/30) | `farever-trade-and-marketplace.zip` |
+
 Versions are independent; the repository has no shared Latest release.
 Historical releases remain linked from [MIGRATION.md](MIGRATION.md).

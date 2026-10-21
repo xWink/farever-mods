@@ -11,7 +11,7 @@ Independent HLX mods for Farever. Each mod has its own build, installable ZIP, a
 | [DPS Meter](dps-meter/) | [Releases](https://github.com/xWink/farever-mods/releases?q=dps-meter%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-dps-meter.yml) |
 | [Minimap](minimap/) | [Releases](https://github.com/xWink/farever-mods/releases?q=minimap%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-minimap.yml) |
 | [Mod Update Alerts](mod-update-alerts/) | [Releases](https://github.com/xWink/farever-mods/releases?q=mod-update-alerts%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-mod-update-alerts.yml) |
-| [Trade and Marketplace](trade-and-marketplace/) | Testing only | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-trade-and-marketplace.yml) |
+| [Trade and Marketplace](trade-and-marketplace/) | [Nexus Mods](https://www.nexusmods.com/farever/mods/30) | [Releases](https://github.com/xWink/farever-mods/releases?q=trade-and-marketplace) |
 
 ## Installation
 

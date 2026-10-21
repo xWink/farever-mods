@@ -2,13 +2,13 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-trade-and-marketplace.yml)
 
-A native trade window for nearby players. This is a testing build; both players need the mod installed.
+An in-game marketplace and native trade window for nearby players. Both players need the mod installed to trade.
 
 ## Installation
 
 Requires HLX Core 0.0.8+, [Better Mod Settings](../better-mod-settings/), and [Mod Update Alerts](../mod-update-alerts/). Follow the [installation instructions](../README.md#installation), then configure the mod in **Game Menu → Mod Settings**.
 
-Download the **farever-trade-and-marketplace** artifact from a successful build. It installs under `hlx/mods/trade-and-marketplace/`.
+Download from [Nexus Mods](https://www.nexusmods.com/farever/mods/30) or [GitHub Releases](https://github.com/xWink/farever-mods/releases?q=trade-and-marketplace). It installs under `hlx/mods/trade-and-marketplace/`.
 
 If upgrading from the earlier test build, remove `hlx/mods/trade/` so both copies cannot load, then reapply your settings. Both players should use the same build and restart the game.
 

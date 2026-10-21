@@ -1,6 +1,12 @@
 name: Trade and Marketplace
 
 on:
+  workflow_call:
+    inputs:
+      source-ref:
+        description: Exact source commit for the release pipeline
+        type: string
+        default: ""
   workflow_dispatch:
   push:
     branches: [main]
@@ -21,8 +27,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-trade-and-marketplace-${{ github.ref }}
-  cancel-in-progress: true
+  group: build-trade-and-marketplace-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source-ref }}
+  cancel-in-progress: ${{ inputs.source-ref == '' }}
 
 jobs:
   test:
@@ -31,6 +37,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
@@ -85,6 +92,7 @@ jobs:
     needs: test
     uses: ./.github/workflows/_build-mod.yml
     with:
+      source-ref: ${{ inputs.source-ref }}
       project: trade-and-marketplace
       module: trade-and-marketplace
       artifact-name: farever-trade-and-marketplace
