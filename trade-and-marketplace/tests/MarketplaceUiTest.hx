@@ -114,7 +114,7 @@ class MarketplaceUiTest {
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
   check(detailSeller==null&&GameAccess.labels.filter(l->l.text=="Asking price:").length==0);
   var meta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0)[0];
-  check(meta.scaleX==0.85&&meta.textColor==0x806B5B);
+  check(meta.scaleX==0.85&&meta.textColor==0xC9BEB5);
   var viewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
   check(viewport.y+viewport.height==736);
   check(viewport.verticalAlign=="Top"&&viewport.horizontalAlign=="Left");
@@ -235,7 +235,10 @@ class MarketplaceUiTest {
   selectedSlot.innerSlot.inkBounds={xMin:60.,yMin:70.,xMax:122.,yMax:131.};selectedGrid.onAfterReflow();
   var outline=overlays[0].children[0],points:Array<Dynamic>=outline.points;
   check(overlays[0].x==60&&overlays[0].y==70);
-  check(points[0][0]==0&&points[0][1]==0&&points[1][0]==62);
+  check(points[0][0]==0&&points[0][1]==0&&points[1][0]<62/3);
+  check(points.filter(p->p[0]==62).length>0);
+  // No polygon spans the centre of any edge; every corner has both arms.
+  for(i in 0...12){var poly=points.slice(i*7,i*7+7);check(poly.length==7);check(poly.filter(p->p[0]>20&&p[0]<42||p[1]>20&&p[1]<41).length==0);}
   check(points.filter(p->p[1]==61).length>0); // All four native edges, not the old fixed square.
   var saleBadge=GameAccess.labels.filter(l->l.text=="For sale")[0];
   saleBadge.needUpdateScale=true;saleBadge.parent.onAfterReflow();
@@ -279,7 +282,11 @@ class MarketplaceUiTest {
   check(GameAccess.field(subcategory.listWindow,"filter")==null);
   check(popup.overflow=="Scroll"&&popup.maxHeight==300&&popup.minHeight==300&&subcategory.items.length>10);
   popup.onAfterReflow();check(popup.scrollPosY==330&&popup.verticalSpacing==0);
-  var currentHolder=TradeFrame.latest.header.children[1],oldX=currentHolder.x,oldY=currentHolder.y;
+  var currentHolder=TradeFrame.latest.header.children[1];
+  // The final header font is wider than the default font used during creation.
+  TradeFrame.latest.title.glyphWidth=14.;TradeFrame.latest.header.onAfterReflow();
+  check(currentHolder.x==28+11*14+8);
+  var oldX=currentHolder.x,oldY=currentHolder.y;
   TradeFrame.latest.title.bounds={xMin:0.,yMin:0.,xMax:1000.,yMax:60.};
   TradeFrame.latest.title.x=0;TradeFrame.latest.title.scaleX=0.5;TradeFrame.latest.header.onAfterReflow();
   check(currentHolder.x==oldX&&currentHolder.y==oldY&&currentHolder.children[0].x==0);
@@ -326,6 +333,20 @@ class MarketplaceUiTest {
   GameAccess.nodes.filter(n->n.id=="marketSortprice")[0].action();view.update();
   check(c.listingSort()=="price-desc"&&GameAccess.labels.filter(l->l.text=="TOTAL PRICE ↓").length==1);
   GameAccess.nodes.filter(n->n.id=="marketSortprice")[0].action();view.update();check(c.listingSort()=="");
+  // Presence refreshes the existing label/dot without rebuilding focused controls.
+  var statuses=GameAccess.labels.filter(l->l.text=="Offline");check(statuses.length>0);
+  c.presenceOverride=true;@:privateAccess view.presenceCheckAt=0;view.update();
+  check(statuses[0].text=="Online"&&GameAccess.labels.indexOf(statuses[0])>=0);
+  c.presenceOverride=false;@:privateAccess view.presenceCheckAt=0;view.update();
+  check(statuses[0].text=="Offline"&&!view.dirty);c.presenceOverride=null;
+  // Only the item-information viewport receives the dark tooltip background.
+  var panel=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
+  var detailBacks:Array<Dynamic>=[];
+  for(child in (cast TradeFrame.latest.container.children:Array<Dynamic>))
+   if(child.shapes!=null)for(shape in (cast child.shapes:Array<Dynamic>))if(shape.color==0x4A423C&&shape.alpha==1)detailBacks.push(shape);
+  check(detailBacks.length==1&&detailBacks[0].y==panel.y-8&&detailBacks[0].y+detailBacks[0].height<752);
+  var info=GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0);
+  check(info.filter(l->l.text==row.item.name&&l.textColor==0xFFFFFF).length==1);
   // Display rarity uses the native prismatic bit for local items and listing metadata.
   for(tab in ["Browse","My listings","Sell"]) {
    c.tab=tab;c.selected=row;c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,detail:"Epic",color:0,fingerprint:"",preview:row.item.native};

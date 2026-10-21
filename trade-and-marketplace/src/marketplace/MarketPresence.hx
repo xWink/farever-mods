@@ -4,6 +4,15 @@ class MarketPresence {
     public var next = 0.0;
     public var stopped = false;
     var failures = 0;
+    /** Only an acknowledged heartbeat may extend the locally displayed presence. */
+    public static function deadline(status:Int,body:String,error:String):Float {
+        if(status!=200||error!="")return 0;
+        try {
+            var data:Dynamic=haxe.Json.parse(body),value:Dynamic=Reflect.field(data,"onlineUntil");
+            if(Std.isOfType(value,String))return fareverly.Protocol.expiry(value);
+        }catch(_:Dynamic){}
+        return 0;
+    }
     public function new() {}
     public function reset():Void { next=0; stopped=false; failures=0; }
     public function due(now:Float):Bool return !stopped && now>=next;

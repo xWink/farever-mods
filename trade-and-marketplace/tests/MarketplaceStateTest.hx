@@ -109,6 +109,16 @@ class MarketplaceStateTest {
         check(trade.TradeChat.lastEcho);
         check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
         check(c.message.indexOf("Whisper sent to Wink.")==0);
+        c.account="self";
+        var own={seller:{accountId:"self",onlineUntil:"2000-01-01T00:00:00.000Z"}},other={seller:{accountId:"other",onlineUntil:"2000-01-01T00:00:00.000Z"}};
+        check(!c.listingOnline(own));
+        var calls=MarketWorker.current.sent.length,until=Date.now().getTime()/1000+180;
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"presence",onlineUntil:until});c.update(app,0);
+        check(c.listingOnline(own)&&!c.listingOnline(other));
+        check(!c.listingOnline(own,until)&&MarketWorker.current.sent.length==calls);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation-1,op:"presence",onlineUntil:until+180});c.update(app,0);
+        check(!c.listingOnline(own,until+1));
+        c.disconnect();c.account="self";check(!c.listingOnline(own));
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
     }

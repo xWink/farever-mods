@@ -12,6 +12,11 @@ class MarketplaceTest {
  static function check(b:Bool):Void {checks++;if(!b)throw "Marketplace assertion "+checks;}
  static function fails(f:Void->Void):Void {var failed=false;try f()catch(_:Dynamic)failed=true;check(failed);}
  static function main():Void {
+  var acknowledged='{"onlineUntil":"2099-01-01T00:00:00.000Z"}';
+  check(MarketPresence.deadline(200,acknowledged,"")>Date.now().getTime()/1000);
+  for(status in [0,401,403,429,500])check(MarketPresence.deadline(status,acknowledged,"")==0);
+  for(body in ["broken","{}",'{"onlineUntil":42}','{"onlineUntil":"invalid"}'])check(MarketPresence.deadline(200,body,"")==0);
+  check(MarketPresence.deadline(200,acknowledged,"transport failure")==0);
   var p=new MarketPresence();check(p.due(0));p.completed(200,100,0,4);check(!p.due(163));check(p.due(164));
   p.completed(429,200,90,2);check(!p.due(291));check(p.due(292));
   p.completed(503,300,0,0);check(p.next==360);p.completed(0,360,0,0);check(p.next==480);

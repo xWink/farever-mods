@@ -34,6 +34,7 @@ class MarketController {
     var availableInventory:Array<TradeItem>=[];
     var listedInventory:Map<String,Bool>=[];
     var locations:Map<String,String>=[];
+    var ownOnlineUntil=0.0;
     var ownedKnown=false;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
@@ -103,6 +104,7 @@ class MarketController {
                         if(response.status==0||response.status>=500)connectionIssue=true;
                         if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
                     view.dirty=true;
+                case "presence":ownOnlineUntil=event.onlineUntil;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
                     if(opened&&(tab=="Sell"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
@@ -129,6 +131,7 @@ class MarketController {
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
+        ownOnlineUntil=0;
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
         generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;requestAfter=0;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
@@ -138,6 +141,7 @@ class MarketController {
     }
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
+        ownOnlineUntil=0;
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
@@ -239,6 +243,12 @@ class MarketController {
             if(tab=="My listings")displayOwned();else loadInventory();
             message="";
         });
+    }
+    public function listingOnline(row:Dynamic,?at:Float):Bool {
+        var now=at==null?Date.now().getTime()/1000:at;
+        var seller=G.field(row,"seller"),deadline=Protocol.expiry(G.text(G.field(seller,"onlineUntil")));
+        if(account!=""&&G.text(G.field(seller,"accountId"))==account)deadline=Math.max(deadline,ownOnlineUntil);
+        return deadline>now;
     }
     function displayOwned():Void {
         var now=Date.now().getTime()/1000,id=G.text(G.field(selected,"id"),mineSelectedId);
@@ -346,7 +356,7 @@ class MarketController {
         rows=result.rows.filter(row->{
             var expiry=G.text(G.field(row,"expiresAt")),seller=G.field(row,"seller");
             return (expiry==""||Protocol.expiry(expiry)>now)
-                &&(tab!="Browse"||filters["online"]!="true"||seller==null||Protocol.expiry(G.text(G.field(seller,"onlineUntil")))>now);
+                &&(tab!="Browse"||filters["online"]!="true"||seller==null||listingOnline(row,now));
         });
         page=target;cache.current=target;cache.trim();total=rows.length;pages=page+(result.next==null?0:1);
         selected=null;

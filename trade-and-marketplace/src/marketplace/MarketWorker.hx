@@ -5,7 +5,7 @@ import sys.thread.Deque;
 import sys.thread.Mutex;
 import sys.thread.Thread;
 typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
-typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String};
+typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float};
 /** Foreground work takes priority over one speculative page request; presence/auth share the worker. Native objects never leave the game thread. */
 class MarketWorker {
     final jobs=new Deque<MarketJob>();
@@ -96,6 +96,8 @@ class MarketWorker {
                 var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString("{}"),key);
                 if(!current(id))continue;
                 var completed=Date.now().getTime()/1000;
+                var deadline=MarketPresence.deadline(response.status,response.body,response.error);
+                if(deadline>completed)events.add({generation:id,op:"presence",onlineUntil:deadline});
                 presence.completed(response.status,completed,Protocol.retryAfter(response.retryAfter,completed),Math.random()*5);
                 if(presence.stopped) {verified=false;verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Fareverly sign-in expired. Sign in again to list items."});}
             }

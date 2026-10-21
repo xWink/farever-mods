@@ -6,7 +6,6 @@ import trade.TradeFrame.*;
 import trade.TradeTypes;
 import trade.TradeInventory;
 import trade.TradeTooltips;
-import fareverly.Protocol;
 
 /** Native controls with explicit inner bounds; dropdown lists live above the window. */
 class MarketWindow {
@@ -20,6 +19,8 @@ class MarketWindow {
     var frame:trade.TradeFrame;
     var cart:MarketCartIcon;
     var backdrop:Dynamic;
+    var presenceLabels:Array<Void->Void>=[];
+    var presenceCheckAt=0.0;
     var controls:Array<Dynamic> = [];
     final filterControls=new MarketFilterControls();
     var sequence = 0;
@@ -49,7 +50,7 @@ class MarketWindow {
         shown = false; closeDropdowns();
         filterControls.clear();
         if(cart!=null){cart.dispose();cart=null;}
-        backdrop=null;
+        backdrop=null;presenceLabels=[];
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",frame.ui,[connectionDialog]);
         connectionDialog=null;
@@ -88,6 +89,8 @@ class MarketWindow {
             frame.x = px; frame.y = py; frame.onMoved = (x,y) -> { px = x; py = y; }; dirty = true;
         }
         if (dirty) { dirty = false; render(); }
+        var now=Date.now().getTime()/1000;
+        if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
         stage="dropdown input";dismissOutsideDropdowns();
         if(c.connectionIssue&&!c.signingIn&&!connectionNoticeShown)showConnectionError();
@@ -110,6 +113,7 @@ class MarketWindow {
         && (parent == child || G.call("h2d.Object", "contains", parent, [child]) == true);
 
     function render():Void {
+        presenceLabels=[];
         stage="clear old controls";
         rememberInventoryScroll();
         closeDropdowns();
@@ -226,7 +230,7 @@ class MarketWindow {
             var item=MarketExport.offer(listing);
             var price:Dynamic=G.field(listing,"price"),seller:Dynamic=G.field(listing,"seller");
             var priceText=MarketText.price(price);
-            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),isOnline(listing),select,c.selected==listing,price,G.field(G.field(listing,"item"),"requiredLevel"),parent);
+            row(item,y,height,priceText,G.text(G.field(seller,"characterName")),G.text(G.field(G.field(listing,"item"),"rarity")),c.listingOnline(listing),select,c.selected==listing,price,G.field(G.field(listing,"item"),"requiredLevel"),parent,listing);
         } catch(error:Dynamic) {
             report(stage,error);
             if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
@@ -449,7 +453,7 @@ class MarketWindow {
         }
     }
 
-    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic,?requiredLevel:Dynamic,?parent:Dynamic):Void {
+    function row(item:TradeItem,y:Int,height:Int,price:String,seller:String,rarity:String,online:Bool,action:Void->Void,selected:Bool,?listingPrice:Dynamic,?requiredLevel:Dynamic,?parent:Dynamic,?listing:Dynamic):Void {
         stage="item row container";
         var root=parent==null?frame.container:parent, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
         partialRow=row;
@@ -483,7 +487,7 @@ class MarketWindow {
         var sellerLabel=c.tab=="Sell"?labelAt(row,seller,64,0,270,false,MUTED,true):null;
         var level:Dynamic=null;
         if(c.tab!="Sell") {
-            sellerLine(row,seller,online,64,33,350);
+            sellerLine(row,seller,online,64,33,350,false,listing);
             level=labelAt(row,requiredLevel==null?"—":MarketText.number(requiredLevel),LEVEL_X-28,0,LEVEL_WIDTH,true,INK,true);
         }
         var priceLabel:Dynamic=null;
@@ -606,15 +610,22 @@ class MarketWindow {
         });
     }
     static function selectionBorder(border:Dynamic,width:Float,height:Float):Void {
+        var arm=Math.min(width,height)*0.28;
         for(layer in [{inset:0.0,width:5.0,color:0x5B4334},{inset:1.0,width:3.0,color:0xF3CD70},{inset:2.0,width:1.0,color:0xFFF1B5}]) {
-            var outer=layer.inset,right=width-outer,bottom=height-outer,inner=outer+layer.width,nearX=width-inner,nearY=height-inner;
-            // Filled edges meet at clean mitred corners without rounded stroke caps.
-            polygon(border,[outer,outer,right,outer,nearX,inner,inner,inner],layer.color);
-            polygon(border,[right,outer,right,bottom,nearX,nearY,nearX,inner],layer.color);
-            polygon(border,[right,bottom,outer,bottom,inner,nearY,nearX,nearY],layer.color);
-            polygon(border,[outer,bottom,outer,outer,inner,inner,inner,nearY],layer.color);
+            var outer=layer.inset,inner=outer+layer.width;
+            // Four connected L shapes, with open edge centres and square ends.
+            var corner=[outer,outer,arm,outer,arm,inner,inner,inner,inner,arm,outer,arm];
+            for(x in 0...2)for(y in 0...2) {
+                var points=[];
+                for(i in 0...Std.int(corner.length/2)) {
+                    points.push(x==0?corner[i*2]:width-corner[i*2]);
+                    points.push(y==0?corner[i*2+1]:height-corner[i*2+1]);
+                }
+                polygon(border,points,layer.color);
+            }
         }
     }
+
     static function alignScrollContent(viewport:Dynamic,content:Dynamic):Void {
         var top=G.enumeration("h2d.FlowAlign","Top"),left=G.enumeration("h2d.FlowAlign","Left");
         G.call("h2d.Flow","set_verticalAlign",viewport,[top]);G.call("h2d.Flow","set_horizontalAlign",viewport,[left]);
@@ -681,15 +692,15 @@ class MarketWindow {
     function headerCart():Void {
         var holder=G.create("h2d.Object",[frame.header]);absolute(frame.header,holder);
         try cart=new MarketCartIcon(holder,G.field(frame.ui,"windows"))catch(error:Dynamic){report("cart icon",error);return;}
-        var titleWidth:Null<Float>=null;
         afterReflow(frame.header,()->{
             if(cart==null)return;
-            var title=frame.title;updateTextScale(title);
-            // Dropdown attachment restyles the header and briefly resets title
-            // positioning/scaling. Anchor both elements to the completed layout.
-            if(titleWidth==null)titleWidth=G.number(G.call("h2d.Text","get_textWidth",title))*G.number(G.field(title,"scaleX"),1);
+            var title=frame.title;
+            // Measure the current styled font, not the pre-style glyph cache.
+            // Force scale reconciliation even when a dropdown restyle reset it.
+            G.call("ui.comp.FmtText","updateScale",title);G.set(title,"needUpdateScale",false);
+            var titleWidth=G.number(G.call("h2d.Text","calcTextWidth",title,[G.field(title,"text")]))*G.number(G.field(title,"scaleX"),1);
             position(title,28,17);
-            position(holder,28+titleWidth+8,12);
+            position(holder,28+Math.ceil(titleWidth)+8,12);
             position(cart.bitmap,0,0);
             cart.tint(G.integer(G.field(title,"textColor"),INK));
         });
@@ -721,8 +732,10 @@ class MarketWindow {
     }
     function selectedItem(item:TradeItem,?metadata:Dynamic):Void {
         var root=frame.container, y=contentY+58;
+        var bottom=c.tab=="Sell"?SELL_FORM_Y-20:(c.tab=="My listings"?704:736);
+        rounded(backdrop,744,y-8,336,bottom-y+16,4,0x4A423C);
         var viewport=G.field(node("element",G.field(root,"dom"),[],"marketDetailViewport"+(sequence++)),"obj");
-        absolute(root,viewport);padding(viewport,0);size(viewport,316,c.tab=="Sell"?SELL_FORM_Y-20-y:(c.tab=="My listings"?704:736)-y);position(viewport,754,y);
+        absolute(root,viewport);padding(viewport,0);size(viewport,316,bottom-y);position(viewport,754,y);
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
         var details=G.field(node("element",G.field(viewport,"dom"),[],"marketDetails"+(sequence++)),"obj");
@@ -741,7 +754,7 @@ class MarketWindow {
         // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.
         itemIcon(picture,item,0,0,60);
         tooltip(picture,item);
-        var name=labelAt(details,item.name,72,0,228,true);
+        var name=labelAt(details,item.name,72,0,228,true,0xFFFFFF);
         largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
         var requiredLevel=G.integer(G.field(metadata,"requiredLevel")),nativeItem:Dynamic=null;
         if(c.tab=="Sell") {
@@ -749,23 +762,23 @@ class MarketWindow {
             nativeItem=G.field(stack,"item");
             if(nativeItem!=null)requiredLevel=G.integer(G.call("st.Item","getRequiredLevel",nativeItem));
         }
-        var levelLabel=requiredLevel>0?labelAt(details,"Level "+requiredLevel,72,0,228,false,MUTED):null;
+        var levelLabel=requiredLevel>0?labelAt(details,"Level "+requiredLevel,72,0,228,false,0xC9BEB5):null;
         var upgrade=item.preview==null?G.integer(G.field(metadata,"upgradeLevel")):item.preview.upgrade;
         var stars:Array<Dynamic>=[];
         if(upgrade>0)for(i in 0...Std.int(Math.min(10,upgrade))) {
             var icon=G.field(node("icon",G.field(details,"dom"),["GearUpgrade"],"marketUpgrade"+(sequence++)),"obj");
             absolute(details,icon);padding(icon,0);size(icon,20,20);stars.push(icon);
         }
-        var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,228,false,MUTED);
+        var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,228,false,0xC9BEB5);
         var rarity=item.detail.split("\n")[0];
         var prismatic=G.field(metadata,"prismatic")==true || (item.preview!=null && (item.preview.flags&2)!=0);
         var rarityLabel=["Common","Uncommon","Rare","Epic","Legendary"].indexOf(rarity)<0?null:
-            labelAt(details,rarity=="Epic"&&prismatic?"Epic (Prismatic)":rarity,72,0,228,true,rarityColor(rarity));
+            labelAt(details,rarity=="Epic"&&prismatic?"Epic (Prismatic)":rarity,72,0,228,true,detailRarityColor(rarity));
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+MarketCategory.label(category));
         if(subcategory!="")lines.push("Subcategory: "+subcategory);
-        var meta=labelAt(details,lines.join("\n"),0,0,352,false,MUTED);
+        var meta=labelAt(details,lines.join("\n"),0,0,352,false,0xC9BEB5);
         G.call("h2d.Object","setScale",meta,[0.85]);
         lines=[];
         var itemLines=MarketText.detail(item.detail,TradeInventory.skillName).split("\n");
@@ -776,7 +789,7 @@ class MarketWindow {
             entry=~/\s*Upgrade \+[0-9]+/.replace(entry,"");
             if(StringTools.trim(entry)!="")lines.push(entry);
         }
-        var stats=labelAt(details,lines.join("\n"),0,0,300,false);
+        var stats=labelAt(details,lines.join("\n"),0,0,300,false,0xFFFFFF);
         try {
             var nativeText=MarketDetails.text(item,nativeItem);
             if(nativeText!=null)G.call("ui.comp.FmtText","set_text",stats,[nativeText]);
@@ -848,13 +861,20 @@ class MarketWindow {
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",row.seller.accountId!=c.account);
         }
     }
-    function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false):Void {
+    function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false,?listing:Dynamic):Void {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
         var caption=labelAt(box,"Seller: "+name,0,0,width-90,bold,bold?INK:MUTED,true);
         var status=labelAt(box,online?"Online":"Offline",0,0,70,false,MUTED,true);
         var dot=graphic(box);
         rounded(dot,0,0,10,10,5,online?0x426138:0x888888);
+        if(listing!=null)presenceLabels.push(()->{
+            var current=c.listingOnline(listing);
+            if(current==online)return;
+            online=current;setText(status,current?"Online":"Offline");
+            G.call("h2d.Graphics","clear",dot);
+            rounded(dot,0,0,10,10,5,current?0x426138:0x888888);
+        });
         afterReflow(box,()->{
             centerDropdownCaption(caption,24,0);
             var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
@@ -931,7 +951,6 @@ class MarketWindow {
             if(connectionDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(connectionDialog,"buttons"),[0]),["OK"]);
         }catch(error:Dynamic) {report("connection notice",error);c.message=MarketText.CONNECTION_ERROR;dirty=true;}
     }
-    static function isOnline(row:Dynamic):Bool return row.seller.onlineUntil!=null&&Protocol.expiry(row.seller.onlineUntil)>Date.now().getTime()/1000;
     static function labelAt(parent:Dynamic,value:String,x:Int,y:Int,width:Int,bold=false,color=INK,single=false):Dynamic {
         var obj=textAt(parent,value,x,y,width,bold);
         textColor(obj,color);
@@ -960,6 +979,10 @@ class MarketWindow {
     static function rarityColor(rarity:String):Int return switch(rarity) {
         case "Uncommon":0x426138;case "Rare":0x346A91;case "Epic":0x80529A;
         case "Legendary":0xA86322;default:INK;
+    };
+    static function detailRarityColor(rarity:String):Int return switch(rarity) {
+        case "Uncommon":0xA8D340;case "Rare":0x64B4E8;case "Epic":0xC88AE8;
+        case "Legendary":0xF2B65D;default:0xFFFFFF;
     };
     static function textColor(obj:Dynamic,value:Int):Void {
         if(obj==null)return;
