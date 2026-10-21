@@ -81,13 +81,15 @@ class EffectDiscoveryTest {
 
         // Effects missed by creation hooks still get a reconciliation pass,
         // including statuses on recipients and projectile/area FX.
-        var buffFx = fx(), areaFx = fx(), projectileFx = fx(), linkFx = fx();
+        var buffFx = fx(), areaFx = fx(), projectileFx = fx(), linkFx = fx(), projectileLinkFx = fx();
         friend.statuses.array.push(skill(self, [buffFx], true));
         layer.areas.push({baseSkill:attack, telegraphFx:areaFx, fxs:[]});
-        layer.entities.push({types:["ent.Projectile"], baseSkill:attack, projFX:projectileFx, fxs:[]});
+        layer.entities.push({types:["ent.Projectile"], baseSkill:attack, projFX:projectileFx,
+            fxs:[], linkFxs:[{fx:projectileLinkFx}]});
         attack.steps[0].linkFxs.push({fx:linkFx});
         sweep(app);
         eq(hidden(buffFx), true, "buff on a different recipient retains its caster");
+        eq(hidden(projectileLinkFx), true, "projectile-owned link effects retain their caster after the game update");
         eq(hidden(areaFx), true, "pre-existing area is adopted");
         eq(hidden(projectileFx), true, "pre-existing projectile is adopted");
         eq(hidden(linkFx), true, "linked skill effect is adopted");

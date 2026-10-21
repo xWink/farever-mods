@@ -17,11 +17,13 @@ class EffectsHooks {
     static function stepAfter(instance:Dynamic, force:hl.Ref<Bool>, result:Void):Void AllyEffects.pop();
 
     @:hlx.prefix(ent.GameObject.playSkillFx)
-    static function skillBefore(instance:Dynamic, fxInf:Dynamic, skill:Dynamic):HlxPrefixResult<Dynamic> {
+    // The October 21 game update added the optional persistent flag. Keep the
+    // native reference argument intact when forwarding to the original method.
+    static function skillBefore(instance:Dynamic, fxInf:Dynamic, skill:Dynamic, persistent:hl.Ref<Bool>):HlxPrefixResult<Dynamic> {
         AllyEffects.pushSkill(skill); return Continue;
     }
     @:hlx.postfix(ent.GameObject.playSkillFx)
-    static function skillAfter(instance:Dynamic, fxInf:Dynamic, skill:Dynamic, result:Dynamic):Dynamic {
+    static function skillAfter(instance:Dynamic, fxInf:Dynamic, skill:Dynamic, persistent:hl.Ref<Bool>, result:Dynamic):Dynamic {
         AllyEffects.bindSkill(skill, result); AllyEffects.pop(); return result;
     }
 
@@ -37,12 +39,14 @@ class EffectsHooks {
     @:hlx.prefix(st.skill.SkillArea.playAreaFx)
     @:hlx.prefix(st.skill.SkillArea.initVisual)
     @:hlx.prefix(ent.Projectile.initVisual)
+    @:hlx.prefix(ent.Projectile.playLinkFx)
     static function areaBefore(instance:Dynamic):HlxPrefixResult<Void> {
         AllyEffects.pushEntity(instance); return Continue;
     }
     @:hlx.postfix(st.skill.SkillArea.playAreaFx)
     @:hlx.postfix(st.skill.SkillArea.initVisual)
     @:hlx.postfix(ent.Projectile.initVisual)
+    @:hlx.postfix(ent.Projectile.playLinkFx)
     static function areaAfter(instance:Dynamic, result:Void):Void AllyEffects.pop();
 
     @:hlx.prefix(script.SkillScript.playFXSetAtPos)

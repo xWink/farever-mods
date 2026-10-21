@@ -163,6 +163,7 @@ class AllyEffects {
                 adoptFx(G.field(item, "projFX"), source);
                 adoptFx(G.field(item, "groundFX"), source);
                 enqueue(Fx, G.iterate(G.field(item, "fxs")), source);
+                enqueue(LinkFx, G.iterate(G.field(item, "linkFxs")), source);
             case ModelUnit:
                 if (G.field(item, "removed") != true && isA(item, "ent.Hero") && ally(item))
                     discover(Mesh, G.field(item, "unitView"), null);
