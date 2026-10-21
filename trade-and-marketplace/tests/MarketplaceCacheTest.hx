@@ -98,6 +98,12 @@ class MarketplaceCacheTest {
         ],null);
         check(c.rows.length==1&&c.rows[0].id=="live");
         c.chooseTab("My listings");c.chooseTab("Browse");check(c.rows.length==1&&c.rows[0].id=="live");
+        sent=MarketWorker.current.sent.length;
+        c.toggleListing(c.rows[0]);check(c.selected!=null&&c.selected.id=="live");
+        c.toggleListing({id:"live"});check(c.selected==null); // Same ID from a refreshed snapshot.
+        c.chooseTab("My listings");c.chooseTab("Browse");check(c.selected==null&&MarketWorker.current.sent.length==sent);
+        c.chooseTab("My listings");c.toggleListing(c.rows[0]);check(c.selected!=null);
+        c.toggleListing(c.rows[0]);c.sortByPrice();check(c.selected==null&&MarketWorker.current.sent.length==sent);
         c.refresh();var old=last();c.disconnect();respond(c,app,old,[{id:"old-session"}],null);
         check(c.rows.length==0&&c.selected==null);
         Sys.println("Marketplace cache checks passed: "+checks);

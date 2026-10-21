@@ -196,6 +196,11 @@ class MarketController {
         }
         view.dirty=true;
     }
+    public function toggleListing(row:Dynamic):Void {
+        if(busy)return;
+        selected=selected!=null&&G.text(G.field(selected,"id"))==G.text(G.field(row,"id"))?null:row;
+        rememberTab();view.dirty=true;
+    }
     public function toggleFilters():Void {
         // Layout only: keep the query, pagination, selection and prefetched rows.
         filtersExpanded=!filtersExpanded;view.dirty=true;

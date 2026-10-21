@@ -24,6 +24,7 @@ class MarketController {
  public var presenceOverride:Null<Bool>;
  public function listingOnline(row:Dynamic):Bool return presenceOverride!=null?presenceOverride:fareverly.Protocol.expiry(trade.GameAccess.text(trade.GameAccess.field(trade.GameAccess.field(row,"seller"),"onlineUntil")))>Date.now().getTime()/1000;
  public function chooseTab(s:String):Void tab=s;
+ public function toggleListing(row:Dynamic):Void {selected=selected!=null&&selected.id==row.id?null:row;view.dirty=true;}
  public var searchedItem=false;
  public function searchSelectedItem():Void {searchedItem=true;}
  public function listingSort():String return filters["sort"];

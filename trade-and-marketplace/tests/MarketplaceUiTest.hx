@@ -97,7 +97,7 @@ class MarketplaceUiTest {
   check(searchUncovered(search)&&search.input.text=="ore"&&search.x==28&&search.y==108&&search.width==792);
   var backgrounds=(cast search.parent.children:Array<Dynamic>).filter(n->GameAccess.field(n,"shapes")!=null
       &&(cast n.shapes:Array<Dynamic>).filter(s->s.y==64&&s.width==1072).length>0);
-  check(backgrounds.length==1&&backgrounds[0].shapes.length==6);
+  check(backgrounds.length==1&&backgrounds[0].shapes.length==2);
   c.busy=false;
   var sellers=GameAccess.labels.filter(l->l.text=="Seller: Tester"),seller=sellers[0],sellerBox=seller.parent;
   var dot:Dynamic=sellerBox.children.filter(n->n.shapes!=null)[0];
@@ -109,14 +109,14 @@ class MarketplaceUiTest {
   check(dot.x==156&&GameAccess.number(seller.y)+29*0.75<=24&&GameAccess.number(dot.x)+10<=GameAccess.number(sellerBox.width));
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0&&n.getTip!=null).length==0);
   GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].action();check(c.selected==row);
-  GameAccess.nodes=[];GameAccess.labels=[];view.update();
+  GameAccess.nodes=[];GameAccess.labels=[];view.update();@:privateAccess view.advanceDetails(haxe.Timer.stamp()+1);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0&&Std.string(l.text).indexOf("Subcategory: Armour")>=0).length==1);
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
   check(detailSeller==null&&GameAccess.labels.filter(l->l.text=="Asking price:").length==0);
   var meta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0)[0];
   check(meta.scaleX==0.85&&meta.textColor==0xC9BEB5);
   var viewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
-  check(viewport.y+viewport.height==736);
+  check(viewport.y+viewport.height==726);
   check(viewport.verticalAlign=="Top"&&viewport.horizontalAlign=="Left");
   check(meta.parent.flowProperties.verticalAlign=="Top"&&meta.parent.flowProperties.horizontalAlign=="Left"&&meta.parent.flowProperties.isAbsolute==false);
   var onlineStatus=GameAccess.labels.filter(l->l.text=="Online")[0];
@@ -166,7 +166,7 @@ class MarketplaceUiTest {
   check(sameItem.enable&&sameItem.y==153&&sameItem.width==28&&sameItem.height==28&&sameItem.text=="");
   sameItem.action();check(c.searchedItem);
   var detailName=GameAccess.labels.filter(l->l.text==c.chosen.name&&Std.string(l.parent.id).indexOf("marketDetails")==0)[0];
-  check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==228);
+  check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==212);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
   var count=GameAccess.labels.filter(l->l.text=="Quantity: 1")[0];check(count.y>70);
@@ -342,7 +342,7 @@ class MarketplaceUiTest {
   // Only the item-information viewport receives the dark tooltip background.
   var panel=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
   var detailBacks:Array<Dynamic>=[];
-  for(child in (cast TradeFrame.latest.container.children:Array<Dynamic>))
+  for(child in (cast panel.parent.children:Array<Dynamic>))
    if(child.shapes!=null)for(shape in (cast child.shapes:Array<Dynamic>))if(shape.color==0x4A423C&&shape.alpha==1)detailBacks.push(shape);
   check(detailBacks.length==1&&detailBacks[0].y==panel.y-8&&detailBacks[0].y+detailBacks[0].height<752);
   var info=GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0);
@@ -384,6 +384,7 @@ class MarketplaceUiTest {
   c.connectionIssue=false;view.close();check(TradeFrame.active==0);view.open();view.update();check(TradeFrame.active==1);
   view.close();check(TradeFrame.active==0);
   check(GameAccess.textures.filter(t->t.disposed!=true).length==0);
+  MarketplaceDrawerTest.run(row);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }
