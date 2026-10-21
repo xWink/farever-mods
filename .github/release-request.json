@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.21.1",
+  "project": "dps-meter",
+  "version": "1.11.6",
   "commit": "cdfe52183e8438f8c0d3e06b65274b261540d9f4",
-  "notes": "Fixed an issue where the camera would spin with the recent game update",
+  "notes": "Fixed an issue where the Queenslayer's appearance was recorded as a victory in Honeyzabeth Heroic",
   "dry_run": false
 }
