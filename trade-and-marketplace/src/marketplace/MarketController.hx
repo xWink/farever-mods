@@ -35,6 +35,7 @@ class MarketController {
     var availableInventory:Array<TradeItem>=[];
     var listedInventory:Map<String,Bool>=[];
     var lockedInventory:Map<String,Bool>=[];
+    var boundInventory:Map<String,Bool>=[];
     var locations:Map<String,String>=[];
     var ownOnlineUntil=0.0;
     var ownedKnown=false;
@@ -317,7 +318,7 @@ class MarketController {
         var now=Date.now().getTime()/1000;
         for(id in [for(id in ownedExpiry.keys())id])if(ownedExpiry[id]<=now){ownedExpiry.remove(id);ownedItems.remove(id);}
         var chosenId=chosen==null?"":chosen.uid;
-        availableInventory=[];listedInventory=[];lockedInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
+        availableInventory=[];listedInventory=[];lockedInventory=[];boundInventory=[];chosen=null;locations=[];inventoryIndexes=[];inventorySlots=[];
         var sources=MarketInventory.sources(inv,bankOnly);
         bankNames=MarketInventory.bankNames(inv);
         bankTab=Std.int(Math.max(0,Math.min(bankTab,bankNames.length-1)));
@@ -325,11 +326,11 @@ class MarketController {
         var source=inventorySource;
         if(source!=null)for(s in source.stacks())try {
             var allowed=source.canDrop(s,1),locked=!allowed&&MarketInventory.locked(source,s);
-            if(!allowed&&!locked)continue;
             var item=TradeInventory.describe(s.item,s.count);
             item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
                 if(locked)lockedInventory[item.uid]=true;
+                else if(!allowed)boundInventory[item.uid]=true;
                 if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
                 availableInventory.push(item);locations[item.uid]=bankOnly?bankNames[bankTab]:"In backpack";
                 inventoryIndexes[item.uid]=s.index;
@@ -360,6 +361,7 @@ class MarketController {
         return G.uid(G.field(stack,"item"))==item.uid?stack:null;
     }
     public function isListed(item:TradeItem):Bool return item!=null&&listedInventory.exists(item.uid);
+    public function isBound(item:TradeItem):Bool return item!=null&&boundInventory.exists(item.uid);
     public function isLocked(item:TradeItem):Bool return item!=null&&lockedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
@@ -457,6 +459,7 @@ class MarketController {
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
         if(chosen==null||busy||listingLimitReached())return;
+        if(isBound(chosen)){message="This item is bound and cannot be traded.";view.dirty=true;return;}
         if(isLocked(chosen)){message="This item is locked.";view.dirty=true;return;}
         if(!ownedKnown){refreshSell();return;}
         try {

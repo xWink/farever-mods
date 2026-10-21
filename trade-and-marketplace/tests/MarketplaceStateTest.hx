@@ -100,7 +100,9 @@ class MarketplaceStateTest {
         check(MarketWorker.current.sent.length==beforeLocked&&c.message=="This item is locked.");
         c.inv.hero.loadout.banks[1].content[2].item.locked=false;c.loadInventory();
         check(!c.isLocked(c.inventorySlots[2]));
-        c.inv.hero.loadout.banks[1].content[2].item.bound=true;c.loadInventory();check(c.inventorySlots[2]==null);
+        c.inv.hero.loadout.banks[1].content[2].item.bound=true;c.loadInventory();check(c.inventorySlots[2].uid=="locked"&&c.isBound(c.inventorySlots[2])&&!c.isLocked(c.inventorySlots[2]));
+        c.chosen=c.inventorySlots[2];var beforeBound=MarketWorker.current.sent.length;c.list(1,1,false);
+        check(MarketWorker.current.sent.length==beforeBound&&c.message=="This item is bound and cannot be traded.");
         c.inv.hero.loadout.banks[1].content[2].item.bound=false;c.inv.hero.loadout.banks[1].content[2].item.locked=true;c.loadInventory();
         check(c.inventoryStack(c.inventory[0]).item.uid=="tab-two");
         c.chosen=c.inventory[0];c.loadInventory();check(c.chosen.uid=="tab-two");
