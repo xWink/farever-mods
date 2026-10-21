@@ -684,12 +684,12 @@ class MarketWindow {
             }
             if(selected)selection = slot;
             tooltip(slot,item);
-            if(c.isListed(item)) {
+            if(c.isLocked(item)||c.isListed(item)) {
                 var badge=G.field(node("element",G.field(slot,"dom"),[],"marketSaleBadge"+(sequence++)),"obj");
                 G.call("h2d.Object","addChild",slot,[badge]);
                 absolute(slot,badge);padding(badge,0);size(badge,52,16);position(badge,3,3);
                 rounded(graphic(badge),0,0,52,16,3,0x5B4334,0.95);
-                var caption=labelAt(badge,"For sale",0,0,80,false,0xF5EEE4,true);
+                var caption=labelAt(badge,c.isLocked(item)?"Locked":"For sale",0,0,80,false,0xF5EEE4,true);
                 // FmtText applies its own scale during reflow; fit after that pass.
                 afterReflow(badge,()->{
                     updateTextScale(caption);
@@ -960,6 +960,10 @@ class MarketWindow {
     function sellPanel():Void {
         if(c.chosen==null)return;
         selectedItem(c.chosen,MarketCategory.item(c.chosen.kind));
+        if(c.isLocked(c.chosen)) {
+            labelAt(frame.container,"Locked",754,752,316,true,MUTED);
+            return;
+        }
         if(c.isListed(c.chosen)) {
             labelAt(frame.container,"Already for sale",754,752,316,true,MUTED);
             return;

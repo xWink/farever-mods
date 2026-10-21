@@ -5,6 +5,13 @@ import trade.TradeInventory;
 
 /** Read-only listing sources. Direct trades continue to use the backpack only. */
 class MarketInventory {
+    /** Display-only distinction after canDrop failed. Item Utilities blocks the
+        permission wrapper; the native check still reports Ok for a locked,
+        otherwise tradable item. Never use this check to authorize a listing. */
+    public static function locked(source:TradeInventory,stack:{index:Int,item:Dynamic,count:Int}):Bool {
+        if(source==null||stack==null)return false;
+        return G.enumName(G.call("st.Inventory","checkRequestDropIndex",source.inventory,[stack.index,true,1]))=="Ok";
+    }
     public static function bankNames(backpack:TradeInventory):Array<String> {
         if(backpack==null)return [];
         var banks=G.array(G.field(G.field(backpack.hero,"loadout"),"banks"),true);

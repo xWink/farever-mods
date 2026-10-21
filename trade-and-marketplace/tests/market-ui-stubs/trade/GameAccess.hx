@@ -1,5 +1,6 @@
 package trade;
 class GameAccess {
+ public static function enumName(value:Dynamic):String return value==null?"":Std.string(value);
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];

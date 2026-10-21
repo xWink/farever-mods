@@ -41,6 +41,8 @@ class MarketController {
  public var atLimit=false;
  public function listingLimitReached():Bool return atLimit;
  public var listed=false;
+ public var locked=false;
+ public function isLocked(item:trade.TradeTypes.TradeItem):Bool return locked;
  public function isListed(item:trade.TradeTypes.TradeItem):Bool return listed;
  public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return bankOnly?"In bank":"In backpack";
  public function remove():Void{}

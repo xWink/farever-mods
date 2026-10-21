@@ -261,6 +261,12 @@ class MarketplaceUiTest {
   saleBadge.needUpdateScale=true;saleBadge.parent.onAfterReflow();
   check(saleBadge.scaleX==0.65&&saleBadge.x>3&&saleBadge.y+4*0.65>=0&&saleBadge.y+22*0.65<=16);
   check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
+  c.locked=true;GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();
+  check(GameAccess.labels.filter(l->l.text=="Locked").length==120&&GameAccess.labels.filter(l->l.text=="For sale").length==0);
+  check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
+  var lockBadge=GameAccess.labels.filter(l->l.text=="Locked")[0];lockBadge.parent.onAfterReflow();
+  check(lockBadge.scaleX==0.65&&lockBadge.parent.width==saleBadge.parent.width&&lockBadge.parent.height==saleBadge.parent.height);
+  c.locked=false;
   c.listed=false;GameAccess.nodes=[];view.dirty=true;view.update();
   var gridViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];
   check(gridViewport.overflow=="Scroll"&&gridViewport.y+gridViewport.height<806&&gridViewport.height<sellSlots[118].parent.height);

@@ -93,8 +93,15 @@ class MarketplaceStateTest {
         c.loadInventory();check(c.bankNames.length==1);
         player.accountProgress.nbBanks=2;
         c.loadInventory();check(c.bankNames.join(",")=="Crafting,Equipment"&&c.inventory[0].uid=="bank-item");
-        c.setBankTab(1);check(c.inventory.length==1&&c.inventory[0].uid=="tab-two"&&c.inventorySlots.length==3);
-        check(c.inventorySlots[0]==null&&c.inventorySlots[1].uid=="tab-two"&&c.inventorySlots[2]==null);
+        c.setBankTab(1);check(c.inventory.length==2&&c.inventory[0].uid=="tab-two"&&c.inventorySlots.length==3);
+        check(c.inventorySlots[0]==null&&c.inventorySlots[1].uid=="tab-two"&&c.inventorySlots[2].uid=="locked");
+        check(c.isLocked(c.inventorySlots[2])&&!c.isLocked(c.inventorySlots[1]));
+        c.chosen=c.inventorySlots[2];var beforeLocked=MarketWorker.current.sent.length;c.list(1,1,false);
+        check(MarketWorker.current.sent.length==beforeLocked&&c.message=="This item is locked.");
+        c.inv.hero.loadout.banks[1].content[2].item.locked=false;c.loadInventory();
+        check(!c.isLocked(c.inventorySlots[2]));
+        c.inv.hero.loadout.banks[1].content[2].item.bound=true;c.loadInventory();check(c.inventorySlots[2]==null);
+        c.inv.hero.loadout.banks[1].content[2].item.bound=false;c.inv.hero.loadout.banks[1].content[2].item.locked=true;c.loadInventory();
         check(c.inventoryStack(c.inventory[0]).item.uid=="tab-two");
         c.chosen=c.inventory[0];c.loadInventory();check(c.chosen.uid=="tab-two");
         c.sellSearch="not found";c.searchInventory();check(c.inventorySlots.length==3&&c.inventorySlots[1]==null&&c.chosen==null);
@@ -114,7 +121,7 @@ class MarketplaceStateTest {
         check(!c.busy&&c.tab=="Sell"&&c.inventorySlots[1].uid=="tab-two"&&c.chosen.uid=="tab-two");
         c.inv.hero.loadout.banks[1].content.push({item:{uid:"next-item",inf:{}},count:2});
         c.loadInventory();c.chosen=c.inventory[0];c.list(1,1,false);
-        c.chosen=c.inventory[1];
+        c.chosen=c.inventorySlots[3];
         ownReply(c,app,[]);
         check(c.busy&&c.chosen.uid=="next-item");
         ownReply(c,app,[]);check(!c.busy&&c.chosen.uid=="next-item");

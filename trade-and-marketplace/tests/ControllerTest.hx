@@ -21,6 +21,9 @@ class ControllerTest {
         inventory.canRequestDropIndex = function(index:Int, manual:Bool, count:Null<Int>):Bool {
             gateCalls++; return index == 0 && manual && !locked && nativeAllowed;
         };
+        inventory.checkRequestDropIndex = function(index:Int, manual:Bool, count:Null<Int>):String {
+            return index == 0 && manual && nativeAllowed ? "Ok" : "NotAllowed_";
+        };
         var hero:Dynamic = {__uid: "hero", loadout: {inventory: inventory}, position: {x: 0, y: 0, z: 0}, isDead: () -> false};
         var peer:Dynamic = {uid: "peer", getName: () -> "Bob", hero: {position: {x: 0, y: 0, z: 0}, isDead: () -> false}};
         var me:Dynamic = {uid: "me", isMe: true, hero: hero, getName: () -> "Alice"};
@@ -115,10 +118,12 @@ class ControllerTest {
         var decoded = new TradeWire("T").receive("me", text, 0);
         check(decoded != null && decoded.op == "invite", "Readable invitation still decodes");
         offering(c); locked = true;
+        check(marketplace.MarketInventory.locked(c.inv,c.inv.stacks()[0]),"Display can identify an otherwise tradable locked item");
         check(c.addSlot(slot, false) && c.state.mine.length == 0 && gateCalls > 0, "Right-click cannot offer a locked item");
         check(latestRed() && GameAccess.lines[0].text == "This item is locked or cannot be dropped.", "Locked-item error is red in chat and CSS");
         check(c.addSlot(slot, true) && c.state.mine.length == 0, "Drag cannot offer a locked partial stack");
         locked = false; nativeAllowed = false;
+        check(!marketplace.MarketInventory.locked(c.inv,c.inv.stacks()[0]),"Native restrictions are not mislabeled as item locks");
         check(c.addSlot(slot, false) && c.state.mine.length == 0, "Native drop restrictions are also honored");
         nativeAllowed = true; c.addSlot(slot, true);
         check(c.state.mine.length == 1 && c.state.mine[0].count == 2, "Unlocked split stack can be offered");
