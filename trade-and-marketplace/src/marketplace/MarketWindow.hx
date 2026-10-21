@@ -356,14 +356,12 @@ class MarketWindow {
             G.call("ui.UIElement","set_onClick",control,[()->{
                 if((c.busy&&submit!=null)||G.text(G.field(input,"text"))=="")return;
                 G.call("h2d.TextInput","set_text",input,[""]);changed("");
-                G.call("h2d.Object","set_visible",control,[false]);
                 if(submit!=null)submit();
             }]);
-            G.call("h2d.Object","set_visible",control,[value!=""]);
+            G.call("h2d.Object","set_visible",control,[true]);
         }
         G.set(box,"onChange",()->{
             var text=G.text(G.field(input,"text"));
-            if(clear!=null)G.call("h2d.Object","set_visible",clear,[text!=""]);
             changed(text);
         });
         if(submit!=null) {

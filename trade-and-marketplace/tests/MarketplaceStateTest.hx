@@ -86,7 +86,7 @@ class MarketplaceStateTest {
         c.inv.hero.loadout.banks=[{content:[{item:{uid:"bank-item",inf:{}},count:20}]}];
         c.setBankOnly(true);check(c.inventory.length==1&&c.isListed(c.inventory[0]));
         // Refresh after cancellation/expiry restores the same bank item.
-        c.refresh();ownReply(c,app,[]);check(c.inventory.length==1&&c.inventory[0].count==20);
+        c.refresh();check(c.busy&&c.isListed(c.inventory[0]));ownReply(c,app,[]);check(c.inventory.length==1&&c.inventory[0].count==20&&!c.isListed(c.inventory[0]));
         var firstBank=c.inv.hero.loadout.banks[0];
         c.inv.hero.loadout.banks=[firstBank,{content:[null,{item:{uid:"tab-two",inf:{}},count:3},{item:{uid:"locked",locked:true,inf:{}},count:1}]}];
         player.accountProgress={nbBanks:1,bankTabs:[{name:"Crafting"},{name:"Equipment"}]};
@@ -108,6 +108,7 @@ class MarketplaceStateTest {
         check(MarketWorker.current.sent[beforeListing].method=="POST");
         ownReply(c,app,[]);
         check(c.tab=="Sell"&&c.bankOnly&&c.bankTab==1&&c.sellSearch=="should"&&c.chosen==null);
+        check(c.busy&&c.isListed(c.inventory[0]));
         ownReply(c,app,[]);
         check(!c.busy&&c.tab=="Sell"&&c.inventorySlots[1].uid=="tab-two");
 

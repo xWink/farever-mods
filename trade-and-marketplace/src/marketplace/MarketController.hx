@@ -293,7 +293,7 @@ class MarketController {
             var item=TradeInventory.describe(s.item,s.count);
             item.name=MarketText.itemName(item.kind,item.name);
             if(!locations.exists(item.uid)) {
-                if(ownedKnown&&ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
+                if(ownedKinds.exists(item.kind)&&ownedItems.exists(MarketItemIdentity.key(MarketExport.itemData(s.item,item,s.count))))listedInventory[item.uid]=true;
                 availableInventory.push(item);locations[item.uid]=bankOnly?bankNames[bankTab]:"In backpack";
                 inventoryIndexes[item.uid]=s.index;
                 if(item.uid==chosenId)chosen=item;
@@ -420,7 +420,13 @@ class MarketController {
             if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
-            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{invalidateListings();expectedBody="";requestId="";chosen=null;page=1;refresh();});
+            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{
+                invalidateListings();
+                // Keep known markers while reconciling, including the item just accepted by the server.
+                ownedItems[MarketItemIdentity.key(value.item)]=true;
+                ownedKinds[G.text(G.field(value.item,"baseId"))]=true;
+                expectedBody="";requestId="";chosen=null;page=1;refresh();
+            });
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
     public function remove():Void {

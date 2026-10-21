@@ -390,7 +390,7 @@ class MarketplaceUiTest {
   var clearSearch=GameAccess.nodes.filter(n->n.id=="marketSearchClear")[0],searches=c.refreshes;
   check(clearSearch.visible&&clearSearch.parent==browseSearch&&clearSearch.x+clearSearch.width<browseSearch.width);
   clearSearch.action();view.update();check(c.filters["search"]==""&&browseSearch.input.text==""&&c.refreshes==searches+1);
-  check(GameAccess.nodes.filter(n->n.id=="marketSearchClear").length==1&&!clearSearch.visible);
+  check(GameAccess.nodes.filter(n->n.id=="marketSearchClear").length==1&&clearSearch.visible);
   view.close();c.tab="Sell";c.sellSearch="sword";view.open();view.update();
   var sellInput=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput"))[0];
   clearSearch=GameAccess.nodes.filter(n->n.id=="marketSearchClear")[0];var localSearches=c.inventorySearches;
