@@ -4,6 +4,7 @@ package trade;
 class GameAccess {
     public static var app:Dynamic;
     public static var skills:Dynamic;
+    public static var items:Dynamic;
     public static var lines:Array<Dynamic> = [];
     public static var ui:Dynamic = {get_chat: function() return {messages: {}}};
     public static function set(o:Dynamic,k:String,v:Dynamic):Void Reflect.setField(o,k,v);
@@ -20,10 +21,11 @@ class GameAccess {
     }
     public static function staticCall(t:String, m:String, a:Array<Dynamic>):Dynamic {
         if (t == "GameApp" && m == "get") return app;
+        if (t == "HItem" && m == "getName") return a[0].texts.name;
         if (t == "HItem" && m == "getRarity") return {color: 0, name: "Common"};
         throw "Unexpected native call " + t + "." + m;
     }
-    public static function current(t:String, n:String):Dynamic return t == "ui.BaseUI" ? ui : t=="Data"&&n=="skill"?skills:null;
+    public static function current(t:String, n:String):Dynamic return t == "ui.BaseUI" ? ui : t=="Data"&&n=="skill"?skills:t=="Data"&&n=="item"?items:null;
     public static function call(t:String, m:String, o:Dynamic, ?args:Array<Dynamic>):Dynamic {
         if (t == "h2d.Text" && m == "set_textColor") { o.color = args[0]; return null; }
         var method = field(o, m);

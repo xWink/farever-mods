@@ -150,6 +150,7 @@ class MarketText {
     }
 
     public static function itemName(kind:String,name:String):String {
+        if(name.indexOf("::ref_skill::")>=0)name=trade.TradeInventory.itemName(kind);
         name=~/<[^>]*>/g.replace(name,"");
         var gift=~/^DemonGearUpgrade(?:Rare)?_([A-Za-z]+)To([A-Za-z]+)$/;
         if(!gift.match(kind)||name.indexOf(" (+")>=0)return name;

@@ -24,7 +24,13 @@ class TradeInventory {
         return table == null ? null : G.call("haxe.ds.StringMap","get",table,[kind]);
     }
     public static function itemName(kind:String):String {
-        var d = definition(kind); return d == null ? kind : clean(G.text(G.staticCall("HItem","getName",[d])),160);
+        var d = definition(kind); if(d==null)return kind;
+        var name=G.text(G.staticCall("HItem","getName",[d]));
+        if(name.indexOf("::ref_skill::")>=0) {
+            var skill=G.text(G.field(G.field(G.field(d,"props"),"ref"),"skill"));
+            if(skill!="")name=StringTools.replace(name,"::ref_skill::",skillName(skill));
+        }
+        return clean(name,160);
     }
     public static function clean(text:String,max:Int):String return ~/<[^>]*>/g.replace(text,"").substr(0,max);
     public static function skillName(id:String):String {
