@@ -1,7 +1,7 @@
 {
   "project": "trade-and-marketplace",
-  "version": "1.0.0",
-  "commit": "ccea06682b1e67a00e190f927216dbf412ed6480",
-  "notes": "Added marketplace!",
+  "version": "1.0.1",
+  "commit": "1b6a04dbf6793bdb3bc4901a80278dca111bd79b",
+  "notes": "- Added a ratelimit to whispering the same seller repeatedly\n- Fixed an issue where players appeared as online in one server when they were online in another and couldn't be whispered\n- Fixed an issue where infusions had weird names\n",
   "dry_run": false
 }
