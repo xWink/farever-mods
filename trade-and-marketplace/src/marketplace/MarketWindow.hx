@@ -168,7 +168,7 @@ class MarketWindow {
         afterReflow(regionBox,()->{
             centerDropdownCaption(region,36,0);position(region,0,G.number(G.field(region,"y")));
         });
-        if(c.tab=="My listings")labelAt(root,"You can have up to 10 active listings. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
+        if(c.tab=="My listings")labelAt(root,"You can have up to 20 active listings per region. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
         if(c.tab=="Sell") {
             tabButton("Inventory",20,68,150,()->c.setBankOnly(false),!c.bankOnly);
             tabButton("Bank",182,68,150,()->c.setBankOnly(true),c.bankOnly);
@@ -395,8 +395,8 @@ class MarketWindow {
                 var delta=[1,-1,10,-10][i];
                 var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y+(i%2)*24,40,()->commit(Std.string(Std.int(Math.max(1,int(current)+delta)))),"");
                 padding(step,0);size(step,40,22);
-                var caption=G.field(step,"btnText");
-                afterReflow(box,()->{
+                var caption=G.field(step,"btnText");absolute(step,caption);
+                afterReflow(step,()->{
                     updateTextScale(caption);G.call("h2d.Object","setScale",caption,[0.8]);
                     centerDropdownCaption(caption,22,0);centerTextX(caption,0,40);
                 });
@@ -950,7 +950,7 @@ class MarketWindow {
                 trays=s.substr(0,6);conversion(int(trays));
             },true);
             var icon=currencyIcon(frame.container,"SilverTray");position(icon,946,y+89);
-            var unit=labelAt(frame.container,"Silver Trays",972,y+76,116,false,INK,true);
+            var unit=labelAt(frame.container,"Silver Trays",972,y+76,116,false,MUTED,true);
             afterReflow(box,()->{
                 updateTextScale(unit);G.call("h2d.Object","setScale",unit,[0.85]);
                 centerControlText(unit,46,972,y+76);

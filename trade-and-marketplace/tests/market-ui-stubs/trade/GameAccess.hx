@@ -20,7 +20,7 @@ class GameAccess {
  public static function text(v:Dynamic,f=""):String return v==null?f:Std.string(v);
  public static function number(v:Dynamic,f:Float=0):Float return v==null?f:cast v;
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
- public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null){if(k=="onAfterReflow"&&field(o,"text")!=null)throw "Text is not a Flow";Reflect.setField(o,k,v);}}
+ public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null){if(k=="onAfterReflow"&&field(o,"text")!=null&&field(o,"testButton")!=true)throw "Text is not a Flow";Reflect.setField(o,k,v);}}
  public static function enumeration(t:String,n:String):Dynamic return n;
  public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t||(t=="st.item.Gear"&&field(o,"nativeType")=="st.item.Weapon");
  public static function current(t:String,n:String):Dynamic return t=="ui.BaseUI"?ui:n;

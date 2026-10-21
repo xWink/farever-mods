@@ -2,6 +2,7 @@ package marketplace;
 
 /** Display formatting shared by listing rows and their details. */
 class MarketText {
+    public static inline var TEMPORARY_ERROR = "Fareverly is temporarily unavailable or the connection was interrupted. Please try again.";
     public static inline var CONNECTION_ERROR = "Could not connect to Fareverly. You need a valid Fareverly API key, which you can set up in Game Menu → Mod Settings → Trade and Marketplace. If you already have a key, try connecting again shortly.";
     public static function number(value:Dynamic):String {
         // Convert API numbers explicitly: Dynamic + String can cast i32 to String on HL.

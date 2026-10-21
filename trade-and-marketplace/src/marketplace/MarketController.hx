@@ -8,6 +8,7 @@ import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
     public static inline var PAGE_SIZE = 8;
+    public static inline var LISTING_LIMIT = 20;
     public var filtersExpanded=false;
     public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
     public var player:Dynamic;
@@ -37,7 +38,7 @@ class MarketController {
     var ownOnlineUntil=0.0;
     var ownedKnown=false;
     var ownedListingCount=0;
-    public function listingLimitReached():Bool return ownedListingCount>=10;
+    public function listingLimitReached():Bool return ownedListingCount>=LISTING_LIMIT;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
     var ownedExpiry:Map<String,Float>=[];
@@ -62,7 +63,8 @@ class MarketController {
     var pendingFailure:Void->Void;
     var pendingMethod="";
     var pendingPath="";
-    var requestAfter=0.0;
+    final cooldown=new MarketCooldown();
+    var retryOnOpen=false;
     var expectedBody="";
     var requestId="";
     var contactAfter=0.0;
@@ -96,23 +98,28 @@ class MarketController {
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
                         if(ready)connectionIssue=false;
+                        if(method=="GET")retryOnOpen=false;
                         var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(e:Dynamic) {
                             MarketApiLog.unexpected(method,path,response.status,"Could not process response: "+Std.string(e),key);
                             message="Unsupported marketplace response. Update the mod and try again.";
+                            if(method=="GET")retryOnOpen=true;
                         }
                     } else {pending=null;if(failed!=null)failed();
                         var code=data==null?"":G.text(G.field(data.error,"code"),G.text(data.error));
-                        if(code=="listing_limit")ownedListingCount=10;
-                        message=error(code);
+                        if(code=="listing_limit")ownedListingCount=LISTING_LIMIT;
+                        cooldown.record(method,path,response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
+                        message=response.status==0||response.status>=500?MarketText.TEMPORARY_ERROR:
+                            response.status==429?cooldown.message(method,path,haxe.Timer.stamp()):error(code);
+                        if(method=="GET")retryOnOpen=true;
                         if(response.status>=200&&response.status<300&&response.error=="")
                             MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
-                        if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
-                        if(response.status==0||response.status>=500)connectionIssue=true;
-                        if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));}
+                        if((method!="GET"||path.indexOf("mine=true")>=0)&&(response.status==401||response.status==403)){ready=false;connectionIssue=true;}
+                    }
                     view.dirty=true;
                 case "presence":ownOnlineUntil=event.onlineUntil;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
                     if(opened&&(tab=="Sell"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
+                case "connection-error":message=event.message;view.dirty=true;
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
                 case "auth","auth-end":
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
@@ -139,7 +146,7 @@ class MarketController {
     function reconnect():Void {
         ownOnlineUntil=0;
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
-        generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;pendingFailure=null;requestAfter=0;
+        generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;pendingFailure=null;cooldown.clear();retryOnOpen=false;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
         invalidateListings();ownedItems=[];ownedKinds=[];
         if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
@@ -149,6 +156,7 @@ class MarketController {
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
+        cooldown.clear();retryOnOpen=false;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
         opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
@@ -163,7 +171,7 @@ class MarketController {
         view.open();
         // Closing a window is not navigation: retain the page, selection and sell draft.
         // Mutations still validate fresh inventory/listing data before acting.
-        if(!opened){opened=true;refresh();}
+        if(!opened||retryOnOpen&&!busy){opened=true;refresh();}
     }
     public function signIn():Void {
         if(player==null)return;
@@ -237,21 +245,36 @@ class MarketController {
         ownedKnown=false;
         if(tab=="Sell")loadInventory();
         view.dirty=true;
-        // No server/character/online filter: duplicate rules are account-wide.
-        // Fifty is the API maximum and exceeds the account's ten-listing cap.
-        request("GET","/api/v1/marketplace/listings?mine=true&limit=50",null,null,data->{
-            if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50||data.nextCursor!=null)
-                throw "Incomplete owned listings";
-            ownedRows=data.listings;indexOwned();ownedKnown=true;
-            if(tab=="My listings")displayOwned();else loadInventory();
-            message="";
-        });
+        // Duplicate-item checks span regions, so collect all pages before replacing the snapshot.
+        var collected:Array<Dynamic>=[],seen:Map<String,Bool>=[],cursors:Map<String,Bool>=[];
+        function fetchPage(cursor:Null<String>):Void {
+            var path="/api/v1/marketplace/listings?mine=true&limit=50"+(cursor==null?"":"&cursor="+StringTools.urlEncode(cursor));
+            request("GET",path,null,null,data->{
+                if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50
+                    ||(data.nextCursor!=null&&!Std.isOfType(data.nextCursor,String)))throw "Incomplete owned listings";
+                for(row in (cast data.listings:Array<Dynamic>)) {
+                    var id=G.text(G.field(row,"id"));
+                    if(id!=""&&seen.exists(id))continue;
+                    if(id!="")seen[id]=true;
+                    collected.push(row);
+                }
+                if(data.nextCursor!=null) {
+                    var next:String=data.nextCursor;
+                    if(next==""||cursors.exists(next)||[for(k in cursors.keys())k].length>=4)throw "Invalid owned listings pagination";
+                    cursors[next]=true;fetchPage(next);return;
+                }
+                ownedRows=collected;indexOwned();ownedKnown=true;
+                if(tab=="My listings")displayOwned();else loadInventory();
+                message="";
+            });
+        }
+        fetchPage(null);
     }
     function indexOwned():Void {
         var now=Date.now().getTime()/1000;
         ownedListingCount=ownedRows.filter(row->{
             var expires=G.text(G.field(row,"expiresAt"));
-            return expires==""||Protocol.expiry(expires)>now;
+            return G.text(G.field(row,"server"))==server&&(expires==""||Protocol.expiry(expires)>now);
         }).length;
         var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
         for(row in ownedRows) {
@@ -385,7 +408,7 @@ class MarketController {
     }
     function prefetchNext():Void {
         var cache=activePages,now=haxe.Timer.stamp();
-        if(busy||prefetch!=null||cache==null||tab=="Sell"||now<requestAfter
+        if(busy||prefetch!=null||cache==null||tab=="Sell"||cooldown.remaining("GET",cache.path,now)>0
             ||(tab=="My listings"&&!ready))return;
         var next=page+1;
         if(cache.cursors[next-1]==null||cache.get(next,now)!=null)next=page-1;
@@ -406,9 +429,8 @@ class MarketController {
             if(work.waiting&&activePages==work.cache)displayPage(work.cache,work.page,result);
         }catch(e:Dynamic)MarketApiLog.unexpected("GET",work.cache.url(work.page),response.status,"Could not process response: "+Std.string(e),key);
         if(!ok) {
-            if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
-            if(response.status==429||response.status>=500)requestAfter=now+Math.max(60,Protocol.retryAfter(response.retryAfter,Date.now().getTime()/1000));
-            if(work.waiting){message="Could not load this page. Press Refresh to retry.";view.dirty=true;}
+            cooldown.record("GET",work.cache.url(work.page),response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
+            if(work.waiting){retryOnOpen=true;message=response.status==429?cooldown.message("GET",work.cache.url(work.page),haxe.Timer.stamp()):"Could not load this page. Press Refresh to retry.";view.dirty=true;}
         } else if(!busy&&activePages==work.cache&&work.page<page&&work.cache.get(page,haxe.Timer.stamp())==null) {
             // A refreshed previous page can move its boundary. Reload from the new
             // cursor rather than pair stale current rows with a different next page.
@@ -417,14 +439,20 @@ class MarketController {
     }
     public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void,?failed:Void->Void):Bool {
         if(busy)return false;
-        if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return false;}
-        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){connectionIssue=true;message=MarketText.CONNECTION_ERROR;view.dirty=true;return false;}
+        if(cooldown.remaining(method,path,haxe.Timer.stamp())>0){message=cooldown.message(method,path,haxe.Timer.stamp());view.dirty=true;return false;}
+        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){message=connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";view.dirty=true;return false;}
         busy=true;pending=done;pendingFailure=failed;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
-        worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
+        try worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers})catch(e:Dynamic) {
+            busy=false;pending=null;pendingFailure=null;
+            MarketApiLog.unexpected(method,path,0,"Could not queue request: "+Std.string(e),key);
+            message=MarketText.TEMPORARY_ERROR;if(method=="GET")retryOnOpen=true;view.dirty=true;
+            return false;
+        }
         return true;
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
-        if(chosen==null||busy||!ownedKnown||listingLimitReached())return;
+        if(chosen==null||busy||listingLimitReached())return;
+        if(!ownedKnown){refreshSell();return;}
         try {
             var submittedUid=chosen.uid,submittedCount=ownedListingCount;
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
@@ -475,12 +503,12 @@ class MarketController {
     }
     public static function error(code:String):String return switch(code){
         case "duplicate_item":"You already have an active listing for this item.";
-        case "listing_limit":"You can have up to 10 active listings. Remove a listing first.";
+        case "listing_limit":"You can have up to 20 active listings per region. Remove a listing first.";
         case "listing_unavailable","listing_not_found":"This listing expired or was removed. Refresh the marketplace.";
         case "stale_revision":"This listing changed. Refresh before removing it.";
         case "unauthorized","insufficient_scope","sign_in_required":"Sign in with Steam to manage your listings.";
         case "invalid_export","update_mod_required":"The server could not accept this item's data. Update the mod and try again.";
-        case "rate_limited","write_busy","write_in_progress":"Too many requests. Wait a minute before trying again.";
+        case "rate_limited","write_busy","write_in_progress":"Too many requests. Please wait before trying again.";
         default:"The marketplace request failed. Please retry shortly.";
     };
 }

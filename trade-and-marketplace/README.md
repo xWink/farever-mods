@@ -42,7 +42,7 @@ Press **F7** or type `/market` or `/marketplace`. The hotkey can be rebound in B
 - Browse listings for your game server, filter items and inspect native tooltips.
 - Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
-- Manage up to 10 active listings under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.
+- Manage up to 20 active listings per region under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.
 - **Whisper seller** contacts their account. Meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
 - Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 

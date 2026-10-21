@@ -121,7 +121,7 @@ class MarketplaceStateTest {
 
         c.inv.hero.loadout.banks=[firstBank];c.loadInventory();check(c.bankTab==0&&c.inventory[0].uid=="bank-item");
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
-            response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
+            response:{status:0,error:"Connection closed",retryAfter:"",body:'{"error":{"code":"unavailable"}}'}});
         c.update(app,0);check(!c.busy&&c.inventory.length==1&&c.message!="");
         c.tab="Browse";c.selected={id:"whisper",server:"europe",seller:{accountId:"seller",characterName:"Wink"}};
         c.contact();
@@ -142,7 +142,7 @@ class MarketplaceStateTest {
         check(!c.listingOnline(own,until+1));
         c.disconnect();c.account="self";check(!c.listingOnline(own));
         var capped=new MarketController();capped.player=player;capped.inv=new TradeInventory(player);capped.ready=true;capped.server="europe";capped.tab="Sell";
-        capped.refresh();ownReply(capped,app,[for(i in 0...10){id:Std.string(i),revision:1,server:i==0?"europe":"north-america"}]);
+        capped.refresh();ownReply(capped,app,[for(i in 0...40){id:Std.string(i),revision:1,server:i<20?"europe":"north-america"}]);
         check(capped.listingLimitReached());
         capped.chosen=capped.inventory[0];var limitCalls=MarketWorker.current.sent.length;capped.list(1,1,false);
         check(MarketWorker.current.sent.length==limitCalls);
@@ -150,5 +150,6 @@ class MarketplaceStateTest {
         ownReply(capped,app,[]);check(!capped.listingLimitReached());
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
+        MarketplaceRecoveryTest.run();
     }
 }

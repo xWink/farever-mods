@@ -19,7 +19,9 @@ class TradeUi {
   o.input=GameAccess.object(o);o.inputHint=GameAccess.object(o);o.iconBmp=GameAccess.object(o);return o.dom;
  }
  public static function children(o:Dynamic):Array<Dynamic> return (cast o.children:Array<Dynamic>).copy();
- public static function absolute(p:Dynamic,o:Dynamic):Void{}
+ public static function absolute(p:Dynamic,o:Dynamic):Void {
+  if(GameAccess.field(o,"flowProperties")==null)o.flowProperties={};o.flowProperties.isAbsolute=true;
+ }
  public static function padding(o:Dynamic,v:Int):Void{}
  public static function size(o:Dynamic,w:Int,h:Int):Void {o.width=w;o.height=h;}
  public static function position(o:Dynamic,x:Float,y:Float):Void {o.x=x;o.y=y;}

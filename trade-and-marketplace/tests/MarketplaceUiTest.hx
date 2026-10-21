@@ -202,6 +202,12 @@ class MarketplaceUiTest {
   }
   var plus=GameAccess.buttons.filter(b->b.text=="+1").pop(),minus=GameAccess.buttons.filter(b->b.text=="-1").pop();
   var plusTen=GameAccess.buttons.filter(b->b.text=="+10").pop(),minusTen=GameAccess.buttons.filter(b->b.text=="-10").pop();
+  check(plus.btnText.flowProperties.isAbsolute==true&&plus.onAfterReflow!=null);
+  plus.onAfterReflow();var buttonX=plus.btnText.x,buttonY=plus.btnText.y;
+  plus.btnText.x=15;plus.btnText.y=15;plus.btnText.needUpdateScale=true;plus.onAfterReflow();
+  check(plus.btnText.x==buttonX&&plus.btnText.y==buttonY);
+  var trayLabel=GameAccess.labels.filter(l->l.text=="Silver Trays")[0];
+  check(trayLabel.textColor==0x806B5B);
   plus.action();check(priceBox.input.text=="6");minus.action();check(priceBox.input.text=="5");
   plusTen.action();check(priceBox.input.text=="15");minusTen.action();check(priceBox.input.text=="5");
   priceBox.input.text="nope";priceBox.onChange();check(priceBox.input.text=="5");

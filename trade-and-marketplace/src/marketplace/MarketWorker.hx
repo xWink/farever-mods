@@ -62,7 +62,7 @@ class MarketWorker {
                 }
             } catch(e:Dynamic) { if(current(id)) {
                 MarketApiLog.unexpected(job.method==null?job.op:job.method,job.path==null?"/api/v1/auth/":job.path,0,"Worker failure: "+Std.string(e),key);
-                events.add({generation:id,op:job.op=="request"||job.op=="prefetch"?job.op:job.op=="auth"?"auth-end":"error",ticket:job.ticket,message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
+                events.add({generation:id,op:job.op=="request"||job.op=="prefetch"?job.op:job.op=="auth"?"auth-end":"connection-error",ticket:job.ticket,message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
             } }
             if(!current(id)||account=="") { Sys.sleep(0.1);continue; }
             var now=Date.now().getTime()/1000;
@@ -90,7 +90,7 @@ class MarketWorker {
                         data==null?"Expected a JSON account response":data.account_id!=account?"API key belongs to a different account":"Missing marketplace:write or marketplace:presence scope",key);
                     verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Sign in with Steam to connect this Farever account to the marketplace."});
                 } else { verifyFailures++;
-                    if(verifyFailures==1)events.add({generation:id,op:"error",message:MarketText.CONNECTION_ERROR});
+                    if(verifyFailures==1)events.add({generation:id,op:"connection-error",message:MarketText.TEMPORARY_ERROR});
                     verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
             } else if(verified && presence.due(now)) {
                 var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString("{}"),key);
