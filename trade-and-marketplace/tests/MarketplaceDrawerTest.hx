@@ -28,7 +28,11 @@ class MarketplaceDrawerTest {
             rows()[0].action();view.update();
             var panel=node("marketDetailsDrawer"),table=node("marketListingViewport"),originalRows=rows();
             check(c.selected==example&&panel!=null&&panel.x>0&&panel.x<=368);
+            var clip=panel.parent;
+            check(clip.nativeType=="h2d.Mask"&&clip.parent==TradeFrame.latest.container&&clip.width==1104&&clip.height==888);
+            check(clip.x==0&&clip.y==0);
             @:privateAccess view.advanceDetails(view.drawer.started+0.12);
+            check(panel.parent==clip&&clip.x==0&&clip.y==0&&panel.x+1088>clip.width);
             check(table.width>692&&table.width<1060&&panel.x>0&&panel.x<368);
             check(rows()[0]==originalRows[0]&&!view.dirty&&c.refreshes==0);
             finish(view);check(table.width==692&&panel.x==0&&rows()[0].width==680);
@@ -45,8 +49,9 @@ class MarketplaceDrawerTest {
             table=node("marketListingViewport");table.onAfterReflow();
             check(c.selected==other&&node("marketDetailsDrawer").x==0&&table.scrollPosY==70);
             rows()[1].action();view.update();check(c.selected==null&&node("marketDetailsDrawer")!=null);
-            var closing=node("marketDetailsDrawer");
+            var closing=node("marketDetailsDrawer"),closingMask=closing.parent;
             finish(view);check(node("marketDetailsDrawer")==null&&G.removed.indexOf(closing)>=0);
+            check(G.removed.indexOf(closingMask)>=0);
             check(node("marketListingViewport").width==1060&&rows()[0].width==1048&&c.refreshes==0);
             view.close();
         }

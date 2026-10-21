@@ -24,7 +24,7 @@ class GameAccess {
  public static function enumeration(t:String,n:String):Dynamic return n;
  public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t||(t=="st.item.Gear"&&field(o,"nativeType")=="st.item.Weapon");
  public static function current(t:String,n:String):Dynamic return t=="ui.BaseUI"?ui:n;
- public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
+ public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Mask"?a[2]:t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h2d.Mask"){o.width=a[0];o.height=a[1];}if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
  public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
   case "makeAfxDescTextsComparisons":a[0];
   case "weaponEffect":a[0].text;

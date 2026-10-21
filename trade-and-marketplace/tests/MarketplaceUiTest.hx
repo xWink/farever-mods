@@ -375,6 +375,7 @@ class MarketplaceUiTest {
   var level25=GameAccess.labels.filter(l->l.text=="Level 25")[0];
   check(stars.length==5&&stars[0].fmtText.text=="GearUpgrade"&&stars[0].x>level25.x+64&&stars[0].y==level25.y-1);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Upgrade +")>=0).length==0);
+  for(i in 1...stars.length)check(stars[i].x-(stars[i-1].x+stars[i-1].width)==4);
   row.item.native.upgrade=0;view.dirty=true;view.update();
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketUpgrade")==0).length==0);
   c.connectionIssue=true;view.update();view.update();check(GameAccess.dialogs==1);
