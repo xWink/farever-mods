@@ -39,9 +39,10 @@ class MarketplaceStateTest {
         var before=MarketWorker.current.sent.length;c.open();
         check(MarketWorker.current.sent.length==before+1&&Std.string(MarketWorker.current.sent[before].path).indexOf("cursor=")<0);
         reply(c,app,{id:"delete-me",revision:7},null);
-        c.tab="My listings";c.ready=true;c.selected=c.rows[0];
+        c.ready=true;c.chooseTab("My listings");ownReply(c,app,[{id:"delete-me",revision:7,server:"europe"},{id:"remaining",revision:1,server:"europe"}]);c.selected=c.rows[0];
         var sent=MarketWorker.current.sent.length;
-        c.page=2;c.remove();
+        c.remove();
+        check(c.selected==null&&c.rows.length==1&&c.rows[0].id=="remaining"&&c.busy);
         var deletion=MarketWorker.current.sent[sent];
         check(deletion.method=="DELETE"&&deletion.path=="/api/v1/marketplace/listings/delete-me");
         var headers:Map<String,String>=deletion.headers;
@@ -49,16 +50,20 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:204,error:"",retryAfter:"",body:""}});
         c.update(app,0);
-        check(MarketWorker.current.sent.length==sent+2&&MarketWorker.current.sent[sent+1].method=="GET");
-        check(c.selected==null&&c.page==1&&Std.string(MarketWorker.current.sent[sent+1].path).indexOf("limit=50")>=0);
-        reply(c,app,{id:"remaining",revision:1},null);
+        check(MarketWorker.current.sent.length==sent+1);
+        check(c.selected==null&&c.page==1);
         check(!c.busy&&c.selected==null&&c.rows.length==1&&c.rows[0].id=="remaining");
         c.selected=c.rows[0];sent=MarketWorker.current.sent.length;c.remove();
+        check(c.rows.length==0&&c.selected==null);
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:409,error:"HTTP Error #409",retryAfter:"",body:'{"error":{"code":"stale_revision"}}'}});
         c.update(app,0);
         check(!c.busy&&c.rows[0].id=="remaining"&&MarketWorker.current.sent.length==sent+1);
         check(c.message=="This listing changed. Refresh before removing it.");
+        check(c.selected!=null&&c.selected.id=="remaining");
+        var blocked=MarketWorker.current.sent.length;c.ready=false;c.remove();
+        check(c.rows.length==1&&c.selected.id=="remaining"&&MarketWorker.current.sent.length==blocked&&!c.busy);
+        c.ready=true;c.connectionIssue=false;
         c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
         var noFetch=MarketWorker.current.sent.length,previous=c.selected,previousPage=c.page;
         c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==8&&c.page==previousPage);

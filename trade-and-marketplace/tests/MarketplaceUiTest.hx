@@ -385,6 +385,18 @@ class MarketplaceUiTest {
   c.connectionIssue=false;view.close();check(TradeFrame.active==0);view.open();view.update();check(TradeFrame.active==1);
   view.close();check(TradeFrame.active==0);
   check(GameAccess.textures.filter(t->t.disposed!=true).length==0);
+  c.tab="Browse";c.filters["search"]="shield";view.open();view.update();
+  var browseSearch=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput"))[0];
+  var clearSearch=GameAccess.nodes.filter(n->n.id=="marketSearchClear")[0],searches=c.refreshes;
+  check(clearSearch.visible&&clearSearch.parent==browseSearch&&clearSearch.x+clearSearch.width<browseSearch.width);
+  clearSearch.action();view.update();check(c.filters["search"]==""&&browseSearch.input.text==""&&c.refreshes==searches+1);
+  check(GameAccess.nodes.filter(n->n.id=="marketSearchClear").length==1&&!clearSearch.visible);
+  view.close();c.tab="Sell";c.sellSearch="sword";view.open();view.update();
+  var sellInput=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput"))[0];
+  clearSearch=GameAccess.nodes.filter(n->n.id=="marketSearchClear")[0];var localSearches=c.inventorySearches;
+  clearSearch.action();view.update();check(c.sellSearch==""&&sellInput.input.text==""&&c.inventorySearches==localSearches+1);
+  check(GameAccess.nodes.filter(n->n.id=="marketSearchClear").length==1&&c.refreshes==searches+1);
+  sellInput.input.text="new";sellInput.onChange();check(clearSearch.visible);view.close();
   MarketplaceDrawerTest.run(row);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }

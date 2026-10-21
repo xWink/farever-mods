@@ -33,6 +33,7 @@ class MarketWindow {
     var presenceLabels:Array<Void->Void>=[];
     var presenceCheckAt=0.0;
     var controls:Array<Dynamic> = [];
+    var searchClearButtons:Array<{box:Dynamic,button:Dynamic}>=[];
     final filterControls=new MarketFilterControls();
     var sequence = 0;
     var shown = false;
@@ -59,7 +60,7 @@ class MarketWindow {
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();
         shown = false; closeDropdowns();
-        filterControls.clear();
+        filterControls.clear();searchClearButtons=[];
         if(cart!=null){cart.dispose();cart=null;}
         backdrop=null;presenceLabels=[];detailLayer=detailClip=detailBackdrop=null;tableLayouts=[];drawerTab="";closingListing=null;
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
@@ -172,7 +173,7 @@ class MarketWindow {
             tabButton("Inventory",20,68,150,()->c.setBankOnly(false),!c.bankOnly);
             tabButton("Bank",182,68,150,()->c.setBankOnly(true),c.bankOnly);
             filterControls.active=true;
-            var search=input(c.sellSearch,352,68,724,s->{c.sellSearch=s.substr(0,100);c.searchInventory();},"Search items to sell...");
+            var search=input(c.sellSearch,352,68,724,s->{c.sellSearch=s.substr(0,100);c.searchInventory();},"Search items to sell...",null,true);
             filterControls.active=false;
             // Keep the same focused input across live grid refreshes. Enter is
             // deliberately inert rather than submitting/blurring the text box.
@@ -186,6 +187,7 @@ class MarketWindow {
             try filters()catch(error:Dynamic){filterControls.active=false;throw error;}
         }
         filterControls.finish();
+        searchClearButtons=searchClearButtons.filter(entry->G.field(entry.box,"parent")!=null);
         if(c.tab=="Sell") {
             card(16,contentY,704,806-contentY);card(736,contentY,352,806-contentY);
             labelAt(root,c.bankOnly?"YOUR BANK":"YOUR INVENTORY",32,contentY+16,420,true);
@@ -323,17 +325,17 @@ class MarketWindow {
         }
         polygon(icon,[15,16,17,14,23,20,21,22],0xF5F0E8);
     }
-    function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint="",?submit:Void->Void):Dynamic {
+    function input(value:String,x:Int,y:Int,width:Int,changed:String->Void,hint="",?submit:Void->Void,clearable=false):Dynamic {
         var root=frame.container;
         var box=filterControls.get("input:"+x+":"+y,()->{
             var box = G.field(node("input-box",G.field(root,"dom"),[],"marketInput"+(sequence++)),"obj");
             absolute(root,box); padding(box,0); size(box,width,36); position(box,x,y);
             var input = G.field(box,"input");
-            style(input,"width",width-20); style(input,"color",0xF5F0E8);
+            style(input,"width",width-(clearable?52:20)); style(input,"color",0xF5F0E8);
             G.call("ui.comp.InputBox","set_hintText",box,[hint]); style(G.field(box,"inputHint"),"color",0xE0D8CD);
             for(text in [input,G.field(box,"inputHint")]) {
                 absolute(G.field(text,"parent"),text);centerControlText(text,36,12);
-                G.call("h2d.Text","set_maxWidth",text,[(width-24)*1.0]);style(text,"width",width-24);
+                G.call("h2d.Text","set_maxWidth",text,[(width-(clearable?56:24))*1.0]);style(text,"width",width-(clearable?56:24));
             }
             afterReflow(box,()->{
                 for(text in [input,G.field(box,"inputHint")])centerControlText(text,36,12);
@@ -342,7 +344,28 @@ class MarketWindow {
         });
         var input=G.field(box,"input");
         if(G.text(G.field(input,"text"))!=value)G.call("h2d.TextInput","set_text",input,[value]);
-        G.set(box,"onChange",()->changed(G.text(G.field(input,"text"))));
+        var clear:Dynamic=null;
+        if(clearable) {
+            for(entry in searchClearButtons)if(entry.box==box)clear=entry.button;
+            if(clear==null) {
+                clear=G.field(node("button",G.field(box,"dom"),["×"],"marketSearchClear"),"obj");
+                absolute(box,clear);padding(clear,0);size(clear,26,26);position(clear,width-32,5);
+                searchClearButtons.push({box:box,button:clear});
+            }
+            var control=clear;
+            G.call("ui.UIElement","set_onClick",control,[()->{
+                if((c.busy&&submit!=null)||G.text(G.field(input,"text"))=="")return;
+                G.call("h2d.TextInput","set_text",input,[""]);changed("");
+                G.call("h2d.Object","set_visible",control,[false]);
+                if(submit!=null)submit();
+            }]);
+            G.call("h2d.Object","set_visible",control,[value!=""]);
+        }
+        G.set(box,"onChange",()->{
+            var text=G.text(G.field(input,"text"));
+            if(clear!=null)G.call("h2d.Object","set_visible",clear,[text!=""]);
+            changed(text);
+        });
         if(submit!=null) {
             G.set(input,"ignoreEnter",true);
             G.set(input,"onEnter",function():Void {
@@ -478,7 +501,7 @@ class MarketWindow {
         var f=c.filters, root=frame.container;
         card(16,64,1072,c.filtersExpanded?260:96,0xDCCAB5);
         labelAt(root,"Search items",28,80,792,false,MUTED);
-        input(f["search"],28,108,792,s->f["search"]=s.substr(0,100),"Item name...",()->filter("search",f["search"]));
+        input(f["search"],28,108,792,s->f["search"]=s.substr(0,100),"Item name...",()->filter("search",f["search"]),true);
         button("Search",836,108,96,()->filter("search",f["search"]),"");
         button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"");
         if(!c.filtersExpanded)return;

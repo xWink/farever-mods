@@ -57,6 +57,7 @@ class MarketController {
     var generation=0;
     var key="";
     var pending:(Dynamic->Void);
+    var pendingFailure:Void->Void;
     var pendingMethod="";
     var pendingPath="";
     var requestAfter=0.0;
@@ -89,7 +90,7 @@ class MarketController {
             if(event.generation==generation) switch(event.op){
                 case "prefetch":receivePrefetch(event,now);
                 case "request":
-                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath;
+                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,failed=pendingFailure;pendingFailure=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
                         if(ready)connectionIssue=false;
@@ -97,7 +98,7 @@ class MarketController {
                             MarketApiLog.unexpected(method,path,response.status,"Could not process response: "+Std.string(e),key);
                             message="Unsupported marketplace response. Update the mod and try again.";
                         }
-                    } else {pending=null;message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
+                    } else {pending=null;if(failed!=null)failed();message=error(data==null?"":G.text(G.field(data.error,"code"),G.text(data.error)));
                         if(response.status>=200&&response.status<300&&response.error=="")
                             MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
                         if(response.status==401||response.status==403){ready=false;connectionIssue=true;}
@@ -133,7 +134,7 @@ class MarketController {
     function reconnect():Void {
         ownOnlineUntil=0;
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
-        generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;requestAfter=0;
+        generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;pendingFailure=null;requestAfter=0;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
         invalidateListings();ownedItems=[];ownedKinds=[];
         if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
@@ -142,7 +143,7 @@ class MarketController {
     public function disconnect():Void {
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;
-        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;
+        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
         opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
@@ -236,18 +237,21 @@ class MarketController {
         request("GET","/api/v1/marketplace/listings?mine=true&limit=50",null,null,data->{
             if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50||data.nextCursor!=null)
                 throw "Incomplete owned listings";
-            var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
-            for(row in (cast data.listings:Array<Dynamic>)) {
-                var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
-                if(item==null)continue;
-                var id=MarketItemIdentity.key(item),expires=G.text(G.field(row,"expiresAt"));
-                items[id]=true;kinds[G.text(G.field(item,"baseId"))]=true;
-                if(expires!="")expiry[id]=Protocol.expiry(expires);
-            }
-            ownedItems=items;ownedKinds=kinds;ownedExpiry=expiry;ownedRows=data.listings;ownedKnown=true;
+            ownedRows=data.listings;indexOwned();ownedKnown=true;
             if(tab=="My listings")displayOwned();else loadInventory();
             message="";
         });
+    }
+    function indexOwned():Void {
+        var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
+        for(row in ownedRows) {
+            var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
+            if(item==null)continue;
+            var id=MarketItemIdentity.key(item),expires=G.text(G.field(row,"expiresAt"));
+            items[id]=true;kinds[G.text(G.field(item,"baseId"))]=true;
+            if(expires!="")expiry[id]=Protocol.expiry(expires);
+        }
+        ownedItems=items;ownedKinds=kinds;ownedExpiry=expiry;
     }
     public function listingOnline(row:Dynamic,?at:Float):Bool {
         var now=at==null?Date.now().getTime()/1000:at;
@@ -401,12 +405,13 @@ class MarketController {
             showListings(false);
         } else prefetchNext();
     }
-    public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void):Void {
-        if(busy)return;
-        if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return;}
-        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){connectionIssue=true;message=MarketText.CONNECTION_ERROR;view.dirty=true;return;}
-        busy=true;pending=done;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
+    public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void,?failed:Void->Void):Bool {
+        if(busy)return false;
+        if(haxe.Timer.stamp()<requestAfter){message="Please wait before retrying the marketplace.";view.dirty=true;return false;}
+        if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){connectionIssue=true;message=MarketText.CONNECTION_ERROR;view.dirty=true;return false;}
+        busy=true;pending=done;pendingFailure=failed;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
         worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers});
+        return true;
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
         if(chosen==null||busy||!ownedKnown)return;
@@ -422,11 +427,19 @@ class MarketController {
         if(selected==null||busy)return;
         var id=G.text(G.field(selected,"id")),revision=G.integer(G.field(selected,"revision"));
         if(id==""||revision<1){message="This listing changed. Refresh before removing it.";view.dirty=true;return;}
-        // Explicit conversion is required for numeric API fields on HashLink.
-        request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
-            invalidateListings();selected=null;page=1;refresh();
+        var previousRows=ownedRows,previousPage=page,previousSelection=selected;
+        // Update the local snapshot immediately, but retain it for a rejected DELETE.
+        var sent=request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
+            indexOwned();cancelPrefetch();listingCaches=[];activePages=null;message="";
+        },()->{
+            ownedRows=previousRows;page=previousPage;selected=previousSelection;
+            mineSelectedId=id;displayOwned();
         });
+        if(!sent)return;
+        ownedRows=ownedRows.filter(row->G.text(G.field(row,"id"))!=id);
+        selected=null;mineSelectedId="";displayOwned();
     }
+
     public function contact():Void {
         if(selected==null||haxe.Timer.stamp()<contactAfter)return;
         var row=selected;if(row.seller.accountId==account){message="This is your listing.";view.dirty=true;return;}
