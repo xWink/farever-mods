@@ -373,7 +373,7 @@ class MarketWindow {
         }
         return box;
     }
-    function counter(value:String,x:Int,y:Int,width:Int,max:Int,changed:String->Void):Dynamic {
+    function counter(value:String,x:Int,y:Int,width:Int,max:Int,changed:String->Void,priceSteps=false):Dynamic {
         var current=MarketQuantity.normalize(value,1,max,"1");
         var box:Dynamic=null;
         function commit(text:String):Void {
@@ -383,13 +383,26 @@ class MarketWindow {
                 G.call("h2d.TextInput","set_text",G.field(box,"input"),[current]);
             changed(current);
         }
-        box=input(current,x,y,width-30,commit,"1");
+        box=input(current,x,y,priceSteps?96:width-30,commit,"1");
         changed(current);
         var textInput=G.field(box,"input"),previous=G.field(textInput,"onFocusLost");
         G.set(textInput,"onFocusLost",function(event:Dynamic):Void {
             if(previous!=null)Reflect.callMethod(textInput,previous,[event]);
             if(current=="")commit("1");
         });
+        if(priceSteps) {
+            for(i in 0...4) {
+                var delta=[1,-1,10,-10][i];
+                var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y+(i%2)*24,40,()->commit(Std.string(Std.int(Math.max(1,int(current)+delta)))),"");
+                padding(step,0);size(step,40,22);
+                var caption=G.field(step,"btnText");
+                afterReflow(box,()->{
+                    updateTextScale(caption);G.call("h2d.Object","setScale",caption,[0.8]);
+                    centerDropdownCaption(caption,22,0);centerTextX(caption,0,40);
+                });
+            }
+            return box;
+        }
         for(i in 0...2) {
             var delta=i==0?1:-1;
             var arrow=G.field(node("button-icon",G.field(frame.container,"dom"),[i==0?"ArrowUp":"ArrowDown"],"marketCounterArrow"+(sequence++)),"obj");
@@ -582,7 +595,12 @@ class MarketWindow {
         if(c.tab=="Sell") {priceLabel=labelAt(row,price,502,0,166,true,INK,true);largeLabel(priceLabel);rightText(priceLabel,166);}
         else {
             var beforePrice=children(row);
-            priceDisplay(row,listingPrice,484,Std.int((height-4-28)/2),184,true);
+            var unitPrice=MarketText.unitPrice(listingPrice,item.count);
+            priceDisplay(row,listingPrice,484,unitPrice==""?Std.int((height-4-28)/2):5,184,true);
+            if(unitPrice!="") {
+                var unit=labelAt(row,unitPrice,484,34,184,false,MUTED,true);
+                rightText(unit,184);
+            }
             var priceParts=[for(child in children(row))if(beforePrice.indexOf(child)<0){obj:child,x:G.number(G.field(child,"x")),y:G.number(G.field(child,"y"))}];
             tableLayouts.push(extra->{
                 extraWidth=extra;nameRight=392+extra;rowWidth=680+extra;
@@ -927,12 +945,16 @@ class MarketWindow {
         tabButton("Buyout",754,y+28,152,()->{if(offers){offers=false;dirty=true;}},!offers);
         tabButton("Open to offers",918,y+28,152,()->{if(!offers){offers=true;dirty=true;}},offers);
         if(!offers) {
-            var conversion=currencyLine(frame.container,int(trays),754,y+120,316,true);
-            var box=counter(trays,754,y+76,132,200000,s->{
+            var conversion=currencyLine(frame.container,int(trays),754,y+128,316,true);
+            var box=counter(trays,754,y+76,190,200000,s->{
                 trays=s.substr(0,6);conversion(int(trays));
+            },true);
+            var icon=currencyIcon(frame.container,"SilverTray");position(icon,946,y+89);
+            var unit=labelAt(frame.container,"Silver Trays",972,y+76,116,false,INK,true);
+            afterReflow(box,()->{
+                updateTextScale(unit);G.call("h2d.Object","setScale",unit,[0.85]);
+                centerControlText(unit,46,972,y+76);
             });
-            var unit=labelAt(frame.container,"Silver Trays",900,y+76,170,true);
-            afterReflow(box,()->centerControlText(unit,36,900,y+76));
         } else labelAt(frame.container,"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
     }
     function sellPanel():Void {

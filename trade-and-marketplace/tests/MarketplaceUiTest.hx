@@ -159,6 +159,9 @@ class MarketplaceUiTest {
   check(MarketText.detail("Infusion: Infusion_Manfish_DPS",trade.TradeInventory.skillName)=="Infusion: Overwhelming Tides");
   check(MarketText.detail("549 ETAttribute(Armor), 12 ETAttribute(Strength)")=="549 Armor, 12 Strength");
   check(MarketText.askingPrice(row.price)=="Asking price: 500 gold / 1 Silver Tray");
+  check(MarketText.unitPrice({mode:"fixed",silverTrays:5},10)=="250 gold each");
+  check(MarketText.unitPrice({mode:"fixed",silverTrays:1},3)=="166.67 gold each");
+  check(MarketText.unitPrice({mode:"offers"},10)==""&&MarketText.unitPrice({mode:"fixed",silverTrays:1},1)=="");
   check(MarketText.conversion(5)=="5 Silver Trays = 2,500 gold");
   c.chosen=marketplace.MarketExport.offer(row);c.chosen.detail="Epic\n50 ETAttribute(Vitality)\n10 ETAttribute(Strength)";
   GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
@@ -186,7 +189,7 @@ class MarketplaceUiTest {
   check(conversionIcons[0].tile.id=="SilverTray"&&conversionIcons[1].tile.id=="Gold");
   check(!view.dirty); // Updating a price must not rebuild/focus-reset the input.
   var arrows=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0);
-  check(arrows.length==4);
+  check(arrows.length==2);
   check(arrows[0].iconBmp.visible==false&&arrows[0].children.filter(n->n.points!=null).length==1);
   var up:Array<Dynamic>=arrows[0].children.filter(n->n.points!=null)[0].points;
   var down:Array<Dynamic>=arrows[1].children.filter(n->n.points!=null)[0].points;
@@ -197,11 +200,14 @@ class MarketplaceUiTest {
    check(up[k][1]+down[k][1]==17&&up[k+1][1]+down[k+2][1]==17);
    check(up[k][0]==up[k+3][0]&&up[k][1]==up[k+3][1]);
   }
-  arrows[2].action();check(priceBox.input.text=="6");arrows[3].action();check(priceBox.input.text=="5");
+  var plus=GameAccess.buttons.filter(b->b.text=="+1").pop(),minus=GameAccess.buttons.filter(b->b.text=="-1").pop();
+  var plusTen=GameAccess.buttons.filter(b->b.text=="+10").pop(),minusTen=GameAccess.buttons.filter(b->b.text=="-10").pop();
+  plus.action();check(priceBox.input.text=="6");minus.action();check(priceBox.input.text=="5");
+  plusTen.action();check(priceBox.input.text=="15");minusTen.action();check(priceBox.input.text=="5");
   priceBox.input.text="nope";priceBox.onChange();check(priceBox.input.text=="5");
   priceBox.input.text="9999999999999999999999999999";priceBox.onChange();check(priceBox.input.text=="200000");
-  arrows[2].action();check(priceBox.input.text=="200000");
-  priceBox.input.text="0";priceBox.onChange();arrows[3].action();check(priceBox.input.text=="1");
+  plus.action();check(priceBox.input.text=="200000");
+  priceBox.input.text="0";priceBox.onChange();minus.action();check(priceBox.input.text=="1");
   priceBox.input.text="";priceBox.onChange();priceBox.input.onFocusLost({});check(priceBox.input.text=="1");
   quantityBox.input.text="9999";quantityBox.onChange();check(quantityBox.input.text=="1");
   priceBox.input.text="25";priceBox.onChange();c.page=2;c.sellSearch="bow";var selected=c.chosen;
@@ -262,7 +268,7 @@ class MarketplaceUiTest {
   check(!buyout.selected&&negotiable.selected);
   negotiable.action();check(!view.dirty);
   buyout.action();GameAccess.nodes=[];GameAccess.buttons=[];view.update();
-  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0).length==4);
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0).length==2);
   c.tab="Browse";c.filters["rarity"]="Epic";c.filters["search"]="shield";c.filters["online"]="false";
   GameAccess.buttons=[];view.dirty=true;view.update();
   GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();GameAccess.nodes=[];view.update();

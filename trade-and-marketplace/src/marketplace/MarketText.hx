@@ -11,6 +11,15 @@ class MarketText {
         while(end>3) {result=","+text.substr(end-3,3)+result;end-=3;}
         return text.substr(0,end)+result;
     }
+    public static function unitPrice(price:Dynamic,quantity:Int):String {
+        if(quantity<=1||price==null||Reflect.field(price,"mode")!="fixed")return "";
+        var gold=Std.parseFloat(Std.string(Reflect.field(price,"silverTrays")))*500/quantity;
+        if(!Math.isFinite(gold)||gold<=0)return "";
+        if(gold<0.01)return "<0.01 gold each";
+        var rounded=Math.round(gold*100)/100;
+        var parts=Std.string(rounded).split(".");
+        return number(parts[0])+(parts.length>1?"."+parts[1]:"")+" gold each";
+    }
     public static function count(value:Int,noun:String):String return number(value)+" "+noun+(value==1?"":"s");
     public static function price(value:Dynamic):String {
         if(value==null)return "Price unavailable";
