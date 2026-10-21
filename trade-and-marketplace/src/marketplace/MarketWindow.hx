@@ -961,7 +961,7 @@ class MarketWindow {
         if(c.chosen==null)return;
         selectedItem(c.chosen,MarketCategory.item(c.chosen.kind));
         if(c.isBound(c.chosen)||c.isLocked(c.chosen)) {
-            labelAt(frame.container,c.isBound(c.chosen)?"Bound":"Locked",754,752,316,true,MUTED);
+            labelAt(frame.container,c.isBound(c.chosen)?"Item cannot be traded":"Item is locked",754,752,316,true,MUTED);
             return;
         }
         if(c.isListed(c.chosen)) {

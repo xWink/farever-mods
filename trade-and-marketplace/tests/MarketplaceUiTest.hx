@@ -262,12 +262,12 @@ class MarketplaceUiTest {
   check(saleBadge.scaleX==0.65&&saleBadge.x>3&&saleBadge.y+4*0.65>=0&&saleBadge.y+22*0.65<=16);
   check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
   c.locked=true;GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Locked").length==120&&GameAccess.labels.filter(l->l.text=="For sale").length==0);
+  check(GameAccess.labels.filter(l->l.text=="Locked").length==119&&GameAccess.labels.filter(l->l.text=="Item is locked").length==1&&GameAccess.labels.filter(l->l.text=="For sale").length==0);
   check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
   var lockBadge=GameAccess.labels.filter(l->l.text=="Locked")[0];lockBadge.parent.onAfterReflow();
   check(lockBadge.scaleX==0.65&&lockBadge.parent.width==saleBadge.parent.width&&lockBadge.parent.height==saleBadge.parent.height);
   c.locked=false;c.bound=true;GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Bound").length==120&&GameAccess.labels.filter(l->l.text=="For sale").length==0);
+  check(GameAccess.labels.filter(l->l.text=="Bound").length==119&&GameAccess.labels.filter(l->l.text=="Item cannot be traded").length==1&&GameAccess.labels.filter(l->l.text=="For sale").length==0);
   check(GameAccess.buttons.filter(b->b.text=="List item for sale").length==0);
   var boundBadge=GameAccess.labels.filter(l->l.text=="Bound")[0];boundBadge.parent.onAfterReflow();
   check(boundBadge.scaleX==0.65&&boundBadge.parent.width==saleBadge.parent.width&&boundBadge.parent.height==saleBadge.parent.height);
