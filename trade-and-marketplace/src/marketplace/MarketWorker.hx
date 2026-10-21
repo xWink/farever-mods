@@ -4,8 +4,8 @@ import haxe.io.Bytes;
 import sys.thread.Deque;
 import sys.thread.Mutex;
 import sys.thread.Thread;
-typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
-typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float};
+typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?server:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
+typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float,?server:String};
 /** Foreground work takes priority over one speculative page request; presence/auth share the worker. Native objects never leave the game thread. */
 class MarketWorker {
     final jobs=new Deque<MarketJob>();
@@ -16,10 +16,10 @@ class MarketWorker {
     var generation=0;
     var started=false;
     public function new() {}
-    public function session(account:String,key:String):Int {
+    public function session(account:String,key:String,server=""):Int {
         mutex.acquire(); var id=++generation; mutex.release();
         if (!started) { started=true; Thread.create(run); }
-        jobs.add({generation:id,op:"session",account:account,key:key}); return id;
+        jobs.add({generation:id,op:"session",account:account,key:key,server:server}); return id;
     }
     public function cancelPrefetch():Void {
         mutex.acquire();prefetchTicket=-1;mutex.release();
@@ -36,7 +36,7 @@ class MarketWorker {
     public function receive():MarketEvent return events.pop(false);
     function current(id:Int):Bool { mutex.acquire();var yes=id==generation;mutex.release();return yes; }
     function run():Void {
-        var id=0,account="",key="",verified=false,verifyAt=0.0,verifyFailures=0;
+        var id=0,account="",server="",presenceAccount="",key="",verified=false,verifyAt=0.0,verifyFailures=0;
         var presence=new MarketPresence(),opened="",message="";
         var http=new MarketHttp(()->{if(!current(id))throw "Session ended";});
         var auth=new fareverly.AuthFlow((m,u,b,k)->http.authenticated(m,u,b,k),()->Date.now().getTime()/1000);
@@ -46,8 +46,10 @@ class MarketWorker {
             if(job!=null&&job.op=="prefetch"&&!wanted(job))job=null;
             if(job!=null && current(job.generation)) try {
                 if(job.op=="session") {
-                    id=job.generation; account=job.account; key=job.key; verified=false;verifyAt=0;verifyFailures=0;
-                    auth.cancel();presence.reset();opened="";message="";
+                    id=job.generation; account=job.account; server=job.server; key=job.key; verified=false;verifyAt=0;verifyFailures=0;
+                    auth.cancel();presence.stopped=false;
+                    if(account!=""&&account!=presenceAccount){presence.reset();presenceAccount=account;}
+                    opened="";message="";
                 } else if(job.generation==id) switch(job.op) {
                     case "auth":
                         auth.begin(account,key!="",job.entropy);opened="";message="";
@@ -92,12 +94,12 @@ class MarketWorker {
                 } else { verifyFailures++;
                     if(verifyFailures==1)events.add({generation:id,op:"connection-error",message:MarketText.TEMPORARY_ERROR});
                     verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
-            } else if(verified && presence.due(now)) {
-                var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString("{}"),key);
+            } else if(verified && MarketPresence.validServer(server) && presence.due(now)) {
+                var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(MarketPresence.body(server)),key);
                 if(!current(id))continue;
                 var completed=Date.now().getTime()/1000;
                 var deadline=MarketPresence.deadline(response.status,response.body,response.error);
-                if(deadline>completed)events.add({generation:id,op:"presence",onlineUntil:deadline});
+                if(deadline>completed)events.add({generation:id,op:"presence",onlineUntil:deadline,server:server});
                 presence.completed(response.status,completed,Protocol.retryAfter(response.retryAfter,completed),Math.random()*5);
                 if(presence.stopped) {verified=false;verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Fareverly sign-in expired. Sign in again to list items."});}
             }

@@ -5,7 +5,7 @@ class InfusionNamesTest {
     public static function main():Void {
         GameAccess.skills={byId:{get:function(id:String):Dynamic return switch(id){
             case "Infusion_Manfish_DPS": {texts:{name:"Overwhelming Tides"}};
-            case "Infusion_Ref": {texts:{refs:{ref:"Infusion_Manfish_DPS"}}};
+            case "Infusion_Ref": {texts:{name:"::ref_skill::",refs:{ref:"Infusion_Manfish_DPS"}}};
             case "Infusion_Loop": {texts:{refs:{ref:"Infusion_Loop"}}};
             default:null;
         }}};

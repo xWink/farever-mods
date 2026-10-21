@@ -1,6 +1,11 @@
 package marketplace;
 /** Completion-based scheduling; a rejected heartbeat never implies online status. */
 class MarketPresence {
+    public static function validServer(server:String):Bool return ["north-america","europe","latin-america","asia","mainland-china"].indexOf(server)>=0;
+    public static function body(server:String):String {
+        if(!validServer(server))throw "Unknown marketplace server";
+        return haxe.Json.stringify({server:server});
+    }
     public var next = 0.0;
     public var stopped = false;
     var failures = 0;

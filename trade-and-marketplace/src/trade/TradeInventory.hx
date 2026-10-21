@@ -35,7 +35,7 @@ class TradeInventory {
             var table=G.field(G.current("Data","skill"),"byId");
             var row=table==null?null:G.call("haxe.ds.StringMap","get",table,[key]);
             var texts=G.field(row,"texts"),name=G.text(G.field(texts,"name"));
-            if(name!="")return clean(name,120);
+            if(name!=""&&name.indexOf("::")<0)return clean(name,120);
             key=G.text(G.field(G.field(texts,"refs"),"ref"));
         }
         return id;

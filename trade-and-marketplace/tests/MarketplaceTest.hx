@@ -12,6 +12,10 @@ class MarketplaceTest {
  static function check(b:Bool):Void {checks++;if(!b)throw "Marketplace assertion "+checks;}
  static function fails(f:Void->Void):Void {var failed=false;try f()catch(_:Dynamic)failed=true;check(failed);}
  static function main():Void {
+  for(server in ["north-america","europe","latin-america","asia","mainland-china"])
+   check(haxe.Json.parse(MarketPresence.body(server)).server==server);
+  check(!MarketPresence.validServer("")&&!MarketPresence.validServer("unknown"));
+  check(marketplace.MarketText.detail("Infusion: ::ref_skill::",id->id=="known"?"Real infusion":id,"known")=="Infusion: Real infusion");
   var acknowledged='{"onlineUntil":"2099-01-01T00:00:00.000Z"}';
   check(MarketPresence.deadline(200,acknowledged,"")>Date.now().getTime()/1000);
   for(status in [0,401,403,429,500])check(MarketPresence.deadline(status,acknowledged,"")==0);

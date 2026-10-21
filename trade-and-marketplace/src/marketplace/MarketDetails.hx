@@ -13,7 +13,7 @@ class MarketDetails {
         var lines=affixes(G.call("st.Item","getItemAffixes",item));
         // Infusion labels are plain text; modifier markup below comes only from
         // the game's validated item definitions, never from a listing's text.
-        for(line in MarketText.detail(offer.detail,TradeInventory.skillName).split("\n"))
+        for(line in MarketText.detail(offer.detail,TradeInventory.skillName,offer.preview==null?"":offer.preview.infusion).split("\n"))
             if(StringTools.startsWith(line,"Infusion:" )||StringTools.startsWith(line,"Infusion bonus:"))
                 lines.push(trade.TradeUi.escape(line));
         for(slot in G.array(G.field(item,"slots"),true)) {

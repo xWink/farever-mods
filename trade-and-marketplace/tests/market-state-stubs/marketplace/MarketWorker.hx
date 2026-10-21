@@ -6,7 +6,7 @@ class MarketWorker {
     public var incoming:Array<Dynamic>=[];
     public var generation=0;
     public function new() current=this;
-    public function session(account:String,key:String):Int return ++generation;
+    public function session(account:String,key:String,server=""):Int return ++generation;
     public function cancelPrefetch():Void {}
     public function send(job:Dynamic):Void sent.push(job);
     public function receive():Dynamic return incoming.shift();

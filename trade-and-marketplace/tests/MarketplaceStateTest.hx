@@ -157,13 +157,15 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:404,error:"Not found",retryAfter:"",body:'{"error":{"code":"listing_not_found"}}'}});c.update(app,0);
         c.account="self";
-        var own={seller:{accountId:"self",onlineUntil:"2000-01-01T00:00:00.000Z"}},other={seller:{accountId:"other",onlineUntil:"2000-01-01T00:00:00.000Z"}};
+        var own={server:"europe",seller:{accountId:"self",onlineUntil:"2000-01-01T00:00:00.000Z"}},other={seller:{accountId:"other",onlineUntil:"2000-01-01T00:00:00.000Z"}};
         check(!c.listingOnline(own));
         var calls=MarketWorker.current.sent.length,until=Date.now().getTime()/1000+180;
-        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"presence",onlineUntil:until});c.update(app,0);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"presence",server:"europe",onlineUntil:until});c.update(app,0);
         check(c.listingOnline(own)&&!c.listingOnline(other));
+        own.server="north-america";check(!c.listingOnline(own));own.server="europe";
+        check(!c.listingOnline({server:"europe",seller:{accountId:"other",online:false,onlineUntil:"2099-01-01T00:00:00.000Z"}}));
         check(!c.listingOnline(own,until)&&MarketWorker.current.sent.length==calls);
-        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation-1,op:"presence",onlineUntil:until+180});c.update(app,0);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation-1,op:"presence",server:"europe",onlineUntil:until+180});c.update(app,0);
         check(!c.listingOnline(own,until+1));
         c.disconnect();c.account="self";check(!c.listingOnline(own));
         var capped=new MarketController();capped.player=player;capped.inv=new TradeInventory(player);capped.ready=true;capped.server="europe";capped.tab="Sell";

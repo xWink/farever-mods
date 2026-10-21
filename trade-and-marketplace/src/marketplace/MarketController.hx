@@ -38,6 +38,7 @@ class MarketController {
     var boundInventory:Map<String,Bool>=[];
     var locations:Map<String,String>=[];
     var ownOnlineUntil=0.0;
+    var ownOnlineServer="";
     var ownedKnown=false;
     var ownedListingCount=0;
     public function listingLimitReached():Bool return ownedListingCount>=LISTING_LIMIT;
@@ -92,6 +93,10 @@ class MarketController {
                 reconnect();
             }
         }
+        if(me!=null&&G.current("lib.Network","OFFLINE_MODE")!=true&&G.current("lib.Network","realmId")!=null) {
+            var connectedServer=MarketExport.server(G.text(G.current("Options","serverRegion")));
+            if(connectedServer!=server){server=connectedServer;reconnect();}
+        }
         var event=worker.receive();
         while(event!=null){
             if(event.generation==generation) switch(event.op){
@@ -119,7 +124,7 @@ class MarketController {
                         if((method!="GET"||path.indexOf("mine=true")>=0)&&(response.status==401||response.status==403)){ready=false;connectionIssue=true;}
                     }
                     view.dirty=true;
-                case "presence":ownOnlineUntil=event.onlineUntil;
+                case "presence":ownOnlineUntil=event.onlineUntil;ownOnlineServer=event.server;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
                     if(opened&&(tab=="Sell"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "connection-error":message=event.message;view.dirty=true;
@@ -147,9 +152,9 @@ class MarketController {
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
-        ownOnlineUntil=0;
+        ownOnlineUntil=0;ownOnlineServer="";
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
-        generation=worker.session(server==""?"":account,key);busy=false;ready=false;pending=null;pendingFailure=null;cooldown.clear();retryOnOpen=false;
+        generation=worker.session(server==""?"":account,key,server);busy=false;ready=false;pending=null;pendingFailure=null;cooldown.clear();retryOnOpen=false;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
         invalidateListings();ownedItems=[];ownedKinds=[];
         if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
@@ -158,7 +163,7 @@ class MarketController {
     public function disconnect():Void {
         contactingSeller="";
         view.close(); if(player!=null)generation=worker.session("","");
-        ownOnlineUntil=0;
+        ownOnlineUntil=0;ownOnlineServer="";
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
         cooldown.clear();retryOnOpen=false;
         rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
@@ -293,7 +298,9 @@ class MarketController {
     public function listingOnline(row:Dynamic,?at:Float):Bool {
         var now=at==null?Date.now().getTime()/1000:at;
         var seller=G.field(row,"seller"),deadline=Protocol.expiry(G.text(G.field(seller,"onlineUntil")));
-        if(account!=""&&G.text(G.field(seller,"accountId"))==account)deadline=Math.max(deadline,ownOnlineUntil);
+        if(G.field(seller,"online")==false)deadline=0;
+        if(account!=""&&G.text(G.field(seller,"accountId"))==account&&ownOnlineServer!=""
+            &&G.text(G.field(row,"server"))==ownOnlineServer)deadline=Math.max(deadline,ownOnlineUntil);
         return deadline>now;
     }
     function displayOwned():Void {
