@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.7",
-  "commit": "cf76b6e5430a258e813d78249bbf36fb0bfbbaf5",
-  "notes": "Fixed an issue where Honeyzabeth's death counted as a victory in Heroic Honeyzabeth",
+  "project": "trade-and-marketplace",
+  "version": "1.0.0",
+  "commit": "ccea06682b1e67a00e190f927216dbf412ed6480",
+  "notes": "Added marketplace!",
   "dry_run": false
 }
