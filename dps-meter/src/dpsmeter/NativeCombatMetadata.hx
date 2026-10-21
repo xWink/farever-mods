@@ -56,8 +56,13 @@ class NativeCombatMetadata {
                     }
                 }
             }
-            var result = HistoryCategory.fromObjectives(false, true, ready, clearFoes);
-            if (bosses.length == 1) dungeonBosses[id] = bosses[0];
+            // Honeyzabeth remains the encounter owner when miniboss goals
+            // replicate too, or arrive before her own KillBoss objective.
+            var queen = G.text(G.field(activity, "bossId")) == "Cleodora" || bosses.indexOf("Cleodora") >= 0
+                || dungeonBosses[id] == "Cleodora";
+            var result = HistoryCategory.fromObjectives(false, true, ready || queen, clearFoes);
+            if (queen) dungeonBosses[id] = "Cleodora";
+            else if (bosses.length == 1) dungeonBosses[id] = bosses[0];
             else if (bosses.length > 1) dungeonBosses.remove(id);
             if (result != HistoryCategory.OTHER) observed[id] = result;
             for (boss in bosses) HistoryCategory.observeBoss(observedBosses, boss, result);
@@ -68,6 +73,22 @@ class NativeCombatMetadata {
     public static function dungeonBoss(id:String):String {
         var kind = dungeonBosses[id];
         return kind == null ? "" : kind;
+    }
+    public static function dungeonBossDefeated(player:Dynamic, activity:Dynamic, boss:String):Bool {
+        if (activity == null) return false;
+        try {
+            var context = G.call("st.Player", "getActivityContext", player, [activity]);
+            var contexts = [context], global = G.field(activity, "globalCtx");
+            if (global != context) contexts.push(global);
+            for (ctx in contexts) for (objective in G.array(G.field(ctx, "objectives"), true)) {
+                if (G.text(G.field(objective, "kind")) != "KillBoss") continue;
+                var target = G.field(objective, "target");
+                if (target != null && Type.enumConstructor(target) == "Unit"
+                    && G.text(Type.enumParameters(target)[0]) == boss
+                    && G.call("st.Objective", "isCompleted", objective) == true) return true;
+            }
+        } catch (e:Dynamic) warn(e);
+        return false;
     }
     static function category(inf:Dynamic):String {
         if (inf == null) return HistoryCategory.OTHER;

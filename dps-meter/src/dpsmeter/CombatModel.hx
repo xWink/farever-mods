@@ -3,7 +3,7 @@ package dpsmeter;
 import dpsmeter.RiftTracker.RiftRecap;
 
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
-typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int};
+typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int, ?defeated:Bool};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
@@ -211,6 +211,10 @@ class Fight {
         // victory. Ordinary combats succeed only when all observed foes died.
         if (outcome != "") return;
         var won = defeated;
+        // Honeyzabeth has multiple phases and a heroic death-door transition.
+        // Only her death RPC/state or her own completed objective confirms a
+        // win; a damage kill flag or a miniboss kill is not sufficient.
+        if (bossKind == "Cleodora") { outcome = won ? "Victory" : "Defeat"; return; }
         if (!won && (bossFlags & 0x10) != 0) won = bossUid != "" && killedTargets.exists(bossUid);
         else if (!won) {
             won = targets.iterator().hasNext();
@@ -530,7 +534,10 @@ class CombatModel {
         if (rift != null || uid == "" || uid == "0") return;
         for (fight in [current, pendingFight, lastCombat]) if (fight != null && fight.targets.exists(uid)
             && (fight.closed == 0 || (now >= fight.closed && now - fight.closed <= ENTRY_DAMAGE_SECONDS)))
+        {
             fight.killedTargets[uid] = true;
+            if (fight.bossKind == "Cleodora" && fight.bossUid == uid) fight.defeated = true;
+        }
     }
     function expirePendingFight(now:Float):Void {
         // Bound the whole buffer, so remote party damage while resting cannot
@@ -561,6 +568,8 @@ class CombatModel {
             fight.bossLevel = dungeonBoss.level; fight.bossFoeId = dungeonBoss.foeId;
             fight.targets[fight.bossUid] = true;
         }
+        if (dungeonBoss.defeated == true && (dungeonBoss.uid == "" || fight.bossUid == dungeonBoss.uid))
+            fight.defeated = true;
         return true;
     }
     function addToFight(fight:Fight, e:DamageEvent, info:PlayerInfo):Void {

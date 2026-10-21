@@ -447,6 +447,7 @@ class HistoryTest {
             && first.players["me"].damage == 450 && first.players["ally"].damage == 200 && first.players["me"].heal == 30,
             "Queen damage, later miniboss kills, party damage and healing all remain in the original encounter");
         queen.time = 40; queen.amount = 400; queen.kill = true; m.record(queen);
+        m.onTargetDeath("queen", 40);
         m.onCombatExit("me", 40);
         m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"next-queen", level:20, foeId:9});
         check(m.lastCombat.bossUid == "queen", "A respawn during the final-damage grace period cannot rebind the completed attempt");
@@ -480,6 +481,22 @@ class HistoryTest {
         check(m.current.start == 11 && m.current.bossUid == "", "Late objective metadata relabels opening damage without adopting a miniboss UID");
         m.onCombatExit("me", 12); m.update(13, false);
         check(m.history[0].outcome == "Defeat", "Missing queen entity metadata cannot turn a miniboss kill into victory");
+
+        m = model(); configure(m); m.onCombatEnter("me", 10);
+        queen.time = 11; queen.kill = true; m.record(queen);
+        m.onCombatExit("me", 12); m.update(13, false);
+        check(m.history[0].outcome == "Defeat", "A queen kill flag alone cannot confirm victory during a phase transition");
+
+        m = model(); configure(m); m.onCombatEnter("me", 10); m.record(mini(11, 100, true));
+        m.onCombatExit("me", 12);
+        m.onTargetDeath("queen", 12.1); m.update(13, false);
+        check(m.history[0].outcome == "Victory", "The queen's native death after combat exit confirms an external final blow");
+
+        m = model(); configure(m); m.onCombatEnter("me", 10); m.record(mini(11, 100, true));
+        m.onCombatExit("me", 12);
+        m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"next-queen", level:20, foeId:9, defeated:true});
+        m.update(13, false);
+        check(m.history[0].outcome == "Defeat", "A different queen's death cannot turn the prior attempt into a victory");
 
         m = model(); m.activityCategory = HistoryCategory.BOSS;
         m.setDungeonBoss({kind:"Ratsar", name:"King Ratsar", uid:"ratsar", level:10, foeId:1});

@@ -177,8 +177,13 @@ class Collector {
             var inf = byId == null ? null : G.call("haxe.ds.StringMap", "get", byId, ["Cleodora"]);
             if (inf != null) name = G.text(G.staticCall("HText", "unit", [inf, null]));
         }
+        // isDead also returns true for removed entities. Removal/unloading by
+        // itself is not a victory. When the queen is absent, use her exact
+        // replicated goal, never a completed miniboss or alternate-boss goal.
+        var defeated = cleodora != null ? G.call("ent.GameObject", "isDead", cleodora) == true
+            : NativeCombatMetadata.dungeonBossDefeated(G.field(hero, "player"), G.field(layer, "mainActivity"), "Cleodora");
         model.setDungeonBoss({kind:"Cleodora", name:name == "" ? "Cleodora" : name, uid:G.uid(cleodora),
-            level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId"))});
+            level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId")), defeated:defeated});
     }
     function cleodoraInCombat():Bool {
         // These replicated fields are available even while canBeHit is false.

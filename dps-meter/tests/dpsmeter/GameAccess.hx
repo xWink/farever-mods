@@ -34,6 +34,7 @@ class GameAccess {
         case "haxe.ds._StringMap.StringMapKeysIterator.hasNext": object.hasNext();
         case "haxe.ds._StringMap.StringMapKeysIterator.next": object.next();
         case "st.Player.getActivityContext": field(object, "context");
+        case "st.Objective.isCompleted": field(object, "completed") == true;
         case "st.Equipment.getSlot":
             if (field(object, "unavailable") == true) throw "Equipment still loading";
             Reflect.field(object.slots, args[0]);

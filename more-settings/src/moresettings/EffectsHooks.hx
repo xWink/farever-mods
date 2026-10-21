@@ -5,6 +5,14 @@ import moresettings.GameAccess as G;
 
 /** Presentation scopes keep native FX creation, callbacks and skills intact. */
 class EffectsHooks {
+    @:hlx.prefix(client.UnitController.startTargetMode)
+    static function aimingBefore(instance:Dynamic, skill:Dynamic, callback:Dynamic, input:String):HlxPrefixResult<Void> {
+        AllyEffects.beginAiming(); return Continue;
+    }
+    @:hlx.postfix(client.UnitController.startTargetMode)
+    static function aimingAfter(instance:Dynamic, skill:Dynamic, callback:Dynamic, input:String, result:Void):Void
+        AllyEffects.endAiming();
+
     @:hlx.postfix(st.skill.SkillArea.playTelegraph)
     static function telegraphAfter(instance:Dynamic, mobile:Bool, result:Void):Void
         CrabgantuaWarnings.attach(instance);

@@ -5,7 +5,7 @@ import moresettings.GameAccess as G;
 import moresettings.SettingsData.MoreSettingsConfig;
 import moresettings.EffectPolicy.RegionFilters;
 
-private typedef EffectOrigin = { var source:Dynamic; var beneficial:Bool; }
+private typedef EffectOrigin = { var source:Dynamic; var beneficial:Bool; var ?aiming:Bool; }
 private typedef SyncFrame = { var fx:Dynamic; var ctx:Dynamic; var visible:Bool; var flags:Int; }
 private enum abstract DiscoveryKind(Int) {
     var Unit; var Skill; var Step; var Fx; var LinkFx; var Entity; var Projectile;
@@ -29,6 +29,8 @@ class AllyEffects {
     static var rendererRestore:ObjectMap<Dynamic, Bool> = new ObjectMap();
     static var hiddenMeshes:ObjectMap<Dynamic, Bool> = new ObjectMap();
     static var scopes = new sys.thread.Tls<Array<EffectOrigin>>();
+    static var aimingDepth = new sys.thread.Tls<Null<Int>>();
+    static var aimingOrigin:EffectOrigin = {source:null, beneficial:false, aiming:true};
     static var syncFrames = new sys.thread.Tls<Array<SyncFrame>>();
     static var nextRefresh:Float = 0;
     static var nextAdoption:Float = 0;
@@ -70,6 +72,7 @@ class AllyEffects {
             // Recover an abandoned presentation scope if the game threw while
             // creating an effect. Scope storage is per-thread for visual jobs.
             if (scopes.value != null && scopes.value.length > 0) scopes.value = [];
+            aimingDepth.value = 0;
             var now = haxe.Timer.stamp();
             if (hero == null || (!active && !filters.models)) return;
             if (active && discovery == null && now >= nextAdoption) beginDiscovery(now);
@@ -276,11 +279,21 @@ class AllyEffects {
         return stack == null || stack.length == 0 ? null : stack[stack.length - 1];
     }
 
+    // Target-mode circles and lines share playSkillFx with actual attacks.
+    // Mark the preview objects for their lifetime, not the skill being aimed.
+    // Track them even with filtering off so enabling it mid-aim is safe.
+    public static function beginAiming():Void
+        aimingDepth.value = aimingDepth.value == null ? 1 : aimingDepth.value + 1;
+    public static function endAiming():Void {
+        if (aimingDepth.value > 0) aimingDepth.value--;
+    }
+
     public static function bindCreated(fx:Dynamic):Void {
         if (fx == null) return;
         // Pool reuse must not retain the previous caster's visibility rule.
         forget(fx);
-        if (active) try remember(fx, current()) catch (e:Dynamic) fail(e);
+        if (aimingDepth.value > 0 || active) try
+            remember(fx, aimingDepth.value > 0 ? aimingOrigin : current()) catch (e:Dynamic) fail(e);
     }
 
     public static function bindEntity(entity:Dynamic, fx:Dynamic):Void {
@@ -293,17 +306,21 @@ class AllyEffects {
     }
 
     public static function bindSkill(skill:Dynamic, fx:Dynamic):Void {
-        if (!active || fx == null) return;
-        try remember(fx, origin(skill)) catch (e:Dynamic) fail(e);
+        if (fx == null || (!active && !(aimingDepth.value > 0))) return;
+        try remember(fx, aimingDepth.value > 0 ? aimingOrigin : origin(skill)) catch (e:Dynamic) fail(e);
     }
 
     static function remember(fx:Dynamic, value:EffectOrigin):Void {
-        if (fx == null || value == null || G.field(fx, "removed") == true) return;
+        if (fx == null || G.field(fx, "removed") == true) return;
+        var inherited = fxOrigin(fx);
+        if (inherited != null && inherited.aiming == true) value = inherited;
+        if (value == null) return;
         var previous = origins.get(fx);
         // Existing effects do not need their entire sub-FX tree rediscovered.
         // New descendants inherit through sync/detach hooks; pool reuse forgets
         // the old attribution before binding the new caster.
-        if (previous != null && previous.source == value.source && previous.beneficial == value.beneficial) return;
+        if (previous != null && previous.source == value.source && previous.beneficial == value.beneficial
+            && previous.aiming == value.aiming) return;
         origins.set(fx, value);
         if (previous == null) {
             var instances:Array<Dynamic> = [];
@@ -320,7 +337,7 @@ class AllyEffects {
     }
 
     static function hidden(value:EffectOrigin):Bool {
-        if (!active || value == null) return false;
+        if (!active || value == null || value.aiming == true) return false;
         return EffectPolicy.hideEffect(own(value.source), ally(value.source), value.beneficial, filters);
     }
 
@@ -379,8 +396,11 @@ class AllyEffects {
     }
 
     public static function beforeDetach(fx:Dynamic):Void {
-        if (!active || fx == null) return;
-        try remember(fx, fxOrigin(fx)) catch (e:Dynamic) fail(e);
+        if (fx == null) return;
+        try {
+            var value = fxOrigin(fx);
+            if (active || (value != null && value.aiming == true)) remember(fx, value);
+        } catch (e:Dynamic) fail(e);
     }
 
     static function soundOrigin(sound:Dynamic):EffectOrigin {
@@ -465,7 +485,7 @@ class AllyEffects {
         soundOrigins = new ObjectMap(); friends = new ObjectMap(); rendererOrigins = new ObjectMap();
         renderersByFx = new ObjectMap();
         origins = new ObjectMap(); hiddenMeshes = new ObjectMap();
-        scopes.value = []; syncFrames.value = [];
+        scopes.value = []; syncFrames.value = []; aimingDepth.value = 0;
         hero = null; layer = null; region = ""; active = false;
         filters = {attacks: false, buffs: false, models: false, ownAttacks: false, ownBuffs: false};
         NativeSkillFacts.clear(); restartDiscovery();

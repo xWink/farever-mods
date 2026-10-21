@@ -111,6 +111,57 @@ class EffectDiscoveryTest {
         AllyEffects.dispose();
     }
 
+    static function aimingPreviews():Void {
+        var config = SettingsData.defaults(); config.riftHideOwnAttacks = true; config.riftHideOwnBuffs = true;
+        var layer:Dynamic = {isRift:true, config:{mapId:"World/Test"}, units:[], areas:[], entities:[]};
+        var self = player(layer, true), app:Dynamic = {hero:self};
+        layer.units = [self];
+        AllyEffects.dispose(); AllyEffects.configure(config); AllyEffects.update(app);
+        var attack = skill(self, []), buff = skill(self, [], true);
+        for (source in [attack, buff]) {
+            var preview = fx(), child = fx(), renderer:Dynamic = {enabled:true};
+            preview.subFXs = [child]; preview.effects = [{instance:renderer}];
+            AllyEffects.beginAiming();
+            bind(source, preview); AllyEffects.bindSkill(source, preview);
+            AllyEffects.endAiming();
+            // Native binds and delayed discovery must not retag a preview.
+            AllyEffects.bindSkill(source, preview);
+            source.steps[0].fxs = [preview]; self.skills = [source]; sweep(app);
+            eq(hidden(preview), false, "aiming preview survives own attack/buff filtering and adoption");
+            eq(hidden(child), false, "preview child inherits the exemption");
+            AllyEffects.beforeRenderer();
+            eq(renderer.enabled, true, "preview renderer remains enabled");
+            AllyEffects.afterRender();
+            var ctx:Dynamic = {visibleFlag:false};
+            preview.flags = 0; AllyEffects.beforeFxSync(preview, ctx);
+            eq(ctx.visibleFlag, false, "exemption preserves native hidden/invalid targeting state");
+            eq(preview.flags, 0, "exemption never forces preview visibility");
+            AllyEffects.afterFxSync(preview); preview.flags = 2;
+            var lateChild = fx(); lateChild.parentFX = preview;
+            AllyEffects.beforeDetach(lateChild); lateChild.parentFX = null;
+            eq(hidden(lateChild), false, "late detached preview child stays exempt");
+            var executed = fx(); bind(source, executed);
+            eq(hidden(executed), true, "executing the same skill still hides its actual effects");
+            bind(source, preview);
+            eq(hidden(preview), true, "pooled preview reused for a cast loses its exemption");
+            AllyEffects.forget(child); bind(source, child);
+            eq(hidden(child), true, "reset preview descendants can be filtered normally");
+        }
+        config.riftHideOwnAttacks = false; config.riftHideOwnBuffs = false;
+        AllyEffects.configure(config);
+        var preview = fx(); AllyEffects.beginAiming(); bind(attack, preview); AllyEffects.endAiming();
+        var child = fx(); child.parentFX = preview;
+        AllyEffects.beforeDetach(child); child.parentFX = null;
+        config.riftHideOwnAttacks = true; AllyEffects.configure(config);
+        AllyEffects.bindSkill(attack, preview); AllyEffects.bindSkill(attack, child);
+        eq(hidden(preview), false, "enabling self VFX filtering while aiming keeps the preview visible");
+        eq(hidden(child), false, "detaching with filters off retains preview identity");
+        AllyEffects.beginAiming(); AllyEffects.update(app);
+        var executed = fx(); bind(attack, executed);
+        eq(hidden(executed), true, "frame update recovers a targeting scope abandoned by a native exception");
+        AllyEffects.dispose();
+    }
+
     static function incrementalModels():Void {
         var config = SettingsData.defaults(); config.riftHideAllies = true;
         var layer:Dynamic = {isRift:true, config:{mapId:"World/Test"}, units:[], areas:[], entities:[]};
@@ -200,7 +251,7 @@ class EffectDiscoveryTest {
     }
 
     static function main():Void {
-        lazyArrays(); discoveryAndReuse(); incrementalModels(); rendererCleanup(); independentModelRefresh();
+        lazyArrays(); discoveryAndReuse(); aimingPreviews(); incrementalModels(); rendererCleanup(); independentModelRefresh();
         Sys.println('Incremental VFX discovery: $checks checks passed.');
     }
 }
