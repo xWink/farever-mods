@@ -572,11 +572,21 @@ class HistoryTest {
         var m = new CombatModel(1, version); m.me = "me"; m.profiles["me"] = profile(); m.party["me"] = true;
         m.onCombatEnter("me", 10); m.record(hit(10, 100, false, true));
         m.record(hit(20, 50, true, true)); m.onCombatExit("me", 20); m.update(21, false);
+        m.history[0].dpsMeterVersion = "1.2.3-test";
+        m.completed[0].dpsMeterVersion = "1.2.3-test";
         var archive = FightHistory.encode(m.history[0], "versioned");
         var report = m.completed[0].json("stamp", 1);
         check(archive.gameVersion == version && report.game_version == version && m.session.gameVersion == version,
             "History and upload logs record the native version separately from schema version");
         var restored = FightHistory.decode(Json.parse(Json.stringify(archive)));
+        check(archive.dpsMeterVersion == "1.2.3-test" && report.dpsMeterVersion == "1.2.3-test"
+            && restored.copy().dpsMeterVersion == "1.2.3-test"
+            && FightHistory.legacy(report, 1000, "versioned").dpsMeterVersion == "1.2.3-test",
+            "Mod version survives storage, copying, export and import");
+        Reflect.deleteField(archive, "dpsMeterVersion"); Reflect.deleteField(report, "dpsMeterVersion");
+        check(FightHistory.decode(archive).dpsMeterVersion == ""
+            && FightHistory.legacy(report, 1000, "old").dpsMeterVersion == "",
+            "Old logs never acquire the currently installed mod version");
         check(restored.copy().gameVersion == version && restored.json("later", 2).game_version == version,
             "Copying or reopening a chart preserves its recorded game version");
         check(FightHistory.legacy(report, 1000, "imported").gameVersion == version, "Legacy report import retains its original game version");

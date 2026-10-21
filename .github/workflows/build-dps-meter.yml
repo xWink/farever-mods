@@ -3,6 +3,10 @@ name: DPS Meter
 on:
   workflow_call:
     inputs:
+      mod-version:
+        description: Release version embedded in combat logs
+        type: string
+        default: ""
       source-ref:
         description: Exact source commit for the release pipeline
         type: string
@@ -60,6 +64,17 @@ jobs:
       - name: Test required dependency checks
         working-directory: shared
         run: haxe test-dependencies.hxml
+      - name: Set combat log build version
+        env:
+          RELEASE_VERSION: ${{ inputs.mod-version }}
+        run: |
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            echo "DPS_METER_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
+          elif [[ "$GITHUB_REF_NAME" == dps-meter/v* ]]; then
+            echo "DPS_METER_VERSION=${GITHUB_REF_NAME#dps-meter/v}" >> "$GITHUB_ENV"
+          else
+            echo "DPS_METER_VERSION=dev+$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
+          fi
       - name: Compile HLX mod
         run: haxe compile.hxml
       - name: Test fight history and combat boundaries

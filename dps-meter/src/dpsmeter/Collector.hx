@@ -183,11 +183,12 @@ class Collector {
         }
         // Heroic continues after Queenslayer kills Honeyzabeth. Her death and
         // KillBoss goal are only a transition; KillBossAlt owns the final win.
-        // isDead includes removed entities, which dungeonUnit excludes.
+        // Heroic requires the server objective: death/removal during a wipe
+        // is not evidence that the alternate boss was defeated.
         var queenCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Cleodora");
         var finalBoss = heroic ? queenslayer : cleodora;
-        var defeated = finalBoss != null ? G.call("ent.GameObject", "isDead", finalBoss) == true
-            : (heroic ? altCompleted == true : queenCompleted == true);
+        var defeated = heroic ? altCompleted == true
+            : (finalBoss != null ? G.call("ent.GameObject", "isDead", finalBoss) == true : queenCompleted == true);
         honeyzabethTransition = heroic && !defeated
             && (queenCompleted == true || (cleodora != null && G.call("ent.GameObject", "isDead", cleodora) == true))
             && NativeCombatMetadata.dungeonInCombat(player, activity);

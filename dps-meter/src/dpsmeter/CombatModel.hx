@@ -162,6 +162,7 @@ class Fight {
     public var start:Float;
     public var startedAt:Float;
     public var gameVersion:String;
+    public var dpsMeterVersion:String = BuildVersion.value();
     public var last:Float;
     public var closed:Float = 0;
     /** Transient reconciliation holds; never written into a history file. */
@@ -239,6 +240,7 @@ class Fight {
     }
     public function copy():Fight {
         var result = new Fight(start, gameVersion);
+        result.dpsMeterVersion = dpsMeterVersion;
         result.startedAt = startedAt;
         result.last = last; result.closed = closed; result.defeated = defeated;
         result.outcome = outcome; result.killedTargets = killedTargets.copy();
@@ -281,7 +283,7 @@ class Fight {
         var seconds = duration();
         var result:Dynamic = {session_id: reportKey() + "-" + timestamp + "-" + reportId,
             healing_received: healingReceived.json(),
-            game_version: gameVersion, duration_sec: SkillStats.rounded(seconds, 3), is_boss: isBoss, boss_kind: bossKind,
+            game_version: gameVersion, dpsMeterVersion: dpsMeterVersion, duration_sec: SkillStats.rounded(seconds, 3), is_boss: isBoss, boss_kind: bossKind,
             difficulty: difficulty, activity_id: activityId, boss_level: bossLevel, boss_foe_id: bossFoeId,
             players: [for (p in ranked()) if (p.info.name != "") p.json(seconds)]};
         if (phase != "") Reflect.setField(result, "phase", phase);
@@ -541,7 +543,8 @@ class CombatModel {
             && (fight.closed == 0 || (now >= fight.closed && now - fight.closed <= ENTRY_DAMAGE_SECONDS)))
         {
             fight.killedTargets[uid] = true;
-            if (fight.bossKind == "Cleodora" && fight.victoryUid == uid) fight.defeated = true;
+            if (fight.bossKind == "Cleodora" && fight.victoryKind != "Queenslayer"
+                && fight.victoryUid == uid) fight.defeated = true;
         }
     }
     function expirePendingFight(now:Float):Void {

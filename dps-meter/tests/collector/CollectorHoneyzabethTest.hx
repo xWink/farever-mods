@@ -138,7 +138,7 @@ class CollectorHoneyzabethTest {
         damage._kill = true; collector.damage(finalBoss, damage, 40);
         finalBoss.dead = true; finalBoss.isInCombat = false;
         model.onTargetDeath("queenslayer", 40);
-        check(fight.defeated, "Queenslayer's native death confirms Heroic victory");
+        check(!fight.defeated, "Queenslayer death RPC waits for the completed server objective");
         finalGoal.completed = true; ctx.dungeonState = "BossWin";
         hero.isInCombat = false; collector.combatExit("me", 40); collector.update(app, 41);
         check(model.history.length == 1 && model.history[0].outcome == "Victory"
@@ -154,6 +154,10 @@ class CollectorHoneyzabethTest {
         hero.isInCombat = true; collector.combatEnter("me", 60); collector.damage(mini, damage, 61);
         queen.dead = true; queen.isInCombat = false; queenGoal.completed = true;
         layer.units.push(finalBoss); finalBoss.isInCombat = true; collector.update(app, 62);
+        finalBoss.dead = true; finalBoss.isInCombat = false;
+        model.onTargetDeath("queenslayer", 62.5);
+        collector.update(app, 62.6);
+        check(!model.current.defeated, "A reset death state/RPC with an incomplete objective cannot confirm victory");
         finalBoss.removed = true; ctx.dungeonState = "BossLoose"; hero.isInCombat = false;
         collector.combatExit("me", 63); collector.update(app, 64);
         check(model.history.length == 1 && model.history[0].outcome == "Defeat",

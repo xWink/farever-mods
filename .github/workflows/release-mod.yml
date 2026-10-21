@@ -80,6 +80,7 @@ jobs:
       contents: write
     uses: ./.github/workflows/build-dps-meter.yml
     with:
+      mod-version: ${{ fromJSON(needs.prepare.outputs.plan).version }}
       source-ref: ${{ needs.prepare.outputs.source }}
 
   minimap:

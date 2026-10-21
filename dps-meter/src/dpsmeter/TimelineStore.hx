@@ -90,7 +90,7 @@ class TimelineStore {
             initial.push(row);
         }
         initial.sort(compare);
-        var header:Dynamic = {version:1, me:span.me, duration:Math.max(0, span.end - span.start),
+        var header:Dynamic = {version:1, dpsMeterVersion:record.dpsMeterVersion, me:span.me, duration:Math.max(0, span.end - span.start),
             initial:initial, count:events.length, clock:"client-observed", leadIn:2};
         var output = File.write(path + ".timeline.tmp", false);
         try {
