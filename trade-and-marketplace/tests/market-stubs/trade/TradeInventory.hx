@@ -17,7 +17,7 @@ class TradeInventory {
   return [for(i in 0...content.length)if(content[i]!=null&&content[i].item!=null){index:i,item:content[i].item,count:content[i].count}];
  }
  function findStored(uid:String):Dynamic {
-  for(s in (cast inventory.content:Array<Dynamic>))if(s.item.uid==uid)return s;
+  for(s in (cast inventory.content:Array<Dynamic>))if(s!=null&&s.item!=null&&s.item.uid==uid)return s;
   return null;
  }
  public function canDrop(s:Dynamic,count:Int):Bool return allowed&&Reflect.field(s.item,"locked")!=true&&Reflect.field(s.item,"bound")!=true&&count>0&&count<=s.count;
