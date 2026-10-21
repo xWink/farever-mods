@@ -419,7 +419,7 @@ class HistoryTest {
     }
     static function honeyzabeth():Void {
         function configure(m:CombatModel):Void {
-            m.activityId = "HoneyArena"; m.activityCategory = HistoryCategory.BOSS; m.difficulty = 2;
+            m.activityId = "HoneyArena"; m.activityCategory = HistoryCategory.BOSS; m.difficulty = 1;
             m.setDungeonBoss({kind:"Cleodora", name:"Queen Honeyzabeth", uid:"queen", level:20, foeId:9});
         }
         function mini(time:Float, amount:Float, kill:Bool = false, source:String = "me"):DamageEvent {

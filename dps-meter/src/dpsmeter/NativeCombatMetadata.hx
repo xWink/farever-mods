@@ -74,21 +74,31 @@ class NativeCombatMetadata {
         var kind = dungeonBosses[id];
         return kind == null ? "" : kind;
     }
-    public static function dungeonBossDefeated(player:Dynamic, activity:Dynamic, boss:String):Bool {
-        if (activity == null) return false;
+    public static function dungeonBossCompletion(player:Dynamic, activity:Dynamic, boss:String,
+            objectiveKind:String = "KillBoss"):Null<Bool> {
+        if (activity == null) return null;
+        var completed:Null<Bool> = null;
         try {
             var context = G.call("st.Player", "getActivityContext", player, [activity]);
             var contexts = [context], global = G.field(activity, "globalCtx");
             if (global != context) contexts.push(global);
             for (ctx in contexts) for (objective in G.array(G.field(ctx, "objectives"), true)) {
-                if (G.text(G.field(objective, "kind")) != "KillBoss") continue;
+                if (G.text(G.field(objective, "kind")) != objectiveKind) continue;
                 var target = G.field(objective, "target");
                 if (target != null && Type.enumConstructor(target) == "Unit"
-                    && G.text(Type.enumParameters(target)[0]) == boss
-                    && G.call("st.Objective", "isCompleted", objective) == true) return true;
+                    && G.text(Type.enumParameters(target)[0]) == boss) {
+                    if (G.call("st.Objective", "isCompleted", objective) == true) return true;
+                    completed = false;
+                }
             }
         } catch (e:Dynamic) warn(e);
-        return false;
+        return completed;
+    }
+    public static function dungeonInCombat(player:Dynamic, activity:Dynamic):Bool {
+        var context = G.call("st.Player", "getActivityContext", player, [activity]);
+        if (context == null) context = G.field(activity, "globalCtx");
+        var state = G.text(G.field(context, "dungeonState"));
+        return state == "BossStart" || state == "BossPhase";
     }
     static function category(inf:Dynamic):String {
         if (inf == null) return HistoryCategory.OTHER;

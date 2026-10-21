@@ -17,6 +17,8 @@ class Collector {
     var profileWeapons:Map<String, Dynamic> = [];
     var phrixes:Dynamic;
     var cleodora:Dynamic;
+    var queenslayer:Dynamic;
+    var honeyzabethTransition:Bool = false;
     var riftWait:Dynamic;
     var appliedStatuses:Map<String, Bool> = [];
     var countedSummons:Map<String, Bool> = [];
@@ -41,6 +43,7 @@ class Collector {
             profileRefresh = []; profileWeapons = [];
             phrixes = null;
             cleodora = null;
+            queenslayer = null; honeyzabethTransition = false;
             riftWait = null;
             appliedStatuses = [];
             countedSummons = [];
@@ -93,7 +96,7 @@ class Collector {
         // existing encounter. Neither starts the local meter without damage.
         var displayed = model.displayedFight();
         var partyInCombat = displayed != null && displayed.closed == 0 && (!localInCombat || !model.inCombat)
-            && (PartyCombat.active(hero) || cleodoraInCombat());
+            && (PartyCombat.active(hero) || honeyzabethInCombat());
         model.update(now, localInCombat, partyInCombat);
         if (group != null && model.activityId != "" && model.difficulty < 0) {
             // Never assign a stale lobby from another dungeon to an open-world boss.
@@ -156,20 +159,21 @@ class Collector {
     public function combatExit(uid:String, now:Float):Void {
         if (uid == model.me) refreshPhrixes(now);
         else if (model.inCombat || model.current == null || !model.party.exists(uid)) return;
+        // A phase/death update can arrive between roster polls and this RPC.
+        if (model.dungeonBoss != null) refreshDungeonBoss(G.field(layer, "isRift") == true);
         var displayed = model.displayedFight();
         model.onCombatExit(uid, now, displayed != null && displayed.closed == 0
-            && (PartyCombat.active(hero, uid) || cleodoraInCombat()));
+            && (PartyCombat.active(hero, uid) || honeyzabethInCombat()));
     }
     function refreshDungeonBoss(inRift:Bool):Void {
         if (inRift || NativeCombatMetadata.dungeonBoss(model.activityId) != "Cleodora") {
-            cleodora = null; model.setDungeonBoss(null); return;
+            cleodora = null; queenslayer = null; honeyzabethTransition = false; model.setDungeonBoss(null); return;
         }
-        if (cleodora != null && (G.field(cleodora, "layer") != layer || G.field(cleodora, "removed") == true)) cleodora = null;
-        if (cleodora == null || G.call("ent.GameObject", "isDead", cleodora) == true) for (unit in G.array(G.field(layer, "units"))) {
-            if (G.text(G.field(unit, "kind")) != "Cleodora" || G.field(unit, "summonOwner") != null
-                || G.field(unit, "removed") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
-            cleodora = unit; break;
-        }
+        var player = G.field(hero, "player"), activity = G.field(layer, "mainActivity");
+        var altCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Queenslayer", "KillBossAlt");
+        var heroic = model.difficulty == 2 || altCompleted != null;
+        cleodora = dungeonUnit("Cleodora", cleodora);
+        queenslayer = heroic ? dungeonUnit("Queenslayer", queenslayer) : null;
         var name = "";
         if (cleodora != null) name = G.text(G.call("ent.Unit", "getName", cleodora));
         else {
@@ -177,19 +181,35 @@ class Collector {
             var inf = byId == null ? null : G.call("haxe.ds.StringMap", "get", byId, ["Cleodora"]);
             if (inf != null) name = G.text(G.staticCall("HText", "unit", [inf, null]));
         }
-        // isDead also returns true for removed entities. Removal/unloading by
-        // itself is not a victory. When the queen is absent, use her exact
-        // replicated goal, never a completed miniboss or alternate-boss goal.
-        var defeated = cleodora != null ? G.call("ent.GameObject", "isDead", cleodora) == true
-            : NativeCombatMetadata.dungeonBossDefeated(G.field(hero, "player"), G.field(layer, "mainActivity"), "Cleodora");
+        // Heroic continues after Queenslayer kills Honeyzabeth. Her death and
+        // KillBoss goal are only a transition; KillBossAlt owns the final win.
+        // isDead includes removed entities, which dungeonUnit excludes.
+        var queenCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Cleodora");
+        var finalBoss = heroic ? queenslayer : cleodora;
+        var defeated = finalBoss != null ? G.call("ent.GameObject", "isDead", finalBoss) == true
+            : (heroic ? altCompleted == true : queenCompleted == true);
+        honeyzabethTransition = heroic && !defeated
+            && (queenCompleted == true || (cleodora != null && G.call("ent.GameObject", "isDead", cleodora) == true))
+            && NativeCombatMetadata.dungeonInCombat(player, activity);
         model.setDungeonBoss({kind:"Cleodora", name:name == "" ? "Cleodora" : name, uid:G.uid(cleodora),
-            level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId")), defeated:defeated});
+            level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId")), defeated:defeated,
+            victoryKind:heroic ? "Queenslayer" : "Cleodora", victoryUid:G.uid(finalBoss)});
     }
-    function cleodoraInCombat():Bool {
+    function dungeonUnit(kind:String, cached:Dynamic):Dynamic {
+        if (cached != null && (G.field(cached, "layer") != layer || G.field(cached, "removed") == true)) cached = null;
+        if (cached == null || G.call("ent.GameObject", "isDead", cached) == true) for (unit in G.array(G.field(layer, "units"))) {
+            if (G.text(G.field(unit, "kind")) != kind || G.field(unit, "summonOwner") != null
+                || G.field(unit, "removed") == true || G.call("ent.GameObject", "isDead", unit) == true) continue;
+            cached = unit; break;
+        }
+        return cached;
+    }
+    function honeyzabethInCombat():Bool {
         // These replicated fields are available even while canBeHit is false.
         // Never query isAtDeathDoor: the shipped client makes it server-only.
-        return cleodora != null && G.field(cleodora, "removed") != true
-            && G.field(cleodora, "isInCombat") == true && G.call("ent.GameObject", "isDead", cleodora) != true;
+        for (unit in [cleodora, queenslayer]) if (unit != null && G.field(unit, "removed") != true
+            && G.field(unit, "isInCombat") == true && G.call("ent.GameObject", "isDead", unit) != true) return true;
+        return honeyzabethTransition;
     }
     function refreshPhrixes(now:Float, observedHit:Bool = false):Void {
         if (phrixes == null) return;

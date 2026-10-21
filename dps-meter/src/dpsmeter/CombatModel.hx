@@ -3,7 +3,8 @@ package dpsmeter;
 import dpsmeter.RiftTracker.RiftRecap;
 
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
-typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int, ?defeated:Bool};
+typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int,
+    ?defeated:Bool, ?victoryKind:String, ?victoryUid:String};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
@@ -173,6 +174,9 @@ class Fight {
     public var bossFlags:Int = 0;
     public var bossName:String = "";
     public var bossUid:String = "";
+    // Encounter identity stays Honeyzabeth; Heroic's final target is Queenslayer.
+    public var victoryKind:String = "";
+    public var victoryUid:String = "";
     public var bossLevel:Int = 0;
     public var bossFoeId:Int = 0;
     public var difficulty:Int = -1;
@@ -212,8 +216,8 @@ class Fight {
         if (outcome != "") return;
         var won = defeated;
         // Honeyzabeth has multiple phases and a heroic death-door transition.
-        // Only her death RPC/state or her own completed objective confirms a
-        // win; a damage kill flag or a miniboss kill is not sufficient.
+        // Only the final boss's death RPC/state or completed goal confirms a
+        // win: Honeyzabeth normally, Queenslayer on Heroic.
         if (bossKind == "Cleodora") { outcome = won ? "Victory" : "Defeat"; return; }
         if (!won && (bossFlags & 0x10) != 0) won = bossUid != "" && killedTargets.exists(bossUid);
         else if (!won) {
@@ -241,6 +245,7 @@ class Fight {
         result.isBoss = isBoss; result.phase = phase;
         result.bossKind = bossKind; result.bossName = bossName; result.bossUid = bossUid; result.bossLevel = bossLevel;
         result.bossFlags = bossFlags;
+        result.victoryKind = victoryKind; result.victoryUid = victoryUid;
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.partySize = partySize;
         result.category = category;
@@ -536,7 +541,7 @@ class CombatModel {
             && (fight.closed == 0 || (now >= fight.closed && now - fight.closed <= ENTRY_DAMAGE_SECONDS)))
         {
             fight.killedTargets[uid] = true;
-            if (fight.bossKind == "Cleodora" && fight.bossUid == uid) fight.defeated = true;
+            if (fight.bossKind == "Cleodora" && fight.victoryUid == uid) fight.defeated = true;
         }
     }
     function expirePendingFight(now:Float):Void {
@@ -561,6 +566,11 @@ class CombatModel {
         }
         fight.bossKind = dungeonBoss.kind; fight.bossName = dungeonBoss.name;
         fight.bossFlags = 0x10;
+        var victoryKind = dungeonBoss.victoryKind;
+        if (victoryKind == null) victoryKind = difficulty == 2 ? "Queenslayer" : "Cleodora";
+        if (fight.victoryKind != victoryKind) {
+            fight.victoryKind = victoryKind; fight.victoryUid = ""; fight.defeated = false;
+        }
         // A respawn may arrive during the finished fight's final-damage grace
         // period. Keep that attempt attached to the queen it actually fought.
         if (dungeonBoss.uid != "" && (fight.closed == 0 || fight.bossUid == "" || fight.bossUid == dungeonBoss.uid)) {
@@ -568,8 +578,14 @@ class CombatModel {
             fight.bossLevel = dungeonBoss.level; fight.bossFoeId = dungeonBoss.foeId;
             fight.targets[fight.bossUid] = true;
         }
-        if (dungeonBoss.defeated == true && (dungeonBoss.uid == "" || fight.bossUid == dungeonBoss.uid))
-            fight.defeated = true;
+        if (dungeonBoss.uid == "" || fight.bossUid == dungeonBoss.uid) {
+            var victoryUid = dungeonBoss.victoryUid;
+            if (victoryUid == null) victoryUid = victoryKind == "Cleodora" ? dungeonBoss.uid : "";
+            if (victoryUid != "") {
+                fight.victoryUid = victoryUid; fight.targets[victoryUid] = true;
+            }
+            if (dungeonBoss.defeated == true) fight.defeated = true;
+        }
         return true;
     }
     function addToFight(fight:Fight, e:DamageEvent, info:PlayerInfo):Void {
@@ -602,6 +618,7 @@ class CombatModel {
         // ordinary combat damage, including wipes before she becomes hittable.
         // Do not let a miniboss's flags, name or death replace the final boss.
         if (dungeonEncounter) {
+            if (e.effect != 1 && e.bossKind == fight.victoryKind && e.summoned != true) fight.victoryUid = e.target;
             if (e.effect != 1 && e.bossKind == dungeonBoss.kind && e.summoned != true) {
                 fight.bossUid = e.target; fight.bossLevel = e.bossLevel; fight.bossFoeId = e.bossFoeId;
                 if (e.bossName != null && e.bossName != "") fight.bossName = e.bossName;
