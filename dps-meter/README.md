@@ -24,6 +24,8 @@ Generate an API key through the mod's settings and sign in with Steam to enable 
 
 Fight history is stored in `hlx/mods/dps-meter/history/`, with upload records under `hlx/mods/dps-meter/fareverly/`. Keep these folders when updating.
 
+Logs include each player's last observed primary, secondary/offhand, and arsenal weapons in `equippedWeapons`, with item IDs, rarity, required level, and upgrade level. Empty slots are `null`; an unavailable loadout is `null`. This metadata is not shown in the meter or reports.
+
 Automatic pruning is **enabled by default** and deletes logs older than one year. Change the retention period or disable pruning in Mod Settings. Pruning local files does not remove published logs from Fareverly.
 
 ## Installation

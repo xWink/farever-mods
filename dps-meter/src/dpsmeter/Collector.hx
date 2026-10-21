@@ -437,7 +437,8 @@ class Collector {
         var info:PlayerInfo = {uid: id, name: name,
             accountId: NativePlayerIdentity.accountId(h), characterId: NativePlayerIdentity.characterId(h),
             isMe: G.field(player, "isMe") == true || (config.me != "" && config.me.toLowerCase() == name.toLowerCase()),
-            className: className, weapon: w, classSkills: classSkills, weaponSkills: weaponSkills};
+            className: className, weapon: w, classSkills: classSkills, weaponSkills: weaponSkills,
+            equippedWeapons: NativeWeapons.capture(h)};
         model.profiles[id] = info;
         profileRefresh[id] = now; profileWeapons[id] = heldWeapon;
         return info;

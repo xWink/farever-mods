@@ -32,6 +32,7 @@ class FightHistory {
             var row:Dynamic = {
                 uid: p.info.uid, name: p.info.name, isMe: p.info.isMe || p.info.uid == fight.me,
                 accountId: p.info.accountId, characterId: p.info.characterId,
+                equippedWeapons: EquippedWeapons.copy(p.equippedWeapons),
                 className: p.info.className, damage: p.damage, heal: p.heal,
                 hits: p.hits, crits: p.crits, kills: p.kills,
                 skills: skills, damageBreakdown: p.damageBreakdown.json(p.damage)
@@ -94,6 +95,7 @@ class FightHistory {
             if (uid == "") throw "A history player has no ID.";
             var stats = new PlayerStats({uid: uid, name: text(p.name), isMe: p.isMe == true,
                 accountId: optionalId(p.accountId), characterId: optionalId(p.characterId),
+                equippedWeapons: EquippedWeapons.read(p.equippedWeapons),
                 className: text(p.className), weapon: null, classSkills: [], weaponSkills: []});
             stats.damage = number(p.damage); stats.heal = number(p.heal);
             stats.damageBreakdown = DamageBreakdown.read(p.damageBreakdown);
@@ -135,6 +137,7 @@ class FightHistory {
             {
                 uid: text(p.uid), name: text(p.name), isMe: p.is_me == true,
                 accountId: optionalId(p.account_id), characterId: optionalId(p.character_id),
+                equippedWeapons: EquippedWeapons.read(p.equippedWeapons),
                 className: text(Reflect.field(p, "class")), damage: number(p.total_damage), heal: number(p.heal),
                 hits: number(p.hits), crits: number(p.crits), kills: number(p.kills),
                 skills: skills, damageBreakdown: p.damage_breakdown, healing: HealingStats.outputRecord(p.healing)

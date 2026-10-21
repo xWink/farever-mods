@@ -7,7 +7,7 @@ typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeI
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
-    ?accountId:String, ?characterId:String
+    ?accountId:String, ?characterId:String, ?equippedWeapons:dpsmeter.EquippedWeapons.WeaponSlots
 };
 typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
@@ -60,8 +60,16 @@ class PlayerStats {
     public var castCounts:Map<String, Int> = [];
     public var castSerials:Map<String, Int> = [];
     public var weapons:Array<WeaponInfo> = [];
+    public var equippedWeapons:Null<dpsmeter.EquippedWeapons.WeaponSlots>;
     public var info:PlayerInfo;
-    public function new(info:PlayerInfo) this.info = info;
+    public function new(info:PlayerInfo) updateProfile(info);
+    public function updateProfile(info:PlayerInfo):Void {
+        // Keep the last observed loadout when a remote player's equipment is
+        // temporarily unavailable. A known empty slot still replaces its item.
+        if (info.equippedWeapons != null && (this.info == null || this.info.equippedWeapons != info.equippedWeapons))
+            equippedWeapons = EquippedWeapons.copy(info.equippedWeapons);
+        this.info = info;
+    }
     public function recordCast(skill:String, serial:Int):Void {
         if (skill == "" || serial <= 0 || (castSerials.exists(skill) && serial <= castSerials[skill])) return;
         castSerials[skill] = serial;
@@ -74,7 +82,7 @@ class PlayerStats {
         }
     }
     public function add(e:DamageEvent, info:PlayerInfo):Void {
-        this.info = info;
+        updateProfile(info);
         // An opening hit may create the fight after its activation. Carry only
         // an observed activation; a hit without one never invents a cast.
         if (e.activation != null) recordCast(e.skill, e.activation);
@@ -88,7 +96,7 @@ class PlayerStats {
                 healing.casts += castCount;
             }
             healingSkills[id].add(e);
-            return; // Healing must never alter damage hits, crits, skills or gear snapshots.
+            return; // Healing must never alter damage hits, crits, skills or weapons_seen.
         }
         damage += e.amount;
         damageBreakdown.add(e);
@@ -116,6 +124,7 @@ class PlayerStats {
             heal: SkillStats.rounded(heal, 0), hits: hits, crits: crits, kills: kills,
             damage_breakdown: damageBreakdown.json(damage)};
         Reflect.setField(result, "class", info.className);
+        Reflect.setField(result, "equippedWeapons", EquippedWeapons.copy(equippedWeapons));
         // Reports cross into the uploader thread: detach every mutable array
         // and weapon record from the live encounter before handing one off.
         if (info.weapon != null) Reflect.setField(result, "weapon", copyWeapon(info.weapon));
@@ -194,6 +203,7 @@ class Fight {
     }
     public function recordCast(info:PlayerInfo, skill:String, serial:Int):Void {
         if (!players.exists(info.uid)) players[info.uid] = new PlayerStats(info);
+        else players[info.uid].updateProfile(info);
         players[info.uid].recordCast(skill, serial);
     }
     public function finishOutcome():Void {
@@ -237,6 +247,7 @@ class Fight {
         result.me = me; result.meName = meName; result.meClass = meClass; result.participants = participants.copy(); result.targets = targets.copy();
         for (id => p in players) {
             var next = new PlayerStats(p.info);
+            next.equippedWeapons = EquippedWeapons.copy(p.equippedWeapons);
             next.castCounts = p.castCounts.copy(); next.castSerials = p.castSerials.copy();
             next.damage = p.damage; next.heal = p.heal; next.hits = p.hits;
             next.damageBreakdown = p.damageBreakdown.copy();

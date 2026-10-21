@@ -34,6 +34,10 @@ class GameAccess {
         case "haxe.ds._StringMap.StringMapKeysIterator.hasNext": object.hasNext();
         case "haxe.ds._StringMap.StringMapKeysIterator.next": object.next();
         case "st.Player.getActivityContext": field(object, "context");
+        case "st.Equipment.getSlot":
+            if (field(object, "unavailable") == true) throw "Equipment still loading";
+            Reflect.field(object.slots, args[0]);
+        case "st.Item.getRequiredLevel": field(object.inf, "requiredLevel");
         case "ent.GameObject.isDead": field(object, "dead") == true || field(object, "removed") == true;
         // The shipped client retains this server-only method as a throwing stub.
         case "ent.Unit.isAtDeathDoor": throw "!isServer";
@@ -88,6 +92,7 @@ class GameAccess {
             if (args[0].effect != 1) throw "Must not evaluate a damage effect / RNG";
             args[0].estimate;
         case "Config.getVersion": "0.3.0.test";
+        case "HItem.getRarity": {id: field(args[0], "rarity")};
         case "HActivity.all": [];
         case "data.CodexData.isInCodex": field(args[0], "inCodex") == true;
         case "st.player.Progress.getUnitProgressThreshold": field(args[0], "thresholds");

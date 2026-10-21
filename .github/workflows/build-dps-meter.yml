@@ -70,13 +70,15 @@ jobs:
           ref: 04a207d73816132b9f742867e8643f58b02a5afa
           path: .audio-hashlink
           persist-credentials: false
-      - name: Test GO audio byte buffers on HashLink
+      - name: Test audio buffers and equipped weapon logs on HashLink
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.audio-hashlink
         run: |
           make -C ../.audio-hashlink -j2 hl
           haxe test-ready-audio-hl.hxml
           ../.audio-hashlink/hl build/ready-audio-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main EquippedWeaponsTest -dce full -hl build/equipped-weapons-test.hl
+          ../.audio-hashlink/hl build/equipped-weapons-test.hl
       - name: Build desktop plugin
         run: |
           sudo apt-get update -qq
