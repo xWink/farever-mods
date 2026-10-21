@@ -336,7 +336,7 @@ class MarketController {
         if(source!=null)for(s in source.stacks())try {
             var allowed=source.canDrop(s,1),locked=!allowed&&MarketInventory.locked(source,s);
             var item=TradeInventory.describe(s.item,s.count);
-            item.name=MarketText.itemName(item.kind,item.name);
+            item.name=MarketText.itemName(item.kind,item.name,TradeInventory.itemName);
             if(!locations.exists(item.uid)) {
                 if(locked)lockedInventory[item.uid]=true;
                 else if(!allowed)boundInventory[item.uid]=true;
