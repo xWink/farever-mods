@@ -420,7 +420,7 @@ class MarketController {
             if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
-            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{invalidateListings();expectedBody="";requestId="";chosen=null;tab="My listings";page=1;refresh();});
+            request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{invalidateListings();expectedBody="";requestId="";chosen=null;page=1;refresh();});
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
     public function remove():Void {

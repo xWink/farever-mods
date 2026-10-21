@@ -15,7 +15,7 @@ class MarketplaceStateTest {
             response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({listings:rows,nextCursor:null})}});c.update(app,0);
     }
     static function main():Void {
-        var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player};
+        var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player,connectionInfo:{heroID:"test-hero"}};
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
         c.open();check(c.view.shown&&MarketWorker.current.sent.length==1);
         reply(c,app,{id:"first"},"next-page");
@@ -102,6 +102,15 @@ class MarketplaceStateTest {
         c.setBankOnly(false);check(c.bankTab==1&&c.inventory.length==1&&c.inventory[0].uid!="tab-two");
         c.setBankOnly(true);check(c.bankTab==1&&c.inventorySlots[1].uid=="tab-two");
         c.setBankTab(5);check(c.bankTab==1);
+        c.sellSearch="should";c.searchInventory();c.chosen=c.inventory[0];
+        var beforeListing=MarketWorker.current.sent.length;c.list(1,1,false);
+        check(c.busy&&MarketWorker.current.sent.length==beforeListing+1);
+        check(MarketWorker.current.sent[beforeListing].method=="POST");
+        ownReply(c,app,[]);
+        check(c.tab=="Sell"&&c.bankOnly&&c.bankTab==1&&c.sellSearch=="should"&&c.chosen==null);
+        ownReply(c,app,[]);
+        check(!c.busy&&c.tab=="Sell"&&c.inventorySlots[1].uid=="tab-two");
+
         c.inv.hero.loadout.banks=[firstBank];c.loadInventory();check(c.bankTab==0&&c.inventory[0].uid=="bank-item");
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
             response:{status:503,error:"HTTP Error #503",retryAfter:"60",body:'{"error":{"code":"unavailable"}}'}});
