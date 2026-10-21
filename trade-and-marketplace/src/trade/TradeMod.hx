@@ -14,6 +14,7 @@ class TradeMod {
     static var menuUi:Dynamic;
     static var menuUid:String;
     static var stoppingDrag = false;
+    public static function chatError(message:String):Void {if(controller!=null)controller.chat(message);}
     public static function enabled():Bool return config.enabled;
     public static function rejectsRequests():Bool return config.rejectAllRequests;
     public static function requestPosition():{x:Null<Float>,y:Null<Float>} return {x:config.requestX,y:config.requestY};

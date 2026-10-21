@@ -69,7 +69,8 @@ class MarketController {
     var retryOnOpen=false;
     var expectedBody="";
     var requestId="";
-    var contactAfter=0.0;
+    var sellerWhisperAfter:Map<String,Float>=[];
+    var contactingSeller="";
     var opened=false;
     public function new() {
         view=new MarketWindow(this);
@@ -155,6 +156,7 @@ class MarketController {
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
+        contactingSeller="";
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
@@ -497,18 +499,28 @@ class MarketController {
     }
 
     public function contact():Void {
-        if(selected==null||haxe.Timer.stamp()<contactAfter)return;
+        if(selected==null)return;
         var row=selected;if(row.seller.accountId==account){message="This is your listing.";view.dirty=true;return;}
         if(row.server!=server){message="This listing is on another server.";view.dirty=true;return;}
-        contactAfter=haxe.Timer.stamp()+5;
+        var sellerId=G.text(row.seller.accountId);
+        var deadline=sellerWhisperAfter.get(sellerId);
+        if(contactingSeller==sellerId||(deadline!=null&&haxe.Timer.stamp()<deadline)) {
+            message="Please wait "+(contactingSeller==sellerId?10:Math.ceil(deadline-haxe.Timer.stamp()))+" seconds before whispering this seller again.";
+            view.dirty=true;trade.TradeMod.chatError(message);return;
+        }
+        if(busy)return;
+        contactingSeller=sellerId;
         // Recheck availability before sending one explicit, human-readable whisper.
-        request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
+        var queued=request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
+            contactingSeller="";
+            sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
             var seller=G.text(current.seller.characterName);
             message="Sending whisper...";
             trade.TradeChat.send(player,G.text(current.seller.accountId),seller,
                 "Hi! I'm interested in your marketplace listing: "+TradeInventory.itemName(G.text(current.item.baseId))+" x"+MarketText.number(current.item.quantity)+
-                (current.price.mode=="offers"?" (open to offers).":" for "+MarketText.price(current.price)+"."),ok->{message=ok?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade.":"Could not send the whisper. The seller may be unavailable.";view.dirty=true;},true);
-        });
+                (current.price.mode=="offers"?" (open to offers).":" for "+MarketText.price(current.price)+"."),ok->{if(!ok)sellerWhisperAfter.remove(sellerId);message=ok?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade.":"Could not send the whisper. The seller may be unavailable.";view.dirty=true;},true);
+        },()->{contactingSeller="";});
+        if(!queued)contactingSeller="";
     }
     public static function error(code:String):String return switch(code){
         case "duplicate_item":"You already have an active listing for this item.";

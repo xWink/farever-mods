@@ -1,6 +1,7 @@
 import marketplace.MarketController;
 import marketplace.MarketWorker;
 import trade.TradeInventory;
+@:access(marketplace.MarketController)
 class MarketplaceStateTest {
     static var checks=0;
     static function check(value:Bool):Void {checks++;if(!value)throw "Marketplace state assertion "+checks;}
@@ -140,6 +141,21 @@ class MarketplaceStateTest {
         check(trade.TradeChat.lastEcho);
         check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
         check(c.message.indexOf("Whisper sent to Wink.")==0);
+        var whisperRequests=MarketWorker.current.sent.length;
+        c.selected={id:"another-item",server:"europe",seller:{accountId:"seller",characterName:"Other character"}};
+        c.contact();check(MarketWorker.current.sent.length==whisperRequests);
+        check(trade.TradeMod.lastError.indexOf("before whispering this seller again.")>0);
+        c.view.close();c.open();c.contact();check(MarketWorker.current.sent.length==whisperRequests);
+        c.selected.seller.accountId="different-seller";c.contact();
+        check(MarketWorker.current.sent.length==whisperRequests+1);
+        c.contact();check(MarketWorker.current.sent.length==whisperRequests+1);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:404,error:"Not found",retryAfter:"",body:'{"error":{"code":"listing_not_found"}}'}});c.update(app,0);
+        check(c.contactingSeller=="");
+        c.selected.seller.accountId="seller";c.sellerWhisperAfter.set("seller",haxe.Timer.stamp()-0.01);c.contact();
+        check(MarketWorker.current.sent.length==whisperRequests+2);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
+            response:{status:404,error:"Not found",retryAfter:"",body:'{"error":{"code":"listing_not_found"}}'}});c.update(app,0);
         c.account="self";
         var own={seller:{accountId:"self",onlineUntil:"2000-01-01T00:00:00.000Z"}},other={seller:{accountId:"other",onlineUntil:"2000-01-01T00:00:00.000Z"}};
         check(!c.listingOnline(own));
