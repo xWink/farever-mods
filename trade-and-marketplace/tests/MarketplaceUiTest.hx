@@ -30,11 +30,15 @@ class MarketplaceUiTest {
   check(searchUncovered(originalSearch));
   filterToggle.action();
   GameAccess.nodes=[];GameAccess.labels=[];GameAccess.buttons=[];view.update();
-  check(c.filtersExpanded&&c.pageSize()==8);
+  check(c.filtersExpanded&&c.pageSize()==6);
   check(GameAccess.buttons.filter(b->b.text=="Hide filters")[0]==filterToggle&&GameAccess.removed.indexOf(filterToggle)<0);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0]==originalSearch&&GameAccess.removed.indexOf(originalSearch)<0);
   check(searchUncovered(originalSearch));
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].parent.parent.y==388);
+  var expandedViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketListingViewport")==0)[0];
+  check(expandedViewport.overflow=="Hidden"&&expandedViewport.height>=6*68);
+  check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0).length==6);
+  check(GameAccess.buttons.filter(b->b.text=="Next"&&b.enable==true).length==1);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
@@ -110,8 +114,8 @@ class MarketplaceUiTest {
   var searchButton=GameAccess.buttons.filter(b->b.text=="Search")[0];
   check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==4);
   // Safe UI controls must remain responsive while requests are loading.
-  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(!c.filtersExpanded);
-  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(c.filtersExpanded);
+  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(!c.filtersExpanded&&c.pageSize()==8);
+  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(c.filtersExpanded&&c.pageSize()==6);
   GameAccess.buttons.filter(b->b.text=="Sell")[0].action();check(c.tab=="Sell");
   browse.action();check(c.tab=="Browse");
   var filterRequests=c.refreshes;
