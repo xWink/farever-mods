@@ -9,6 +9,15 @@ class TradeChat {
         var uid = G.text(G.field(G.field(message,"sender"),"uid"));
         return uid != "" && G.text(G.enumArgument(channel,0)) == uid ? uid : "";
     }
+    /** The game addresses received Player channels with the SENDER's ID,
+        whereas the buyer's local echo uses the RECIPIENT's ID. */
+    public static function isLocalMarketWhisper(client:Dynamic,player:Dynamic,message:Dynamic):Bool {
+        if(!isLocalClient(client,player))return false;
+        var channel=G.field(message,"channel");
+        if(channel==null||G.field(message,"notify")!=null||G.enumName(channel)!="Player")return false;
+        var self=G.text(G.field(player,"uid")),from=G.text(G.field(G.field(message,"sender"),"uid"));
+        return self!=""&&from!=""&&(from==self||G.text(G.enumArgument(channel,0))==from);
+    }
     public static function echo(player:Dynamic,to:String,name:String,text:String):Void {
         var client=G.field(player,"chatClient");
         if(!isLocalClient(client,player)||G.field(player,"removed")==true||G.field(client,"removed")==true)return;

@@ -118,11 +118,7 @@ class TradeMod {
             // whisper. A failed lookup leaves the human-readable ID intact.
             try {
                 var me=G.field(G.staticCall("GameApp","get",[]),"me");
-                var channel=G.field(message,"channel");
-                var mine=G.text(G.field(me,"uid")),from=G.text(G.field(G.field(message,"sender"),"uid"));
-                if(TradeChat.isLocalClient(client,me)&&mine!=""&&G.field(message,"notify")==null
-                    &&G.enumName(channel)=="Player"
-                    &&(from==mine||G.text(G.enumArgument(channel,0))==mine)) {
+                if(TradeChat.isLocalMarketWhisper(client,me,message)) {
                     var translated=marketplace.MarketWhisperMessage.localize(text,TradeInventory.itemName);
                     if(translated!=null)G.set(message,"text",translated);
                 }

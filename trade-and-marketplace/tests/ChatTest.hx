@@ -16,6 +16,16 @@ class ChatTest {
         check(echo.text=="I'd like to buy this."&&echo.sender.uid=="buyer"&&echo.sender.name=="Buyer");
         check(G.enumName(echo.channel)=="Player"&&G.enumArgument(echo.channel,0)=="seller"&&G.enumArgument(echo.channel,1)=="Seller");
         check(G.enumArgument(G.sent,0)==echo);
+        check(TradeChat.isLocalMarketWhisper(client,player,echo));
+        // Received whispers have Player channel addressing the sender, not
+        // the recipient. Both this case and the sender's echo must localize.
+        var incoming:Dynamic={sender:{uid:"seller"},
+            channel:G.enumValue("st.Channel","Player",["seller","Seller"]),notify:null};
+        check(TradeChat.isLocalMarketWhisper(client,player,incoming));
+        incoming.channel=G.enumValue("st.Channel","Player",["other","Other"]);
+        check(!TradeChat.isLocalMarketWhisper(client,player,incoming));
+        incoming.channel=G.enumValue("st.Channel","Global",[]);
+        check(!TradeChat.isLocalMarketWhisper(client,player,incoming));
         G.delivery(true);check(G.history.length==1&&replies==1);
         TradeChat.send(player,"seller","Seller","Failed delivery",reply,true);G.delivery(false);
         check(!result&&G.history.length==1);
