@@ -5,9 +5,9 @@ import trade.TradeInventory;
 /** Single readable whisper; each local chat translates the stable item ID. */
 class MarketWhisperMessage {
     public static inline var PREFIX="Hi! I'm interested in your marketplace listing: ";
-    static var itemId=~/^[A-Za-z0-9_:./-]{1,120}$/;
+    static var itemId=~/^[A-Za-z0-9_:.\-/]{1,120}$/;
     // Match only the plugin's exact readable message template.
-    static var template=~/^([A-Za-z0-9_:./-]{1,120})( x([1-9][0-9]{0,4})(?: for ([1-9][0-9,]* Silver Trays?)\.| \(open to offers\)\.))$/;
+    static var template=~/^([A-Za-z0-9_:.\-/]{1,120})( x([1-9][0-9]{0,4})(?: for ([1-9][0-9,]* Silver Trays?)\.| \(open to offers\)\.))$/;
 
     public static function message(listing:Dynamic):String {
         var item=listing==null?null:Reflect.field(listing,"item");
