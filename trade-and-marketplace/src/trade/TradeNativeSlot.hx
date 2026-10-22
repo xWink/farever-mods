@@ -65,10 +65,11 @@ class TradeNativeSlot {
             // that can apply a bright outline to the decorative slot.
             var nativeCount=G.field(button,"countTxt");
             if(nativeCount!=null)G.call("h2d.Object","set_visible",nativeCount,[false]);
-            for(o in [slot,inner,button]) {
+            for(o in [slot,inner,button])
                 G.call("h2d.Flow","set_enableInteractive",o,[false]);
-                G.call("ui.UIElement","set_padFocusable",o,[false]);
-            }
+            // ItemSlot and ItemButton are UIElements. innerSlot may be a plain
+            // Flow on some game builds: never send it a UIElement-only method.
+            for(o in [slot,button])G.call("ui.UIElement","set_padFocusable",o,[false]);
             G.call("ui.UIElement","set_selected",slot,[false]);
             return true;
         } catch(_:Dynamic) {
