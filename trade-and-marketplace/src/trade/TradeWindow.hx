@@ -27,7 +27,7 @@ class TradeWindow {
     var dragStartX = 0.0;
     var dragStartY = 0.0;
     var ghost:Dynamic;
-    var slotViews:Array<{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool}> = [];
+    var slotViews:Array<{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool,nativeFrame:Bool}> = [];
     static inline var WIDTH = 612;
     static inline var HEIGHT = 560;
     static inline var PANEL_WIDTH = 568;
@@ -118,9 +118,13 @@ class TradeWindow {
         G.call("h2d.Graphics","clear",graphic); rounded(graphic,0,0,PANEL_WIDTH,28,5,accepted ? 4154186 : 14273207);
         rounded(graphic,11,11,6,6,3,accepted ? 12445103 : 10191981); setText(label,text); ink(label,accepted ? 16187376 : 6969158);
     }
-    function paintSlot(slot:{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool}):Void {
-        var g = slot.background; G.call("h2d.Graphics","clear",g);
-        rounded(g,0,2,80,80,7,4601647,0.15); rounded(g,0,0,80,80,7,slot.disabled ? 10262933 : slot.color);
+    function paintSlot(slot:{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool,nativeFrame:Bool}):Void {
+        var g=slot.background;G.call("h2d.Graphics","clear",g);
+        // Let the native ItemSlot draw the ENTIRE background, including its
+        // original gradient and rarity border. Never overpaint that frame.
+        if(slot.nativeFrame)return;
+        rounded(g,0,2,80,80,7,4601647,0.15);
+        rounded(g,0,0,80,80,7,slot.disabled?10262933:slot.color);
         if(slot.empty||slot.disabled)rounded(g,2,2,76,76,5,slot.disabled?12170929:13022367);
         else {
             rounded(g,2,2,76,76,5,TradeRarity.shade(slot.fill,0.80));
@@ -137,7 +141,12 @@ class TradeWindow {
             var tier=empty?"":marketplace.MarketText.rarityId("","",
                 item.preview==null?"":item.preview.rarity,item.detail);
             var fill=empty?13022367:tier!=""?TradeRarity.fill(tier):TradeRarity.fromTint(item.color);
-            var slot = {background:graphic(row),empty:empty,color:empty ? 10127480 : item.color,fill:fill,disabled:!controller.state.editable()};
+            // Create background graphics before the native decorative slot so
+            // updates cannot draw over ItemSlot's actual rarity gradient.
+            var background=graphic(row);
+            var nativeFrame=!empty&&TradeNativeSlot.background(row,item,0,0,80);
+            var slot = {background:background,empty:empty,color:empty ? 10127480 : item.color,
+                fill:fill,disabled:!controller.state.editable(),nativeFrame:nativeFrame};
             slotViews.push(slot); paintSlot(slot); G.call("ui.UIElement","set_onClick",row,[()->{}]);
             if (empty) continue;
             var cursor = G.enumeration("hxd.Cursor","Button");
