@@ -869,9 +869,9 @@ class MarketWindow {
         G.call("h2d.Graphics","lineTo",graphics,[points[0],points[1]]);
         G.call("h2d.Graphics","endFill",graphics);
     }
-    function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int,?rarity="",prismatic=false):Void {
+    function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int,?rarity="",prismatic=false,?nativeItem:Dynamic):Void {
         var tier=MarketText.rarityId(rarity,"",item.preview==null?"":item.preview.rarity,item.detail);
-        if(!trade.TradeNativeSlot.background(parent,item,x,y,sizePx)) {
+        if(!trade.TradeNativeSlot.background(parent,item,x,y,sizePx,nativeItem)) {
             // Legacy/unsupported previews cannot always make a detached
             // native item. Keep the previous gradient only for those cases.
             var bg=graphic(parent),tint=trade.TradeRarity.fill(tier);
@@ -926,7 +926,7 @@ class MarketWindow {
         var picture=G.field(node("element",G.field(details,"dom"),[],"marketDetailsIcon"+(sequence++)),"obj");
         absolute(details,picture);padding(picture,0);size(picture,60,60);position(picture,0,0);
         // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.
-        itemIcon(picture,item,0,0,60,rarity,prismatic);
+        itemIcon(picture,item,0,0,60,rarity,prismatic,nativeItem);
         tooltip(picture,item);
         var name=labelAt(details,item.name,72,0,212,true,0xFFFFFF);
         largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
