@@ -56,6 +56,10 @@ class MarketplaceUiTest {
    &&rowMask.width==52&&rowMask.height==52);
   var artScale=trade.TradeNativeSlot.MARKET_ART_SCALE;
   var artInset=52.0*(1.0-artScale)/2.0;
+  Sys.println("Market row art debug: width="+nativeRowFrame.button.width
+   +" height="+nativeRowFrame.button.height+" scaleX="+nativeRowFrame.button.scaleX
+   +" scaleY="+nativeRowFrame.button.scaleY+" x="+nativeRowFrame.button.x
+   +" y="+nativeRowFrame.button.y+" targetScale="+artScale+" targetInset="+artInset);
   check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
    &&Math.abs(nativeRowFrame.button.scaleX-artScale)<0.001
    &&Math.abs(nativeRowFrame.button.scaleY-artScale)<0.001
