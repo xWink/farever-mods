@@ -38,7 +38,7 @@ class RunWriter {
         if (!HistoryCatalog.HistoryCategory.canArchive(record)) return;
         attachTimeline(record, fight);
         prepare();
-        uploader.archive(record, submitFareverly);
+        uploader.archive(record, submitFareverly && GameBranch.recordMayUpload(record));
     }
     public function archiveRecap(recap:dpsmeter.RiftTracker.RiftRecap):Void {
         if (stopped) return;

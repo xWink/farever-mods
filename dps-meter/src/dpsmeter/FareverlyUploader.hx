@@ -71,7 +71,9 @@ class FareverlyUploader {
         write(folder + "/cooldown.json", Json.stringify({until:nextRequest}));
     }
     public function enqueue(record:Dynamic):Void {
-        if (!FareverlyContract.candidate(record)) return;
+        // Archiving and submission are independent: PTR runs still enter local
+        // history, but never acquire a durable upload/retry queue entry.
+        if (!GameBranch.recordMayUpload(record) || !FareverlyContract.candidate(record)) return;
         FileSystem.createDirectory(folder);
         var path = reportPath(record.id);
         if (FileSystem.exists(path)) return;
@@ -152,6 +154,10 @@ class FareverlyUploader {
             try {
                 if (FileSystem.stat(path).size > MAX_BODY) throw "Log exceeds Fareverly's 5 MiB limit.";
                 bytes = File.getBytes(path); record = Json.parse(bytes.toString());
+                if(!GameBranch.recordMayUpload(record)) {
+                    finish(path,saved,"failed","PTR/beta or unverified game branch; local history retained.",false);
+                    continue;
+                }
                 var reason = FareverlyContract.validate(record, now); if (reason != "") throw reason;
             } catch (error:Dynamic) { finish(path, saved, "failed", Std.string(error), false); continue; }
             // The server authenticates this bearer key and checks the log's

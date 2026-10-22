@@ -8,7 +8,7 @@ class FareverlyContract {
         case "world-bosses": "World Bosses";
         default: "";
     };
-    public static function candidate(record:Dynamic):Bool return record != null && record.outcome == "Victory"
+    public static function candidate(record:Dynamic):Bool return record != null && GameBranch.recordMayUpload(record) && record.outcome == "Victory"
         && record.targetDummy != true && record.kind != "rift-recap" && Std.isOfType(record.id, String) && record.id != ""
         && Std.isOfType(record.bossKind, String) && StringTools.trim(record.bossKind) != ""
         && ["Classic Dungeons", "Boss Dungeons", "World Bosses"].indexOf(record.category) >= 0;

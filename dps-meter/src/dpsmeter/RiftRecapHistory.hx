@@ -13,7 +13,8 @@ class RiftRecapHistory {
         return record != null && FightHistory.text(record.kind) == KIND;
 
     public static function encode(recap:RiftRecap, id:String):Dynamic return {
-        version: 1, kind: KIND, id: id, name: NAME, gameVersion: recap.boss.gameVersion, dpsMeterVersion: recap.boss.dpsMeterVersion,
+        version: 1, kind: KIND, id: id, name: NAME, gameVersion: recap.boss.gameVersion, gameBranch: recap.boss.gameBranch,
+        dpsMeterVersion: recap.boss.dpsMeterVersion,
         gate: recap.gate == null ? null : FightHistory.encode(recap.gate, id + "_gates"),
         boss: FightHistory.encode(recap.boss, id + "_boss")
     };

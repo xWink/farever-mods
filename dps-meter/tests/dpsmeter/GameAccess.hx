@@ -93,6 +93,8 @@ class GameAccess {
             if (args[0].effect != 1) throw "Must not evaluate a damage effect / RNG";
             args[0].estimate;
         case "Config.getVersion": "0.3.0.test";
+        case "Config.get_steamBetaName": globals.exists("gameBeta") ? globals["gameBeta"] : "";
+        case "Config.get_branchName": globals.exists("gameBranch") ? globals["gameBranch"] : "";
         case "HItem.getRarity": {id: field(args[0], "rarity")};
         case "HActivity.all": [];
         case "data.CodexData.isInCodex": field(args[0], "inCodex") == true;

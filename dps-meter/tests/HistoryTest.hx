@@ -569,7 +569,7 @@ class HistoryTest {
     }
     static function gameVersions():Void {
         var version = "0.3.0.30903";
-        var m = new CombatModel(1, version); m.me = "me"; m.profiles["me"] = profile(); m.party["me"] = true;
+        var m = new CombatModel(1, version, "public-test-branch"); m.me = "me"; m.profiles["me"] = profile(); m.party["me"] = true;
         m.onCombatEnter("me", 10); m.record(hit(10, 100, false, true));
         m.record(hit(20, 50, true, true)); m.onCombatExit("me", 20); m.update(21, false);
         m.history[0].dpsMeterVersion = "1.2.3-test";
@@ -578,6 +578,9 @@ class HistoryTest {
         var report = m.completed[0].json("stamp", 1);
         check(archive.gameVersion == version && report.game_version == version && m.session.gameVersion == version,
             "History and upload logs record the native version separately from schema version");
+        check(archive.gameBranch=="public-test-branch"&&report.game_branch=="public-test-branch"
+            &&m.session.gameBranch=="public-test-branch",
+            "PTR game branch is recorded alongside the version in every fight");
         var restored = FightHistory.decode(Json.parse(Json.stringify(archive)));
         check(archive.dpsMeterVersion == "1.2.3-test" && report.dpsMeterVersion == "1.2.3-test"
             && restored.copy().dpsMeterVersion == "1.2.3-test"
@@ -587,6 +590,9 @@ class HistoryTest {
         check(FightHistory.decode(archive).dpsMeterVersion == ""
             && FightHistory.legacy(report, 1000, "old").dpsMeterVersion == "",
             "Old logs never acquire the currently installed mod version");
+        check(restored.copy().gameBranch=="public-test-branch"
+            &&restored.json("later",2).game_branch=="public-test-branch",
+            "Loading and copying charts preserves the original branch");
         check(restored.copy().gameVersion == version && restored.json("later", 2).game_version == version,
             "Copying or reopening a chart preserves its recorded game version");
         check(FightHistory.legacy(report, 1000, "imported").gameVersion == version, "Legacy report import retains its original game version");
@@ -599,6 +605,10 @@ class HistoryTest {
         m.updateRiftState(60, true, true, "BossKind"); m.update(61, false);
         check(m.session.gameVersion == version && m.recaps[0].gate.gameVersion == version
             && m.recaps[0].boss.gameVersion == version, "Zone resets and both rift snapshots retain the current version");
+        check(m.session.gameBranch=="public-test-branch"&&m.recaps[0].gate.gameBranch=="public-test-branch"
+            &&m.recaps[0].boss.gameBranch=="public-test-branch"
+            &&dpsmeter.RiftRecapHistory.encode(m.recaps[0],"branch-recap").gameBranch=="public-test-branch",
+            "Rift phases and their recap retain the PTR branch");
     }
     static function lifecycle():Void {
         var m = model();
@@ -1107,6 +1117,17 @@ class HistoryTest {
         check(saved.id == "Victory" && saved.outcome == "Victory", "Submission preserves existing fight JSON and outcome");
         check(File.getContent(root + "/fareverly/" + submissions[0]) == File.getContent(archivePath(root, "Victory")),
             "Local and submitted records have the same format");
+        // PTR and unverified builds are archived normally, never enqueued.
+        for(branch in ["public-test-branch","PTR","unknown","experimental"]) {
+            var ptr = sample(); ptr.gameBranch=branch;ptr.outcome="Victory";ptr.bossKind="BossKind";
+            uploader.archive(FightHistory.encode(ptr,"branch_"+branch),true);
+        }
+        uploader.flush();
+        check(FileSystem.readDirectory(root + "/fareverly").filter(name -> ~/^fight_[a-f0-9]{64}\.json$/.match(name)).length==1,
+            "PTR/unknown branch fights cannot enter the upload queue");
+        check(FileSystem.exists(archivePath(root,"branch_public-test-branch"))
+            &&FileSystem.exists(archivePath(root,"branch_unknown")),
+            "PTR and unknown branch fight history remains accessible locally");
         var local = sample(); local.outcome = "Victory"; local.bossKind = "BossKind";
         uploader.archive(FightHistory.encode(local, "uploads_disabled"), false); uploader.flush();
         check(FileSystem.exists(archivePath(root, "uploads_disabled")), "Disabling uploads still saves history");

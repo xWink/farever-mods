@@ -13,6 +13,7 @@ class RiftTracker {
     var gatesClosed:Null<Int>;
     public var warmup(default, null):Null<Fight>;
     var gameVersion:String;
+    var gameBranch:String;
     var targetBossKind:String = "";
     var fights:Array<Null<Fight>> = [null, null];
     var ended:Array<Float> = [-1, -1];
@@ -21,7 +22,9 @@ class RiftTracker {
     public var current(get, never):Null<Fight>;
     public var last(get, never):Null<Fight>;
 
-    public function new(gameVersion:String = "") { this.gameVersion = gameVersion; }
+    public function new(gameVersion:String = "", gameBranch:String = "") {
+        this.gameVersion = gameVersion; this.gameBranch = gameBranch;
+    }
     public function updateGates(count:Int):Void {
         if (count < 0) return;
         if (gatesClosed == null || gatesClosed < count) gatesClosed = count;
@@ -84,7 +87,7 @@ class RiftTracker {
             // never enters fights[], history, uploads, or the rift recap.
             if (warmup == null || (warmup.closed > 0 && e.time - warmup.closed > FINAL_DAMAGE_SECONDS)) {
                 if (e.effect == 1) return;
-                warmup = new Fight(e.time, gameVersion);
+                warmup = new Fight(e.time, gameVersion, gameBranch);
                 warmup.isBoss = false; warmup.bossName = "Rift: Before gates";
                 warmup.me = me; warmup.meName = meName; warmup.meClass = meClass;
                 warmup.difficulty = difficulty; warmup.activityId = activityId;
@@ -114,7 +117,7 @@ class RiftTracker {
         }
         if (fight == null) {
             if (e.effect == 1) return;
-            fight = new Fight(e.time, gameVersion);
+            fight = new Fight(e.time, gameVersion, gameBranch);
             fight.phase = index == 0 ? GATES_PHASE : "";
             fight.gatesClosed = gatesClosed;
             fight.isBoss = index == 1;

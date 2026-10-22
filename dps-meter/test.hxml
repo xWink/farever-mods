@@ -175,3 +175,10 @@
 -cp tests/account-ui
 -main FareverlyDialogTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main GameBranchTest
+--interp
