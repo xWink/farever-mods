@@ -199,8 +199,73 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",response:{status:409,error:"Conflict",retryAfter:"",body:'{"error":{"code":"stale_revision"}}'}});editor.update(app,0);
         check(editor.selected.item.quantity==10&&editor.selected.revision==4&&!editor.ownedKnown&&editor.editingListingId=="");
         check(editor.message=="This listing changed. Refresh before editing it again.");
+        navigationDuringRequests();
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
         MarketplaceRecoveryTest.run();
+    }
+
+    static function navigationDuringRequests():Void {
+        var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player,connectionInfo:{heroID:"test-hero"}};
+        var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
+
+        // A Browse fetch must never block switching tabs, and its response
+        // cannot replace Sell/My listings after the switch.
+        c.refresh();check(c.busy);
+        var original=MarketWorker.current.sent.length;
+        c.chooseTab("Sell");check(c.tab=="Sell"&&c.inventory.length==1&&c.busy&&c.navigationPending);
+        c.chooseTab("My listings");check(c.tab=="My listings"&&c.rows.length==0&&c.busy);
+        c.chooseTab("Sell");check(c.tab=="Sell"&&c.busy);
+        reply(c,app,{id:"browse-result"},null);
+        check(c.tab=="Sell"&&c.busy&&c.rows.length==0);
+        check(MarketWorker.current.sent.length==original+1
+            &&Std.string(MarketWorker.current.sent[original].path).indexOf("mine=true")>=0);
+        ownReply(c,app,[]);check(!c.busy&&c.tab=="Sell"&&c.ownedKnown);
+
+        // POST requests are never cancelled, and must not drag the user back to
+        // Sell or reset the Browse page after a successful listing.
+        c.chosen=c.inventory[0];
+        var start=MarketWorker.current.sent.length;c.list(1,1,false);
+        check(c.busy&&MarketWorker.current.sent.length==start+1
+            &&MarketWorker.current.sent[start].method=="POST");
+        c.chooseTab("Browse");
+        check(c.tab=="Browse"&&c.busy&&c.navigationPending);
+        ownReply(c,app,[]);
+        check(c.tab=="Browse"&&c.busy&&!c.navigationPending);
+        check(MarketWorker.current.sent.length==start+2
+            &&Std.string(MarketWorker.current.sent[start+1].path).indexOf("mine=true")<0);
+        reply(c,app,{id:"shopping"},null);
+        check(!c.busy&&c.tab=="Browse"&&c.rows.length==1&&c.rows[0].id=="shopping");
+
+        // Changing Browse filters repeatedly while the old query runs keeps
+        // the latest filter only; stale responses can cache but never display.
+        c.filters["search"]="first";c.refresh();check(c.busy);
+        var first=MarketWorker.current.sent.length;
+        c.filters["search"]="second";c.refresh();check(c.navigationPending);
+        c.toggleFilters();check(c.filtersExpanded&&c.busy);
+        reply(c,app,{id:"stale-filter"},null);
+        check(c.tab=="Browse"&&c.busy&&c.rows[0].id=="shopping"
+            &&MarketWorker.current.sent.length==first+1);
+        var latest=MarketWorker.current.sent[first];
+        check(Std.string(latest.path).indexOf("search=second")>=0);
+        reply(c,app,{id:"latest-filter"},null);
+        check(!c.busy&&c.rows[0].id=="latest-filter"&&!c.navigationPending);
+
+        // A second tab change can supersede a queued filter request.
+        c.refresh();check(c.busy);c.chooseTab("My listings");check(c.tab=="My listings"&&c.busy);
+        reply(c,app,{id:"old-query"},null);
+        check(!c.busy&&c.tab=="My listings"&&c.rows.length==0);
+
+        // Waiting for an in-flight prefetch is cancellable and must not
+        // keep the entire UI busy after changing tabs.
+        var p=new MarketController();p.player=player;p.inv=new TradeInventory(player);p.server="europe";p.ready=true;
+        p.refresh();reply(p,app,{id:"paged"},"second-page");
+        var prefetch=p.prefetch;check(prefetch!=null);
+        p.goPage(2);check(p.busy&&p.prefetch.waiting);
+        p.chooseTab("Sell");check(p.tab=="Sell"&&!p.navigationPending&&p.busy);
+        ownReply(p,app,[]);check(!p.busy&&p.tab=="Sell");
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"prefetch",
+            ticket:prefetch.ticket,response:{status:200,error:"",retryAfter:"",body:'{"listings":[{"id":"late"}],"nextCursor":null}'}});
+        p.update(app,0);check(p.tab=="Sell"&&!p.busy);
     }
 }

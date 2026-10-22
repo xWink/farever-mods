@@ -251,9 +251,9 @@ class MarketWindow {
                     tabButton(c.bankNames[i],16+i*176,820,166,()->c.setBankTab(i),c.bankTab==i);
             }
         } else {
-            button("Previous",16,820,118,()->c.goPage(c.page-1),"",c.page>1);
+            button("Previous",16,820,118,()->c.goPage(c.page-1),"",c.page>1,true);
             var pageLabel=labelAt(root,"Page "+c.page,152,830,172,true);
-            var next=button("Next",342,820,104,()->c.goPage(c.page+1),"",c.page<c.pages);
+            var next=button("Next",342,820,104,()->c.goPage(c.page+1),"",c.page<c.pages,true);
             var footer=G.field(node("element",G.field(root,"dom"),[],"marketPagination"+(sequence++)),"obj");
             absolute(root,footer);padding(footer,0);size(footer,430,36);position(footer,152,820);
             G.call("h2d.Object","addChild",footer,[pageLabel]);absolute(footer,pageLabel);position(pageLabel,0,10);
@@ -264,7 +264,7 @@ class MarketWindow {
                 position(next,G.number(G.field(bounds,"xMax"))*G.number(G.field(pageLabel,"scaleX"),1)+18,0);
             });
         }
-        button("Refresh",970,820,118,c.refresh,"");
+        button("Refresh",970,820,118,c.refresh,"",true,true);
         var message = c.message;
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
@@ -305,8 +305,8 @@ class MarketWindow {
         }
     }
 
-    function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true):Dynamic {
-        var click=()->{if(!c.busy&&enabled)action();};
+    function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true,whileLoading=false):Dynamic {
+        var click=()->{if((!c.busy||whileLoading)&&enabled)action();};
         var obj=filterControls.get("button:"+x+":"+y,()->frame.button(label,x,y,width,click,kind));
         setText(G.field(obj,"btnText"),label);trade.TradeFrame.setClass(obj,kind);
         G.call("ui.UIElement","set_onClick",obj,[click]);
@@ -314,7 +314,7 @@ class MarketWindow {
     }
     function tabButton(label:String,x:Int,y:Int,width:Int,action:Void->Void,selected:Bool):Void {
         // Match Better Mod Settings' native brown selected state.
-        G.call("ui.UIElement","set_selected",button(label,x,y,width,action,""),[selected]);
+        G.call("ui.UIElement","set_selected",button(label,x,y,width,action,"",true,true),[selected]);
     }
     function sortHeader(title:String,column:String,x:Int,width:Int,action:Void->Void,right=false):Void {
         var root=frame.container;
@@ -325,7 +325,7 @@ class MarketWindow {
         var caption=labelAt(header,title+(order==column+"-asc"?" ↑":order==column+"-desc"?" ↓":""),0,12,width,true);
         if(right)rightText(caption,width);
         else afterReflow(header,()->centerTextX(caption,0,width));
-        G.call("ui.UIElement","set_onClick",header,[()->{if(!c.busy)action();}]);
+        G.call("ui.UIElement","set_onClick",header,[action]);
     }
     function searchItemButton():Void {
         var control=button("",1048,contentY+7,28,c.searchSelectedItem,"",c.chosen!=null);
@@ -381,7 +381,7 @@ class MarketWindow {
         if(submit!=null) {
             G.set(input,"ignoreEnter",true);
             G.set(input,"onEnter",function():Void {
-                if(c.busy)return;
+                if(c.busy&&c.tab!="Browse")return;
                 changed(G.text(G.field(input,"text")));submit();
             });
         }
@@ -470,7 +470,6 @@ class MarketWindow {
         var popupRoot = G.field(frame.ui,"root");
         G.set(control,"getListLayout",()->popupRoot);
         G.call("ui.UIElement","set_onClick",select,[()->{
-            if(c.busy)return;
             for (other in controls) if(other!=control) G.call("ui.comp.Dropdown","close",other,[null]);
             G.call("ui.comp.Dropdown","toggle",control,[null]);
             var popup=G.field(control,"listWindow");
@@ -508,7 +507,6 @@ class MarketWindow {
         });
     }
     function filter(key:String,value:String):Void {
-        if(c.busy)return;
         if(key=="rarity") {
             c.filters["prismatic"]=value=="Epic (Prismatic)"?"true":"";
             value=value=="Epic (Prismatic)"?"Epic":value;
@@ -518,7 +516,6 @@ class MarketWindow {
         c.refresh(); dirty=true;
     }
     function resetFilters():Void {
-        if(c.busy)return;
         for(key in c.filters.keys())c.filters[key]=key=="online"?"true":"";
         c.setHideMine(true);
         c.page=1;c.refresh();dirty=true;
@@ -528,8 +525,8 @@ class MarketWindow {
         card(16,64,1072,c.filtersExpanded?260:96,0xDCCAB5);
         labelAt(root,"Search items",28,80,792,false,MUTED);
         input(f["search"],28,108,792,s->f["search"]=s.substr(0,100),"Item name...",()->filter("search",f["search"]),true);
-        button("Search",836,108,96,()->filter("search",f["search"]),"");
-        button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"");
+        button("Search",836,108,96,()->filter("search",f["search"]),"",true,true);
+        button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"",true,true);
         if(!c.filtersExpanded)return;
         var cats=["","Components","Weapon","Armor","Accessory","Consumables","Collections","Containers","Miscellaneous"];
         dropdown("Category",cats,["All items"].concat(cats.slice(1).map(MarketCategory.label)),f["category"],28,190,256,s->filter("category",s));
@@ -539,8 +536,8 @@ class MarketWindow {
         dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"]=="Epic"&&f["prismatic"]=="true"?"Epic (Prismatic)":f["rarity"],628,190,210,s->filter("rarity",s));
         dropdown("Pricing",["","fixed","offers"],["Any price","Buyout","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
         checkbox("Hide mine",c.hideMine,600,272,140,c.setHideMine,true);
-        checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"));
-        button("Clear filters",928,272,148,resetFilters,"");
+        checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"),true);
+        button("Clear filters",928,272,148,resetFilters,"",true,true);
         labelAt(root,"Class",28,244,464,false,MUTED);
         for(i in 0...4) {
             var name=["Warrior","Rogue","Mage","Priest"][i],selected=f["classes"].split(",").indexOf(name)>=0;
@@ -548,7 +545,7 @@ class MarketWindow {
                 var classes=f["classes"].split(",").filter(s->s!="");
                 if(classes.indexOf(name)>=0)classes.remove(name);else classes.push(name);
                 filter("classes",classes.join(","));
-            },selected?"unaccept":"",MarketCategory.supportsClasses(f["category"]));
+            },selected?"unaccept":"",MarketCategory.supportsClasses(f["category"]),true);
         }
     }
 
@@ -744,34 +741,12 @@ class MarketWindow {
         inventoryScrollbar(viewport,viewportWidth);
         if(sellScrollbar==null||!sellScrollbar.attachedTo(root))
             sellScrollbar=new MarketScrollbar(root);
-        sellScrollbar.bind(viewport,content,key);
+        sellScrollbar.bind(viewport,content);
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
         G.set(viewport,"onAfterReflow",()->{
             if(previous!=null)Reflect.callMethod(viewport,previous,[]);
             if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
-            var diagnosticKey="sell-scroll:"+key;
-            if(!reported.exists(diagnosticKey)) {
-                reported[diagnosticKey]=true;
-                // Public Flow getters return real layout; unlike private
-                // calculatedWidth/Height these can be inspected reliably.
-                try {
-                    var bar=G.field(viewport,"scrollBar");
-                    var viewportHeight=G.number(G.call("h2d.Flow","get_outerHeight",viewport,[]));
-                    var contentHeight=G.number(G.call("h2d.Flow","get_outerHeight",content,[]));
-                    var cursor=G.field(viewport,"scrollBarCursor");
-                    var barWidth=G.number(G.call("h2d.Flow","get_outerWidth",bar,[]));
-                    var cursorWidth=G.number(G.call("h2d.Flow","get_outerWidth",cursor,[]));
-                    trade.TradeDiagnostics.log("Marketplace Sell native scrollbar ["+key+"]: viewport="+viewportHeight
-                        +", content="+contentHeight+", expected="+(Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch)
-                        +", scroll content="+G.text(G.field(viewport,"contentHeight"),"unavailable")
-                        +", bar visible="+G.text(G.field(bar,"visible"),"missing")
-                        +", bar alpha="+G.text(G.field(bar,"alpha"),"missing")
-                        +", bar x="+G.text(G.field(bar,"x"),"missing")
-                        +", bar width="+barWidth+", cursor width="+cursorWidth
-                        +", layout="+G.enumName(G.field(viewport,"layout")));
-                } catch(error:Dynamic)report("Sell scrollbar measurement",error);
-            }
         });
     }
     static function inventoryScrollbar(viewport:Dynamic,viewportWidth:Int):Void {
@@ -1005,7 +980,7 @@ class MarketWindow {
         var root=frame.container, y=contentY+Std.int((806-contentY)/2)-40;
         labelAt(root,c.busy?"Finding listings...":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
         labelAt(root,c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
-        if(!c.busy&&c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"");
+        if(c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"",true,true);
     }
     function priceFields(y:Int):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);

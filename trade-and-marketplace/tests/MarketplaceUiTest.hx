@@ -95,7 +95,15 @@ class MarketplaceUiTest {
   c.message="Loading...";c.busy=true;view.dirty=true;GameAccess.labels=[];GameAccess.buttons=[];GameAccess.nodes=[];view.update();
   check(GameAccess.labels.filter(l->l.text=="Loading...").length==0);
   var searchButton=GameAccess.buttons.filter(b->b.text=="Search")[0];
-  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==2);
+  check(searchButton.enable==true);searchButton.action();search.input.onEnter();check(c.refreshes==4);
+  // Safe UI controls must remain responsive while requests are loading.
+  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(!c.filtersExpanded);
+  GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();check(c.filtersExpanded);
+  GameAccess.buttons.filter(b->b.text=="Sell")[0].action();check(c.tab=="Sell");
+  browse.action();check(c.tab=="Browse");
+  var filterRequests=c.refreshes;
+  classButton.action();check(c.filters["classes"]=="Warrior"&&c.refreshes==filterRequests+1);
+  c.filters["classes"]="";
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0&&n.enable!=true).length==0);
   check(GameAccess.buttons.filter(b->b.text=="Refresh").length==1&&GameAccess.buttons.filter(b->b.text=="Loading...").length==0);
   check(GameAccess.nodes.indexOf(search)>=0&&GameAccess.nodes.indexOf(select)>=0&&GameAccess.nodes.indexOf(online)>=0&&GameAccess.buttons.indexOf(classButton)>=0);

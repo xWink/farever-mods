@@ -17,8 +17,6 @@ class MarketScrollbar {
     public final paint:Dynamic;
     var viewport:Dynamic;
     var content:Dynamic;
-    var key="";
-    var lastLoggedKey="";
     var lastX=-1.0;
     var lastY=-1.0;
     var lastWidth=-1.0;
@@ -34,10 +32,9 @@ class MarketScrollbar {
     public function attachedTo(root:Dynamic):Bool return G.field(paint,"parent")==root;
     public function owns(child:Dynamic):Bool return child==paint;
 
-    public function bind(viewport:Dynamic,content:Dynamic,key:String):Void {
+    public function bind(viewport:Dynamic,content:Dynamic):Void {
         this.viewport=viewport;
         this.content=content;
-        this.key=key;
         // A rebuilt Flow can report a different thumb size at the same scroll
         // position. Invalidate the skin, not the game's scrollbar.
         lastHeight=-1;
@@ -79,12 +76,6 @@ class MarketScrollbar {
             trade.TradeFrame.rounded(paint,0,thumbY,width,thumbHeight,width/2,0x806B5B);
             lastX=x;lastY=y;lastWidth=width;lastHeight=height;
             lastThumbHeight=thumbHeight;lastThumbY=thumbY;
-        }
-        if(key!=lastLoggedKey) {
-            lastLoggedKey=key;
-            trade.TradeDiagnostics.log("Marketplace Sell painted scrollbar ["+key
-                +"]: x="+x+", viewport="+height+", content="+contentHeight
-                +", thumb="+thumbHeight+", scroll="+scroll);
         }
     }
 }
