@@ -32,6 +32,7 @@ class GameAccess {
   case "isPressed":false;
   case "getVersion":"test";
   case "getGfx":a[0];
+  case "getRarity":{id:field(a[0],"nativeRarityId")==null?"Epic":field(a[0],"nativeRarityId")};
   default:{id:"Epic"};
  };
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
