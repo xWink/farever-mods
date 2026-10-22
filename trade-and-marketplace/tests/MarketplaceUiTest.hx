@@ -194,10 +194,10 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
   var count=GameAccess.labels.filter(l->l.text=="Quantity: 1")[0];check(count.y>70);
-  var detailRarity=GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==detailName.parent)[0];
-  check(detailRarity.y>94&&count.y==detailRarity.y+18);
   var level=GameAccess.labels.filter(l->l.text=="Level 15"&&l.parent==detailName.parent)[0];
-  check(level.y>70&&level.y+24==detailRarity.y);
+  check(level.y>70&&count.y==level.y+24);
+  // Rarity is now communicated by the icon background, not by a text label.
+  check(GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==detailName.parent).length==0);
   var sellViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
   check(sellViewport.height>270&&sellViewport.y+sellViewport.height<500);
   var buyout=GameAccess.buttons.filter(b->b.text=="Buyout").pop(),negotiable=GameAccess.buttons.filter(b->b.text=="Open to offers").pop();
