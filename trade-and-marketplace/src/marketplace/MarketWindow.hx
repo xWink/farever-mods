@@ -874,9 +874,11 @@ class MarketWindow {
     }
     function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int,?rarity="",prismatic=false):Void {
         var tier=MarketText.rarityId(rarity,"",item.preview==null?"":item.preview.rarity,item.detail);
-        var bg=graphic(parent);
+        var bg=graphic(parent),tint=trade.TradeRarity.fill(tier);
         rounded(bg,x,y,sizePx,sizePx,5,trade.TradeRarity.border(tier,prismatic));
-        rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,trade.TradeRarity.fill(tier));
+        rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,trade.TradeRarity.shade(tint,0.80));
+        for(layer in trade.TradeRarity.gradient(tint,sizePx-2,sizePx-2,4))
+            rounded(bg,x+1+layer.x,y+1+layer.y,layer.width,layer.height,layer.radius,layer.color);
         var definition=TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);

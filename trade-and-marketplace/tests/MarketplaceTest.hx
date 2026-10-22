@@ -184,6 +184,16 @@ class MarketplaceTest {
   check(trade.TradeRarity.fill("Rare")==0x236581);
   check(trade.TradeRarity.fill("Legendary")==0x937829);
   check(trade.TradeRarity.border("Epic",true)!=trade.TradeRarity.border("Epic",false));
+  // Native-style centre highlight: multiple rounded hues, not one flat fill.
+  for(tier in ["Common","Uncommon","Rare","Epic","Legendary"]) {
+   var base=trade.TradeRarity.fill(tier),layers=trade.TradeRarity.gradient(base,42,42,4);
+   check(layers.length>=12&&layers[0].color!=layers[layers.length-1].color);
+   check(layers[0].x<layers[layers.length-1].x
+    &&layers[0].width>layers[layers.length-1].width);
+   check(layers[0].color==trade.TradeRarity.shade(base,0.82+0.5/layers.length));
+   check(trade.TradeRarity.gradient(base,58,58,4).length>layers.length);
+  }
+  check(trade.TradeRarity.gradient(0,0,42,4).length==0);
   check(MarketText.ellipsis(title,measure(title),measure)==title);
   check(MarketText.ellipsis(title,measure(title)+10,measure)==title);
   var cropped=MarketText.ellipsis(title,200,measure);

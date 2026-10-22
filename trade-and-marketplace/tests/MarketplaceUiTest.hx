@@ -44,7 +44,14 @@ class MarketplaceUiTest {
   for(child in (cast collapsedRow.children:Array<Dynamic>))if(child.shapes!=null)
    for(shape in (cast child.shapes:Array<Dynamic>))
     if(shape.width==42&&shape.x==9)iconFill.push(shape);
-  check(iconFill.length==1&&iconFill[0].color==trade.TradeRarity.fill("Epic"));
+  check(iconFill.length==1&&iconFill[0].color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
+  var iconRings:Array<Dynamic>=[];
+  for(child in (cast collapsedRow.children:Array<Dynamic>))if(child.shapes!=null)
+   for(shape in (cast child.shapes:Array<Dynamic>))
+    if(shape.x>9&&shape.y>=iconFill[0].y
+     &&shape.width<42&&shape.width>=25)iconRings.push(shape);
+  check(iconRings.length>=12&&iconRings[0].color!=iconRings[iconRings.length-1].color
+   &&iconRings[0].width>iconRings[iconRings.length-1].width);
   check(GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==collapsedRow).length==0);
   check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
@@ -467,16 +474,16 @@ class MarketplaceUiTest {
     detail:"Epic",color:0,fingerprint:"",preview:row.item.native};
    row.item.native.flags=2;row.item.prismatic=false;
    GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
    check(GameAccess.labels.filter(l->l.text=="Epic"||l.text=="Epic (Prismatic)").length==0);
    row.item.native.flags=0;GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
   }
   var originalRarity=row.item.rarity,originalDescription=row.item.detail;
   row.item.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
   for(tab in ["Browse","My listings"]) {
    c.tab=tab;c.selected=row;GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.fill("Legendary"));
+   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Legendary"),0.80));
    check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
    check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
     &&Std.string(l.text).indexOf("+63 Vitality")>=0
@@ -484,7 +491,7 @@ class MarketplaceUiTest {
   }
   row.item.detail="Legendary\n+63 Vitality";
   c.tab="Browse";GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.fill("Legendary"));
+  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Legendary"),0.80));
   check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
   check(GameAccess.labels.filter(l->l.text=="+63 Vitality"
    &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
@@ -492,13 +499,13 @@ class MarketplaceUiTest {
    detail:"+63 Vitality\n+27 Strength",color:0,fingerprint:"",preview:row.item.native};
   c.chosen.preview.rarity="";
   GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
   check(GameAccess.labels.filter(l->l.text=="Epic").length==0);
   check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
    &&Std.string(l.text).indexOf("+63 Vitality")>=0).length==1);
   row.item.rarity=originalRarity;row.item.detail=originalDescription;row.item.native.rarity="Epic";
   c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
   row.item.prismatic=false;
   // The Browse row and details must use the viewer's translated item name.
   trade.TradeInventory.localizedNames[row.item.baseId]="Bouclier des marées";

@@ -121,7 +121,12 @@ class TradeWindow {
     function paintSlot(slot:{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool}):Void {
         var g = slot.background; G.call("h2d.Graphics","clear",g);
         rounded(g,0,2,80,80,7,4601647,0.15); rounded(g,0,0,80,80,7,slot.disabled ? 10262933 : slot.color);
-        rounded(g,2,2,76,76,5,slot.disabled ? 12170929 : slot.empty ? 13022367 : slot.fill);
+        if(slot.empty||slot.disabled)rounded(g,2,2,76,76,5,slot.disabled?12170929:13022367);
+        else {
+            rounded(g,2,2,76,76,5,TradeRarity.shade(slot.fill,0.80));
+            for(layer in TradeRarity.gradient(slot.fill,76,76,5))
+                rounded(g,2+layer.x,2+layer.y,layer.width,layer.height,layer.radius,layer.color);
+        }
     }
     function render(parent:Dynamic,items:Array<TradeItem>,own:Bool):Void {
         for (c in children(parent)) G.call("h2d.Object","remove",c);
