@@ -23,7 +23,7 @@ class TradeUi {
   if(GameAccess.field(o,"flowProperties")==null)o.flowProperties={};o.flowProperties.isAbsolute=true;
  }
  public static function padding(o:Dynamic,v:Int):Void{}
- public static function size(o:Dynamic,w:Int,h:Int):Void {o.width=w;o.height=h;}
+ public static function size(o:Dynamic,w:Int,h:Int=-1):Void {o.width=w;if(h>=0)o.height=h;}
  public static function position(o:Dynamic,x:Float,y:Float):Void {o.x=x;o.y=y;}
  public static function style(o:Dynamic,p:String,v:Dynamic):Void{}
  public static function setText(o:Dynamic,s:String):Void {o.text=s;}
