@@ -40,6 +40,12 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
   var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
+  var iconFill:Array<Dynamic>=[];
+  for(child in (cast collapsedRow.children:Array<Dynamic>))if(child.shapes!=null)
+   for(shape in (cast child.shapes:Array<Dynamic>))
+    if(shape.width==42&&shape.x==9)iconFill.push(shape);
+  check(iconFill.length==1&&iconFill[0].color==trade.TradeRarity.fill("Epic"));
+  check(GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==collapsedRow).length==0);
   check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
   var moneyLabels=GameAccess.labels.filter(l->l.parent==money);
@@ -446,50 +452,59 @@ class MarketplaceUiTest {
   check(detailBacks.length==1&&detailBacks[0].y==panel.y-8&&detailBacks[0].y+detailBacks[0].height<752);
   var info=GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0);
   check(info.filter(l->l.text==row.item.name&&l.textColor==0xFFFFFF).length==1);
-  // Display rarity uses the native prismatic bit for local items and listing metadata.
+  // Browse, My listings and Sell use the same coloured icon backgrounds as
+  // native Inventory/Bank slots, without repeated English rarity labels.
+  function detailIconFill():Dynamic {
+   var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
+   check(picture!=null);
+   for(child in (cast picture.children:Array<Dynamic>))if(child.shapes!=null)
+    for(shape in (cast child.shapes:Array<Dynamic>))if(shape.width==58)return shape;
+   return null;
+  }
   for(tab in ["Browse","My listings","Sell"]) {
-   c.tab=tab;c.selected=row;c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,detail:"Epic",color:0,fingerprint:"",preview:row.item.native};
+   c.tab=tab;c.selected=row;
+   c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,
+    detail:"Epic",color:0,fingerprint:"",preview:row.item.native};
    row.item.native.flags=2;row.item.prismatic=false;
    GameAccess.labels=[];view.dirty=true;view.update();
-   check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==1);
+   check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+   check(GameAccess.labels.filter(l->l.text=="Epic"||l.text=="Epic (Prismatic)").length==0);
    row.item.native.flags=0;GameAccess.labels=[];view.dirty=true;view.update();
-   check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==0);
+   check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
   }
-  // Regression: a seller's detail can start with a stat, not an English
-  // rarity name. Browse and My listings must use item.rarity and preserve
-  // the first stat in the detail body.
   var originalRarity=row.item.rarity,originalDescription=row.item.detail;
   row.item.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
   for(tab in ["Browse","My listings"]) {
    c.tab=tab;c.selected=row;GameAccess.labels=[];view.dirty=true;view.update();
-   check(GameAccess.labels.filter(l->l.text=="Legendary"
-    &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+   check(detailIconFill().color==trade.TradeRarity.fill("Legendary"));
+   check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
    check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
     &&Std.string(l.text).indexOf("+63 Vitality")>=0
     &&Std.string(l.text).indexOf("+27 Strength")>=0).length==1);
   }
-  // A canonical first-line rarity should not appear a second time in stats.
   row.item.detail="Legendary\n+63 Vitality";
   c.tab="Browse";GameAccess.labels=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Legendary"
-   &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+  check(detailIconFill().color==trade.TradeRarity.fill("Legendary"));
+  check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
   check(GameAccess.labels.filter(l->l.text=="+63 Vitality"
    &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
-  // The Sell tab has no listing metadata: native rarity must still render
-  // even if the native item description begins directly with an affix.
-  c.tab="Sell";
-  c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,
+  c.tab="Sell";c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,
    detail:"+63 Vitality\n+27 Strength",color:0,fingerprint:"",preview:row.item.native};
   c.chosen.preview.rarity="";
   GameAccess.labels=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Epic"
-   &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+  check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
+  check(GameAccess.labels.filter(l->l.text=="Epic").length==0);
   check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
    &&Std.string(l.text).indexOf("+63 Vitality")>=0).length==1);
   row.item.rarity=originalRarity;row.item.detail=originalDescription;row.item.native.rarity="Epic";
   c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Epic (Prismatic)").length==1);
+  check(detailIconFill().color==trade.TradeRarity.fill("Epic"));
   row.item.prismatic=false;
+  // The Browse row and details must use the viewer's translated item name.
+  trade.TradeInventory.localizedNames[row.item.baseId]="Bouclier des marées";
+  GameAccess.labels=[];view.dirty=true;view.update();
+  check(GameAccess.labels.filter(l->l.text=="Bouclier des marées").length>=2);
+  trade.TradeInventory.localizedNames.remove(row.item.baseId);
   // Native detail formatting retains source-specific values and colour markup.
   var nativeId:Dynamic={token:"gift-id"};
   trade.TradeInventory.definitions["Gift"]={id:nativeId,skills:[]};GameAccess.slotIds=[nativeId];

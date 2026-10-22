@@ -167,12 +167,23 @@ class MarketplaceTest {
   var listing:Dynamic={item:{baseId:item.kind,name:item.name,quantity:1,rarity:"Rare",upgradeLevel:0,stats:[],modifiers:[],native:null}};
   var gift=MarketExport.offer(listing);
   check(gift.name==item.name&&gift.detail=="Rare");
+  // A viewer whose game language differs from the seller must see the local
+  // item name, while an unknown ID must still show the API name.
+  listing.item.name="English Corrupted Gift";
+  TradeInventory.localizedNames[item.kind]="Geschenk der Schatten";
+  check(StringTools.startsWith(MarketExport.offer(listing).name,"Geschenk der Schatten"));
+  TradeInventory.localizedNames.remove(item.kind);
+  listing.item.name=item.name;
   listing.item.upgradeLevel=3;
   check(MarketExport.offer(listing).detail=="Rare\nUpgrade +3");
   check(MarketText.detail("44 ArmorPenetrationRating\n44 SpellPenetrationRating\n12 CritChanceRating\n18 FervorRating")=="44 Armor Penetration\n44 Magic Penetration\n12 Critical\n18 Fervor");
   check(MarketText.detail("44 ETAttribute(SpellPenetrationRating)")=="44 Magic Penetration");
   check(MarketText.detail("5 Magic Penetration\n10 MagicArmor\n12 CooldownReduction")=="5 Magic Penetration\n10 Magic Resistance\n12 Cooldown Reduction");
   var title="Corrupted Gift (+Magic Penetration/-Armor Penetration)",measure=(text:String)->text.length*8.0;
+  check(trade.TradeRarity.fill("Epic")==0x662883);
+  check(trade.TradeRarity.fill("Rare")==0x236581);
+  check(trade.TradeRarity.fill("Legendary")==0x937829);
+  check(trade.TradeRarity.border("Epic",true)!=trade.TradeRarity.border("Epic",false));
   check(MarketText.ellipsis(title,measure(title),measure)==title);
   check(MarketText.ellipsis(title,measure(title)+10,measure)==title);
   var cropped=MarketText.ellipsis(title,200,measure);

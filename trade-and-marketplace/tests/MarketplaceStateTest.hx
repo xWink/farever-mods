@@ -141,7 +141,8 @@ class MarketplaceStateTest {
             response:{status:200,error:"",retryAfter:"",body:haxe.Json.stringify({seller:{accountId:"seller",characterName:"Wink"},item:{baseId:"Sword",quantity:12},price:{mode:"fixed",silverTrays:5}})}});
         c.update(app,0);
         check(trade.TradeChat.lastEcho);
-        check(trade.TradeChat.lastText.indexOf(" x12 for 5 Silver Trays.")>=0);
+        check(trade.TradeChat.lastText=="Hi! I'm interested in your marketplace listing: Sword x12 for 5 Silver Trays.");
+        check(trade.TradeChat.sends==1);
         check(c.message.indexOf("Whisper sent to Wink.")==0);
         var whisperRequests=MarketWorker.current.sent.length;
         c.selected={id:"another-item",server:"europe",seller:{accountId:"seller",characterName:"Other character"}};
