@@ -37,6 +37,8 @@ class MarketplaceStateTest {
         c.chooseTab("Browse");reply(c,app,{id:"third"},null);c.selected=c.rows[0];c.page=2;
         c.disconnect();check(c.selected==null&&c.rows.length==0&&c.page==1&&!c.view.shown);
         c.player=player;c.inv=new TradeInventory(player);c.server="europe";
+        // Browse requires a valid API key even while verification is pending.
+        c.key="fv1_"+StringTools.rpad("a","a",43);
         var before=MarketWorker.current.sent.length;c.open();
         check(MarketWorker.current.sent.length==before+1&&Std.string(MarketWorker.current.sent[before].path).indexOf("cursor=")<0);
         reply(c,app,{id:"delete-me",revision:7},null);
