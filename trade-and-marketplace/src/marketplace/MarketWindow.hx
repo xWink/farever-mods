@@ -56,6 +56,7 @@ class MarketWindow {
     public var dirty = true;
 
     public function new(controller:MarketController) c = controller;
+    public function isOpen():Bool return shown;
     public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();

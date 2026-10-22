@@ -18,16 +18,16 @@ class MarketplaceStateTest {
     static function main():Void {
         var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player,connectionInfo:{heroID:"test-hero"}};
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
-        c.open();check(c.view.shown&&MarketWorker.current.sent.length==1);
+        c.toggle();check(c.view.shown&&MarketWorker.current.sent.length==1);
         reply(c,app,{id:"first"},"next-page");
         c.page=2;c.refresh();check(Std.string(MarketWorker.current.sent[1].path).indexOf("cursor=next-page")>=0);
         reply(c,app,{id:"second"},null);c.selected=c.rows[0];
         var selected=c.selected;
-        c.view.close();c.open();
+        c.toggle();check(!c.view.shown);c.toggle();
         check(MarketWorker.current.sent.length==3&&!c.busy);
         check(c.page==2&&c.selected==selected&&c.rows[0]==selected&&c.view.shown);
         c.chooseTab("Sell");check(c.busy&&c.inventory.length==1);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
-        c.sellSearch="should";c.searchInventory();c.view.close();c.open();
+        c.sellSearch="should";c.searchInventory();c.toggle();check(!c.view.shown);c.toggle();
         check(c.tab=="Sell"&&c.chosen==chosen&&c.sellSearch=="should"&&c.inventory[0]==chosen);
         c.sellSearch="no match";c.searchInventory();check(c.chosen==null&&c.total==0);
         c.sellSearch="";c.searchInventory();check(c.total==1&&c.page==1);

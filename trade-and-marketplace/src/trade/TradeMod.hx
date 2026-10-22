@@ -41,7 +41,7 @@ class TradeMod {
             market.update(instance,haxe.Timer.stamp());
             if (enabled() && market.player != null && NativeHotkey.isPressed(config.marketplaceHotkey)) {
                 var ui=G.current("ui.BaseUI","current");
-                if(ui!=null && G.call("ui.BaseUI","getFocusedTextInput",ui)==null)market.open();
+                if(ui!=null && (market.view.isOpen() || G.call("ui.BaseUI","getFocusedTextInput",ui)==null))market.toggle();
             }
         } catch (error:Dynamic) market.fail(error);
     }

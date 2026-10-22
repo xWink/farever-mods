@@ -52,7 +52,7 @@ class MarketInventory {
         return result;
     }
     /** Count identical tradable copies, including separate non-stackable items.
-        A null scope searches both backpack and unlocked bank tabs for edits. */
+        A null scope searches both backpack and unlocked bank tabs. */
     public static function available(backpack:TradeInventory,item:Dynamic,?bankOnly:Bool):Int {
         if(backpack==null||item==null)return 0;
         var identity=MarketItemIdentity.key(item),count=0;

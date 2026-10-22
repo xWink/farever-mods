@@ -179,6 +179,9 @@ class MarketController {
         // A marketplace UI failure must not cancel an unrelated direct trade.
         view.recover(error);
     }
+    public function toggle():Void {
+        if(view.isOpen())view.close();else open();
+    }
     public function open():Void {
         if(!trade.TradeMod.enabled()||player==null||inv==null)return;
         view.open();

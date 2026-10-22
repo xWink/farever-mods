@@ -25,7 +25,7 @@ class MarketExport {
     public static function available(inv:TradeInventory,offer:TradeItem,bankOnly=false):Int {
         var source=MarketInventory.source(inv,offer.uid,bankOnly),stack=source==null?null:source.find(offer.uid);
         if(stack==null||TradeInventory.fingerprint(stack.item)!=offer.fingerprint||!source.canDrop(stack,1))return 0;
-        return MarketInventory.available(inv,itemData(stack.item,offer,1),bankOnly);
+        return MarketInventory.available(inv,itemData(stack.item,offer,1));
     }
     public static function snapshot(inv:TradeInventory,offer:TradeItem,quantity:Int,trays:Int,offers:Bool,server:String,app:Dynamic,bankOnly=false):Dynamic {
         if(server=="")throw "The connected server could not be identified. Reconnect before listing items.";
@@ -34,7 +34,7 @@ class MarketExport {
         if(quantity<1)throw "Choose a quantity of at least 1.";
         if(stack==null||TradeInventory.fingerprint(stack.item)!=offer.fingerprint||!source.canDrop(stack,1))
             throw "This item changed, is locked, or cannot be traded. Refresh and choose it again.";
-        var total=MarketInventory.available(inv,itemData(stack.item,offer,1),bankOnly);
+        var total=MarketInventory.available(inv,itemData(stack.item,offer,1));
         if(quantity>total)throw "Not enough of this item. You have "+total+" available.";
         if(quantity<1||quantity>10000||(!offers&&(trays<1||trays>200000)))throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
         var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
