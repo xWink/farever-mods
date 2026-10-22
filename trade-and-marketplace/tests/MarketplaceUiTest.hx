@@ -133,8 +133,8 @@ class MarketplaceUiTest {
   c.busy=false;
   var sellers=GameAccess.labels.filter(l->l.text=="Seller: Tester"),seller=sellers[0],sellerBox=seller.parent;
   var dot:Dynamic=sellerBox.children.filter(n->n.shapes!=null)[0];
-  check(GameAccess.labels.filter(l->l.text=="Online").length==MarketController.PAGE_SIZE);
-  check(sellers.length==MarketController.PAGE_SIZE&&dot.shapes[0].color==0x426138&&dot.shapes[0].radius==5);
+  check(GameAccess.labels.filter(l->l.text=="Online").length==c.pageSize());
+  check(sellers.length==c.pageSize()&&dot.shapes[0].color==0x426138&&dot.shapes[0].radius==5);
   check(dot.x==seller.x+14*8+6&&dot.y+5==12);
   check(sellers[sellers.length-1].parent.parent.y+sellerBox.parent.height<=806);
   seller.inkBounds={xMin:2.0,yMin:5.0,xMax:202.0,yMax:29.0};seller.scaleX=0.75;seller.scaleY=0.75;sellerBox.onAfterReflow();
@@ -156,7 +156,7 @@ class MarketplaceUiTest {
   check(onlineStatus.x==statusDot.x+16);
   row.seller.onlineUntil=null;GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="Seller: Tester").filter(l->l.parent.children.filter(n->n.shapes!=null)[0].shapes[0].color!=0x888888).length==0);
-  check(GameAccess.labels.filter(l->l.text=="Offline").length==MarketController.PAGE_SIZE);
+  check(GameAccess.labels.filter(l->l.text=="Offline").length==c.pageSize());
   var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
   check(picture.getTip!=null&&picture.width==60&&picture.height==60&&picture.showTipOnOver);
   check(picture.interactive!=null&&picture.interactive.onOver!=null);
