@@ -5,7 +5,7 @@ import trade.GameAccess;
 import trade.TradeFrame;
 class MarketplaceUiTest {
  static var checks=0;
- static function check(b:Bool):Void {checks++;if(!b)throw "Marketplace UI assertion "+checks;}
+ static function check(b:Bool,?context:String):Void {checks++;if(!b)throw "Marketplace UI assertion "+checks+(context==null?"":" "+context);}
  static function searchUncovered(search:Dynamic):Bool {
   var children:Array<Dynamic>=search.parent.children;
   for(child in children.slice(children.indexOf(search)+1)) {
@@ -60,7 +60,11 @@ class MarketplaceUiTest {
    &&Math.abs(nativeRowFrame.button.scaleX-artScale)<0.001
    &&Math.abs(nativeRowFrame.button.scaleY-artScale)<0.001
    &&Math.abs(nativeRowFrame.button.x-artInset)<0.001
-   &&Math.abs(nativeRowFrame.button.y-artInset)<0.001);
+   &&Math.abs(nativeRowFrame.button.y-artInset)<0.001,
+   haxe.Json.stringify({width:nativeRowFrame.button.width,height:nativeRowFrame.button.height,
+    sx:nativeRowFrame.button.scaleX,sy:nativeRowFrame.button.scaleY,
+    x:nativeRowFrame.button.x,y:nativeRowFrame.button.y,
+    expectedScale:artScale,expectedInset:artInset}));
   check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
    &&nativeRowFrame.innerSlot.enableInteractive==false&&nativeRowFrame.selected==false);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
