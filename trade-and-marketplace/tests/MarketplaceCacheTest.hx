@@ -151,6 +151,19 @@ class MarketplaceCacheTest {
         respond(c,app,last(),[for(i in 0...3){id:"tail-"+i,seller:{accountId:"other"}}],null);
         check(!c.busy&&c.rows.length==3&&c.rows[0].id=="tail-0"&&c.pages==4);
         c.goPage(1);check(c.rows.length==8&&!c.busy);
+        // The same 27 buffered items become five non-scrolling six-row
+        // pages when filters open; no new cursor requests or gaps.
+        var buffered=MarketWorker.current.sent.length;
+        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&!c.busy
+            &&c.rows.length==6&&c.rows[0].id=="public-0"&&c.pages==2
+            &&MarketWorker.current.sent.length==buffered);
+        c.goPage(2);check(c.rows.length==6&&c.rows[0].id=="public-6");
+        c.goPage(3);check(c.rows.length==6&&c.rows[0].id=="public-12");
+        c.goPage(4);check(c.rows.length==6&&c.rows[0].id=="public-18");
+        c.goPage(5);check(c.rows.length==3&&c.rows[0].id=="tail-0");
+        c.goPage(1);c.toggleFilters();
+        check(!c.filtersExpanded&&c.pageSize()==8&&c.rows.length==8
+            &&c.rows[0].id=="public-0"&&!c.busy&&MarketWorker.current.sent.length==buffered);
 
         // Turning off Hide mine uses the normal eight-item query without the
         // exclusion parameter. The previous single-slot cache has a new key,
