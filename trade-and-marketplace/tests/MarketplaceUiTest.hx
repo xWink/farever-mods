@@ -462,18 +462,19 @@ class MarketplaceUiTest {
   row.item.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
   for(tab in ["Browse","My listings"]) {
    c.tab=tab;c.selected=row;GameAccess.labels=[];view.dirty=true;view.update();
-   var listingDetail=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetails")==0)[0];
-   check(GameAccess.labels.filter(l->l.parent==listingDetail&&l.text=="Legendary").length==1);
-   check(GameAccess.labels.filter(l->l.parent==listingDetail
+   check(GameAccess.labels.filter(l->l.text=="Legendary"
+    &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+   check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
     &&Std.string(l.text).indexOf("+63 Vitality")>=0
     &&Std.string(l.text).indexOf("+27 Strength")>=0).length==1);
   }
   // A canonical first-line rarity should not appear a second time in stats.
   row.item.detail="Legendary\n+63 Vitality";
   c.tab="Browse";GameAccess.labels=[];view.dirty=true;view.update();
-  var listingDetails=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetails")==0)[0];
-  check(GameAccess.labels.filter(l->l.parent==listingDetails&&l.text=="Legendary").length==1);
-  check(GameAccess.labels.filter(l->l.parent==listingDetails&&l.text=="+63 Vitality").length==1);
+  check(GameAccess.labels.filter(l->l.text=="Legendary"
+   &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+  check(GameAccess.labels.filter(l->l.text=="+63 Vitality"
+   &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
   // The Sell tab has no listing metadata: native rarity must still render
   // even if the native item description begins directly with an affix.
   c.tab="Sell";
@@ -481,9 +482,9 @@ class MarketplaceUiTest {
    detail:"+63 Vitality\n+27 Strength",color:0,fingerprint:"",preview:row.item.native};
   c.chosen.preview.rarity="";
   GameAccess.labels=[];view.dirty=true;view.update();
-  var sellDetail=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetails")==0)[0];
-  check(GameAccess.labels.filter(l->l.parent==sellDetail&&l.text=="Epic").length==1);
-  check(GameAccess.labels.filter(l->l.parent==sellDetail
+  check(GameAccess.labels.filter(l->l.text=="Epic"
+   &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+  check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
    &&Std.string(l.text).indexOf("+63 Vitality")>=0).length==1);
   row.item.rarity=originalRarity;row.item.detail=originalDescription;row.item.native.rarity="Epic";
   c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
