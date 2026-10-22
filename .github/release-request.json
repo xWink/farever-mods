@@ -1,7 +1,7 @@
 {
   "project": "trade-and-marketplace",
-  "version": "1.0.1",
-  "commit": "1b6a04dbf6793bdb3bc4901a80278dca111bd79b",
-  "notes": "- Added a ratelimit to whispering the same seller repeatedly\n- Fixed an issue where players appeared as online in one server when they were online in another and couldn't be whispered\n- Fixed an issue where infusions had weird names\n",
+  "version": "1.1.0",
+  "commit": "c401ae39272e45beff7654b3cd0026371a0ec1bd",
+  "notes": "- Cancelling or completing a trade now makes players leave party\n- Marketplace UI improvements\n- Existing listings can now be edited\n- When selling an item, the maximum quantity is now the total amount possessed instead of the size of the selected stack\n- Added a filter to hide your own listings in the Browse page\n- When whispering a player about an item via the marketplace, the whisper will show the item's name in the right language for both the sender and receiver of the whisper\n- Fixed an issue where item names were displayed in English when the game was set to another language\n",
   "dry_run": false
 }
