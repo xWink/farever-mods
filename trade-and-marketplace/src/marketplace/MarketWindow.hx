@@ -47,6 +47,7 @@ class MarketWindow {
     var contentY = 284;
     var inventoryViewport:Dynamic;
     var inventoryContent:Dynamic;
+    var inventoryBar:MarketScrollbar;
     var inventoryScroll=0.0;
     var inventoryScrollKey="";
     static inline var SELL_FORM_Y=500;
@@ -107,6 +108,7 @@ class MarketWindow {
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
+        if(inventoryBar!=null)inventoryBar.update();
         stage="dropdown input";dismissOutsideDropdowns();
         if(c.connectionIssue&&!c.signingIn&&!connectionNoticeShown)showConnectionError();
     }
@@ -509,6 +511,7 @@ class MarketWindow {
     function resetFilters():Void {
         if(c.busy)return;
         for(key in c.filters.keys())c.filters[key]=key=="online"?"true":"";
+        c.setHideMine(true);
         c.page=1;c.refresh();dirty=true;
     }
     function filters():Void {
@@ -526,6 +529,7 @@ class MarketWindow {
         var rarities=["","Common","Uncommon","Rare","Epic","Epic (Prismatic)","Legendary"];
         dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"]=="Epic"&&f["prismatic"]=="true"?"Epic (Prismatic)":f["rarity"],628,190,210,s->filter("rarity",s));
         dropdown("Pricing",["","fixed","offers"],["Any price","Buyout","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
+        checkbox("Hide mine",c.hideMine,600,272,140,c.setHideMine,true);
         checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"));
         button("Clear filters",928,272,148,resetFilters,"");
         labelAt(root,"Class",28,244,464,false,MUTED);
@@ -635,7 +639,7 @@ class MarketWindow {
     }
     function rememberInventoryScroll():Void {
         if(inventoryViewport!=null)inventoryScroll=G.number(G.field(inventoryViewport,"scrollPosY"));
-        inventoryViewport=null;inventoryContent=null;
+        inventoryViewport=null;inventoryContent=null;inventoryBar=null;
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
@@ -728,6 +732,7 @@ class MarketWindow {
             });
         }
         inventoryScrollbar(viewport);
+        if(inventoryBar==null)inventoryBar=new MarketScrollbar(viewport);
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         if(created||resetScroll) {
             var saved=inventoryScroll,restored=false;
@@ -1035,7 +1040,7 @@ class MarketWindow {
             centerDropdownCaption(status,24,dotX+16);
         });
     }
-    function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void):Void {
+    function checkbox(text:String,value:Bool,x:Int,y:Int,width:Int,changed:Bool->Void,whileLoading=false):Void {
         var root=frame.container;
         var box=filterControls.get("checkbox:"+x+":"+y,()->{
             var box=G.field(node("check-box",G.field(root,"dom"),[text],"marketCheck"+(sequence++)),"obj");
@@ -1057,7 +1062,7 @@ class MarketWindow {
         G.call("ui.comp.CheckBox","set_selected",box,[value]);
         G.call("ui.UIElement","set_enable",box,[true]);
         G.set(box,"onValueChange",(selected:Bool)->{
-            if(c.busy)G.call("ui.comp.CheckBox","set_selected",box,[value]);else changed(selected);
+            if(c.busy&&!whileLoading)G.call("ui.comp.CheckBox","set_selected",box,[value]);else changed(selected);
         });
     }
     static function afterReflow(object:Dynamic,layout:Void->Void):Void {

@@ -26,6 +26,7 @@ class TradeUi {
  public static function size(o:Dynamic,w:Int,h:Int):Void {o.width=w;o.height=h;}
  public static function position(o:Dynamic,x:Float,y:Float):Void {o.x=x;o.y=y;}
  public static function style(o:Dynamic,p:String,v:Dynamic):Void{}
+ public static function show(o:Dynamic,v:Bool):Void {if(o!=null)o.visible=v;}
  public static function setText(o:Dynamic,s:String):Void {o.text=s;}
  public static function escape(s:String):String return s;
 }

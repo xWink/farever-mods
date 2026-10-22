@@ -10,6 +10,8 @@ class MarketController {
     public static inline var PAGE_SIZE = 8;
     public static inline var LISTING_LIMIT = 20;
     public var filtersExpanded=false;
+    public var hideMine=true;
+    var browseRows:Array<Dynamic>=[];
     public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
     public var player:Dynamic;
     public var inv:TradeInventory;
@@ -174,7 +176,7 @@ class MarketController {
         ownOnlineUntil=0;ownOnlineServer="";
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;navigationPending=false;
         cooldown.clear();retryOnOpen=false;
-        rows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
+        rows=[];browseRows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
         opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
         SessionLease.release(HlxRuntime.moduleName());
@@ -218,7 +220,7 @@ class MarketController {
         cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function chooseTab(value:String):Void {
-        editingListingId="";rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];selected=null;total=0;page=pages=1;
+        editingListingId="";rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];browseRows=[];selected=null;total=0;page=pages=1;
         activePages=tab=="Browse"?cacheForTab():null;
         if(tab=="My listings")page=minePage;
         else if(activePages!=null)page=activePages.current;
@@ -249,6 +251,28 @@ class MarketController {
     public function toggleFilters():Void {
         // Layout only: keep the query, pagination, selection and prefetched rows.
         filtersExpanded=!filtersExpanded;view.dirty=true;
+    }
+    public function setHideMine(value:Bool):Void {
+        if(hideMine==value)return;
+        hideMine=value;
+        if(tab=="Browse") {
+            // The API has no exclude-owner parameter. Refilter the unmodified
+            // cached rows locally; keep cursors and prefetches valid in either state.
+            var id=G.text(G.field(selected,"id"));
+            rows=visibleBrowseRows();total=rows.length;selected=null;
+            for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
+            rememberTab();
+        }
+        view.dirty=true;
+    }
+    function visibleBrowseRows():Array<Dynamic> {
+        var now=Date.now().getTime()/1000;
+        return browseRows.filter(row->{
+            var expiry=G.text(G.field(row,"expiresAt")),seller=G.field(row,"seller");
+            return (expiry==""||Protocol.expiry(expiry)>now)
+                &&(filters["online"]!="true"||seller==null||listingOnline(row,now))
+                &&(!hideMine||account==""||G.text(G.field(seller,"accountId"))!=account);
+        });
     }
     public function listingSort():String return tab=="My listings"?mineSort:filters["sort"];
     public function sortByLevel():Void cycleSort("required-level");
@@ -419,7 +443,7 @@ class MarketController {
         cache.current=page;cache.trim();
         var target=page,cached=force?null:cache.get(target,haxe.Timer.stamp());
         if(cached!=null){displayPage(cache,target,cached);prefetchNext();return;}
-        if(!force){rows=[];selected=null;total=0;}
+        if(!force){rows=[];browseRows=[];selected=null;total=0;}
         if(!force&&prefetch!=null&&prefetch.cache==cache&&prefetch.page==target) {
             prefetch.waiting=true;busy=true;message="Loading...";view.dirty=true;return;
         }
@@ -433,12 +457,8 @@ class MarketController {
         });
     }
     function displayPage(cache:MarketPages,target:Int,result:MarketPages.MarketPage):Void {
-        var selectedId=G.text(G.field(selected,"id"),cache.selectedId),now=Date.now().getTime()/1000;
-        rows=result.rows.filter(row->{
-            var expiry=G.text(G.field(row,"expiresAt")),seller=G.field(row,"seller");
-            return (expiry==""||Protocol.expiry(expiry)>now)
-                &&(tab!="Browse"||filters["online"]!="true"||seller==null||listingOnline(row,now));
-        });
+        var selectedId=G.text(G.field(selected,"id"),cache.selectedId);
+        browseRows=result.rows;rows=visibleBrowseRows();
         page=target;cache.current=target;cache.trim();total=rows.length;pages=page+(result.next==null?0:1);
         selected=null;
         for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}

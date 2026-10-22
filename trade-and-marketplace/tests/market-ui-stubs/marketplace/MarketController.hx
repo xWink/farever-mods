@@ -2,6 +2,8 @@ package marketplace;
 class MarketController {
  public static inline var PAGE_SIZE=8;
  public var filtersExpanded=false;public var view:MarketWindow;
+ public var hideMine=true;
+ public function setHideMine(value:Bool):Void {hideMine=value;if(view!=null)view.dirty=true;}
  public function pageSize():Int return tab=="Browse"?8:9;
  public function toggleFilters():Void {filtersExpanded=!filtersExpanded;if(view!=null)view.dirty=true;}
  public var bankOnly=false;

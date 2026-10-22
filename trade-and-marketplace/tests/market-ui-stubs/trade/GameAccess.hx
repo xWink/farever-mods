@@ -49,7 +49,9 @@ class GameAccess {
     if(a[0]=="Scroll"&&field(o,"scrollBar")==null) {
      o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;
      o.scrollBar.flowProperties={isAbsolute:true,horizontalAlign:"Right",verticalAlign:"Top"};
+     o.scrollBar.background=object(o.scrollBar);o.scrollBar.backgroundTile={};
      o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;
+     o.scrollBarCursor.background=object(o.scrollBarCursor);o.scrollBarCursor.backgroundTile={};
     }null;
    case "getProperties":
     var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
@@ -100,6 +102,10 @@ class GameAccess {
      o.items=[for(_ in (cast o.options:Array<Dynamic>))object(o.listWindow.content)];
     }null;
    case "set_onClick": o.action=a[0];null;
+   case "set_onOver", "set_onOut": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_backgroundTile":
+    o.backgroundTile=a[0];
+    if(a[0]==null&&field(o,"background")!=null){call("h2d.Object","remove",o.background);o.background=null;}null;
    case "getName": "Tester";
    case "getRequiredLevel": 15;
    case "getItemAffixes": ["75 Vitality","58 Strength"];

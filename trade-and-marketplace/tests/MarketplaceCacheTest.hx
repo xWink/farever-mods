@@ -106,6 +106,38 @@ class MarketplaceCacheTest {
         c.toggleListing(c.rows[0]);c.sortByPrice();check(c.selected==null&&MarketWorker.current.sent.length==sent);
         c.refresh();var old=last();c.disconnect();respond(c,app,old,[{id:"old-session"}],null);
         check(c.rows.length==0&&c.selected==null);
+        ownListingFilter();
         Sys.println("Marketplace cache checks passed: "+checks);
+    }
+    static function ownListingFilter():Void {
+        var player:Dynamic={isMe:true,uid:"self",hero:{loadout:{banks:[]}}},app={me:player};
+        var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.account="self";c.server="europe";c.ready=true;
+        c.filters["online"]="false";
+        var own:Dynamic={id:"mine",server:"europe",seller:{accountId:"self",characterName:"Another character"}},
+            other:Dynamic={id:"other",seller:{accountId:"other",characterName:"My name"}};
+        c.open();respond(c,app,last(),[own,other],"next");
+        check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="other"&&c.pages==2);
+        var sent=MarketWorker.current.sent.length;
+        check(Std.string(last().path).indexOf("hideMine")<0);
+        c.selected=c.rows[0];c.setHideMine(false);
+        check(c.rows.length==2&&c.selected.id=="other"&&MarketWorker.current.sent.length==sent);
+        c.selected=c.rows[0];c.setHideMine(true);
+        check(c.rows.length==1&&c.selected==null&&c.pages==2&&MarketWorker.current.sent.length==sent);
+        // Do not mutate raw cached pages: switching back must restore own rows.
+        c.setHideMine(false);check(c.rows.length==2);
+        c.setHideMine(true);c.refresh();var loading=last();
+        c.setHideMine(false);check(c.busy&&c.rows.length==2&&last()==loading);
+        respond(c,app,loading,[own,other],"next");
+        check(c.rows.length==2&&!c.busy);
+        c.setHideMine(true);respond(c,app,last(),[own],null);
+        c.goPage(2);check(c.page==2&&c.rows.length==0&&!c.busy);
+        c.setHideMine(false);check(c.rows.length==1&&c.rows[0].id=="mine"&&!c.busy);
+        c.setHideMine(true);c.chooseTab("My listings");
+        respond(c,app,last(),[own],null);
+        check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="mine");
+        c.setHideMine(false);check(c.rows.length==1);
+        c.setHideMine(true);check(c.rows.length==1);
+        c.chooseTab("Browse");check(c.rows.length==0&&c.page==2);
+        c.setHideMine(false);check(c.rows.length==1);
     }
 }

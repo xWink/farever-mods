@@ -73,13 +73,10 @@ class TradeFrame {
             sheet += selector+" > #background { background: "+s.bg+"; }"+selector+":hover > #background { background: darken("+s.bg+", 8%); }"
                 +selector+":active > #background { background: darken("+s.bg+", 15%); }"+selector+" > #btnText { color: "+s.fg+"; }";
         }
-        // Dynamic backgrounds do not inherit the colour of the old background
-        // tile. Give both shader backgrounds an explicit fill and rounded ends.
-        sheet += ".scrollbar.market-inventory-scrollbar { width: 12; padding: 0; alpha: 1; background-type: dynamic; background: #B69B7F; }"
-            + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; padding: 0; alpha: 1; background-type: dynamic; background: #806B5B; }"
-            + ".scrollbar.market-inventory-scrollbar > #background { background: #B69B7F; background-alpha: 1; border-radius: 6; }"
-            + ".scrollbar.market-inventory-scrollbar > .cursor > #background { background: #806B5B; background-alpha: 1; border-radius: 6; }"
-            + ".scrollbar.market-inventory-scrollbar > .cursor:hover > #background { background: #5B4334; }";
+        // Keep the native scrollbar's background type. MarketScrollbar paints
+        // rounded ends without converting its ScaleGrid into a shader background.
+        sheet += ".scrollbar.market-inventory-scrollbar { width: 12; padding: 0; alpha: 1; }"
+            + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; padding: 0; alpha: 1; }";
         var style = G.field(ui,"style");
         G.call("domkit.CssStyle","add",style,[G.call("domkit.CssParser","parseSheet",G.field(style,"cssParser"),[sheet,"trade-actions"])]);
         styledUi = ui;
