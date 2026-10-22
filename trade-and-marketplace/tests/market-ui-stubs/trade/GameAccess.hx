@@ -1,6 +1,7 @@
 package trade;
 class GameAccess {
  public static function enumName(value:Dynamic):String return value==null?"":Std.string(value);
+ public static function typeName(o:Dynamic):String return Std.string(field(o,"nativeType")==null?"h2d.Flow":field(o,"nativeType"));
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];
@@ -40,6 +41,10 @@ class GameAccess {
   // children must never be reordered with that base implementation.
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
    throw "Scrollbar Flow layout corrupted by Object.addChildAt";
+  // Real h2d.Flow scrollbars are NOT ui.UIElement objects. This previously
+  // slipped past tests and crashed the native Sell-page renderer.
+  if(t=="ui.UIElement"&&(n=="set_onOver"||n=="set_onOut")&&field(o,"nativeScrollbar")==true)
+   throw "Invalid UIElement receiver: native scrollbar is h2d.Flow";
   return switch(n){
    case "addClass":
     if(field(o,"classes")==null)o.classes=[];

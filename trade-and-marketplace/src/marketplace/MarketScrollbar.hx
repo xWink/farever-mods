@@ -13,14 +13,20 @@ class MarketScrollbar {
     var trackHeight=-1.0;
     var cursorWidth=-1.0;
     var cursorHeight=-1.0;
-    var hovered=false;
-    var paintedHover=false;
+    var reportedLayout=false;
 
     public function new(viewport:Dynamic) {
         track=G.field(viewport,"scrollBar");cursor=G.field(viewport,"scrollBarCursor");
-        trackPaint=paintLayer(track);cursorPaint=paintLayer(cursor);
-        G.call("ui.UIElement","set_onOver",cursor,[function():Void {hovered=true;}]);
-        G.call("ui.UIElement","set_onOut",cursor,[function():Void {hovered=false;}]);
+        if(track==null||cursor==null)throw "Native Sell scrollbar was not created by Flow";
+        trade.TradeDiagnostics.log("Marketplace Sell scrollbar setup: track="+G.typeName(track)+", cursor="+G.typeName(cursor));
+        trackPaint=paintLayer(track);
+        trade.TradeDiagnostics.log("Marketplace Sell scrollbar setup: track paint attached");
+        cursorPaint=paintLayer(cursor);
+        trade.TradeDiagnostics.log("Marketplace Sell scrollbar setup: cursor paint attached");
+        // Heaps creates both scrollBar and scrollBarCursor as h2d.Flow objects.
+        // Calling ui.UIElement.set_onOver/set_onOut on a plain Flow through
+        // HashLink reflection is an invalid receiver call and can crash rendering.
+        // Keep the native Flow input handlers; decoration is visual only.
     }
     static function paintLayer(parent:Dynamic):Dynamic {
         // A background colour/style must not create a DynamicBackground inside
@@ -46,8 +52,13 @@ class MarketScrollbar {
             draw(trackPaint,w,h,0xB69B7F);trackWidth=w;trackHeight=h;
         }
         w=G.number(G.field(cursor,"calculatedWidth"));h=G.number(G.field(cursor,"calculatedHeight"));
-        if(w!=cursorWidth||h!=cursorHeight||hovered!=paintedHover) {
-            draw(cursorPaint,w,h,hovered?0x5B4334:0x806B5B);cursorWidth=w;cursorHeight=h;paintedHover=hovered;
+        if(w!=cursorWidth||h!=cursorHeight) {
+            draw(cursorPaint,w,h,0x806B5B);cursorWidth=w;cursorHeight=h;
+        }
+        if(!reportedLayout) {
+            reportedLayout=true;
+            trade.TradeDiagnostics.log("Marketplace Sell scrollbar first layout: track="+trackWidth+"x"+trackHeight
+                +", cursor="+cursorWidth+"x"+cursorHeight);
         }
     }
     static function draw(paint:Dynamic,w:Float,h:Float,color:Int):Void {

@@ -294,8 +294,10 @@ class MarketplaceUiTest {
   view.update();
   check(trackPaint.shapes[0].radius==6&&trackPaint.shapes[0].height==400&&cursorPaint.shapes[0].height==100);
   var paintedShapes=trackPaint.shapes;view.update();check(trackPaint.shapes==paintedShapes);
-  scrollCursor.onOver();view.update();check(cursorPaint.shapes[0].color==0x5B4334);
-  scrollCursor.onOut();view.update();check(cursorPaint.shapes[0].color==0x806B5B);
+  // Native Flow thumbs are not UIElements; no UIElement hover setters may
+  // be attached to them (HashLink rejects the mismatched receiver at runtime).
+  check(scrollCursor.onOver==null&&scrollCursor.onOut==null);
+  check(cursorPaint.shapes[0].color==0x806B5B);
   gridViewport.onAfterReflow();gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
   var newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];newGrid.onAfterReflow();check(newGrid.scrollPosY==128);
   check(newGrid==gridViewport&&newGrid.scrollBar==scrollBar&&newGrid.scrollBarCursor==scrollCursor);

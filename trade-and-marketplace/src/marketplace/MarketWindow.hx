@@ -48,6 +48,7 @@ class MarketWindow {
     var inventoryViewport:Dynamic;
     var inventoryContent:Dynamic;
     var inventoryBar:MarketScrollbar;
+    var inventoryBarUnavailable=false;
     var inventoryScroll=0.0;
     var inventoryScrollKey="";
     static inline var SELL_FORM_Y=500;
@@ -108,7 +109,10 @@ class MarketWindow {
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
-        if(inventoryBar!=null)inventoryBar.update();
+        if(inventoryBar!=null)try inventoryBar.update() catch(error:Dynamic) {
+            report("Sell scrollbar paint",error);
+            inventoryBar=null;inventoryBarUnavailable=true;
+        }
         stage="dropdown input";dismissOutsideDropdowns();
         if(c.connectionIssue&&!c.signingIn&&!connectionNoticeShown)showConnectionError();
     }
@@ -639,7 +643,7 @@ class MarketWindow {
     }
     function rememberInventoryScroll():Void {
         if(inventoryViewport!=null)inventoryScroll=G.number(G.field(inventoryViewport,"scrollPosY"));
-        inventoryViewport=null;inventoryContent=null;inventoryBar=null;
+        inventoryViewport=null;inventoryContent=null;inventoryBar=null;inventoryBarUnavailable=false;
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
@@ -732,7 +736,14 @@ class MarketWindow {
             });
         }
         inventoryScrollbar(viewport);
-        if(inventoryBar==null)inventoryBar=new MarketScrollbar(viewport);
+        if(inventoryBar==null&&!inventoryBarUnavailable)try {
+            inventoryBar=new MarketScrollbar(viewport);
+        } catch(error:Dynamic) {
+            // A decoration problem must never prevent the native Sell grid
+            // (and its functional, unmodified scrolling) from opening.
+            report("Sell scrollbar setup",error);
+            inventoryBarUnavailable=true;
+        }
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         if(created||resetScroll) {
             var saved=inventoryScroll,restored=false;
