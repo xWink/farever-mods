@@ -27,8 +27,8 @@ class MarketScrollbar {
     var lastThumbY=-1.0;
 
     public function new(root:Dynamic) {
-        paint=graphic(root);
-        show(paint,false);
+        paint=trade.TradeFrame.graphic(root);
+        G.call("h2d.Object","set_visible",paint,[false]);
     }
 
     public function attachedTo(root:Dynamic):Bool return G.field(paint,"parent")==root;
@@ -44,15 +44,15 @@ class MarketScrollbar {
     }
 
     public function update():Void {
-        if(viewport==null||content==null){show(paint,false);return;}
+        if(viewport==null||content==null){G.call("h2d.Object","set_visible",paint,[false]);return;}
         var bar=G.field(viewport,"scrollBar"),cursor=G.field(viewport,"scrollBarCursor");
-        if(bar==null||cursor==null){show(paint,false);return;}
+        if(bar==null||cursor==null){G.call("h2d.Object","set_visible",paint,[false]);return;}
         // Public Flow getters measure actual sizes. The private calculatedHeight
         // field returns null via HLX reflection, which led to misleading 0x0 logs.
         var height=G.number(G.call("h2d.Flow","get_outerHeight",viewport,[]));
         var contentHeight=G.number(G.call("h2d.Flow","get_outerHeight",content,[]));
         if(height<=0||contentHeight<=height||G.field(bar,"visible")==false) {
-            show(paint,false);
+            G.call("h2d.Object","set_visible",paint,[false]);
             return;
         }
 
@@ -67,7 +67,7 @@ class MarketScrollbar {
         var travel=Math.max(0,height-thumbHeight);
         var thumbY=Math.round(travel*Math.max(0,Math.min(1,scroll/(contentHeight-height))));
 
-        show(paint,true);
+        G.call("h2d.Object","set_visible",paint,[true]);
         if(x!=lastX||y!=lastY)position(paint,x,y);
         if(x!=lastX||y!=lastY||width!=lastWidth||height!=lastHeight
             ||thumbHeight!=lastThumbHeight||thumbY!=lastThumbY) {
