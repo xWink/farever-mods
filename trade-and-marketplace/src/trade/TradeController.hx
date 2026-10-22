@@ -86,7 +86,8 @@ class TradeController {
             var key = sender+"/"+p.id;
             if (handledInvites.indexOf(key) >= 0 || (sender == state.peer && p.id == state.id)) return;
             handledInvites.push(key); if (handledInvites.length > 128) handledInvites.shift();
-            // Acknowledge receipt immediately; this does not accept the trade or open any UI.
+            // Reply for versions that expect receipts, but never require one ourselves.
+            // This does not accept the trade or open any UI.
             var peer=nearbyPlayer(sender);
             for(part in wire.encode({id:p.id,to:sender,op:"received"}))
                 TradeChat.send(player,sender,G.text(G.call("st.Player","getName",peer),"Player"),part,(_:Bool)->{});
@@ -235,7 +236,6 @@ class TradeController {
             var current = state, id = p.id, commit = p.op == "commit" && id == state.id;
             if (commit) pendingCommits++;
             var peer = nearbyPlayer(p.to);
-            if(p.op=="invite"&&p.id==state.id&&p.parts.length==0)state.invitationSent(now);
             TradeChat.send(player,p.to,peer == null ? "Player" : G.text(G.call("st.Player","getName",peer)),text,function(ok:Bool) {
                 if (p.op == "reject") return;
                 if (state != current || state.id != id) return;

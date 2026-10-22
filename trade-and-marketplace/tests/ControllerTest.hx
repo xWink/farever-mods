@@ -55,14 +55,18 @@ class ControllerTest {
     }
     static function requestChecks():Void {
         var timed=fixture(),start=haxe.Timer.stamp();timed.update(GameAccess.app,start);
-        timed.update(GameAccess.app,start+0.999);check(timed.open,"Invitation waits the full second");
         timed.update(GameAccess.app,start+1);
-        check(!timed.open&&timed.state.phase=="cancelled"&&latestRed()&&GameAccess.lines[0].text=="Player does not have Trade mod","Missing receipt closes the requester window with a red error");
+        timed.update(GameAccess.app,start+10);
+        check(timed.open&&timed.state.phase=="inviting"&&GameAccess.lines.length==0,"No receipt from an older mod does not close trade or report an error");
+        for(text in new TradeWire("OLD").encode({id:timed.state.id,to:"me",op:"join"}))
+            timed.receive(null,{sender:"peer"},text);
+        timed.update(GameAccess.app,start+11);
+        check(timed.open&&timed.state.phase=="offering","Older mod can accept without sending a receipt");
         var acknowledged=fixture(),now=haxe.Timer.stamp();acknowledged.update(GameAccess.app,now);
         for(text in new TradeWire("ACK").encode({id:acknowledged.state.id,to:"me",op:"received"}))
             acknowledged.receive(null,{sender:"peer"},text);
         acknowledged.update(GameAccess.app,now+1);
-        check(acknowledged.open&&acknowledged.state.phase=="inviting","Receipt keeps request open without accepting it");
+        check(acknowledged.open&&acknowledged.state.phase=="inviting"&&acknowledged.state.requestReceived,"Receipt is still read without accepting the trade");
         var c = fixture(false); invite(c);
         check(c.state.phase == "invited" && !c.open, "An available player receives a request without opening trade");
         invite(c); c.update(GameAccess.app,haxe.Timer.stamp());
