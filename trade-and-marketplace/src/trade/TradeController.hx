@@ -10,6 +10,9 @@ class TradeController {
     public var view:TradeWindow;
     public var requestPopup:TradeRequestPopup;
     var group:Dynamic;
+    // Only a confirmed trade party may be left during cleanup. Before a
+    // request is accepted, the player can belong to an unrelated party.
+    var tradePartyGroup:Dynamic;
     var partySetup:TradeParty;
     var wire:TradeWire;
     var movement = new TradeMovement();
@@ -67,7 +70,8 @@ class TradeController {
         if (state.start(uid,id,haxe.Timer.stamp())) { begin(); flush(); }
     }
     function begin():Void {
-        releaseMovement(); group = G.field(player,"group"); peerName = G.text(G.call("st.Player","getName",nearbyPlayer(state.peer)),"Player");
+        releaseMovement(); group = G.field(player,"group"); tradePartyGroup=null;
+        peerName = G.text(G.call("st.Player","getName",nearbyPlayer(state.peer)),"Player");
         partySetup = null;
         exchange = null; exchangeId = ""; pendingCommits = 0; announcements = []; reportedEnd = "";
         outgoing = outgoing.filter(p->p.op == "cancel" || p.op == "reject"); status = ""; open = state.phase != "invited"; view.dispose(); requestPopup.dispose();
@@ -113,7 +117,10 @@ class TradeController {
         }
         if ((p.op == "drop" || p.op == "collected") && (state.phase == "exchanging" || state.phase == "preparing")) announcements.push(p);
         else state.receive(sender,p,haxe.Timer.stamp());
-        if (state.phase == "offering" && partySetup != null) finishParty();
+        if (state.phase == "offering") {
+            if (partySetup != null) finishParty();
+            else rememberTradeParty();
+        }
         if (state.id != previousId) begin();
         flush();
     }
@@ -138,7 +145,9 @@ class TradeController {
         if (state == null || state.phase != "invited") return;
         var reason = environment(null,false); if (reason != "") { cancel(reason); return; }
         if (partyMember(state.peer) == null) { state.emit("party"); startParty(); return; }
-        state.join(haxe.Timer.stamp()); flush(); requestPopup.dispose(); open = true;
+        state.join(haxe.Timer.stamp());
+        rememberTradeParty();
+        flush(); requestPopup.dispose(); open = true;
     }
     function startParty():Void {
         state.phase = "joining"; state.deadline = haxe.Timer.stamp()+30; state.changed++;
@@ -146,7 +155,32 @@ class TradeController {
         requestPopup.dispose(); open = true; releaseMovement(); flush();
     }
     function finishParty():Void {
-        group = G.field(player,"group"); partySetup = null; status = "";
+        group = G.field(player,"group"); rememberTradeParty();
+        partySetup = null; status = "";
+    }
+
+    function rememberTradeParty():Void {
+        if(tradePartyGroup == null && state != null && player != null
+            && partyMember(state.peer) != null)
+            tradePartyGroup=G.field(player,"group");
+    }
+
+    function leaveTradeParty():Void {
+        // During party setup, one side can have joined before the trade
+        // transitions into offering. Only recognize the same-party case.
+        if(tradePartyGroup==null && partySetup!=null && partySetup.joined)
+            rememberTradeParty();
+        var original=tradePartyGroup;
+        // Claim cleanup before the native RPC: terminal updates can repeat,
+        // and the callback can complete after a different trade has started.
+        tradePartyGroup=null;
+        if(original==null || player==null || G.field(player,"group")!=original)return;
+        try {
+            if(G.call("st.Group","get_isSolo",original)==true)return;
+            G.call("st.Group","requestLeave",original,[(ok:Bool)->{
+                if(!ok)TradeDiagnostics.log("Could not leave the trade party.");
+            }]);
+        } catch(e:Dynamic)TradeDiagnostics.log("Trade party cleanup: "+Std.string(e));
     }
     public function readyReason():String {
         var reason = environment(); if (reason != "") return reason;
@@ -202,7 +236,7 @@ class TradeController {
     public function cancelByUser():Void { if (state != null && !state.cancelByUser()) return; cancel(); }
     public function cancel(reason = "Trade cancelled."):Void {
         if (state != null) { state.cancel(reason); reportedEnd = state.id; }
-        chat(reason); open = false; releaseMovement(); flush(); view.dispose(); requestPopup.dispose();
+        chat(reason); open = false; releaseMovement(); flush(); view.dispose(); requestPopup.dispose(); leaveTradeParty();
     }
     public function flush():Void {
         if (state == null) return;
@@ -256,7 +290,7 @@ class TradeController {
         }
         if ((state.phase == "complete" || state.phase == "cancelled") && reportedEnd != state.id) {
             reportedEnd = state.id; chat(state.phase == "complete" ? completionText() : state.error,state.phase == "complete");
-            open = false; releaseMovement(); view.dispose(); requestPopup.dispose();
+            open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); leaveTradeParty();
         }
         if (state.phase == "invited") requestPopup.update(now);
         if (open) view.update();
@@ -280,6 +314,6 @@ class TradeController {
     }
     public function dispose():Void {
         open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = []; handledInvites = [];
-        partySetup = null; state = null; player = group = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
+        partySetup = null; state = null; player = group = tradePartyGroup = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
     }
 }

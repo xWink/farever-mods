@@ -75,6 +75,45 @@ class PartyTest {
         b.player.group=group([b.player]);a.player.group.players.array=[a.player];step(a,b);
         check(!a.state.active()&&!b.state.active(),"Leaving the party after setup cancels the trade");
 
+        // When an automatically formed trade party is no longer needed, both
+        // clients send exactly one native leave request. Before a party is
+        // formed, an invitation rejection must preserve existing parties.
+        cs=fixture();a=cs[0];b=cs[1];asPlayer(a);a.requestName("bob");step(a,b);
+        asPlayer(b);b.join();step(a,b);step(a,b);leavePending();
+        for(_ in 0...9)step(a,b);
+        check(a.state.editable()&&b.state.editable()&&leaves.length==0,
+            "Trade group has finished setup before cancellation");
+        asPlayer(b);b.cancelByUser();
+        check(leaves.length==1&&leaves[0].group==b.player.group,
+            "Cancelling leaves the temporary trade party");
+        step(a,b);step(a,b);
+        check(leaves.length==2&&leaves[1].group==a.player.group,
+            "The peer also leaves after receiving cancellation");
+        step(a,b);step(a,b);check(leaves.length==2,
+            "Terminal frames cannot send repeated leave requests");
+
+        cs=fixture();a=cs[0];b=cs[1];asPlayer(a);a.requestName("bob");step(a,b);
+        asPlayer(b);b.join();step(a,b);step(a,b);leavePending();
+        for(_ in 0...9)step(a,b);
+        a.state.phase="complete";b.state.phase="complete";
+        step(a,b);
+        check(leaves.length==2&&leaves[0].group==leaves[1].group,
+            "Completion requests one leave for each trade participant");
+        step(a,b);check(leaves.length==2,"Completion cleanup is idempotent");
+
+        // Existing parties used directly for trading are also left when the
+        // actual trade ends, but not before the request has been accepted.
+        cs=fixture();a=cs[0];b=cs[1];
+        var existing=group([a.player,b.player]);
+        a.player.group=existing;b.player.group=existing;
+        asPlayer(a);a.requestName("bob");step(a,b);
+        check(leaves.length==0,"Merely requesting a trade does not leave an existing party");
+        asPlayer(b);b.join();step(a,b);step(a,b);
+        check(a.state.editable()&&b.state.editable(),"Existing-party trade reaches offering");
+        asPlayer(b);b.cancelByUser();step(a,b);step(a,b);
+        check(leaves.length==2&&leaves[0].group==existing&&leaves[1].group==existing,
+            "A finished trade in an existing party leaves the same party");
+
         cs=fixture();a=cs[0];b=cs[1];asPlayer(a);a.request("bob");step(a,b);asPlayer(b);b.cancelByUser();step(a,b);
         check(leaves.length==0&&invites==0&&!a.state.active(),"Declining preserves both old parties");
         cs=fixture();a=cs[0];b=cs[1];asPlayer(a);a.request("bob");step(a,b);asPlayer(b);b.join();step(a,b);
