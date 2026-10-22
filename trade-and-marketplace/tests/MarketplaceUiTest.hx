@@ -59,12 +59,12 @@ class MarketplaceUiTest {
   var artScale:Float=artPixels/nativeArtSize;
   var artInset=Std.int(Math.round((52-artPixels)/2.0));
   check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
-   &&Math.abs(nativeRowFrame.button.scaleX-artScale)<0.001
-   &&Math.abs(nativeRowFrame.button.scaleY-artScale)<0.001
+   &&Math.abs(GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleX"))-artScale)<0.001
+   &&Math.abs(GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleY"))-artScale)<0.001
    &&Math.abs(nativeRowFrame.button.x-artInset)<0.001
    &&Math.abs(nativeRowFrame.button.y-artInset)<0.001,
    haxe.Json.stringify({width:nativeRowFrame.button.width,height:nativeRowFrame.button.height,
-    sx:nativeRowFrame.button.scaleX,sy:nativeRowFrame.button.scaleY,
+    sx:GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleX")),sy:GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleY")),
     x:nativeRowFrame.button.x,y:nativeRowFrame.button.y,
     expectedScale:artScale,expectedInset:artInset}));
   check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
@@ -229,7 +229,7 @@ class MarketplaceUiTest {
   var detailPicture=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketDetailsIcon"))[0];
   var detailFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")
    &&n.parent==detailPicture)[0];
-  check(detailFrame!=null&&Math.abs(detailFrame.button.scaleX-artScale)<0.001
+  check(detailFrame!=null&&Math.abs(GameAccess.number(GameAccess.field(detailFrame.button,"scaleX"))-artScale)<0.001
    &&Math.abs(detailFrame.button.x-artInset)<0.001);
   check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==212);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
@@ -289,7 +289,7 @@ class MarketplaceUiTest {
   check(sellSlots[0].component=="item-slot"&&sellSlots[0].innerSlot.nativeRarity=="Epic"&&sellSlots[0].innerSlot.width==58);
   check(sellSlots[1].stack==null&&sellSlots[1].innerSlot.nativeRarity==null&&sellSlots[1].action==null);
   check(sellSlots[0].button.width==52&&sellSlots[0].button.parent.x==3&&sellSlots[0].button.getTip!=null);
-  check(Math.abs(sellSlots[0].button.scaleX-artScale)<0.001
+  check(Math.abs(GameAccess.number(GameAccess.field(sellSlots[0].button,"scaleX"))-artScale)<0.001
    &&Math.abs(sellSlots[0].button.x-artInset)<0.001
    &&Math.abs(sellSlots[0].button.y-artInset)<0.001);
   var stackCount=sellSlots[0].button.countTxt;
