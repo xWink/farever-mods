@@ -73,6 +73,10 @@ class TradeFrame {
             sheet += selector+" > #background { background: "+s.bg+"; }"+selector+":hover > #background { background: darken("+s.bg+", 8%); }"
                 +selector+":active > #background { background: darken("+s.bg+", 15%); }"+selector+" > #btnText { color: "+s.fg+"; }";
         }
+        // Keep the native scrollbar hierarchy, hit testing and proportional thumb.
+        sheet += ".scrollbar.market-inventory-scrollbar { width: 12; padding: 0; alpha: 1; background: #B69B7F; }"
+            + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; padding: 0; alpha: 1; background: #806B5B; }"
+            + ".scrollbar.market-inventory-scrollbar > .cursor:hover { background: #5B4334; }";
         var style = G.field(ui,"style");
         G.call("domkit.CssStyle","add",style,[G.call("domkit.CssParser","parseSheet",G.field(style,"cssParser"),[sheet,"trade-actions"])]);
         styledUi = ui;

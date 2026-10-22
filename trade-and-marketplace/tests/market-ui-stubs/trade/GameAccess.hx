@@ -36,7 +36,21 @@ class GameAccess {
  };
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
+  // Object.addChildAt bypasses Flow's parallel properties array. Native scrollbar
+  // children must never be reordered with that base implementation.
+  if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
+   throw "Scrollbar Flow layout corrupted by Object.addChildAt";
   return switch(n){
+   case "addClass":
+    if(field(o,"classes")==null)o.classes=[];
+    if((cast o.classes:Array<String>).indexOf(a[0])<0)(cast o.classes:Array<String>).push(a[0]);null;
+   case "set_overflow":
+    o.overflow=a[0];
+    if(a[0]=="Scroll"&&field(o,"scrollBar")==null) {
+     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;
+     o.scrollBar.flowProperties={isAbsolute:true,horizontalAlign:"Right",verticalAlign:"Top"};
+     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;
+    }null;
    case "getProperties":
     var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
    case "calcTextWidth": Std.string(a[0]).length*number(field(o,"glyphWidth"),8.0);
@@ -62,7 +76,7 @@ class GameAccess {
     null;
    case "displayDialog": dialogs++;null;
    case "setItem": o.item=a[0];null;
-   case "set_filter", "set_scrollPosY", "set_overflow", "set_minHeight", "set_maxHeight", "set_verticalSpacing": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_filter", "set_scrollPosY", "set_minHeight", "set_maxHeight", "set_verticalSpacing": Reflect.setField(o,n.substr(4),a[0]);null;
    case "updateScale": o.scaleX=1.;o.scaleY=1.;null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
