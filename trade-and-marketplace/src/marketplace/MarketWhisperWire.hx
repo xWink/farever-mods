@@ -91,7 +91,10 @@ class MarketWhisperWire {
     public static function display(packet:Dynamic,localizedItem:String->String):String {
         if(!valid(packet))throw "Invalid marketplace whisper.";
         var item=Reflect.field(packet,"item"),name=localizedItem(item.baseId);
-        if(name==null||name==""||name==item.baseId)name=trade.GameAccess.text(Reflect.field(item,"name"),item.baseId);
+        if(name==null||name==""||name==item.baseId) {
+            var original=Reflect.field(item,"name");
+            name=Std.isOfType(original,String)?original:item.baseId;
+        }
         name=~/<[^>]*>/g.replace(name,"");
         name=~/[\r\n\t]/g.replace(name," ").substr(0,160);
         var quantity:Int=item.quantity,price=Reflect.field(packet,"price");

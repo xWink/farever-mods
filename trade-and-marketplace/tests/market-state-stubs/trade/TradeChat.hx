@@ -3,4 +3,5 @@ class TradeChat {
     public static var lastText="";
     public static var lastEcho=false;
     public static function send(player:Dynamic,to:String,name:String,text:String,reply:Bool->Void,echo=false):Void {lastEcho=echo;lastText=text;reply(true);}
+    public static function echo(player:Dynamic,to:String,name:String,text:String):Void {lastEcho=true;lastText=text;}
 }

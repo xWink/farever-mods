@@ -652,6 +652,7 @@ class MarketController {
         // Recheck availability before sending one explicit, human-readable whisper.
         var queued=request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
             var seller=G.text(current.seller.characterName),to=G.text(current.seller.accountId);
+            if(G.field(current,"id")==null)G.set(current,"id",G.field(row,"id"));
             var packet=MarketWhisperWire.packet(current,to),parts=MarketWhisperWire.encode(packet);
             var display=MarketWhisperWire.display(packet,TradeInventory.itemName);
             var pendingParts=parts.length,allDelivered=true;
