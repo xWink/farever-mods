@@ -18,6 +18,8 @@ class MarketWhisperWire {
     var partial:Map<String,{parts:Array<String>,total:Int,expires:Float}>=[];
     var completed:Map<String,Float>=[];
 
+    public function new() {}
+
     public static function isPacket(text:String):Bool return text!=null&&StringTools.startsWith(text,PREFIX);
 
     public static function packet(listing:Dynamic,to:String):Dynamic {
