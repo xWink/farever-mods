@@ -17,6 +17,7 @@ class TradeNativeSlot {
     static inline var NATIVE_SIZE=58;
     public static inline var MARKET_ART_SCALE=0.82;
     static var idSequence=0;
+    static var debugArtLogged=false;
     /** Leave the native rarity frame and clip size intact; inset only item art. */
     public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
         if(button==null)return;
@@ -34,6 +35,14 @@ class TradeNativeSlot {
         G.set(button,"scaleX",scale);
         G.set(button,"scaleY",scale);
         position(button,inset,inset);
+        if(!debugArtLogged) {
+            debugArtLogged=true;
+            trace("Marketplace native art scale debug: "+haxe.Json.stringify({
+                pixels:artPixels,extent:maskSize,nativeSize:nativeSize,
+                computedScale:scale,computedInset:inset,
+                actualX:G.field(button,"scaleX"),actualY:G.field(button,"scaleY")
+            }));
+        }
     }
     public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,
         ?actualItem:Dynamic,marketplaceArtwork=false):Bool {
