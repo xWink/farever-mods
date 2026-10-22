@@ -929,9 +929,18 @@ class MarketWindow {
             absolute(details,icon);padding(icon,0);size(icon,20,20);stars.push(icon);
         }
         var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,212,false,0xC9BEB5);
-        var rarity=item.detail.split("\n")[0];
+        // API listings carry a canonical rarity ID; the seller's description
+        // may instead begin with a translated heading or the first actual stat.
+        // For Sell, resolve the rarity from the native item held locally.
+        var nativeRarity=c.tab=="Sell"&&nativeItem!=null
+            ?G.staticCall("HItem","getRarity",[G.field(nativeItem,"inf")]):null;
+        var rarity=MarketText.rarityId(
+            G.text(G.field(metadata,"rarity")),
+            G.text(G.field(nativeRarity,"id")),
+            item.preview==null?"":item.preview.rarity,
+            item.detail);
         var prismatic=G.field(metadata,"prismatic")==true || (item.preview!=null && (item.preview.flags&2)!=0);
-        var rarityLabel=["Common","Uncommon","Rare","Epic","Legendary"].indexOf(rarity)<0?null:
+        var rarityLabel=rarity==""?null:
             labelAt(details,rarity=="Epic"&&prismatic?"Epic (Prismatic)":rarity,72,0,212,true,detailRarityColor(rarity));
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
@@ -940,8 +949,8 @@ class MarketWindow {
         var meta=labelAt(details,lines.join("\n"),0,0,334,false,0xC9BEB5);
         G.call("h2d.Object","setScale",meta,[0.85]);
         lines=[];
-        var itemLines=MarketText.detail(item.detail,TradeInventory.skillName).split("\n");
-        if(rarityLabel!=null)itemLines.shift();
+        var formattedDetail=MarketText.detail(item.detail,TradeInventory.skillName);
+        var itemLines=MarketText.withoutRarityHeading(formattedDetail,G.text(G.field(nativeRarity,"name"))).split("\n");
         for(entry in itemLines) {
             // Level and upgrade icons belong beside the portrait.
             entry=~/^Level [0-9]+(?:\s*\|\s*)?/.replace(entry,"");

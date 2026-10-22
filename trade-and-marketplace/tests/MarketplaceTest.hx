@@ -90,6 +90,17 @@ class MarketplaceTest {
   check(MarketQuantity.normalize("12",1,10,"5")=="10");
   for(text in ["five","1.5","-1","0x10","1e4","1 2"])check(MarketQuantity.normalize(text,1,10,"5")=="5");
   check(MarketQuantity.normalize("",1,10,"5")=="");
+  // The listing's structured rarity outranks the seller's translated
+  // description and a preview with different weapon-only rarity.
+  check(MarketText.rarityId("Legendary","","Epic","+63 Vitality\n+27 Strength")=="Legendary");
+  check(MarketText.rarityId("","Rare","Epic","+63 Vitality")=="Rare");
+  check(MarketText.rarityId("","","Epic","+63 Vitality")=="Epic");
+  check(MarketText.rarityId("","","","Epic\n+63 Vitality")=="Epic");
+  check(MarketText.rarityId("","","","+63 Vitality\n+27 Strength")=="");
+  check(MarketText.withoutRarityHeading("Epic\n+63 Vitality")=="+63 Vitality");
+  check(MarketText.withoutRarityHeading("+63 Vitality\n+27 Strength")=="+63 Vitality\n+27 Strength");
+  check(MarketText.withoutRarityHeading("Épique\n+63 Vitality","Épique")=="+63 Vitality");
+  check(MarketText.withoutRarityHeading("Infusion: Something\n+63 Vitality")=="Infusion: Something\n+63 Vitality");
   check(MarketQuantity.normalize("999999999999999999999999999",1,200000,"1")=="200000");
   check(StringTools.endsWith(marketplace.MarketText.expiry("2026-08-10T21:26:00.000Z")," (local)"));
   check(marketplace.MarketText.expiry("2026-02-29T00:05:59Z")=="Unavailable");

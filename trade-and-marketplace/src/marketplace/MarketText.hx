@@ -35,6 +35,26 @@ class MarketText {
         return "Asking price: "+number(trays*500)+" gold / "+price(value);
     }
     public static function conversion(trays:Int):String return count(trays,"Silver Tray")+" = "+number(trays*500)+" gold";
+
+    /** Metadata/native IDs are stable across game languages; description text is not. */
+    public static function recognizedRarity(value:String):Bool
+        return ["Common","Uncommon","Rare","Epic","Legendary"].indexOf(value)>=0;
+
+    public static function rarityId(metadata:String,native:String,preview:String,detail:String):String {
+        for(value in [metadata,native,preview])if(recognizedRarity(value))return value;
+        var first=StringTools.trim(detail==null?"":detail.split("\n")[0]);
+        return recognizedRarity(first)?first:"";
+    }
+
+    /** Never discard a first stat line just because the item has a rarity label. */
+    public static function withoutRarityHeading(detail:String,?localizedRarity=""):String {
+        if(detail==null||detail=="")return "";
+        var lines=detail.split("\n"),first=StringTools.trim(lines[0]);
+        if(recognizedRarity(first)||(localizedRarity!=""&&first==localizedRarity))
+            lines.shift();
+        return lines.join("\n");
+    }
+
     public static function expiry(iso:String):String {
         var pattern=~/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$/;
         if(iso==null||!pattern.match(iso))return "Unavailable";
