@@ -14,17 +14,17 @@ import trade.TradeUi.*;
  * Scale the full 58px native component into the desired display rectangle.
  */
 class TradeNativeSlot {
-    static inline var NATIVE_SIZE=58;
-    public static inline var MARKET_ART_SCALE=0.82;
+    public static inline var NATIVE_SIZE=58;
+    public static inline var MARKET_ART_PIXELS=48;
     static var idSequence=0;
     /** Leave the native rarity frame and clip size intact; inset only item art. */
     public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
         if(button==null)return;
-        // An inline Float constant can be boxed as Int(0) when forwarded
-        // through Array<Dynamic> in compiled HashLink. Derive the displayed
-        // size in whole pixels, then divide by a Float just as the native
-        // slot frame does. The 52px mask contains a centered 43px button.
-        var artPixels:Int=Std.int(Math.round(maskSize*MARKET_ART_SCALE));
+        // Fill 48px of the native 52px item mask, leaving a 2px inset.
+        // Keep the art and the frame separate so rarity borders aren't scaled.
+        // Integer pixels divided by a Float avoid HashLink's dynamic Float
+        // constant boxing issue, previously exercised by compiled UI tests.
+        var artPixels:Int=Std.int(Math.min(maskSize,MARKET_ART_PIXELS));
         var nativeSize:Float=maskSize;
         var scale:Float=artPixels/nativeSize;
         var inset:Int=Std.int(Math.round((maskSize-artPixels)/2.0));

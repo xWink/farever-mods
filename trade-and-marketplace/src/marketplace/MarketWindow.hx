@@ -887,10 +887,11 @@ class MarketWindow {
         var definition=nativeFrame?null:TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
-            // Apply the same spacing to fallback artwork if no native slot exists.
+            // Match the 48px art within the native 58px frame at any
+            // rendered slot size; don't overflow smaller 44px listing icons.
             var fullSize:Float=sizePx;
-            var scale:Float=trade.TradeNativeSlot.MARKET_ART_SCALE;
-            var artSize:Float=(fullSize-4.0)*scale;
+            var nativeSize:Float=trade.TradeNativeSlot.NATIVE_SIZE;
+            var artSize:Float=trade.TradeNativeSlot.MARKET_ART_PIXELS*fullSize/nativeSize;
             var inset:Float=(fullSize-artSize)/2.0;
             absolute(parent,icon);position(icon,x+inset,y+inset);
             G.call("h2d.Bitmap","set_width",icon,[artSize]);G.call("h2d.Bitmap","set_height",icon,[artSize]);
