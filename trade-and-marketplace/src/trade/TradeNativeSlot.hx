@@ -39,7 +39,12 @@ class TradeNativeSlot {
                 size(inner,NATIVE_SIZE,NATIVE_SIZE);position(inner,0,0);
             }
             position(slot,x,y);
-            G.call("h2d.Object","setScale",slot,[sizePx/(NATIVE_SIZE*1.0)]);
+            // Keep this division typed as Float across both interpreter and
+            // HashLink compilation: int-typed constant folding produced 0 for
+            // 44/58 in the compiled UI test.
+            var nativeSize:Float=NATIVE_SIZE;
+            var scale:Float=sizePx/nativeSize;
+            G.call("h2d.Object","setScale",slot,[scale]);
             // This is a decorative frame. Leave all trade drag/click/tooltip
             // handling with the already-tested marketplace row or trade slot.
             G.call("h2d.Flow","set_enableInteractive",slot,[false]);
