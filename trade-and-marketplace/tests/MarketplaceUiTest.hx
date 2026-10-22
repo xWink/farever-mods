@@ -44,12 +44,18 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
   var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
-  // A real DOMKit ItemSlot should provide the rarity frame, with no stack,
-  // item button, or custom gradient shapes layered underneath it.
+  // A real DOMKit ItemSlot supplies one masked, non-interactive item image.
+  // Its rarity frame remains native and no extra gradient is drawn underneath.
   var currentRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
   var nativeRowFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")&&n.parent==currentRow)[0];
   check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
-  check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
+  check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.stack.item!=null);
+  check(nativeRowFrame.button!=null&&nativeRowFrame.button.countTxt.visible==false);
+  var rowMask=nativeRowFrame.button.parent;
+  check(rowMask.parent==nativeRowFrame.innerSlot&&rowMask.x==3&&rowMask.y==3
+   &&rowMask.width==52&&rowMask.height==52);
+  check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
+   &&nativeRowFrame.innerSlot.enableInteractive==false&&nativeRowFrame.selected==false);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
   var scaleX=GameAccess.number(GameAccess.field(nativeRowFrame,"scaleX"));
   var scaleY=GameAccess.number(GameAccess.field(nativeRowFrame,"scaleY"));
@@ -476,8 +482,12 @@ class MarketplaceUiTest {
    check(picture!=null);
    var slots=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")&&n.parent==picture);
    check(slots.length==1);
-   check(slots[0].button==null&&slots[0].inf!=null
+   check(slots[0].button!=null&&slots[0].inf!=null&&slots[0].stack.item!=null
     &&slots[0].width==58&&slots[0].height==58);
+   check(slots[0].button.parent.width==52&&slots[0].button.parent.height==52
+    &&slots[0].button.parent.x==3&&slots[0].button.parent.y==3);
+   check(slots[0].button.countTxt.visible==false
+    &&slots[0].button.enableInteractive==false&&slots[0].selected==false);
    var sx=GameAccess.number(GameAccess.field(slots[0],"scaleX"));
    check(Math.abs(58.0*sx-60.0)<0.01);
    check((cast picture.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);

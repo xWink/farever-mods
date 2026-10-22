@@ -7,11 +7,11 @@ import trade.TradeUi.*;
 /**
  * Read-only use of the game's exact ItemSlot frame and rarity background.
  * The original item and its inventory are never moved or exposed to DOMKit.
- * Passing no stack builds the game's native rarity frame AND artwork without
- * a clickable inventory button, item count, transfer, or drag controls.
- * Never draw a second icon over it. Its natural size is 58px: apply one
- * proportional scene-graph scale to keep both art and frame inside the
- * requested 44px / 60px / 80px bounds rather than fighting native CSS sizes.
+ * A detached one-item display stack lets the game's ItemSlot build its
+ * native icon mask. The previous null-stack approach omitted that mask,
+ * allowing item art to protrude over the bevel/border.
+ * No inventory references or native transfer actions are ever attached.
+ * Scale the full 58px native component into the desired display rectangle.
  */
 class TradeNativeSlot {
     static inline var NATIVE_SIZE=58;
@@ -24,7 +24,11 @@ class TradeNativeSlot {
         if(inf==null)return false;
         var slot:Dynamic=null;
         try {
-            slot=G.field(node("item-slot",G.field(parent,"dom"),[null,inf],
+            // Match the working Sell-grid ItemSlot path: constructing with
+            // an item stack creates the native masked ItemButton child.
+            // The item is detached, never part of any player's inventory.
+            var previewStack:Dynamic={count:1,item:item};
+            slot=G.field(node("item-slot",G.field(parent,"dom"),[previewStack,inf],
                 "tradeNativeRarityFrame"+(++idSequence)),"obj");
             if(slot==null)return false;
             absolute(parent,slot);padding(slot,0);
@@ -45,17 +49,27 @@ class TradeNativeSlot {
             var nativeSize:Float=NATIVE_SIZE;
             var scale:Float=sizePx/nativeSize;
             G.call("h2d.Object","setScale",slot,[scale]);
-            // This is a decorative frame. Leave all trade drag/click/tooltip
-            // handling with the already-tested marketplace row or trade slot.
-            G.call("h2d.Flow","set_enableInteractive",slot,[false]);
-            G.call("ui.UIElement","set_padFocusable",slot,[false]);
             var button=G.field(slot,"button");
-            if(button!=null) {
-                // Defensive: some native skins can instantiate an item button
-                // even for null stacks. Don't let it swallow row clicks.
-                G.call("h2d.Flow","set_enableInteractive",button,[false]);
-                G.call("ui.UIElement","set_padFocusable",button,[false]);
+            if(button==null)throw "Native ItemSlot did not create its masked item button";
+            var mask=G.field(button,"parent");
+            if(mask==null||inner==null)throw "Native ItemSlot item mask unavailable";
+            // Keep the original native rarity frame visible above the inset
+            // artwork. Only the inside 52x52 px of the 58px base is drawable
+            // by the ItemButton; the weapon cannot spill over its border.
+            absolute(inner,mask);position(mask,3,3);
+            G.set(mask,"width",NATIVE_SIZE-6);G.set(mask,"height",NATIVE_SIZE-6);
+            style(mask,"width",NATIVE_SIZE-6);style(mask,"height",NATIVE_SIZE-6);
+            padding(button,0);size(button,NATIVE_SIZE-6,NATIVE_SIZE-6);position(button,0,0);
+            // The marketplace/trade UI owns all interactions and the quantity
+            // text. Hide the native duplicate count and all focus/hover states
+            // that can apply a bright outline to the decorative slot.
+            var nativeCount=G.field(button,"countTxt");
+            if(nativeCount!=null)G.call("h2d.Object","set_visible",nativeCount,[false]);
+            for(o in [slot,inner,button]) {
+                G.call("h2d.Flow","set_enableInteractive",o,[false]);
+                G.call("ui.UIElement","set_padFocusable",o,[false]);
             }
+            G.call("ui.UIElement","set_selected",slot,[false]);
             return true;
         } catch(_:Dynamic) {
             if(slot!=null)try G.call("h2d.Object","remove",slot) catch(_:Dynamic){}
