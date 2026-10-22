@@ -651,13 +651,24 @@ class MarketController {
         contactingSeller=sellerId;
         // Recheck availability before sending one explicit, human-readable whisper.
         var queued=request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
-            contactingSeller="";
-            sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
-            var seller=G.text(current.seller.characterName);
-            message="Sending whisper...";
-            trade.TradeChat.send(player,G.text(current.seller.accountId),seller,
-                "Hi! I'm interested in your marketplace listing: "+TradeInventory.itemName(G.text(current.item.baseId))+" x"+MarketText.number(current.item.quantity)+
-                (current.price.mode=="offers"?" (open to offers).":" for "+MarketText.price(current.price)+"."),ok->{if(!ok)sellerWhisperAfter.remove(sellerId);message=ok?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade.":"Could not send the whisper. The seller may be unavailable.";view.dirty=true;},true);
+            var seller=G.text(current.seller.characterName),to=G.text(current.seller.accountId);
+            var packet=MarketWhisperWire.packet(current,to),parts=MarketWhisperWire.encode(packet);
+            var display=MarketWhisperWire.display(packet,TradeInventory.itemName);
+            var pendingParts=parts.length,allDelivered=true;
+            message="Sending whisper...";view.dirty=true;
+            for(part in parts)trade.TradeChat.send(player,to,seller,part,ok->{
+                if(!ok)allDelivered=false;
+                pendingParts--;
+                if(pendingParts!=0)return;
+                contactingSeller="";
+                if(allDelivered) {
+                    sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
+                    trade.TradeChat.echo(player,to,seller,display);
+                } else sellerWhisperAfter.remove(sellerId);
+                message=allDelivered?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade."
+                    :"Could not send the whisper. The seller may be unavailable.";
+                view.dirty=true;
+            });
         },()->{contactingSeller="";});
         if(!queued)contactingSeller="";
     }

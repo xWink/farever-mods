@@ -60,6 +60,7 @@
 -cp src
 -cp tests
 -cp tests/chat-stubs
+-cp ../shared/src
 -main ChatTest
 --interp
 

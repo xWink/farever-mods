@@ -28,6 +28,31 @@ class ChatTest {
         player.removed=true;G.delivery(true);check(result&&G.history.length==1);
         player.removed=false;
         TradeChat.send(player,"buyer","Buyer","Self",reply,true);check(!result&&G.history.length==1);
+        TradeChat.echo(player,"seller","Seller","Localized item x2 for 5 Silver Trays.");
+        check(G.history.length==2&&G.history[1].text=="Localized item x2 for 5 Silver Trays.");
+        var wire=new marketplace.MarketWhisperWire();
+        var listing:Dynamic={id:"listing-1",item:{baseId:"Sword",name:"Buyer's Language",
+            quantity:2,rarity:"Epic",native:{upgrade:5,slots:["A","B"],infusion:"Skill"}},
+            price:{mode:"fixed",silverTrays:5}};
+        var packet=marketplace.MarketWhisperWire.packet(listing,"seller");
+        var parts=marketplace.MarketWhisperWire.encode(packet);
+        check(parts.length>=2&&parts[0].indexOf(marketplace.MarketWhisperWire.PREFIX)==0);
+        var complete:Dynamic=null;
+        for(i in 0...parts.length) {
+            var p=parts.length-1-i,found=wire.receive("buyer",parts[p],100);
+            if(found!=null)complete=found;
+        }
+        check(complete!=null&&complete.item.native.slots[1]=="B"&&complete.item.native.upgrade==5);
+        check(complete.price.silverTrays==5&&complete.item.name=="Buyer's Language");
+        check(marketplace.MarketWhisperWire.display(complete,kind->"Seller's translated sword")
+            =="Hi! I'm interested in your marketplace listing: Seller's translated sword x2 for 5 Silver Trays.");
+        for(part in parts)check(wire.receive("buyer",part,101)==null); // Duplicate native chat delivery.
+        check(wire.receive("other","!winkmarket1:not-real:0:1:!!",101)==null);
+        check(!marketplace.MarketWhisperWire.isPacket("Hi, ordinary whisper"));
+        var longItem:Dynamic={id:"big",item:{baseId:"Sword",quantity:1,detail:StringTools.rpad("x","x",18000)},
+            price:{mode:"offers"}};
+        var tooLarge=false;try marketplace.MarketWhisperWire.encode(marketplace.MarketWhisperWire.packet(longItem,"seller"))catch(_:Dynamic)tooLarge=true;
+        check(tooLarge);
         Sys.println("Whisper checks passed: "+checks);
     }
 }

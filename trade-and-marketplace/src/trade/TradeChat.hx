@@ -9,6 +9,13 @@ class TradeChat {
         var uid = G.text(G.field(G.field(message,"sender"),"uid"));
         return uid != "" && G.text(G.enumArgument(channel,0)) == uid ? uid : "";
     }
+    public static function echo(player:Dynamic,to:String,name:String,text:String):Void {
+        var client=G.field(player,"chatClient");
+        if(!isLocalClient(client,player)||G.field(player,"removed")==true||G.field(client,"removed")==true)return;
+        var data:Dynamic={sender:{uid:G.text(G.field(player,"uid")),name:G.text(G.call("st.Player","getName",player))},
+            channel:G.enumValue("st.Channel","Player",[to,name]),text:text,args:null,localStamp:null,localTextId:null,notify:null};
+        G.call("st.player.ChatClient","localReceiveMessage",client,[data]);
+    }
     public static function send(player:Dynamic,to:String,name:String,text:String,reply:Bool->Void,echo=false):Void {
         var whispers = G.field(player,"whispers");
         if (whispers == null || to == "" || to == G.text(G.field(player,"uid"))) { reply(false); return; }
