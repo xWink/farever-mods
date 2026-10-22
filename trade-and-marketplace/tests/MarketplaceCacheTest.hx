@@ -1,5 +1,6 @@
 import marketplace.MarketController;
 import marketplace.MarketPages;
+import marketplace.MarketText;
 import marketplace.MarketWorker;
 import trade.TradeInventory;
 
