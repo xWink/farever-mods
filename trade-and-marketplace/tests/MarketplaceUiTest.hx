@@ -51,6 +51,8 @@ class MarketplaceUiTest {
   check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
   check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
+  Sys.println("NATIVE SLOT SCALE: x="+Std.string(nativeRowFrame.scaleX)+", y="+Std.string(nativeRowFrame.scaleY)
+    +", w="+Std.string(nativeRowFrame.width)+", h="+Std.string(nativeRowFrame.height));
   check(Math.abs(nativeRowFrame.scaleX*nativeRowFrame.width-44)<0.01
    &&Math.abs(nativeRowFrame.scaleY*nativeRowFrame.height-44)<0.01);
   check(nativeRowFrame.x==8&&nativeRowFrame.x+nativeRowFrame.width*nativeRowFrame.scaleX<64);
