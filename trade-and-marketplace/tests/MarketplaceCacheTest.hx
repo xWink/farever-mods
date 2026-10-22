@@ -152,11 +152,17 @@ class MarketplaceCacheTest {
         check(!c.busy&&c.rows.length==3&&c.rows[0].id=="tail-0"&&c.pages==4);
         c.goPage(1);check(c.rows.length==8&&!c.busy);
 
-        // Turning off Hide mine returns to the unchanged eight-item API cache
-        // and restores the listings the user was previously allowed to see.
+        // Turning off Hide mine uses the normal eight-item query without the
+        // exclusion parameter. The previous single-slot cache has a new key,
+        // so it can make one ordinary request, not a refill loop.
         sent=MarketWorker.current.sent.length;
         c.setHideMine(false);
-        check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
+        check(!c.hideMine&&c.busy&&MarketWorker.current.sent.length==sent+1);
+        check(Std.string(last().path).indexOf("excludeAccountId=")<0
+            &&Std.string(last().path).indexOf("limit=8")>=0);
+        respond(c,app,last(),[own,other],null);
+        check(!c.busy&&c.rows.length==2&&c.rows[0].id=="mine");
+        sent=MarketWorker.current.sent.length;
         c.setHideMine(true);
         check(c.rows.length==8&&!c.busy&&MarketWorker.current.sent.length==sent);
         c.chooseTab("My listings");respond(c,app,last(),[own],null);
