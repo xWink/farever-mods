@@ -44,18 +44,17 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
   var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
-  var iconFill:Array<Dynamic>=[];
-  for(child in (cast collapsedRow.children:Array<Dynamic>))if(child.shapes!=null)
-   for(shape in (cast child.shapes:Array<Dynamic>))
-    if(shape.width==42&&shape.x==9)iconFill.push(shape);
-  check(iconFill.length==1&&iconFill[0].color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
-  var iconRings:Array<Dynamic>=[];
-  for(child in (cast collapsedRow.children:Array<Dynamic>))if(child.shapes!=null)
-   for(shape in (cast child.shapes:Array<Dynamic>))
-    if(shape.x>9&&shape.y>=iconFill[0].y
-     &&shape.width<42&&shape.width>=25)iconRings.push(shape);
-  check(iconRings.length>=12&&iconRings[0].color!=iconRings[iconRings.length-1].color
-   &&iconRings[0].width>iconRings[iconRings.length-1].width);
+  // A real DOMKit ItemSlot should provide the rarity frame, with no stack,
+  // item button, or custom gradient shapes layered underneath it.
+  var currentRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
+  var nativeRowFrame=GameAccess.nodes.filter(n->n.id=="tradeNativeRarityFrame"&&n.parent==currentRow)[0];
+  check(nativeRowFrame!=null&&nativeRowFrame.inf.id=="Epic");
+  check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
+  check(nativeRowFrame.width==44&&nativeRowFrame.height==44);
+  var oldGradient=0;
+  for(child in (cast currentRow.children:Array<Dynamic>))if(child.shapes!=null)
+   for(shape in (cast child.shapes:Array<Dynamic>))if(shape.width==42&&shape.x==9)oldGradient++;
+  check(oldGradient==0);
   check(GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==collapsedRow).length==0);
   check(GameAccess.labels.filter(l->l.text=="500").length==c.pageSize());
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
@@ -465,12 +464,14 @@ class MarketplaceUiTest {
   check(info.filter(l->l.text==row.item.name&&l.textColor==0xFFFFFF).length==1);
   // Browse, My listings and Sell use the same coloured icon backgrounds as
   // native Inventory/Bank slots, without repeated English rarity labels.
-  function detailIconFill():Dynamic {
+  function detailNativeFrame():Dynamic {
    var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
    check(picture!=null);
-   for(child in (cast picture.children:Array<Dynamic>))if(child.shapes!=null)
-    for(shape in (cast child.shapes:Array<Dynamic>))if(shape.width==58)return shape;
-   return null;
+   var slots=GameAccess.nodes.filter(n->n.id=="tradeNativeRarityFrame"&&n.parent==picture);
+   check(slots.length==1);
+   check(slots[0].button==null&&slots[0].inf!=null
+    &&slots[0].width==60&&slots[0].height==60);
+   return slots[0];
   }
   for(tab in ["Browse","My listings","Sell"]) {
    c.tab=tab;c.selected=row;
@@ -478,16 +479,16 @@ class MarketplaceUiTest {
     detail:"Epic",color:0,fingerprint:"",preview:row.item.native};
    row.item.native.flags=2;row.item.prismatic=false;
    GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
+   check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
    check(GameAccess.labels.filter(l->l.text=="Epic"||l.text=="Epic (Prismatic)").length==0);
    row.item.native.flags=0;GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
+   check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
   }
   var originalRarity=row.item.rarity,originalDescription=row.item.detail;
-  row.item.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
+  row.item.rarity="Legendary";row.item.native.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
   for(tab in ["Browse","My listings"]) {
    c.tab=tab;c.selected=row;GameAccess.labels=[];view.dirty=true;view.update();
-   check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Legendary"),0.80));
+   check(detailNativeFrame().innerSlot.nativeRarity=="Legendary");
    check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
    check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
     &&Std.string(l.text).indexOf("+63 Vitality")>=0
@@ -495,21 +496,22 @@ class MarketplaceUiTest {
   }
   row.item.detail="Legendary\n+63 Vitality";
   c.tab="Browse";GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Legendary"),0.80));
+  check(detailNativeFrame().innerSlot.nativeRarity=="Legendary");
   check(GameAccess.labels.filter(l->l.text=="Legendary").length==0);
   check(GameAccess.labels.filter(l->l.text=="+63 Vitality"
    &&Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0).length==1);
+  row.item.native.rarity="Epic"; // Sell uses its actual item's inf, not the API rarity.
   c.tab="Sell";c.chosen=cast {uid:"selected",kind:row.item.baseId,name:row.item.name,count:1,
    detail:"+63 Vitality\n+27 Strength",color:0,fingerprint:"",preview:row.item.native};
   c.chosen.preview.rarity="";
   GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
+  check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
   check(GameAccess.labels.filter(l->l.text=="Epic").length==0);
   check(GameAccess.labels.filter(l->Std.string(GameAccess.field(l.parent,"id")).indexOf("marketDetails")==0
    &&Std.string(l.text).indexOf("+63 Vitality")>=0).length==1);
   row.item.rarity=originalRarity;row.item.detail=originalDescription;row.item.native.rarity="Epic";
   c.tab="Browse";row.item.prismatic=true;GameAccess.labels=[];view.dirty=true;view.update();
-  check(detailIconFill().color==trade.TradeRarity.shade(trade.TradeRarity.fill("Epic"),0.80));
+  check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
   row.item.prismatic=false;
   // The Browse row and details must use the viewer's translated item name.
   trade.TradeInventory.localizedNames[row.item.baseId]="Bouclier des marées";
