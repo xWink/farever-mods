@@ -107,6 +107,7 @@ class MarketplaceCacheTest {
         c.refresh();var old=last();c.disconnect();respond(c,app,old,[{id:"old-session"}],null);
         check(c.rows.length==0&&c.selected==null);
         ownListingFilter();
+        keyAndPreferencePersistence();
         Sys.println("Marketplace cache checks passed: "+checks);
     }
 
@@ -153,5 +154,40 @@ class MarketplaceCacheTest {
         check(c.busy&&Std.string(last().path).indexOf("rarity=Epic")>=0&&Std.string(last().path).indexOf("cursor=")<0);
         respond(c,app,last(),[other],null);
         check(!c.busy&&c.rows.length==1&&c.rows[0].id=="other");
+        // Return the fake config to its defaults for subsequent isolated tests.
+        c.setHideMine(false);
+    }
+
+    static function keyAndPreferencePersistence():Void {
+        trade.TradeMod.savedHideMine=false;trade.TradeMod.savedOnlineOnly=false;
+        var initial=new MarketController();
+        check(!initial.hideMine&&initial.filters["online"]=="false");
+        initial.setHideMine(true);
+        initial.filters["online"]="true";initial.saveFilterPreferences();
+        var reopened=new MarketController(); // Simulate a new game session.
+        check(reopened.hideMine&&reopened.filters["online"]=="true");
+        reopened.setHideMine(false);
+        reopened.filters["online"]="false";reopened.saveFilterPreferences();
+        var defaults=new MarketController();
+        check(!defaults.hideMine&&defaults.filters["online"]=="false");
+        check(!trade.TradeMod.savedHideMine&&!trade.TradeMod.savedOnlineOnly);
+
+        var player:Dynamic={isMe:true,uid:"unsigned",hero:{loadout:{banks:[]}}};
+        var app:Dynamic={me:player};
+        var noKey=new MarketController();
+        noKey.player=player;noKey.inv=new TradeInventory(player);noKey.server="europe";
+        noKey.ready=false; // Server has not validated any credential.
+        var sent=MarketWorker.current.sent.length;
+        noKey.open();
+        check(noKey.tab=="Browse"&&!noKey.busy&&MarketWorker.current.sent.length==sent);
+        check(noKey.message==MarketText.SIGN_IN_TO_BROWSE);
+        noKey.chooseTab("Sell");noKey.chooseTab("Browse");
+        check(!noKey.busy&&MarketWorker.current.sent.length==sent);
+        // A valid key allows Browse while account verification is pending.
+        @:privateAccess noKey.key="fv1_"+StringTools.rpad("z","z",43);
+        noKey.refresh();
+        check(noKey.busy&&MarketWorker.current.sent.length==sent+1);
+        respond(noKey,app,last(),[{id:"verified"}],null);
+        check(!noKey.busy&&noKey.rows.length==1&&noKey.rows[0].id=="verified");
     }
 }
