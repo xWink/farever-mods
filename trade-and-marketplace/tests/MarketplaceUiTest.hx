@@ -81,13 +81,15 @@ class MarketplaceUiTest {
   var tallArt=maskedBitmap(tallMask);
   check(tallArt.width==26&&tallArt.height==52&&tallArt.x==13&&tallArt.y==0);
   var fallbackMask=GameAccess.object(),fallbackButton=GameAccess.object(fallbackMask);
+  GameAccess.set(fallbackButton,"visible",true);
   check(!trade.TradeNativeSlot.replaceMarketplaceArtwork(fallbackButton,{inf:{valid:false}},52)
-   &&fallbackMask.children.length==1&&fallbackButton.visible!=false);
+   &&fallbackMask.children.length==1&&GameAccess.field(fallbackButton,"visible")==true);
   var failingMask=GameAccess.object(),failingButton=GameAccess.object(failingMask);
+  GameAccess.set(failingButton,"visible",true);
   GameAccess.failNextItemBitmap=true;
   check(!trade.TradeNativeSlot.replaceMarketplaceArtwork(
    failingButton,{inf:{width:52.0,height:52.0}},52)
-   &&failingMask.children.length==1&&failingButton.visible!=false);
+   &&failingMask.children.length==1&&GameAccess.field(failingButton,"visible")==true);
   check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
    &&nativeRowFrame.innerSlot.enableInteractive==false&&nativeRowFrame.selected==false);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
