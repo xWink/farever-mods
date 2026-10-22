@@ -439,6 +439,11 @@ class MarketplaceUiTest {
   check(editInputs.length==2&&editInputs[0].input.text=="5"&&editInputs[1].input.text=="7");
   GameAccess.buttons.filter(b->b.text=="Save changes")[0].action();check(c.edited.quantity==5&&c.edited.trays==7&&!c.edited.offers);
   GameAccess.buttons.filter(b->b.text=="Cancel")[0].action();check(c.editingListingId=="");
+  c.tab="Sell";c.availableQuantity=9;c.editingListingId="";c.listed=false;c.locked=false;c.bound=false;
+  GameAccess.nodes=[];GameAccess.labels=[];view.dirty=true;view.update();
+  var totalCounter=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==754&&n.y==536)[0];
+  totalCounter.input.text="99";totalCounter.onChange();check(totalCounter.input.text=="9");
+  check(GameAccess.labels.filter(l->l.text=="of 9 available").length==1);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

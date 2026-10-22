@@ -493,20 +493,11 @@ class MarketController {
             });
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
-    /** A price edit keeps the original character and item snapshot. Increasing a
-        stack also requires an unlocked matching stack in the current inventory/bank. */
-    function editAvailable(row:Dynamic):Int {
-        var original=G.field(G.field(row,"export"),"item");
-        if(original==null||inv==null)return 0;
-        var identity=MarketItemIdentity.key(original),available=0;
-        for(bank in [false,true])for(source in MarketInventory.sources(inv,bank))for(stack in source.stacks()) {
-            if(G.text(G.field(stack.item,"kind"))!=G.text(original.baseId)||!source.canDrop(stack,stack.count))continue;
-            var offer=TradeInventory.describe(stack.item,stack.count);
-            if(MarketItemIdentity.key(MarketExport.itemData(stack.item,offer,stack.count))==identity)
-                available=Std.int(Math.max(available,stack.count));
-        }
-        return available;
+    public function availableToList(item:TradeItem):Int {
+        try return MarketExport.available(inv,item,bankOnly)catch(_:Dynamic)return 0;
     }
+    /** Quantity changes retain the original item identity and character snapshot. */
+    function editAvailable(row:Dynamic):Int return MarketInventory.available(inv,G.field(G.field(row,"export"),"item"));
     public function beginEdit():Bool {
         if(busy||selected==null||tab!="My listings")return false;
         if(!ownedKnown){refreshSell();return false;}

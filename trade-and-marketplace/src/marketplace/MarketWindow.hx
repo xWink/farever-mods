@@ -964,8 +964,9 @@ class MarketWindow {
         }
         line(frame.container,754,SELL_FORM_Y-8,316);
         labelAt(frame.container,"Quantity to sell",754,SELL_FORM_Y+8,316,true);
-        counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.min(10000,c.chosen.count)),s->quantity=s);
-        labelAt(frame.container,"of "+c.chosen.count+" available",900,SELL_FORM_Y+44,170,false,MUTED);
+        var available=c.availableToList(c.chosen);
+        counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.max(1,available)),s->quantity=s);
+        labelAt(frame.container,"of "+available+" available",900,SELL_FORM_Y+44,170,false,MUTED);
         priceFields(SELL_FORM_Y+92);
         var limited=c.listingLimitReached();
         button(limited?"Too many listings":"List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept",!limited);

@@ -36,6 +36,8 @@ class MarketController {
  public function searchInventory():Void {inventorySearches++;if(view!=null)view.dirty=true;}
  public function cancelSignIn():Void{}
  public function signIn():Void{}
+ public var availableQuantity:Null<Int>;
+ public function availableToList(item:trade.TradeTypes.TradeItem):Int return availableQuantity==null?item.count:availableQuantity;
  public function list(q:Int,t:Int,o:Bool):Void{}
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
  public var atLimit=false;

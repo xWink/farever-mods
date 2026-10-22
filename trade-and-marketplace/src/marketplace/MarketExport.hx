@@ -22,14 +22,20 @@ class MarketExport {
         var hex=b.toHex().substr(0,32);b.fill(0,b.length,0);
         return hex.substr(0,8)+"-"+hex.substr(8,4)+"-"+hex.substr(12,4)+"-"+hex.substr(16,4)+"-"+hex.substr(20);
     }
+    public static function available(inv:TradeInventory,offer:TradeItem,bankOnly=false):Int {
+        var source=MarketInventory.source(inv,offer.uid,bankOnly),stack=source==null?null:source.find(offer.uid);
+        if(stack==null||TradeInventory.fingerprint(stack.item)!=offer.fingerprint||!source.canDrop(stack,1))return 0;
+        return MarketInventory.available(inv,itemData(stack.item,offer,1),bankOnly);
+    }
     public static function snapshot(inv:TradeInventory,offer:TradeItem,quantity:Int,trays:Int,offers:Bool,server:String,app:Dynamic,bankOnly=false):Dynamic {
         if(server=="")throw "The connected server could not be identified. Reconnect before listing items.";
         var source=MarketInventory.source(inv,offer.uid,bankOnly);
         var stack=source==null?null:source.find(offer.uid);
         if(quantity<1)throw "Choose a quantity of at least 1.";
-        if(stack!=null&&quantity>stack.count)throw "Not enough of this item. You have "+stack.count+" available.";
-        if(stack==null||TradeInventory.fingerprint(stack.item)!=offer.fingerprint||!source.canDrop(stack,quantity))
+        if(stack==null||TradeInventory.fingerprint(stack.item)!=offer.fingerprint||!source.canDrop(stack,1))
             throw "This item changed, is locked, or cannot be traded. Refresh and choose it again.";
+        var total=MarketInventory.available(inv,itemData(stack.item,offer,1),bankOnly);
+        if(quantity>total)throw "Not enough of this item. You have "+total+" available.";
         if(quantity<1||quantity>10000||(!offers&&(trays<1||trays>200000)))throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
         var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
         if(character==""||character=="0")throw "Your character is still loading. Try again shortly.";

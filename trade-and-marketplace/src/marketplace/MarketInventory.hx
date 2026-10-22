@@ -51,6 +51,21 @@ class MarketInventory {
         }
         return result;
     }
+    /** Count identical tradable copies, including separate non-stackable items.
+        A null scope searches both backpack and unlocked bank tabs for edits. */
+    public static function available(backpack:TradeInventory,item:Dynamic,?bankOnly:Bool):Int {
+        if(backpack==null||item==null)return 0;
+        var identity=MarketItemIdentity.key(item),count=0;
+        var scopes=bankOnly==null?[false,true]:[bankOnly];
+        for(bank in scopes)for(source in sources(backpack,bank))for(stack in source.stacks()) {
+            var kind=G.text(G.field(stack.item,"kind"));
+            if((kind!=""&&kind!=G.text(G.field(item,"baseId")))||!source.canDrop(stack,stack.count))continue;
+            var offer=TradeInventory.describe(stack.item,stack.count);
+            if(MarketItemIdentity.key(MarketExport.itemData(stack.item,offer,stack.count))==identity)
+                count=Std.int(Math.min(10000,count+stack.count));
+        }
+        return count;
+    }
     public static function source(backpack:TradeInventory,uid:String,bankOnly:Bool):TradeInventory {
         for(source in sources(backpack,bankOnly))if(source.find(uid)!=null)return source;
         return null;

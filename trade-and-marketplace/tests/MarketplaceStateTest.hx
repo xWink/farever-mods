@@ -178,7 +178,7 @@ class MarketplaceStateTest {
         var editor=new MarketController();editor.player=player;editor.inv=new TradeInventory(player);editor.server="europe";editor.ready=true;editor.tab="My listings";
         editor.inv.hero.loadout.banks=[];
         var held:Dynamic={uid:"edit-item",kind:"Shoulders_EManfish_WizCle",inf:{}};
-        editor.inv.inventory={content:[{item:held,count:12}]};
+        editor.inv.inventory={content:[{item:held,count:6},{item:{uid:"edit-copy",kind:"Shoulders_EManfish_WizCle",inf:{}},count:6}]};
         var export:Dynamic={schemaVersion:2,server:"europe",gameVersion:"test",character:{id:"original-character",name:"Original name"},
             item:marketplace.MarketExport.itemData(held,TradeInventory.describe(held,12),5),price:{mode:"fixed",silverTrays:4}};
         var listing:Dynamic={id:"edit-me",revision:3,server:"europe",expiresAt:"2099-01-01T00:00:00.000Z",item:haxe.Json.parse(haxe.Json.stringify(export.item)),price:export.price};

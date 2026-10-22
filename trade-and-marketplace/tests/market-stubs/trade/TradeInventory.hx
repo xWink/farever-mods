@@ -26,7 +26,7 @@ class TradeInventory {
  public static function definition(s:String):Dynamic return definitions.exists(s)?definitions[s]:{id:s};
  public static function skillName(s:String):String return s=="Infusion_Manfish_DPS"?"Overwhelming Tides":s;
  public static function itemName(s:String):String return s;
- public static function preview(i:Dynamic):TradeItemPreview return {flags:2,level:35,upgrade:2,rarity:"",infusion:"Infusion_Manfish_DPS",bonus:"",mastery:"",slots:["DivinedEmbroidery"],effects:[]};
+ public static function preview(i:Dynamic):TradeItemPreview return Reflect.field(i,"testPreview")!=null?cast i.testPreview:{flags:2,level:35,upgrade:2,rarity:"",infusion:"Infusion_Manfish_DPS",bonus:"",mastery:"",slots:["DivinedEmbroidery"],effects:[]};
  public static function describe(i:Dynamic,count:Int):TradeItem return {
   uid:Reflect.field(i,"uid")==null?"item":i.uid,kind:"Shoulders_EManfish_WizCle",name:"Shoulders",count:count,
   detail:"8 Intellect\n7 Faith",color:0,fingerprint:fp,preview:preview(i)

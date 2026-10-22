@@ -60,6 +60,23 @@ class MarketplaceTest {
   fails(()->MarketExport.snapshot(inv,item,1,1,false,"europe",app,true));
   var shortage="";try MarketExport.snapshot(inv,item,11,1,false,"europe",app)catch(e:Dynamic)shortage=Std.string(e);
   check(shortage=="Not enough of this item. You have 10 available.");
+  var copies=new TradeInventory();
+  var first:Dynamic={uid:"first",kind:item.kind,inf:{}},second:Dynamic={uid:"second",kind:item.kind,inf:{}},stacked:Dynamic={uid:"stacked",kind:item.kind,inf:{}};
+  var modified:Dynamic={uid:"modified",kind:item.kind,inf:{},testPreview:TradeInventory.preview(first)};modified.testPreview.upgrade++;
+  copies.inventory={content:[{item:first,count:1},{item:second,count:1},{item:stacked,count:4},{item:modified,count:8},
+    {item:{uid:"locked",kind:item.kind,inf:{},locked:true},count:20},{item:{uid:"bound",kind:item.kind,inf:{},bound:true},count:30}]};
+  var selection=TradeInventory.describe(first,1);
+  check(MarketExport.available(copies,selection)==6);
+  check(MarketExport.snapshot(copies,selection,6,8,false,"europe",app).item.quantity==6);
+  fails(()->MarketExport.snapshot(copies,selection,7,8,false,"europe",app));
+  second.locked=true;check(MarketExport.available(copies,selection)==5);
+  fails(()->MarketExport.snapshot(copies,selection,6,8,false,"europe",app));second.locked=false;
+  var tab1:Dynamic={content:[{item:first,count:2}]},tab2:Dynamic={content:[{item:second,count:3}]},lockedTab:Dynamic={content:[{item:stacked,count:100}]};
+  copies.hero.loadout.banks=[tab1,tab2,lockedTab];copies.player.accountProgress={nbBanks:2};
+  check(MarketExport.available(copies,selection,true)==5&&MarketExport.available(copies,selection,false)==6);
+  check(MarketExport.snapshot(copies,selection,5,8,false,"europe",app,true).item.quantity==5);
+  check(MarketInventory.available(copies,MarketExport.itemData(first,selection,1))==11);
+  copies.inventory.content[0]=null;fails(()->MarketExport.snapshot(copies,selection,1,8,false,"europe",app));
   check(MarketInventory.filter([item]," SHOUL ")[0]==item);
   check(MarketInventory.filter([item],"Shield").length==0);
   check(MarketInventory.filter([item],"  ").length==1);
