@@ -15,9 +15,7 @@ class WindowFlagsTest {
         checks++;
         if(!ok)throw "WindowFlags assertion "+checks;
     }
-    static function main():Void {
-        var names=["PreventCloseOther","AutoRegisterLayer","NeedLayer","FreeCursor","BlockInputs","BlockSkills"];
-        var lookup=(name:String):Dynamic switch(name) {
+    static function lookup(name:String):Dynamic return switch(name) {
             case "PreventCloseOther":MockWindowFlag.PreventCloseOther;
             case "AutoRegisterLayer":MockWindowFlag.AutoRegisterLayer;
             case "NeedLayer":MockWindowFlag.NeedLayer;
@@ -26,6 +24,8 @@ class WindowFlagsTest {
             case "BlockSkills":MockWindowFlag.BlockSkills;
             default:null;
         };
+    static function main():Void {
+        var names=["PreventCloseOther","AutoRegisterLayer","NeedLayer","FreeCursor","BlockInputs","BlockSkills"];
         var all=TradeWindowFlags.resolve(names,lookup);
         check(all.mask==63&&all.found==6&&all.missing.length==0);
         // PTR may omit one or more flags. Remaining flags still apply;
