@@ -8,11 +8,12 @@ import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
     public static inline var PAGE_SIZE = 8;
+    public static inline var EXPANDED_PAGE_SIZE = 6;
     public static inline var LISTING_LIMIT = 20;
     public var filtersExpanded=false;
     public var hideMine=false;
     var browseRows:Array<Dynamic>=[];
-    public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
+    public function pageSize():Int return tab=="Browse"?(filtersExpanded?EXPANDED_PAGE_SIZE:PAGE_SIZE):9;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -280,8 +281,27 @@ class MarketController {
         rememberTab();view.dirty=true;
     }
     public function toggleFilters():Void {
-        // Layout only: keep the query, pagination, selection and prefetched rows.
-        filtersExpanded=!filtersExpanded;view.dirty=true;
+        var firstIndex=(page-1)*pageSize();
+        filtersExpanded=!filtersExpanded;
+        if(tab!="Browse"){view.dirty=true;return;}
+        // Normal API cursors must match the six- or eight-item page size:
+        // otherwise switching layouts would skip results that no longer fit.
+        // Hide mine already has 24-item server-filtered batches to re-slice.
+        cancelPrefetch();
+        if(hideMine) {
+            page=Std.int(firstIndex/pageSize())+1;
+            if(filledBrowse!=null&&filledBrowse.path==cacheForTab().path) {
+                displayFilledBrowse(filledBrowse);
+                if(busy)navigationPending=true;
+                else showFilledBrowse(false);
+            } else if(busy){rows=[];selected=null;navigationPending=true;}
+            else showListings(false);
+        } else {
+            page=1;selected=null;rows=[];browseRows=[];total=0;pages=1;
+            if(busy){navigationPending=true;navigationForce=false;}
+            else showListings(false);
+        }
+        view.dirty=true;
     }
     public function setHideMine(value:Bool):Void {
         if(hideMine==value)return;
@@ -460,9 +480,8 @@ class MarketController {
     public function isLocked(item:TradeItem):Bool return item!=null&&lockedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
-        // Normal Browse retains its eight-item API pages/prefetch behavior.
-        // Hide mine requests 24 already-filtered listings from the API and
-        // serves three eight-row UI pages from each batch.
+        // Ordinary Browse requests the UI page size directly (6 or 8).
+        // Hide mine always buffers 24 server-filtered listings.
         var limit=hideMine?MarketBrowseFeed.LIMIT:pageSize();
         var params=["server="+StringTools.urlEncode(server)];
         if(hideMine)params.push("excludeAccountId="+StringTools.urlEncode(account));
@@ -528,9 +547,8 @@ class MarketController {
             }
         });
     }
-    // The API excludes our account and returns up to 24 listings in one
-    // server batch. Keep eight visible entries per UI page and request the next
-    // cursor only when the user advances beyond the buffered results.
+    // One 24-item batch supplies multiple pages of six or eight rows, so
+    // opening filters re-slices the same results without an extra fetch.
     function showFilledBrowse(force:Bool):Void {
         var cache=cacheForTab();
         if(filledBrowse==null||filledBrowse.path!=cache.path||force
@@ -540,7 +558,7 @@ class MarketController {
         activePages=cache;
         displayFilledBrowse(stream);
         var visibleCount=visibleBrowseRows(stream.rows).length;
-        if(stream.complete||visibleCount>=page*PAGE_SIZE)return;
+        if(stream.complete||visibleCount>=page*pageSize())return;
         if(busy){navigationPending=true;return;}
         var requested=stream.url();
         request("GET",requested,null,null,data->{
@@ -551,7 +569,7 @@ class MarketController {
     }
     function displayFilledBrowse(stream:MarketBrowseFeed):Void {
         var visible=visibleBrowseRows(stream.rows);
-        var start=(page-1)*PAGE_SIZE,end=page*PAGE_SIZE;
+        var start=(page-1)*pageSize(),end=page*pageSize();
         var id=G.text(G.field(selected,"id"),stream.selectedId);
         browseRows=stream.rows;
         rows=visible.slice(start,end);total=rows.length;
