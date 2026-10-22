@@ -91,7 +91,7 @@ class MarketplaceCacheTest {
         respond(c,app,last(),[{id:"retry"}],null);
 
         // Expired listings and sellers whose presence expired are never revived by cache hits.
-        c.page=1;c.refresh();respond(c,app,last(),[
+        c.page=1;c.filters["online"]="true";c.refresh();respond(c,app,last(),[
             {id:"expired",expiresAt:"2000-01-01T00:00:00.000Z"},
             {id:"offline",seller:{onlineUntil:"2000-01-01T00:00:00.000Z"}},
             {id:"live",expiresAt:"2099-01-01T00:00:00.000Z",seller:{onlineUntil:"2099-01-01T00:00:00.000Z"}}
@@ -115,33 +115,43 @@ class MarketplaceCacheTest {
         var c=new MarketController();
         c.player=player;c.inv=new TradeInventory(player);c.account="self";c.server="europe";c.ready=true;
         c.filters["online"]="false";
-        var own:Dynamic={id:"mine",server:"europe",seller:{accountId:"self",characterName:"Other character"}},
-            other:Dynamic={id:"other",seller:{accountId:"other",characterName:"Self"}};
+        var own:Dynamic={id:"mine",server:"europe",seller:{accountId:"self",characterName:"Different character"}},
+            other:Dynamic={id:"other",seller:{accountId:"other",characterName:"My name"}};
         c.open();
-        var request=last();
-        check(Std.string(request.path).indexOf("hideMine")<0);
-        respond(c,app,request,[own,other],"next");
-        check(!c.hideMine&&c.rows.length==2&&c.pages==2);
-        c.setHideMine(true);check(c.rows.length==1&&c.rows[0].id=="other");
+        var first=last();
+        check(Std.string(first.path).indexOf("hideMine")<0);
+        respond(c,app,first,[own,other],null);
+        check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine");
         var sent=MarketWorker.current.sent.length;
-        c.selected=c.rows[0];c.setHideMine(false);
-        check(c.rows.length==2&&c.selected.id=="other"&&MarketWorker.current.sent.length==sent);
-        c.selected=c.rows[0];c.setHideMine(true);
-        check(c.rows.length==1&&c.selected==null&&MarketWorker.current.sent.length==sent);
-        c.setHideMine(false);check(c.rows.length==2);
-        c.setHideMine(true);c.refresh();var loading=last();
-        c.setHideMine(false);check(c.busy&&c.rows.length==2&&last()==loading);
-        respond(c,app,loading,[own,other],"next");check(!c.busy&&c.rows.length==2);
         c.setHideMine(true);
-        // The current cache remains unfiltered, so toggling never requires a fetch.
-        check(c.rows.length==1&&c.rows[0].id=="other");
-        c.setHideMine(false);check(c.rows.length==2);
-        c.setHideMine(true);c.chooseTab("My listings");
-        var mineRequest=last();
-        respond(c,app,mineRequest,[own],null);
-        check(c.hideMine&&c.tab=="My listings"&&c.rows.length==1&&c.rows[0].id=="mine");
-        c.chooseTab("Browse");
-        check(c.rows.length==1&&c.rows[0].id=="other");
-        c.setHideMine(false);check(c.rows.length==2);
+        check(c.hideMine&&c.busy&&MarketWorker.current.sent.length==sent+1);
+        check(last().path==first.path);
+        // Entire raw page can belong to this account. Keep following the
+        // server cursor until eight *visible* rows exist.
+        var owned=[for(i in 0...8){id:"owned-"+i,seller:{accountId:"self"}}];
+        respond(c,app,last(),owned,"next-owned");
+        check(c.rows.length==0&&c.busy&&last().path.indexOf("cursor=next-owned")>=0);
+        var firstOthers=[for(i in 0...6){id:"first-"+i,seller:{accountId:"other"}}];
+        respond(c,app,last(),firstOthers,"next-others");
+        check(c.rows.length==6&&c.busy&&last().path.indexOf("cursor=next-others")>=0);
+        var more=[for(i in 0...8){id:"second-"+i,seller:{accountId:"other"}}];
+        respond(c,app,last(),more,null);
+        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="first-0"&&c.rows[7].id=="second-1");
+        check(c.pages==2);
+        sent=MarketWorker.current.sent.length;
+        c.goPage(2);check(c.rows.length==6&&c.rows[0].id=="second-2"&&MarketWorker.current.sent.length==sent);
+        c.goPage(1);check(c.rows.length==8&&!c.busy);
+        c.setHideMine(false);
+        check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
+        c.setHideMine(true);
+        check(c.rows.length==8&&!c.busy); // Reuse the already loaded filtered stream.
+        c.chooseTab("My listings");respond(c,app,last(),[own],null);
+        check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="mine");
+        c.chooseTab("Browse");check(c.rows.length==8&&c.rows[0].id=="first-0");
+        // A new filter invalidates the stream without reusing stale cursors.
+        c.filters["rarity"]="Epic";c.refresh();
+        check(c.busy&&last().path.indexOf("rarity=Epic")>=0&&last().path.indexOf("cursor=")<0);
+        respond(c,app,last(),[other],null);
+        check(!c.busy&&c.rows.length==1&&c.rows[0].id=="other");
     }
 }

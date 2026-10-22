@@ -59,6 +59,7 @@ class MarketController {
     public var total=0;
     var listingCaches:Map<String,MarketPages>=[];
     var activePages:MarketPages;
+    var filledBrowse:MarketBrowseFeed;
     var prefetch:Null<{cache:MarketPages,page:Int,ticket:Int,waiting:Bool}>;
     var nextTicket=0;
     var mineSort="";
@@ -211,7 +212,9 @@ class MarketController {
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
     function rememberTab():Void {
         if(tab=="My listings"){minePage=page;mineSelectedId=G.text(G.field(selected,"id"));}
-        else if(activePages!=null&&tab=="Browse") {
+        else if(tab=="Browse"&&hideMine&&filledBrowse!=null) {
+            filledBrowse.current=page;filledBrowse.selectedId=G.text(G.field(selected,"id"));
+        } else if(activePages!=null&&tab=="Browse") {
             activePages.current=page;activePages.selectedId=G.text(G.field(selected,"id"));
         }
     }
@@ -222,7 +225,7 @@ class MarketController {
         prefetch=null;worker.cancelPrefetch();
     }
     function invalidateListings():Void {
-        cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
+        cancelPrefetch();listingCaches=[];activePages=null;filledBrowse=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function chooseTab(value:String):Void {
         editingListingId="";rememberTab();cancelPrefetch();opened=true;
@@ -240,14 +243,20 @@ class MarketController {
             if(ownedKnown)displayOwned();
             else if(!busy)refreshSell();
         } else {
-            activePages=cacheForTab();page=activePages.current;
+            activePages=cacheForTab();
+            page=hideMine&&filledBrowse!=null&&filledBrowse.path==activePages.path
+                ?filledBrowse.current:activePages.current;
             if(!canBrowse()) {
                 rows=[];browseRows=[];selected=null;page=pages=1;total=0;
                 message=MarketText.SIGN_IN_TO_BROWSE;
             } else if(busy) {
-                var cached=activePages.get(page,haxe.Timer.stamp());
-                if(cached!=null)displayPage(activePages,page,cached);
-                else message="Loading...";
+                if(hideMine&&filledBrowse!=null&&filledBrowse.path==activePages.path)
+                    displayFilledBrowse(filledBrowse);
+                else if(!hideMine) {
+                    var cached=activePages.get(page,haxe.Timer.stamp());
+                    if(cached!=null)displayPage(activePages,page,cached);
+                }
+                message="Loading...";
             } else showListings(false);
         }
         view.dirty=true;
@@ -278,18 +287,20 @@ class MarketController {
         if(hideMine==value)return;
         hideMine=value;saveFilterPreferences();
         if(tab=="Browse") {
-            // Refilter the original cached listings locally; neither pagination
-            // cursors nor the API query depend on this client-only option.
-            var selectedId=G.text(G.field(selected,"id"));
-            rows=visibleBrowseRows();total=rows.length;selected=null;
-            for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}
-            rememberTab();
+            cancelPrefetch();
+            page=pages=1;selected=null;rows=[];browseRows=[];total=0;
+            // The saved raw pages can still be used when Hide mine is disabled.
+            // Enabling it switches to a stream that continues loading cursor
+            // pages until each displayed page contains eight visible rows.
+            if(busy){navigationPending=true;navigationForce=false;}
+            else showListings(false);
         }
         view.dirty=true;
     }
-    function visibleBrowseRows():Array<Dynamic> {
+    function visibleBrowseRows(?source:Array<Dynamic>):Array<Dynamic> {
         var now=Date.now().getTime()/1000;
-        return browseRows.filter(row->{
+        var raw=source==null?browseRows:source;
+        return raw.filter(row->{
             var expiry=G.text(G.field(row,"expiresAt")),seller=G.field(row,"seller");
             return (expiry==""||Protocol.expiry(expiry)>now)
                 &&(filters["online"]!="true"||seller==null||listingOnline(row,now))
@@ -481,6 +492,7 @@ class MarketController {
             message=MarketText.SIGN_IN_TO_BROWSE;view.dirty=true;return;
         }
         if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
+        if(hideMine){showFilledBrowse(force);return;}
         var cache=cacheForTab();activePages=cache;
         if(page>1&&cache.cursors[page-1]==null)page=1;
         cache.current=page;cache.trim();
@@ -502,6 +514,40 @@ class MarketController {
             }
         });
     }
+    // Hide mine is a local filter, so the server can return an entire page
+    // owned by this player. Consume additional cursor pages rather than leave
+    // sparse display pages. Keep already-seen visible rows for later pages.
+    function showFilledBrowse(force:Bool):Void {
+        var cache=cacheForTab();
+        if(filledBrowse==null||filledBrowse.path!=cache.path||force
+            ||filledBrowse.stale(haxe.Timer.stamp()))
+            filledBrowse=new MarketBrowseFeed(cache.path);
+        var stream=filledBrowse;
+        activePages=cache;
+        displayFilledBrowse(stream);
+        var visibleCount=visibleBrowseRows(stream.rows).length;
+        if(stream.complete||visibleCount>=page*PAGE_SIZE)return;
+        if(busy){navigationPending=true;return;}
+        var requested=stream.url();
+        request("GET",requested,null,null,data->{
+            stream.append(data,haxe.Timer.stamp());
+            if(tab=="Browse"&&hideMine&&filledBrowse==stream&&!navigationPending)
+                showFilledBrowse(false);
+        });
+    }
+    function displayFilledBrowse(stream:MarketBrowseFeed):Void {
+        var visible=visibleBrowseRows(stream.rows);
+        var start=(page-1)*PAGE_SIZE,end=page*PAGE_SIZE;
+        var id=G.text(G.field(selected,"id"),stream.selectedId);
+        browseRows=stream.rows;
+        rows=visible.slice(start,end);total=rows.length;
+        pages=page+(visible.length>end||!stream.complete?1:0);
+        selected=null;
+        for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
+        stream.current=page;stream.selectedId=G.text(G.field(selected,"id"));
+        message=rows.length==0&&stream.complete?"No matching listings.":"Listings updated.";
+        view.dirty=true;
+    }
     function displayPage(cache:MarketPages,target:Int,result:MarketPages.MarketPage):Void {
         var selectedId=G.text(G.field(selected,"id"),cache.selectedId);
         browseRows=result.rows;
@@ -513,7 +559,7 @@ class MarketController {
         message=total==0?"No matching listings.":"Listings updated.";view.dirty=true;
     }
     function prefetchNext():Void {
-        if(!canBrowse())return;
+        if(!canBrowse()||hideMine)return;
         var cache=activePages,now=haxe.Timer.stamp();
         if(busy||prefetch!=null||cache==null||tab=="Sell"||cooldown.remaining("GET",cache.path,now)>0
             ||(tab=="My listings"&&!ready))return;
