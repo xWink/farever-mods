@@ -1,7 +1,8 @@
 package trade;
 class TradeUi {
- public static function node(c:String,p:Dynamic,args:Array<Dynamic>,id:String):Dynamic {
-  var o=GameAccess.object(p.obj);o.id=id;o.component=c;o.items=[];o.select=GameAccess.object(o);o.selectText=GameAccess.object(o.select);
+ public static function node(c:String,p:Dynamic,args:Array<Dynamic>,id:String,?layout:String):Dynamic {
+  var o=GameAccess.object(p.obj);o.id=id;o.component=c;o.items=[];
+  if(layout!=null)o.layout=layout=="vertical"?"Vertical":layout;o.select=GameAccess.object(o);o.selectText=GameAccess.object(o.select);
   o.selectText.bounds={xMin:0.,yMin:0.,xMax:100.,yMax:24.};
   o.selectText.inkBounds={xMin:1.,yMin:8.,xMax:101.,yMax:22.};
   o.fmtText=GameAccess.object(o);o.fmtText.text=args.length>0?Std.string(args[0]):"";

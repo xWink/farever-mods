@@ -641,12 +641,13 @@ class MarketWindow {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
         if(key!=inventoryScrollKey){inventoryScroll=0;inventoryScrollKey=key;}
         var root=frame.container;
-        inventoryViewport=G.field(node("element",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++)),"obj");
+        // A dedicated native Flow avoids UIElement's component layout rules
+        // being reapplied over the scroll-specific Vertical measurement.
+        inventoryViewport=G.field(node("flow",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++),"vertical"),"obj");
         var viewport=inventoryViewport;
         absolute(root,viewport);padding(viewport,0);size(viewport,676,806-contentY-64);position(viewport,30,contentY+52);
-        // DOMKit elements can start in Stack layout, which clamps contentHeight
-        // to the viewport and makes native scrollbars (and wheel input) disappear.
-        // Vertical measures the whole normal-flow grid before clipping it.
+        // Native Vertical Flow measures the full content height, unlike an
+        // element's Stack layout which can clamp it to the clipped viewport.
         var vertical=G.enumeration("h2d.FlowLayout","Vertical");
         G.call("h2d.Flow","set_layout",viewport,[vertical]);style(viewport,"layout",vertical);
         G.call("h2d.Flow","set_multiline",viewport,[false]);style(viewport,"multiline",false);
@@ -733,6 +734,24 @@ class MarketWindow {
         G.set(viewport,"onAfterReflow",()->{
             if(previous!=null)Reflect.callMethod(viewport,previous,[]);
             if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
+            var diagnosticKey="sell-scroll:"+key;
+            if(!reported.exists(diagnosticKey)) {
+                reported[diagnosticKey]=true;
+                // Public Flow getters return real layout; unlike private
+                // calculatedWidth/Height these can be inspected reliably.
+                try {
+                    var bar=G.field(viewport,"scrollBar");
+                    var viewportHeight=G.number(G.call("h2d.Flow","get_outerHeight",viewport,[]));
+                    var contentHeight=G.number(G.call("h2d.Flow","get_outerHeight",content,[]));
+                    trade.TradeDiagnostics.log("Marketplace Sell native scrollbar ["+key+"]: viewport="+viewportHeight
+                        +", content="+contentHeight+", expected="+(Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch)
+                        +", scroll content="+G.text(G.field(viewport,"contentHeight"),"unavailable")
+                        +", bar visible="+G.text(G.field(bar,"visible"),"missing")
+                        +", bar alpha="+G.text(G.field(bar,"alpha"),"missing")
+                        +", bar x="+G.text(G.field(bar,"x"),"missing")
+                        +", layout="+G.enumName(G.field(viewport,"layout")));
+                } catch(error:Dynamic)report("Sell scrollbar measurement",error);
+            }
         });
     }
     static function inventoryScrollbar(viewport:Dynamic):Void {

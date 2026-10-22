@@ -10,6 +10,16 @@ class TradeFrame {
   var live:Array<Dynamic>=[];
   function visit(o:Dynamic):Void {live.push(o);for(child in (cast o.children:Array<Dynamic>))visit(child);}
   visit(container);visit(header);
+  // Mirror Flow scroll visibility based on normal-flow content. A Stack
+  // parent clamps the scroll height, whereas Vertical measures the grid.
+  for(o in live)if(GameAccess.field(o,"scrollBar")!=null&&GameAccess.field(o,"height")!=null) {
+   var maxChild=0.0;
+   for(child in (cast o.children:Array<Dynamic>))if(child!=o.scrollBar
+       &&GameAccess.field(child,"flowProperties")!=null&&child.flowProperties.isAbsolute!=true)
+    maxChild=Math.max(maxChild,GameAccess.number(GameAccess.field(child,"height")));
+   o.contentHeight=o.layout=="Vertical"?Math.max(maxChild,GameAccess.number(o.height)):GameAccess.number(o.height);
+   o.scrollBar.visible=o.contentHeight>o.height;
+  }
   GameAccess.nodes=live.filter(o->GameAccess.field(o,"id")!=null);
   GameAccess.labels=live.filter(o->GameAccess.field(o,"testLabel")==true);
   GameAccess.buttons=live.filter(o->GameAccess.field(o,"testButton")==true);

@@ -54,6 +54,7 @@ class GameAccess {
    case "getProperties":
     var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
    case "calcTextWidth": Std.string(a[0]).length*number(field(o,"glyphWidth"),8.0);
+   case "get_outerHeight": field(o,"height");
    case "getSize":
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
    case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics"){o.shapes=[];o.points=[];}null;

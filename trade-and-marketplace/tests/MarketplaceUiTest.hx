@@ -283,7 +283,8 @@ class MarketplaceUiTest {
   c.bound=false;
   c.listed=false;GameAccess.nodes=[];view.dirty=true;view.update();
   var gridViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];
-  check(gridViewport.overflow=="Scroll"&&gridViewport.layout=="Vertical"&&gridViewport.multiline==false);
+  check(gridViewport.component=="flow"&&gridViewport.overflow=="Scroll"
+   &&gridViewport.layout=="Vertical"&&gridViewport.multiline==false);
   check(gridViewport.y+gridViewport.height<806&&gridViewport.height<sellSlots[118].parent.height);
   // Preserve full normal-flow height so the native scrollbar can measure overflow.
   check(sellSlots[118].parent.flowProperties.isAbsolute==false);
@@ -294,6 +295,8 @@ class MarketplaceUiTest {
   check((cast scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
   check((cast scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")<0);
   check((cast scrollCursor.dom.classes:Array<String>).indexOf("cursor")>=0);
+  // A real flowing grid must make the native track visible when it overflows.
+  check(gridViewport.contentHeight>gridViewport.height&&scrollBar.visible==true);
   check(scrollBar.children.length==1&&scrollBar.children[0]==scrollCursor);
   check(scrollBar.onAfterReflow==null&&scrollCursor.onAfterReflow==null);
   gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
@@ -308,9 +311,11 @@ class MarketplaceUiTest {
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
   check(bankSlots[0].parent.width==634&&bankSlots[0].parent.flowProperties.horizontalAlign=="Middle");
   var bankViewport:Dynamic=bankSlots[0].parent.parent;
-  check(bankViewport.overflow=="Scroll"&&bankViewport.layout=="Vertical"&&bankViewport.multiline==false);
+  check(bankViewport.component=="flow"&&bankViewport.overflow=="Scroll"
+   &&bankViewport.layout=="Vertical"&&bankViewport.multiline==false);
   check(bankSlots[0].parent.flowProperties.isAbsolute==false&&bankSlots[0].parent.height>bankViewport.height);
   check(bankViewport.scrollBar.width==10&&bankViewport.scrollBarCursor.width==10);
+  check(bankViewport.contentHeight>bankViewport.height&&bankViewport.scrollBar.visible==true);
   check(bankViewport.scrollBar.flowProperties.isAbsolute&&bankViewport.scrollBar.flowProperties.horizontalAlign=="Right");
   check((cast bankViewport.scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
   check(bankViewport.scrollBar.children.length==1&&bankViewport.scrollBar.children[0]==bankViewport.scrollBarCursor);
