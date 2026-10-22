@@ -70,7 +70,6 @@ class MarketController {
     var pendingFailure:Void->Void;
     var pendingMethod="";
     var pendingPath="";
-    var navigationPending=false;
     final cooldown=new MarketCooldown();
     var retryOnOpen=false;
     var expectedBody="";
@@ -155,16 +154,13 @@ class MarketController {
             }
             event=worker.receive();
         }
-        // Navigation changes the visible tab immediately. If a foreground
-        // request owns the worker, fetch any missing tab data once it finishes.
-        if(navigationPending&&!busy){navigationPending=false;showTab();}
         view.update();
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
         ownOnlineUntil=0;ownOnlineServer="";
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
-        generation=worker.session(server==""?"":account,key,server);busy=false;ready=false;pending=null;pendingFailure=null;navigationPending=false;cooldown.clear();retryOnOpen=false;
+        generation=worker.session(server==""?"":account,key,server);busy=false;ready=false;pending=null;pendingFailure=null;cooldown.clear();retryOnOpen=false;
         signingIn=false;SessionLease.release(HlxRuntime.moduleName());
         invalidateListings();ownedItems=[];ownedKinds=[];
         if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
@@ -174,7 +170,7 @@ class MarketController {
         contactingSeller="";editingListingId="";
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;ownOnlineServer="";
-        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;navigationPending=false;
+        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
         cooldown.clear();retryOnOpen=false;
         rows=[];browseRows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
@@ -212,33 +208,23 @@ class MarketController {
             activePages.current=page;activePages.selectedId=G.text(G.field(selected,"id"));
         }
     }
-    function cancelPrefetch():Void {
-        if(prefetch!=null&&prefetch.waiting)busy=false;
-        prefetch=null;worker.cancelPrefetch();
-    }
+    function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
     function invalidateListings():Void {
         cancelPrefetch();listingCaches=[];activePages=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function chooseTab(value:String):Void {
+        if(busy)return;
         editingListingId="";rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];browseRows=[];selected=null;total=0;page=pages=1;
-        activePages=tab=="Browse"?cacheForTab():null;
-        if(tab=="My listings")page=minePage;
-        else if(activePages!=null)page=activePages.current;
-        navigationPending=busy;
-        showTab();
-    }
-    function showTab():Void {
         if(tab=="Sell") {
-            if(!ownedKnown&&!busy)refreshSell();
-            else {loadInventory();if(ownedKnown)message="";}
+            activePages=null;
+            if(ownedKnown){loadInventory();message="";}
+            else refreshSell();
         } else if(tab=="My listings") {
-            if(ownedKnown)displayOwned();else if(!busy)refreshSell();
+            activePages=null;page=minePage;
+            if(ownedKnown)displayOwned();else refreshSell();
         } else {
-            if(!busy)showListings(false);
-            else {
-                var cached=activePages==null?null:activePages.get(page,haxe.Timer.stamp());
-                if(cached!=null)displayPage(activePages,page,cached);
-            }
+            activePages=cacheForTab();page=activePages.current;
+            showListings(false);
         }
         view.dirty=true;
     }
@@ -256,11 +242,11 @@ class MarketController {
         if(hideMine==value)return;
         hideMine=value;
         if(tab=="Browse") {
-            // The API has no exclude-owner parameter. Refilter the unmodified
-            // cached rows locally; keep cursors and prefetches valid in either state.
-            var id=G.text(G.field(selected,"id"));
+            // Refilter the original cached listings locally; neither pagination
+            // cursors nor the API query depend on this client-only option.
+            var selectedId=G.text(G.field(selected,"id"));
             rows=visibleBrowseRows();total=rows.length;selected=null;
-            for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
+            for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}
             rememberTab();
         }
         view.dirty=true;
@@ -319,7 +305,7 @@ class MarketController {
                     cursors[next]=true;fetchPage(next);return;
                 }
                 ownedRows=collected;indexOwned();ownedKnown=true;
-                if(tab=="My listings")displayOwned();else if(tab=="Sell")loadInventory();
+                if(tab=="My listings")displayOwned();else loadInventory();
                 message="";
             });
         }
@@ -403,10 +389,11 @@ class MarketController {
         total=inventory.length;pages=page=1;view.dirty=true;
     }
     public function setBankOnly(value:Bool):Void {
+        if(busy)return;
         bankOnly=value;page=1;loadInventory();
     }
     public function setBankTab(value:Int):Void {
-        if(value<0||value>=bankNames.length||value==bankTab)return;
+        if(busy||value<0||value>=bankNames.length||value==bankTab)return;
         bankTab=value;chosen=null;loadInventory();
     }
     public function inventoryStack(item:TradeItem):Dynamic {
@@ -451,14 +438,13 @@ class MarketController {
         if(force)cache.forget(target);
         request("GET",cache.url(target),null,null,data->{
             var result=cache.put(target,data,haxe.Timer.stamp());
-            // A response for the tab/query we left may fill its cache, but must
-            // never replace the new tab's rows, selection or inventory count.
-            if(tab=="Browse"&&activePages==cache&&page==target){displayPage(cache,target,result);prefetchNext();}
+            displayPage(cache,target,result);prefetchNext();
         });
     }
     function displayPage(cache:MarketPages,target:Int,result:MarketPages.MarketPage):Void {
         var selectedId=G.text(G.field(selected,"id"),cache.selectedId);
-        browseRows=result.rows;rows=visibleBrowseRows();
+        browseRows=result.rows;
+        rows=visibleBrowseRows();
         page=target;cache.current=target;cache.trim();total=rows.length;pages=page+(result.next==null?0:1);
         selected=null;
         for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}
@@ -527,7 +513,7 @@ class MarketController {
                 ownedKinds[G.text(G.field(value.item,"baseId"))]=true;
                 expectedBody="";requestId="";
                 if(chosen!=null&&chosen.uid==submittedUid)chosen=null;
-                if(!navigationPending){page=1;refresh();}
+                page=1;refresh();
             });
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
@@ -564,9 +550,7 @@ class MarketController {
                 updated.revision=data.revision;updated.export=value;updated.item.quantity=quantity;updated.price=value.price;
                 ownedRows=[for(existing in ownedRows)G.text(existing.id)==id?updated:existing];
                 editingListingId="";indexOwned();cancelPrefetch();listingCaches=[];activePages=null;
-                mineSelectedId=id;
-                if(tab=="My listings"){selected=updated;displayOwned();}
-                message="Listing updated.";
+                selected=updated;mineSelectedId=id;displayOwned();message="Listing updated.";
             });
         }catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
@@ -579,8 +563,8 @@ class MarketController {
         var sent=request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
             indexOwned();cancelPrefetch();listingCaches=[];activePages=null;message="";
         },()->{
-            ownedRows=previousRows;minePage=previousPage;mineSelectedId=id;indexOwned();
-            if(tab=="My listings"){page=previousPage;selected=previousSelection;displayOwned();}
+            ownedRows=previousRows;page=previousPage;selected=previousSelection;
+            mineSelectedId=id;displayOwned();
         });
         if(!sent)return;
         ownedRows=ownedRows.filter(row->G.text(G.field(row,"id"))!=id);

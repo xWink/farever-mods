@@ -76,8 +76,10 @@ class MarketplaceUiTest {
   var hideMine=GameAccess.nodes.filter(n->n.fmtText.text=="Hide mine")[0];
   check(hideMine!=null&&hideMine.selected&&c.hideMine);
   check(hideMine.y==online.y&&hideMine.x+hideMine.width+16==online.x);
-  var callsBeforeHide=c.refreshes;c.busy=true;hideMine.onValueChange(false);
-  check(!c.hideMine&&c.refreshes==callsBeforeHide);c.busy=false;hideMine.onValueChange(true);
+  var requestsBeforeHide=c.refreshes;
+  c.busy=true;hideMine.onValueChange(false);
+  check(!c.hideMine&&c.refreshes==requestsBeforeHide);
+  c.busy=false;hideMine.onValueChange(true);check(c.hideMine);
   var search=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
   check(search.input.x==search.inputHint.x&&search.input.x>0);
   var select=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0)[0];
@@ -285,52 +287,18 @@ class MarketplaceUiTest {
   var scrollBar:Dynamic=gridViewport.scrollBar,scrollCursor:Dynamic=gridViewport.scrollBarCursor;
   check(scrollBar!=null&&scrollCursor.parent==scrollBar&&scrollBar.parent==gridViewport);
   check((cast scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")>=0);
-  // Native game UIElements retain their own backgrounds, cursor and input tree.
-  check(scrollBar.nativeType=="ui.UIElement"&&scrollCursor.nativeType=="ui.UIElement");
-  check(scrollBar.children.length==2&&scrollBar.children[0]==scrollBar.background&&scrollBar.children[1]==scrollCursor);
-  check(scrollCursor.children.length==1&&scrollCursor.children[0]==scrollCursor.background);
-  var skin=@:privateAccess view.inventoryBar;
-  var trackPaint:Dynamic=@:privateAccess skin.trackPaint,cursorPaint:Dynamic=@:privateAccess skin.cursorPaint;
-  check(trackPaint.parent==TradeFrame.latest.container&&cursorPaint.parent==TradeFrame.latest.container);
-  check(trackPaint.nativeType=="h2d.Graphics"&&trackPaint.flowProperties.isAbsolute&&cursorPaint.flowProperties.isAbsolute);
-  check(scrollBar.backgroundTile!=null&&scrollCursor.backgroundTile!=null);
+  check(scrollBar.children.length==1&&scrollBar.children[0]==scrollCursor);
   check(scrollBar.onAfterReflow==null&&scrollCursor.onAfterReflow==null);
   check(scrollBar.flowProperties.isAbsolute&&scrollBar.flowProperties.horizontalAlign=="Right");
-  gridViewport.x=30;gridViewport.y=198;
-  scrollBar.x=650;scrollBar.y=0;
-  scrollCursor.x=0;scrollCursor.y=35;
-  scrollBar.calculatedWidth=12.;scrollBar.calculatedHeight=400.;scrollCursor.calculatedWidth=12.;scrollCursor.calculatedHeight=100.;
-  view.update();
-  check(trackPaint.x==680&&trackPaint.y==198&&cursorPaint.x==680&&cursorPaint.y==233);
-  check(trackPaint.shapes.length==2&&trackPaint.shapes[0].color==0xEFE3D1&&trackPaint.shapes[1].radius==6&&trackPaint.shapes[1].height==400);
-  check(cursorPaint.shapes.length==2&&cursorPaint.shapes[0].color==0xB69B7F&&cursorPaint.shapes[1].color==0x806B5B);
-  var paintedShapes=trackPaint.shapes;view.update();check(trackPaint.shapes==paintedShapes);
-  scrollCursor.y=82;view.update();check(cursorPaint.y==280&&trackPaint.shapes==paintedShapes);
-  check(GameAccess.removed.indexOf(scrollBar.background)<0&&GameAccess.removed.indexOf(scrollCursor.background)<0);
-  gridViewport.onAfterReflow();gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
+  gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
   var newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];newGrid.onAfterReflow();check(newGrid.scrollPosY==128);
-  check(newGrid==gridViewport&&newGrid.scrollBar==scrollBar&&newGrid.scrollBarCursor==scrollCursor);
-  // Submitting and reconciling listings must preserve the actual scrolling
-  // controls, their content host and thumb state, not just restore the offset.
-  var contentHost=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryGrid")==0)[0];
-  for(loading in [true,false]) {
-   c.busy=loading;c.listed=!loading;view.dirty=true;view.update();
-   newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];
-   check(newGrid==gridViewport&&newGrid.scrollBar==scrollBar&&newGrid.scrollBarCursor==scrollCursor&&newGrid.scrollPosY==128);
-   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryGrid")==0)[0]==contentHost);
-   check(GameAccess.removed.indexOf(scrollBar)<0&&GameAccess.removed.indexOf(gridViewport)<0);
-   check(trackPaint.parent==TradeFrame.latest.container&&cursorPaint.parent==TradeFrame.latest.container);
-   check(GameAccess.removed.indexOf(trackPaint)<0&&GameAccess.removed.indexOf(cursorPaint)<0);
-  }
-  c.listed=false;
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
   var bankSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
   check(bankSlots[0].parent.width==634&&bankSlots[0].parent.flowProperties.horizontalAlign=="Middle");
   var bankViewport:Dynamic=bankSlots[0].parent.parent;
   check((cast bankViewport.scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")>=0);
-  check(bankViewport.scrollBar.children.length==2&&bankViewport.scrollBar.children[0]==bankViewport.scrollBar.background&&bankViewport.scrollBar.children[1]==bankViewport.scrollBarCursor);
-  check(bankViewport.scrollBar.backgroundTile!=null&&bankViewport.scrollBarCursor.backgroundTile!=null);
+  check(bankViewport.scrollBar.children.length==1&&bankViewport.scrollBar.children[0]==bankViewport.scrollBarCursor);
   var tabs=GameAccess.buttons.filter(b->b.y==820&&b.x<704);
   check(tabs.length==2&&tabs[0].text=="First tab"&&tabs[1].text=="Second tab"&&tabs[0].selected);
   tabs[1].action();GameAccess.nodes=[];view.update();check(c.bankTab==1);
@@ -346,12 +314,9 @@ class MarketplaceUiTest {
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0).length==2);
   c.tab="Browse";c.filters["rarity"]="Epic";c.filters["search"]="shield";c.filters["online"]="false";
   GameAccess.buttons=[];view.dirty=true;view.update();
-  c.busy=true;
   GameAccess.buttons.filter(b->b.text=="Hide filters")[0].action();GameAccess.nodes=[];view.update();
   check(!c.filtersExpanded&&c.filters["rarity"]=="Epic"&&c.filters["search"]=="shield"&&c.filters["online"]=="false");
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
-  GameAccess.buttons.filter(b->b.text=="Sell")[0].action();check(c.tab=="Sell");
-  c.tab="Browse";c.busy=false;
   // Reused controls must receive current values and fresh category-dependent callbacks.
   var toggle=GameAccess.buttons.filter(b->b.text=="Show filters")[0];
   var searchField=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];

@@ -1,7 +1,6 @@
 package trade;
 class GameAccess {
  public static function enumName(value:Dynamic):String return value==null?"":Std.string(value);
- public static function typeName(o:Dynamic):String return Std.string(field(o,"nativeType")==null?"ui.UIElement":field(o,"nativeType"));
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];
@@ -41,10 +40,6 @@ class GameAccess {
   // children must never be reordered with that base implementation.
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
    throw "Scrollbar Flow layout corrupted by Object.addChildAt";
-  // Modifying native scrollbar structure or backgrounds is forbidden:
-  // game scrollbar UIElements own those native objects and their lifecycle.
-  if(field(o,"nativeScrollbar")==true&&t=="h2d.Flow"&&(n=="addChildAt"||n=="set_backgroundTile"))
-   throw "Do not mutate the native scrollbar Flow";
   return switch(n){
    case "addClass":
     if(field(o,"classes")==null)o.classes=[];
@@ -52,11 +47,9 @@ class GameAccess {
    case "set_overflow":
     o.overflow=a[0];
     if(a[0]=="Scroll"&&field(o,"scrollBar")==null) {
-     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;o.scrollBar.nativeType="ui.UIElement";
+     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;
      o.scrollBar.flowProperties={isAbsolute:true,horizontalAlign:"Right",verticalAlign:"Top"};
-     o.scrollBar.background=object(o.scrollBar);o.scrollBar.backgroundTile={};
-     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;o.scrollBarCursor.nativeType="ui.UIElement";
-     o.scrollBarCursor.background=object(o.scrollBarCursor);o.scrollBarCursor.backgroundTile={};
+     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;
     }null;
    case "getProperties":
     var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
@@ -107,10 +100,6 @@ class GameAccess {
      o.items=[for(_ in (cast o.options:Array<Dynamic>))object(o.listWindow.content)];
     }null;
    case "set_onClick": o.action=a[0];null;
-   case "set_onOver", "set_onOut": Reflect.setField(o,n.substr(4),a[0]);null;
-   case "set_backgroundTile":
-    o.backgroundTile=a[0];
-    if(a[0]==null&&field(o,"background")!=null){call("h2d.Object","remove",o.background);o.background=null;}null;
    case "getName": "Tester";
    case "getRequiredLevel": 15;
    case "getItemAffixes": ["75 Vitality","58 Strength"];

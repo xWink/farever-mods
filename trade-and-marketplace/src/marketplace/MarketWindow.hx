@@ -46,9 +46,6 @@ class MarketWindow {
     var offers = false;
     var contentY = 284;
     var inventoryViewport:Dynamic;
-    var inventoryContent:Dynamic;
-    var inventoryBar:MarketScrollbar;
-    var inventoryBarUnavailable=false;
     var inventoryScroll=0.0;
     var inventoryScrollKey="";
     static inline var SELL_FORM_Y=500;
@@ -58,16 +55,9 @@ class MarketWindow {
     var reported:Map<String,Bool> = [];
     public var dirty = true;
 
-    function traceSellOnce(step:String):Void {
-        var key="Sell trace:"+step;
-        if(reported.exists(key))return;
-        reported[key]=true;
-        trade.TradeDiagnostics.log("Marketplace "+key);
-    }
-
     public function new(controller:MarketController) c = controller;
     public function isOpen():Bool return shown;
-    public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; reported=[];dirty = true; }
+    public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();
         shown = false; closeDropdowns();
@@ -116,11 +106,6 @@ class MarketWindow {
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
-        if(c.tab=="Sell")traceSellOnce("frame positioned");
-        if(inventoryBar!=null)try inventoryBar.update() catch(error:Dynamic) {
-            report("Sell scrollbar paint",error);
-            inventoryBar=null;inventoryBarUnavailable=true;
-        }
         stage="dropdown input";dismissOutsideDropdowns();
         if(c.connectionIssue&&!c.signingIn&&!connectionNoticeShown)showConnectionError();
     }
@@ -151,14 +136,10 @@ class MarketWindow {
         if(drawer.value==0&&c.selected==null)closingListing=null;
         tableExtra=c.tab=="Sell"?0:Math.round(368*(1-drawer.value));
         stage="clear old controls";
-        if(c.tab=="Sell")traceSellOnce("render started");
-        if(c.tab!="Sell"||recovery)rememberInventoryScroll();
-        rememberListingScroll();
+        rememberInventoryScroll();rememberListingScroll();
         closeDropdowns();
         filterControls.begin();
-        for (child in children(frame.container))
-            if(child!=backdrop&&child!=inventoryViewport&&(inventoryBar==null||!inventoryBar.owns(child))&&!filterControls.contains(child))
-                G.call("h2d.Object", "remove", child);
+        for (child in children(frame.container)) if(child!=backdrop&&!filterControls.contains(child))G.call("h2d.Object", "remove", child);
         var root = frame.container;
         // Keep one background below the retained inputs. Inserting new cards into
         // a native Flow during refresh can put them over its first controls.
@@ -213,10 +194,7 @@ class MarketWindow {
             labelAt(root,c.bankOnly?"YOUR BANK":"YOUR INVENTORY",32,contentY+16,420,true);
             labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);searchItemButton();
             line(root,30,contentY+42,676);line(root,750,contentY+42,324);
-            stage="Sell inventory grid";inventoryGrid();
-            traceSellOnce("inventory grid built");
-            stage="Sell item panel";sellPanel();
-            traceSellOnce("item panel built");
+            inventoryGrid();sellPanel();
         } else {
             var tableBackground=graphic(root);
             tableLayouts.push(extra->{
@@ -277,7 +255,6 @@ class MarketWindow {
         var message = c.message;
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
-        if(c.tab=="Sell")traceSellOnce("render completed");
     }
     function listingRows(rowHeight:Int):Void {
         // A fixed API page stays intact when the filter area expands; the
@@ -315,8 +292,8 @@ class MarketWindow {
         }
     }
 
-    function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true,whileLoading=false):Dynamic {
-        var click=()->{if((!c.busy||whileLoading)&&enabled)action();};
+    function button(label:String,x:Int,y:Int,width:Int,action:Void->Void,kind:String,enabled=true):Dynamic {
+        var click=()->{if(!c.busy&&enabled)action();};
         var obj=filterControls.get("button:"+x+":"+y,()->frame.button(label,x,y,width,click,kind));
         setText(G.field(obj,"btnText"),label);trade.TradeFrame.setClass(obj,kind);
         G.call("ui.UIElement","set_onClick",obj,[click]);
@@ -324,7 +301,7 @@ class MarketWindow {
     }
     function tabButton(label:String,x:Int,y:Int,width:Int,action:Void->Void,selected:Bool):Void {
         // Match Better Mod Settings' native brown selected state.
-        G.call("ui.UIElement","set_selected",button(label,x,y,width,action,"",true,true),[selected]);
+        G.call("ui.UIElement","set_selected",button(label,x,y,width,action,""),[selected]);
     }
     function sortHeader(title:String,column:String,x:Int,width:Int,action:Void->Void,right=false):Void {
         var root=frame.container;
@@ -539,7 +516,7 @@ class MarketWindow {
         labelAt(root,"Search items",28,80,792,false,MUTED);
         input(f["search"],28,108,792,s->f["search"]=s.substr(0,100),"Item name...",()->filter("search",f["search"]),true);
         button("Search",836,108,96,()->filter("search",f["search"]),"");
-        button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"",true,true);
+        button(c.filtersExpanded?"Hide filters":"Show filters",948,108,128,c.toggleFilters,"");
         if(!c.filtersExpanded)return;
         var cats=["","Components","Weapon","Armor","Accessory","Consumables","Collections","Containers","Miscellaneous"];
         dropdown("Category",cats,["All items"].concat(cats.slice(1).map(MarketCategory.label)),f["category"],28,190,256,s->filter("category",s));
@@ -658,24 +635,18 @@ class MarketWindow {
     }
     function rememberInventoryScroll():Void {
         if(inventoryViewport!=null)inventoryScroll=G.number(G.field(inventoryViewport,"scrollPosY"));
-        inventoryViewport=null;inventoryContent=null;inventoryBar=null;inventoryBarUnavailable=false;
+        inventoryViewport=null;
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
-        var resetScroll=key!=inventoryScrollKey,created=inventoryViewport==null;
-        if(resetScroll){inventoryScroll=0;inventoryScrollKey=key;}
+        if(key!=inventoryScrollKey){inventoryScroll=0;inventoryScrollKey=key;}
         var root=frame.container;
-        // Keep Flow and its native scrollbar alive through request/selection
-        // refreshes. Rebuilding the viewport resets cursor geometry and fades.
-        if(created)inventoryViewport=G.field(node("element",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++)),"obj");
+        inventoryViewport=G.field(node("element",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++)),"obj");
         var viewport=inventoryViewport;
         absolute(root,viewport);padding(viewport,0);size(viewport,676,806-contentY-64);position(viewport,30,contentY+52);
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
-        if(inventoryContent==null)inventoryContent=G.field(node("element",G.field(viewport,"dom"),[],"marketInventoryGrid"+(sequence++)),"obj");
-        var content=inventoryContent;
-        G.set(content,"onAfterReflow",null);
-        for(child in children(content))G.call("h2d.Object","remove",child);
+        var content=G.field(node("element",G.field(viewport,"dom"),[],"marketInventoryGrid"+(sequence++)),"obj");
         var columns=c.bankOnly?10:7,pitch=64,slotSize=58;
         padding(content,0);size(content,columns*pitch-(pitch-slotSize),Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch);
         alignScrollContent(viewport,content,true);
@@ -751,21 +722,12 @@ class MarketWindow {
             });
         }
         inventoryScrollbar(viewport);
-        if(inventoryBar==null&&!inventoryBarUnavailable)try {
-            inventoryBar=new MarketScrollbar(root,viewport);
-        } catch(error:Dynamic) {
-            // Decoration failure must never prevent the native Sell grid
-            // and its scrollbar from opening.
-            report("Sell scrollbar setup",error);
-            inventoryBarUnavailable=true;
-        }
         // Restore only once, after Flow has measured the content and can clamp scrolling.
-        if(created||resetScroll) {
-            var saved=inventoryScroll,restored=false;
-            G.set(viewport,"onAfterReflow",()->{
-                if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
-            });
-        }
+        var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
+        G.set(viewport,"onAfterReflow",()->{
+            if(previous!=null)Reflect.callMethod(viewport,previous,[]);
+            if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
+        });
     }
     static function inventoryScrollbar(viewport:Dynamic):Void {
         // Flow owns these children and their parallel layout properties. Styling

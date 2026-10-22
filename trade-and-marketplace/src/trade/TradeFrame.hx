@@ -73,10 +73,12 @@ class TradeFrame {
             sheet += selector+" > #background { background: "+s.bg+"; }"+selector+":hover > #background { background: darken("+s.bg+", 8%); }"
                 +selector+":active > #background { background: darken("+s.bg+", 15%); }"+selector+" > #btnText { color: "+s.fg+"; }";
         }
-        // Leave the native scrollbar background and interaction fully intact.
-        // MarketScrollbar paints separately, above the grid, after layout.
-        sheet += ".scrollbar.market-inventory-scrollbar { width: 12; padding: 0; alpha: 1; }"
-            + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; padding: 0; alpha: 1; }";
+        // Inherit the game's scrollbar colours and hover states. Its dynamic
+        // background supplies smooth rounded ends without custom reflow drawing.
+        sheet += ".scrollbar.market-inventory-scrollbar { width: 12; alpha: 1; background-type: dynamic; }"
+            + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; alpha: 1; background-type: dynamic; }"
+            + ".scrollbar.market-inventory-scrollbar > #background { border-radius: 6; }"
+            + ".scrollbar.market-inventory-scrollbar > .cursor > #background { border-radius: 6; }";
         var style = G.field(ui,"style");
         G.call("domkit.CssStyle","add",style,[G.call("domkit.CssParser","parseSheet",G.field(style,"cssParser"),[sheet,"trade-actions"])]);
         styledUi = ui;
