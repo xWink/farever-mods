@@ -65,7 +65,10 @@ class GameAccess {
    case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
    case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;
    case "addChildAt": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).insert(a[1],child);null;
-   case "setScale": o.scaleX=a[0];o.scaleY=a[0];null;
+   case "setScale":
+    if(field(o,"id")!=null&&StringTools.startsWith(Std.string(field(o,"id")),"tradeNativeRarityFrame"))
+     Sys.println("NATIVE_SCALE_ARG="+Std.string(a[0])+" TYPE="+Type.typeof(a[0]));
+    o.scaleX=a[0];o.scaleY=a[0];null;
    case "set_enableInteractive": o.enableInteractive=a[0];null;
    case "set_getTip":
     o.getTip=a[0];
