@@ -28,7 +28,11 @@ class TradeNativeSlot {
         var nativeSize:Float=maskSize;
         var scale:Float=artPixels/nativeSize;
         var inset:Int=Std.int(Math.round((maskSize-artPixels)/2.0));
-        G.call("h2d.Object","setScale",button,[scale]);
+        // Set native transform fields individually. The HashLink dynamic
+        // dispatcher can coerce Float arguments to zero when forwarding a
+        // freshly created item button through h2d.Object.setScale.
+        G.set(button,"scaleX",scale);
+        G.set(button,"scaleY",scale);
         position(button,inset,inset);
     }
     public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,
