@@ -53,6 +53,9 @@ class GameBranch {
         if(record==null)return false;
         if(!Reflect.hasField(record,"gameBranch"))return true;
         var branch=Reflect.field(record,"gameBranch");
-        return Std.isOfType(branch,String)&&uploadable(branch);
+        // Blank comes from pre-branch archives and uninitialized test fixtures.
+        // Actual new sessions store either a resolved branch or "unknown";
+        // unknown is deliberately blocked, so PTR cannot silently upload.
+        return Std.isOfType(branch,String)&&(branch==""||uploadable(branch));
     }
 }
