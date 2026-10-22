@@ -58,9 +58,16 @@ class MarketWindow {
     var reported:Map<String,Bool> = [];
     public var dirty = true;
 
+    function traceSellOnce(step:String):Void {
+        var key="Sell trace:"+step;
+        if(reported.exists(key))return;
+        reported[key]=true;
+        trade.TradeDiagnostics.log("Marketplace "+key);
+    }
+
     public function new(controller:MarketController) c = controller;
     public function isOpen():Bool return shown;
-    public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
+    public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; reported=[];dirty = true; }
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();
         shown = false; closeDropdowns();
@@ -109,6 +116,7 @@ class MarketWindow {
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
+        if(c.tab=="Sell")traceSellOnce("frame positioned");
         if(inventoryBar!=null)try inventoryBar.update() catch(error:Dynamic) {
             report("Sell scrollbar paint",error);
             inventoryBar=null;inventoryBarUnavailable=true;
@@ -143,11 +151,14 @@ class MarketWindow {
         if(drawer.value==0&&c.selected==null)closingListing=null;
         tableExtra=c.tab=="Sell"?0:Math.round(368*(1-drawer.value));
         stage="clear old controls";
+        if(c.tab=="Sell")traceSellOnce("render started");
         if(c.tab!="Sell"||recovery)rememberInventoryScroll();
         rememberListingScroll();
         closeDropdowns();
         filterControls.begin();
-        for (child in children(frame.container)) if(child!=backdrop&&child!=inventoryViewport&&!filterControls.contains(child))G.call("h2d.Object", "remove", child);
+        for (child in children(frame.container))
+            if(child!=backdrop&&child!=inventoryViewport&&(inventoryBar==null||!inventoryBar.owns(child))&&!filterControls.contains(child))
+                G.call("h2d.Object", "remove", child);
         var root = frame.container;
         // Keep one background below the retained inputs. Inserting new cards into
         // a native Flow during refresh can put them over its first controls.
@@ -202,7 +213,10 @@ class MarketWindow {
             labelAt(root,c.bankOnly?"YOUR BANK":"YOUR INVENTORY",32,contentY+16,420,true);
             labelAt(root,"ITEM DETAILS",754,contentY+16,184,true);searchItemButton();
             line(root,30,contentY+42,676);line(root,750,contentY+42,324);
-            inventoryGrid();sellPanel();
+            stage="Sell inventory grid";inventoryGrid();
+            traceSellOnce("inventory grid built");
+            stage="Sell item panel";sellPanel();
+            traceSellOnce("item panel built");
         } else {
             var tableBackground=graphic(root);
             tableLayouts.push(extra->{
@@ -263,6 +277,7 @@ class MarketWindow {
         var message = c.message;
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
+        if(c.tab=="Sell")traceSellOnce("render completed");
     }
     function listingRows(rowHeight:Int):Void {
         // A fixed API page stays intact when the filter area expands; the
@@ -737,10 +752,10 @@ class MarketWindow {
         }
         inventoryScrollbar(viewport);
         if(inventoryBar==null&&!inventoryBarUnavailable)try {
-            inventoryBar=new MarketScrollbar(viewport);
+            inventoryBar=new MarketScrollbar(root,viewport);
         } catch(error:Dynamic) {
-            // A decoration problem must never prevent the native Sell grid
-            // (and its functional, unmodified scrolling) from opening.
+            // Decoration failure must never prevent the native Sell grid
+            // and its scrollbar from opening.
             report("Sell scrollbar setup",error);
             inventoryBarUnavailable=true;
         }

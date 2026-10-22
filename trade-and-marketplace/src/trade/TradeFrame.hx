@@ -73,8 +73,8 @@ class TradeFrame {
             sheet += selector+" > #background { background: "+s.bg+"; }"+selector+":hover > #background { background: darken("+s.bg+", 8%); }"
                 +selector+":active > #background { background: darken("+s.bg+", 15%); }"+selector+" > #btnText { color: "+s.fg+"; }";
         }
-        // Keep the native scrollbar's background type. MarketScrollbar paints
-        // rounded ends without converting its ScaleGrid into a shader background.
+        // Leave the native scrollbar background and interaction fully intact.
+        // MarketScrollbar paints separately, above the grid, after layout.
         sheet += ".scrollbar.market-inventory-scrollbar { width: 12; padding: 0; alpha: 1; }"
             + ".scrollbar.market-inventory-scrollbar > .cursor { width: 12; padding: 0; alpha: 1; }";
         var style = G.field(ui,"style");

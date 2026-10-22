@@ -1,7 +1,7 @@
 package trade;
 class GameAccess {
  public static function enumName(value:Dynamic):String return value==null?"":Std.string(value);
- public static function typeName(o:Dynamic):String return Std.string(field(o,"nativeType")==null?"h2d.Flow":field(o,"nativeType"));
+ public static function typeName(o:Dynamic):String return Std.string(field(o,"nativeType")==null?"ui.UIElement":field(o,"nativeType"));
  public static var buttons:Array<Dynamic>=[];
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];
@@ -41,10 +41,10 @@ class GameAccess {
   // children must never be reordered with that base implementation.
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
    throw "Scrollbar Flow layout corrupted by Object.addChildAt";
-  // Real h2d.Flow scrollbars are NOT ui.UIElement objects. This previously
-  // slipped past tests and crashed the native Sell-page renderer.
-  if(t=="ui.UIElement"&&(n=="set_onOver"||n=="set_onOut")&&field(o,"nativeScrollbar")==true)
-   throw "Invalid UIElement receiver: native scrollbar is h2d.Flow";
+  // Modifying native scrollbar structure or backgrounds is forbidden:
+  // game scrollbar UIElements own those native objects and their lifecycle.
+  if(field(o,"nativeScrollbar")==true&&t=="h2d.Flow"&&(n=="addChildAt"||n=="set_backgroundTile"))
+   throw "Do not mutate the native scrollbar Flow";
   return switch(n){
    case "addClass":
     if(field(o,"classes")==null)o.classes=[];
@@ -52,10 +52,10 @@ class GameAccess {
    case "set_overflow":
     o.overflow=a[0];
     if(a[0]=="Scroll"&&field(o,"scrollBar")==null) {
-     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;
+     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;o.scrollBar.nativeType="ui.UIElement";
      o.scrollBar.flowProperties={isAbsolute:true,horizontalAlign:"Right",verticalAlign:"Top"};
      o.scrollBar.background=object(o.scrollBar);o.scrollBar.backgroundTile={};
-     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;
+     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;o.scrollBarCursor.nativeType="ui.UIElement";
      o.scrollBarCursor.background=object(o.scrollBarCursor);o.scrollBarCursor.backgroundTile={};
     }null;
    case "getProperties":
