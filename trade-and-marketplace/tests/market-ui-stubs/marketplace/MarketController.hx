@@ -6,8 +6,20 @@ class MarketController {
  public function setHideMine(value:Bool):Void {hideMine=value;if(view!=null)view.dirty=true;}
  public function saveFilterPreferences():Void {}
  public function canBrowse():Bool return true;
- public function pageSize():Int return tab=="Browse"?8:9;
- public function toggleFilters():Void {filtersExpanded=!filtersExpanded;if(view!=null)view.dirty=true;}
+ public function pageSize():Int return tab=="Browse"?(filtersExpanded?6:8):9;
+ var collapsedRows:Array<Dynamic>;
+ public function toggleFilters():Void {
+  filtersExpanded=!filtersExpanded;
+  if(tab=="Browse") {
+   if(filtersExpanded) {
+    collapsedRows=rows.copy();rows=rows.slice(0,6);
+    if(collapsedRows.length>6)pages=2;
+   } else if(collapsedRows!=null) {
+    rows=collapsedRows;collapsedRows=null;pages=1;
+   }
+  }
+  if(view!=null)view.dirty=true;
+ }
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];
