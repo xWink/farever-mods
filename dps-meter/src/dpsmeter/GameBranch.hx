@@ -12,10 +12,14 @@ class GameBranch {
     public static inline var LIVE="live";
 
     public static function capture(?version=""):String {
-        return detect(name->switch(name) {
-            case "get_steamBetaName":G.staticCall("Config",name,[]);
-            case "get_branchName":G.staticCall("Config",name,[]);
-            default:null;
+        // The PTR bytecode declares steamBetaName and both getters under
+        // Main (not Config). Older builds may differ, so probe both owners.
+        return detect(name->{
+            for(owner in ["Main","Config"])try {
+                var branch=G.staticCall(owner,name,[]);
+                if(branch!=null)return branch;
+            }catch(_:Dynamic){}
+            return null;
         },version);
     }
 
