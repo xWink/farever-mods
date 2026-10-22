@@ -54,8 +54,10 @@ class MarketplaceUiTest {
   var rowMask=nativeRowFrame.button.parent;
   check(rowMask.parent==nativeRowFrame.innerSlot&&rowMask.x==3&&rowMask.y==3
    &&rowMask.width==52&&rowMask.height==52);
-  var artScale=trade.TradeNativeSlot.MARKET_ART_SCALE;
-  var artInset=52.0*(1.0-artScale)/2.0;
+  var artPixels=Std.int(Math.round(52*trade.TradeNativeSlot.MARKET_ART_SCALE));
+  var nativeArtSize:Float=52.0;
+  var artScale:Float=artPixels/nativeArtSize;
+  var artInset=Std.int(Math.round((52-artPixels)/2.0));
   check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
    &&Math.abs(nativeRowFrame.button.scaleX-artScale)<0.001
    &&Math.abs(nativeRowFrame.button.scaleY-artScale)<0.001

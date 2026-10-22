@@ -20,15 +20,14 @@ class TradeNativeSlot {
     /** Leave the native rarity frame and clip size intact; inset only item art. */
     public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
         if(button==null)return;
-        // HashLink boxes untyped numeric expressions passed through Dynamic as
-        // Int. Preserve the fractional scale and centered offset explicitly.
-        var extent:Float=maskSize;
-        // Derive Float values from the runtime mask width rather than passing
-        // an inline Float constant through Array<Dynamic>. HashLink otherwise
-        // boxes that constant as an Int (0) and truncates inset positions.
-        var artSize:Float=extent*MARKET_ART_SCALE;
-        var scale:Float=artSize/extent;
-        var inset:Float=(extent-artSize)/2.0;
+        // An inline Float constant can be boxed as Int(0) when forwarded
+        // through Array<Dynamic> in compiled HashLink. Derive the displayed
+        // size in whole pixels, then divide by a Float just as the native
+        // slot frame does. The 52px mask contains a centered 43px button.
+        var artPixels:Int=Std.int(Math.round(maskSize*MARKET_ART_SCALE));
+        var nativeSize:Float=maskSize;
+        var scale:Float=artPixels/nativeSize;
+        var inset:Int=Std.int(Math.round((maskSize-artPixels)/2.0));
         G.call("h2d.Object","setScale",button,[scale]);
         position(button,inset,inset);
     }
