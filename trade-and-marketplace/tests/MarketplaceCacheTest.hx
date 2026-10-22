@@ -121,7 +121,8 @@ class MarketplaceCacheTest {
         var request=last();
         check(Std.string(request.path).indexOf("hideMine")<0);
         respond(c,app,request,[own,other],"next");
-        check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="other"&&c.pages==2);
+        check(!c.hideMine&&c.rows.length==2&&c.pages==2);
+        c.setHideMine(true);check(c.rows.length==1&&c.rows[0].id=="other");
         var sent=MarketWorker.current.sent.length;
         c.selected=c.rows[0];c.setHideMine(false);
         check(c.rows.length==2&&c.selected.id=="other"&&MarketWorker.current.sent.length==sent);

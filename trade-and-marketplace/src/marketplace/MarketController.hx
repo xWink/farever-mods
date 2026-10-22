@@ -10,7 +10,7 @@ class MarketController {
     public static inline var PAGE_SIZE = 8;
     public static inline var LISTING_LIMIT = 20;
     public var filtersExpanded=false;
-    public var hideMine=true;
+    public var hideMine=false;
     var browseRows:Array<Dynamic>=[];
     public function pageSize():Int return tab=="Browse"?PAGE_SIZE:9;
     public var player:Dynamic;
@@ -62,7 +62,7 @@ class MarketController {
     var prefetch:Null<{cache:MarketPages,page:Int,ticket:Int,waiting:Bool}>;
     var nextTicket=0;
     var mineSort="";
-    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>""];
+    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>""];
     final worker=new MarketWorker();
     var generation=0;
     var key="";
@@ -82,6 +82,8 @@ class MarketController {
     var contactingSeller="";
     var opened=false;
     public function new() {
+        var saved=trade.TradeMod.marketplaceFilters();
+        hideMine=saved.hideMine;filters["online"]=saved.onlineOnly?"true":"false";
         view=new MarketWindow(this);
         Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null)try {if(readKey(CommonSettings.read())!=key)reconnect();}catch(_:Dynamic){}});
         var action="better-mod-settings/action/"+HlxRuntime.moduleName()+"/";
@@ -239,7 +241,10 @@ class MarketController {
             else if(!busy)refreshSell();
         } else {
             activePages=cacheForTab();page=activePages.current;
-            if(busy) {
+            if(!canBrowse()) {
+                rows=[];browseRows=[];selected=null;page=pages=1;total=0;
+                message=MarketText.SIGN_IN_TO_BROWSE;
+            } else if(busy) {
                 var cached=activePages.get(page,haxe.Timer.stamp());
                 if(cached!=null)displayPage(activePages,page,cached);
                 else message="Loading...";
@@ -271,7 +276,7 @@ class MarketController {
     }
     public function setHideMine(value:Bool):Void {
         if(hideMine==value)return;
-        hideMine=value;
+        hideMine=value;saveFilterPreferences();
         if(tab=="Browse") {
             // Refilter the original cached listings locally; neither pagination
             // cursors nor the API query depend on this client-only option.
@@ -291,6 +296,9 @@ class MarketController {
                 &&(!hideMine||account==""||G.text(G.field(seller,"accountId"))!=account);
         });
     }
+    public function canBrowse():Bool return ready||Protocol.validKey(key);
+    public function saveFilterPreferences():Void
+        trade.TradeMod.saveMarketplaceFilters(hideMine,filters["online"]=="true");
     public function listingSort():String return tab=="My listings"?mineSort:filters["sort"];
     public function sortByLevel():Void cycleSort("required-level");
     public function sortByPrice():Void cycleSort("price");
@@ -468,6 +476,10 @@ class MarketController {
         else showListings(false);
     }
     function showListings(force:Bool):Void {
+        if(!canBrowse()) {
+            rows=[];browseRows=[];selected=null;total=0;pages=page=1;
+            message=MarketText.SIGN_IN_TO_BROWSE;view.dirty=true;return;
+        }
         if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
         var cache=cacheForTab();activePages=cache;
         if(page>1&&cache.cursors[page-1]==null)page=1;
@@ -501,6 +513,7 @@ class MarketController {
         message=total==0?"No matching listings.":"Listings updated.";view.dirty=true;
     }
     function prefetchNext():Void {
+        if(!canBrowse())return;
         var cache=activePages,now=haxe.Timer.stamp();
         if(busy||prefetch!=null||cache==null||tab=="Sell"||cooldown.remaining("GET",cache.path,now)>0
             ||(tab=="My listings"&&!ready))return;

@@ -21,7 +21,7 @@ class MarketplaceUiTest {
   var row:Dynamic=haxe.Json.parse('{"id":"test","price":{"mode":"fixed","silverTrays":1},"item":{"baseId":"Shield_OrbitWater","name":"Test shield","quantity":1,"rarity":"Epic","category":"Equipment","subcategory":"Armour","upgradeLevel":0,"native":{"flags":0,"level":25,"upgrade":0,"rarity":"Epic","infusion":"","bonus":"","mastery":"","slots":[],"effects":[]},"detail":"Epic"},"seller":{"accountId":"seller","characterName":"Tester","onlineUntil":"2099-01-01T00:00:00.000Z"}}');
   var c=new MarketController();c.rows=[for(i in 0...MarketController.PAGE_SIZE)row];c.total=c.rows.length;
   var view=new MarketWindow(c);c.view=view;view.open();view.update();check(TradeFrame.active==1);
-  check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["online"]=="true");
+  check(!c.filtersExpanded&&c.pageSize()==8&&c.filters["online"]=="false");
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0).length==0);
   var collapsedRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
   check(collapsedRow.y==0&&collapsedRow.parent.parent.y==224);
@@ -72,14 +72,14 @@ class MarketplaceUiTest {
   check(MarketText.price({mode:"offers"})=="Open to offers");
   check(MarketText.count(1,"listing")=="1 listing"&&MarketText.count(2,"listing")=="2 listings");
   var online=GameAccess.nodes.filter(n->n.fmtText.text=="Online only")[0];
-  check(online!=null&&online.selected==true);online.onValueChange(true);check(c.filters["online"]=="true");
+  check(online!=null&&online.selected==false);online.onValueChange(true);check(c.filters["online"]=="true");
   var hideMine=GameAccess.nodes.filter(n->n.fmtText.text=="Hide mine")[0];
-  check(hideMine!=null&&hideMine.selected&&c.hideMine);
+  check(hideMine!=null&&!hideMine.selected&&!c.hideMine);
   check(hideMine.y==online.y&&hideMine.x+hideMine.width+16==online.x);
   var requestsBeforeHide=c.refreshes;
-  c.busy=true;hideMine.onValueChange(false);
-  check(!c.hideMine&&c.refreshes==requestsBeforeHide);
-  c.busy=false;hideMine.onValueChange(true);check(c.hideMine);
+  c.busy=true;hideMine.onValueChange(true);
+  check(c.hideMine&&c.refreshes==requestsBeforeHide);
+  c.busy=false;hideMine.onValueChange(false);check(!c.hideMine);
   var search=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0)[0];
   check(search.input.x==search.inputHint.x&&search.input.x>0);
   var select=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketSelect")==0)[0];

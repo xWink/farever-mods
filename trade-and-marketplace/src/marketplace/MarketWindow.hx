@@ -512,12 +512,13 @@ class MarketWindow {
             value=value=="Epic (Prismatic)"?"Epic":value;
         }
         c.filters[key]=value; c.page=1;
+        if(key=="online")c.saveFilterPreferences();
         if(key=="category") {c.filters["subcategory"]="";if(!MarketCategory.supportsClasses(value))c.filters["classes"]="";}
         c.refresh(); dirty=true;
     }
     function resetFilters():Void {
-        for(key in c.filters.keys())c.filters[key]=key=="online"?"true":"";
-        c.setHideMine(true);
+        for(key in c.filters.keys())c.filters[key]=key=="online"?"false":"";
+        c.setHideMine(false);c.saveFilterPreferences();
         c.page=1;c.refresh();dirty=true;
     }
     function filters():Void {
@@ -978,8 +979,9 @@ class MarketWindow {
     }
     function emptyList():Void {
         var root=frame.container, y=contentY+Std.int((806-contentY)/2)-40;
-        labelAt(root,c.busy?"Finding listings...":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
-        labelAt(root,c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
+        var signIn=c.tab=="Browse"&&!c.canBrowse();
+        labelAt(root,signIn?"Steam sign-in required":c.busy?"Finding listings...":c.tab=="My listings"?"No active listings":"No listings found",64,y,596,true);
+        labelAt(root,signIn?MarketText.SIGN_IN_TO_BROWSE:c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
         if(c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"",true,true);
     }
     function priceFields(y:Int):Void {
@@ -1123,7 +1125,7 @@ class MarketWindow {
         try {
             var buttons=G.call("hl.types.ArrayObj","slice",G.field(frame.ui,"windows"),[0,0]);
             G.call("hl.types.ArrayObj","pushDyn",buttons,[{ic:"Confirm",input:null,checkEnable:null,onBack:true}]);
-            connectionDialog=G.call("ui.BaseUI","displayDialog",frame.ui,["Marketplace connection",escape(MarketText.CONNECTION_ERROR),buttons,function(_:String):Void {connectionDialog=null;}]);
+            connectionDialog=G.call("ui.BaseUI","displayDialog",frame.ui,["Marketplace connection",escape(c.canBrowse()?MarketText.CONNECTION_ERROR:MarketText.SIGN_IN_TO_BROWSE),buttons,function(_:String):Void {connectionDialog=null;}]);
             if(connectionDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(connectionDialog,"buttons"),[0]),["OK"]);
         }catch(error:Dynamic) {report("connection notice",error);c.message=MarketText.CONNECTION_ERROR;dirty=true;}
     }

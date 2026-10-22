@@ -2,8 +2,10 @@ package marketplace;
 class MarketController {
  public static inline var PAGE_SIZE=8;
  public var filtersExpanded=false;public var view:MarketWindow;
- public var hideMine=true;
+ public var hideMine=false;
  public function setHideMine(value:Bool):Void {hideMine=value;if(view!=null)view.dirty=true;}
+ public function saveFilterPreferences():Void {}
+ public function canBrowse():Bool return true;
  public function pageSize():Int return tab=="Browse"?8:9;
  public function toggleFilters():Void {filtersExpanded=!filtersExpanded;if(view!=null)view.dirty=true;}
  public var bankOnly=false;
@@ -21,7 +23,7 @@ class MarketController {
  public var rows:Array<Dynamic>=[]; public var inventory:Array<trade.TradeTypes.TradeItem>=[];
  public var page=1; public var pages=1; public var total=0; public var selected:Dynamic; public var chosen:trade.TradeTypes.TradeItem;
  public var inv:trade.TradeInventory=null;
- public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"true","sort"=>""];
+ public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>""];
  public function new(){}
  public var presenceOverride:Null<Bool>;
  public function listingOnline(row:Dynamic):Bool return presenceOverride!=null?presenceOverride:fareverly.Protocol.expiry(trade.GameAccess.text(trade.GameAccess.field(trade.GameAccess.field(row,"seller"),"onlineUntil")))>Date.now().getTime()/1000;

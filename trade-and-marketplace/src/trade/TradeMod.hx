@@ -5,10 +5,10 @@ import hlx.runtime.Bus;
 import trade.GameAccess as G;
 import modinput.Hotkey;
 import modinput.NativeHotkey;
-typedef TradeConfig = {enabled:Bool,rejectAllRequests:Bool,marketplaceHotkey:Dynamic,requestX:Null<Float>,requestY:Null<Float>,tradeX:Null<Float>,tradeY:Null<Float>};
+typedef TradeConfig = {enabled:Bool,rejectAllRequests:Bool,marketplaceHotkey:Dynamic,requestX:Null<Float>,requestY:Null<Float>,tradeX:Null<Float>,tradeY:Null<Float>,?marketHideMine:Bool,?marketOnlineOnly:Bool};
 @:build(hlx.runtime.Mod.build())
 class TradeMod {
-    @:hlx.config static var config:TradeConfig = {enabled:true,rejectAllRequests:false,marketplaceHotkey:118,requestX:null,requestY:null,tradeX:null,tradeY:null};
+    @:hlx.config static var config:TradeConfig = {enabled:true,rejectAllRequests:false,marketplaceHotkey:118,requestX:null,requestY:null,tradeX:null,tradeY:null,marketHideMine:false,marketOnlineOnly:false};
     static var controller:TradeController;
     static var market:marketplace.MarketController;
     static var menuUi:Dynamic;
@@ -23,6 +23,13 @@ class TradeMod {
     public static function saveTradePosition(x:Float,y:Float):Void {
         if (config.tradeX == x && config.tradeY == y) return;
         config.tradeX = x; config.tradeY = y; ModConfig.save(HlxRuntime.moduleName(),config);
+    }
+    public static function marketplaceFilters():{hideMine:Bool,onlineOnly:Bool}
+        return {hideMine:config.marketHideMine==true,onlineOnly:config.marketOnlineOnly==true};
+    public static function saveMarketplaceFilters(hideMine:Bool,onlineOnly:Bool):Void {
+        if(config.marketHideMine==hideMine&&config.marketOnlineOnly==onlineOnly)return;
+        config.marketHideMine=hideMine;config.marketOnlineOnly=onlineOnly;
+        ModConfig.save(HlxRuntime.moduleName(),config);
     }
     static function main():Void {
         config.marketplaceHotkey = Hotkey.normalize(config.marketplaceHotkey,118);
