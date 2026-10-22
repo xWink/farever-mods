@@ -320,8 +320,8 @@ class MarketplaceUiTest {
   check(newGrid.scrollBar.parent==newGrid&&newGrid.scrollBarCursor.parent==newGrid.scrollBar);
   check(newGrid.scrollBar.children.length==1&&newGrid.scrollBar.children[0]==newGrid.scrollBarCursor);
   check(newGrid.scrollBar.x==newGrid.width-14&&newGrid.scrollBar.flowProperties.horizontalAlign==null);
-  check(@:privateAccess(view.sellScrollbar.paint)==scrollbarPaint
-   &&GameAccess.removed.indexOf(scrollbarPaint)<0);
+  var selectedPaint:Dynamic=@:privateAccess view.sellScrollbar.paint;
+  check(selectedPaint==scrollbarPaint&&GameAccess.removed.indexOf(scrollbarPaint)<0);
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
   var bankSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
@@ -332,8 +332,8 @@ class MarketplaceUiTest {
   check(bankSlots[0].parent.flowProperties.isAbsolute==false&&bankSlots[0].parent.height>bankViewport.height);
   check(bankViewport.scrollBar.width==10&&bankViewport.scrollBarCursor.width==10);
   check(bankViewport.contentHeight>bankViewport.height&&bankViewport.scrollBar.visible==true);
-  check(@:privateAccess(view.sellScrollbar.paint)==scrollbarPaint
-   &&scrollbarPaint.shapes.length==3
+  var bankPaint:Dynamic=@:privateAccess view.sellScrollbar.paint;
+  check(bankPaint==scrollbarPaint&&scrollbarPaint.shapes.length==3
    &&scrollbarPaint.shapes[2].height<scrollbarPaint.shapes[1].height);
   check(bankViewport.scrollBar.flowProperties.isAbsolute&&bankViewport.scrollBar.flowProperties.horizontalAlign==null
    &&bankViewport.scrollBar.flowProperties.verticalAlign==null);
