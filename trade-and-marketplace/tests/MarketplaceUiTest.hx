@@ -55,8 +55,8 @@ class MarketplaceUiTest {
   var rowMask=nativeRowFrame.button.parent;
   check(rowMask.parent==nativeRowFrame.innerSlot&&rowMask.x==3&&rowMask.y==3
    &&rowMask.width==52&&rowMask.height==52);
-  check(trade.TradeNativeSlot.MARKET_ART_PIXELS==52);
-  var artPixels=trade.TradeNativeSlot.MARKET_ART_PIXELS;
+  check(trade.TradeNativeSlot.MARKET_ART_PIXELS==52&&trade.TradeNativeSlot.MARKET_ART_OVERSCAN==2);
+  var artPixels=trade.TradeNativeSlot.MARKET_ART_PIXELS+trade.TradeNativeSlot.MARKET_ART_OVERSCAN;
   function maskedBitmap(mask:Dynamic):Dynamic {
    var bitmaps:Array<Dynamic>=mask.children.filter(n->n.nativeType=="h2d.Bitmap");
    check(bitmaps.length==1);
@@ -73,13 +73,13 @@ class MarketplaceUiTest {
   check(trade.TradeNativeSlot.replaceMarketplaceArtwork(
    wideButton,{inf:{width:120.0,height:60.0}},52));
   var wideArt=maskedBitmap(wideMask);
-  check(wideButton.visible==false&&wideArt.width==52&&wideArt.height==26
+  check(wideButton.visible==false&&wideArt.width==54&&wideArt.height==27
    &&wideArt.x==0&&wideArt.y==13);
   var tallMask=GameAccess.object(),tallButton=GameAccess.object(tallMask);
   check(trade.TradeNativeSlot.replaceMarketplaceArtwork(
    tallButton,{inf:{width:50.0,height:100.0}},52));
   var tallArt=maskedBitmap(tallMask);
-  check(tallArt.width==26&&tallArt.height==52&&tallArt.x==13&&tallArt.y==0);
+  check(tallArt.width==27&&tallArt.height==54&&tallArt.x==13&&tallArt.y==0);
   var fallbackMask=GameAccess.object(),fallbackButton=GameAccess.object(fallbackMask);
   GameAccess.set(fallbackButton,"visible",true);
   check(!trade.TradeNativeSlot.replaceMarketplaceArtwork(fallbackButton,{inf:{valid:false}},52)
@@ -188,12 +188,16 @@ class MarketplaceUiTest {
   seller.inkBounds={xMin:2.0,yMin:5.0,xMax:202.0,yMax:29.0};seller.scaleX=0.75;seller.scaleY=0.75;sellerBox.onAfterReflow();
   check(dot.x==156&&GameAccess.number(seller.y)+29*0.75<=24&&GameAccess.number(dot.x)+10<=GameAccess.number(sellerBox.width));
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0&&n.getTip!=null).length==0);
+  row.item.classes=["Mage","Rogue"];
   GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].action();check(c.selected==row);
   GameAccess.nodes=[];GameAccess.labels=[];view.update();@:privateAccess view.advanceDetails(haxe.Timer.stamp()+1);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0&&Std.string(l.text).indexOf("Subcategory: Armour")>=0).length==1);
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
   check(detailSeller==null&&GameAccess.labels.filter(l->l.text=="Asking price:").length==0);
   var meta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0)[0];
+  check(meta.text.indexOf("Subcategory: Armour\nClass: Rogue, Mage")>=0,
+   "Server class restrictions appear below subcategory");
+  row.item.classes=[];
   check(meta.scaleX==0.85&&meta.textColor==0xC9BEB5);
   var viewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailViewport")==0)[0];
   check(viewport.y+viewport.height==726);
@@ -294,6 +298,11 @@ class MarketplaceUiTest {
   check(GameAccess.labels.filter(l->l.text=="Silver Trays").length==0);
   plus.action();check(priceBox.input.text=="6");minus.action();check(priceBox.input.text=="5");
   plusTen.action();check(priceBox.input.text=="15");minusTen.action();check(priceBox.input.text=="5");
+  priceBox.input.text="1";priceBox.onChange();
+  plusTen.action();check(priceBox.input.text=="10","Price +10 from one must set ten");
+  plusTen.action();check(priceBox.input.text=="20","Price +10 from ten must add ten");
+  minusTen.action();check(priceBox.input.text=="10","Price -10 remains a normal decrement");
+  priceBox.input.text="5";priceBox.onChange();
   priceBox.input.text="nope";priceBox.onChange();check(priceBox.input.text=="5");
   priceBox.input.text="9999999999999999999999999999";priceBox.onChange();check(priceBox.input.text=="200000");
   plus.action();check(priceBox.input.text=="200000");
@@ -636,6 +645,14 @@ class MarketplaceUiTest {
   var totalCounter=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==754&&n.y==536)[0];
   totalCounter.input.text="99";totalCounter.onChange();check(totalCounter.input.text=="9");
   check(GameAccess.labels.filter(l->l.text=="of 9 available").length==1);
+  trade.TradeInventory.definitions[row.item.baseId]={
+   id:row.item.baseId,type:"Weapon",aptitudes:[{ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Crit"}]
+  };
+  GameAccess.labels=[];view.dirty=true;view.update();
+  var sellMeta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Weapons")>=0);
+  check(sellMeta.length==1&&sellMeta[0].text.indexOf("Class: Rogue, Mage")>=0,
+   "Sell details derive classes from native aptitudes");
+  trade.TradeInventory.definitions.remove(row.item.baseId);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

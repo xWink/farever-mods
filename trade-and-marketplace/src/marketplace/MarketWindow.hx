@@ -404,7 +404,7 @@ class MarketWindow {
         if(priceSteps) {
             for(i in 0...4) {
                 var delta=[1,-1,10,-10][i];
-                var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y+(i%2)*24,40,()->commit(Std.string(Std.int(Math.max(1,int(current)+delta)))),"");
+                var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y+(i%2)*24,40,()->commit(Std.string(MarketQuantity.priceStep(int(current),delta,max))),"");
                 padding(step,0);size(step,40,22);
                 var caption=G.field(step,"btnText");absolute(step,caption);
                 afterReflow(step,()->{
@@ -958,6 +958,8 @@ class MarketWindow {
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+MarketCategory.label(category));
         if(subcategory!="")lines.push("Subcategory: "+subcategory);
+        var restrictions=MarketCategory.classLabels(G.field(metadata,"classes")).join(", ");
+        if(restrictions!="")lines.push("Class: "+restrictions);
         var meta=labelAt(details,lines.join("\n"),0,0,334,false,0xC9BEB5);
         G.call("h2d.Object","setScale",meta,[0.85]);
         lines=[];
@@ -988,7 +990,7 @@ class MarketWindow {
             position(quantityLabel,72,quantityY);
             var statsY=Std.int(Math.max(72,quantityY+32));
             position(meta,0,statsY);
-            if(category!=""||subcategory!="") {
+            if(category!=""||subcategory!=""||restrictions!="") {
                 var metaBounds=G.call("h2d.Object","getSize",meta,[null]);
                 statsY+=Std.int(Math.ceil(G.number(G.field(metaBounds,"yMax"),22)*0.85))+12;
             }

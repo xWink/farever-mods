@@ -8,4 +8,9 @@ class MarketQuantity {
         var value=Std.parseFloat(text);
         return Std.string(Std.int(Math.max(min,Math.min(max,value))));
     }
+    /** The minimum price's +10 step jumps to 10; other prices add ten. */
+    public static function priceStep(current:Int,delta:Int,max:Int):Int {
+        var next=current==1&&delta==10?10:current+delta;
+        return Std.int(Math.max(1,Math.min(max,next)));
+    }
 }

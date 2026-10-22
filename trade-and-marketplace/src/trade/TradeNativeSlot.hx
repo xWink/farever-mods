@@ -16,6 +16,7 @@ import trade.TradeUi.*;
 class TradeNativeSlot {
     public static inline var NATIVE_SIZE=58;
     public static inline var MARKET_ART_PIXELS=52;
+    public static inline var MARKET_ART_OVERSCAN=2;
     static var idSequence=0;
     /**
      * Draw only the native item tile inside the existing ItemSlot rarity mask.
@@ -36,7 +37,9 @@ class TradeNativeSlot {
             var tile=G.staticCall("HItem","getGfx",[inf]);
             if(tile==null)return false;
 
-            var target:Float=Math.min(maskSize,MARKET_ART_PIXELS);
+            // Two extra pixels fill transparent padding toward the bottom/right.
+            // Only overscan the bitmap; the native mask clips the excess.
+            var target:Float=Math.min(maskSize,MARKET_ART_PIXELS)+MARKET_ART_OVERSCAN;
             var tileW=G.number(G.field(tile,"width")),tileH=G.number(G.field(tile,"height"));
             var drawW:Float=target,drawH:Float=target;
             if(tileW>0&&tileH>0) {
@@ -49,7 +52,10 @@ class TradeNativeSlot {
             G.set(bitmap,"smooth",true);
             G.call("h2d.Bitmap","set_width",bitmap,[drawW]);
             G.call("h2d.Bitmap","set_height",bitmap,[drawH]);
-            position(bitmap,Math.round((maskSize-drawW)/2),Math.round((maskSize-drawH)/2));
+            // Keep the image aligned to the top/left when it exceeds the
+            // native mask, so the extra coverage fills bottom/right gaps.
+            position(bitmap,Math.max(0,Math.round((maskSize-drawW)/2)),
+                Math.max(0,Math.round((maskSize-drawH)/2)));
 
             // The frame and native mask remain unchanged. The hidden button
             // never draws a second, differently scaled copy of the artwork.

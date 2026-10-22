@@ -86,6 +86,21 @@ class MarketplaceTest {
   check(MarketInventory.filter([item]," SHOUL ")[0]==item);
   check(MarketInventory.filter([item],"Shield").length==0);
   check(MarketInventory.filter([item],"  ").length==1);
+  check(MarketQuantity.priceStep(1,10,200000)==10);
+  check(MarketQuantity.priceStep(10,10,200000)==20);
+  check(MarketQuantity.priceStep(5,10,200000)==15);
+  check(MarketQuantity.priceStep(1,1,200000)==2);
+  check(MarketQuantity.priceStep(11,-10,200000)==1);
+  check(MarketQuantity.priceStep(200000,10,200000)==200000);
+  check(marketplace.MarketCategory.classLabels(["Mage","Rogue","Mage"]).join(", ")=="Rogue, Mage");
+  check(marketplace.MarketCategory.classLabels([
+   {ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Critical"},{ref:"Assassin"}]).join(", ")=="Rogue, Mage");
+  check(marketplace.MarketCategory.classLabels([{ref:"Crit"},{ref:"Strength"}]).length==0);
+  TradeInventory.definitions[item.kind]={id:item.kind,type:"Weapon",
+   aptitudes:[{ref:"Assassin"},{ref:{id:"Wizard"}}]};
+  var nativeCategory=marketplace.MarketCategory.item(item.kind);
+  check(nativeCategory.category=="Weapon"&&nativeCategory.classes.join(", ")=="Rogue, Mage");
+  TradeInventory.definitions.remove(item.kind);
   check(MarketQuantity.normalize("0",1,10,"5")=="1");
   check(MarketQuantity.normalize("12",1,10,"5")=="10");
   for(text in ["five","1.5","-1","0x10","1e4","1 2"])check(MarketQuantity.normalize(text,1,10,"5")=="5");
