@@ -199,8 +199,49 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",response:{status:409,error:"Conflict",retryAfter:"",body:'{"error":{"code":"stale_revision"}}'}});editor.update(app,0);
         check(editor.selected.item.quantity==10&&editor.selected.revision==4&&!editor.ownedKnown&&editor.editingListingId=="");
         check(editor.message=="This listing changed. Refresh before editing it again.");
+        navigationDuringRequests();
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
         MarketplaceRecoveryTest.run();
+    }
+    static function navigationDuringRequests():Void {
+        var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player,connectionInfo:{heroID:"test-hero"}};
+        var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
+        c.refresh();check(c.busy);
+        c.toggleFilters();check(c.filtersExpanded&&MarketWorker.current.sent.length==1);
+        c.chooseTab("Sell");check(c.tab=="Sell"&&c.inventory.length==1&&c.rows.length==0&&c.busy);
+        c.chooseTab("My listings");check(c.tab=="My listings"&&c.rows.length==0&&c.busy);
+        c.chooseTab("Sell");
+        reply(c,app,{id:"browse-result"},null);
+        check(c.tab=="Sell"&&c.rows.length==0&&c.total==1&&c.busy);
+        check(MarketWorker.current.sent.length==2&&Std.string(MarketWorker.current.sent[1].path).indexOf("mine=true")>=0);
+        // A late owned-listings response may fill the cache, never put the
+        // inventory or owned rows over Browse after the user has moved back.
+        c.chooseTab("Browse");check(c.rows[0].id=="browse-result"&&c.busy);
+        ownReply(c,app,[]);
+        check(!c.busy&&c.tab=="Browse"&&c.rows[0].id=="browse-result"&&MarketWorker.current.sent.length==2);
+        c.refresh();c.chooseTab("My listings");
+        reply(c,app,{id:"new-browse-result"},null);
+        check(!c.busy&&c.tab=="My listings"&&c.rows.length==0&&c.total==0);
+        // Waiting for the speculative next page must not leave the whole UI
+        // busy after that prefetch is cancelled by a tab change.
+        c.chooseTab("Browse");c.refresh();reply(c,app,{id:"paged"},"next-page");
+        var prefetch=c.prefetch;
+        check(prefetch!=null);
+        c.goPage(2);check(c.busy&&c.prefetch.waiting);
+        c.chooseTab("Sell");check(!c.busy&&c.tab=="Sell"&&c.total==1);
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"prefetch",ticket:prefetch.ticket,
+            response:{status:200,error:"",retryAfter:"",body:'{"listings":[{"id":"late-page"}],"nextCursor":null}'}});
+        c.update(app,0);check(!c.busy&&c.rows.length==0&&c.tab=="Sell");
+        // A successful listing still reconciles ownership, without taking
+        // navigation back to Sell or replacing the newly selected tab's rows.
+        c.chosen=c.inventory[0];c.list(1,1,false);check(c.busy);
+        c.chooseTab("Browse");check(c.tab=="Browse"&&c.busy);
+        ownReply(c,app,[]);
+        check(c.tab=="Browse"&&c.busy&&c.inventory.length==1);
+        reply(c,app,{id:"after-sale"},null);
+        check(!c.busy&&c.tab=="Browse"&&c.rows[0].id=="after-sale");
+        c.chooseTab("Sell");check(c.busy&&c.isListed(c.inventory[0]));
+        ownReply(c,app,[]);check(!c.busy&&c.tab=="Sell");
     }
 }
