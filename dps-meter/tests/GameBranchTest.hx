@@ -51,8 +51,9 @@ class GameBranchTest {
             check(!GameBranch.sessionMayUpload(true,branch));
         check(GameBranch.recordMayUpload({gameBranch:"MAIN"}));
         check(GameBranch.recordMayUpload({gameBranch:" main "}));
-        for(branch in ["PTR","public-test-branch","unknown","experimental",
-            "live","stable","production","",null,123,true])
+        var invalidRecordBranches:Array<Dynamic>=["PTR","public-test-branch","unknown",
+            "experimental","live","stable","production","",null,123,true];
+        for(branch in invalidRecordBranches)
             check(!GameBranch.recordMayUpload({gameBranch:branch}));
         check(!GameBranch.recordMayUpload({gameVersion:"0.3.0.30001"}));
         check(!GameBranch.recordMayUpload({gameBranchMissing:true}));
