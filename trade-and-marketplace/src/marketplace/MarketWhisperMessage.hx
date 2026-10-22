@@ -1,7 +1,5 @@
 package marketplace;
 
-import trade.TradeInventory;
-
 /** Single readable whisper; each local chat translates the stable item ID. */
 class MarketWhisperMessage {
     public static inline var PREFIX="Hi! I'm interested in your marketplace listing: ";
@@ -39,7 +37,7 @@ class MarketWhisperMessage {
         var kind=template.matched(1),name:Null<String>=null;
         try name=resolve(kind) catch(_:Dynamic)return null;
         if(name==null||name==""||name==kind||name.indexOf("::")>=0)return null;
-        name=TradeInventory.clean(name,160);
+        name=~/<[^>]*>/g.replace(name,"").substr(0,160);
         name=~/[\r\n\t]/g.replace(name," ");
         if(name=="")return null;
         return PREFIX+name+body.substr(kind.length);
