@@ -257,10 +257,11 @@ class MarketplaceStateTest {
         c.filters["search"]="second";c.refresh();check(c.navigationPending);
         c.toggleFilters();check(c.filtersExpanded&&c.busy);
         reply(c,app,{id:"stale-filter"},null);
-        check(c.tab=="Browse"&&c.busy&&c.rows[0].id=="shopping"
+        check(c.tab=="Browse"&&c.busy&&c.rows.length==0
             &&MarketWorker.current.sent.length==first+1);
         var latest=MarketWorker.current.sent[first];
-        check(Std.string(latest.path).indexOf("search=second")>=0);
+        check(Std.string(latest.path).indexOf("search=second")>=0
+            &&Std.string(latest.path).indexOf("limit=6")>=0);
         reply(c,app,{id:"latest-filter"},null);
         check(!c.busy&&c.rows[0].id=="latest-filter"&&!c.navigationPending);
 
