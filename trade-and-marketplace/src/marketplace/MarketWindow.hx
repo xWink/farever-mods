@@ -640,12 +640,12 @@ class MarketWindow {
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
         if(key!=inventoryScrollKey){inventoryScroll=0;inventoryScrollKey=key;}
-        var root=frame.container;
+        var root=frame.container,viewportWidth=676;
         // A dedicated native Flow avoids UIElement's component layout rules
         // being reapplied over the scroll-specific Vertical measurement.
         inventoryViewport=G.field(node("flow",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++),"vertical"),"obj");
         var viewport=inventoryViewport;
-        absolute(root,viewport);padding(viewport,0);size(viewport,676,806-contentY-64);position(viewport,30,contentY+52);
+        absolute(root,viewport);padding(viewport,0);size(viewport,viewportWidth,806-contentY-64);position(viewport,30,contentY+52);
         // Native Vertical Flow measures the full content height, unlike an
         // element's Stack layout which can clamp it to the clipped viewport.
         var vertical=G.enumeration("h2d.FlowLayout","Vertical");
@@ -728,7 +728,7 @@ class MarketWindow {
                 selectionBorder(border,G.number(G.field(bounds,"xMax"))-x,G.number(G.field(bounds,"yMax"))-y);
             });
         }
-        inventoryScrollbar(viewport);
+        inventoryScrollbar(viewport,viewportWidth);
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
         G.set(viewport,"onAfterReflow",()->{
@@ -743,28 +743,33 @@ class MarketWindow {
                     var bar=G.field(viewport,"scrollBar");
                     var viewportHeight=G.number(G.call("h2d.Flow","get_outerHeight",viewport,[]));
                     var contentHeight=G.number(G.call("h2d.Flow","get_outerHeight",content,[]));
+                    var cursor=G.field(viewport,"scrollBarCursor");
+                    var barWidth=G.number(G.call("h2d.Flow","get_outerWidth",bar,[]));
+                    var cursorWidth=G.number(G.call("h2d.Flow","get_outerWidth",cursor,[]));
                     trade.TradeDiagnostics.log("Marketplace Sell native scrollbar ["+key+"]: viewport="+viewportHeight
                         +", content="+contentHeight+", expected="+(Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch)
                         +", scroll content="+G.text(G.field(viewport,"contentHeight"),"unavailable")
                         +", bar visible="+G.text(G.field(bar,"visible"),"missing")
                         +", bar alpha="+G.text(G.field(bar,"alpha"),"missing")
                         +", bar x="+G.text(G.field(bar,"x"),"missing")
+                        +", bar width="+barWidth+", cursor width="+cursorWidth
                         +", layout="+G.enumName(G.field(viewport,"layout")));
                 } catch(error:Dynamic)report("Sell scrollbar measurement",error);
             }
         });
     }
-    static function inventoryScrollbar(viewport:Dynamic):Void {
-        // Use the game's own scrollbar skin, hover, thumb geometry and dragging.
-        // Pin the native bar in the right gutter without changing its children,
-        // backgrounds or event/reflow handlers.
+    static function inventoryScrollbar(viewport:Dynamic,viewportWidth:Int):Void {
+        // Native visibility and scrolling already work. With Right alignment,
+        // however, the game's Flow places this UIElement at x=viewportWidth,
+        // outside the clipped viewport. An absolute, unaligned native bar at
+        // a known in-bounds position survives Flow reflows and CSS restyling.
+        // Do not touch its background, children, thumb or event handlers.
         var bar=G.field(viewport,"scrollBar"),cursor=G.field(viewport,"scrollBarCursor");
         if(bar==null||cursor==null)return;
-        var top=G.enumeration("h2d.FlowAlign","Top"),right=G.enumeration("h2d.FlowAlign","Right");
         absolute(viewport,bar);padding(bar,0);size(bar,10);size(cursor,10);
-        var layout=G.call("h2d.Flow","getProperties",viewport,[bar]);
-        G.set(layout,"horizontalAlign",right);G.set(layout,"verticalAlign",top);
-        style(bar,"halign",right);style(bar,"valign",top);
+        // Four pixels of clearance from the right edge, with room for the
+        // native 10-pixel-wide bar inside the inventory/bank scroll region.
+        position(bar,viewportWidth-14,0);
     }
     static function selectionBorder(border:Dynamic,width:Float,height:Float):Void {
         var arm=Math.min(width,height)*0.28;

@@ -291,7 +291,9 @@ class MarketplaceUiTest {
   var scrollBar:Dynamic=gridViewport.scrollBar,scrollCursor:Dynamic=gridViewport.scrollBarCursor;
   check(scrollBar!=null&&scrollCursor.parent==scrollBar&&scrollBar.parent==gridViewport);
   check(scrollBar.width==10&&scrollCursor.width==10);
-  check(scrollBar.flowProperties.isAbsolute&&scrollBar.flowProperties.horizontalAlign=="Right"&&scrollBar.flowProperties.verticalAlign=="Top");
+  check(scrollBar.flowProperties.isAbsolute&&scrollBar.flowProperties.horizontalAlign==null&&scrollBar.flowProperties.verticalAlign==null);
+  check(scrollBar.x==gridViewport.width-14&&scrollBar.x>=0&&scrollBar.x+scrollBar.width<=gridViewport.width);
+  check(scrollBar.y==0);
   check((cast scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
   check((cast scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")<0);
   check((cast scrollCursor.dom.classes:Array<String>).indexOf("cursor")>=0);
@@ -306,6 +308,7 @@ class MarketplaceUiTest {
   check(newGrid.layout=="Vertical"&&newGrid.multiline==false);
   check(newGrid.scrollBar.parent==newGrid&&newGrid.scrollBarCursor.parent==newGrid.scrollBar);
   check(newGrid.scrollBar.children.length==1&&newGrid.scrollBar.children[0]==newGrid.scrollBarCursor);
+  check(newGrid.scrollBar.x==newGrid.width-14&&newGrid.scrollBar.flowProperties.horizontalAlign==null);
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
   var bankSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
@@ -316,7 +319,10 @@ class MarketplaceUiTest {
   check(bankSlots[0].parent.flowProperties.isAbsolute==false&&bankSlots[0].parent.height>bankViewport.height);
   check(bankViewport.scrollBar.width==10&&bankViewport.scrollBarCursor.width==10);
   check(bankViewport.contentHeight>bankViewport.height&&bankViewport.scrollBar.visible==true);
-  check(bankViewport.scrollBar.flowProperties.isAbsolute&&bankViewport.scrollBar.flowProperties.horizontalAlign=="Right");
+  check(bankViewport.scrollBar.flowProperties.isAbsolute&&bankViewport.scrollBar.flowProperties.horizontalAlign==null
+   &&bankViewport.scrollBar.flowProperties.verticalAlign==null);
+  check(bankViewport.scrollBar.x==bankViewport.width-14
+   &&bankViewport.scrollBar.x+bankViewport.scrollBar.width<=bankViewport.width);
   check((cast bankViewport.scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
   check(bankViewport.scrollBar.children.length==1&&bankViewport.scrollBar.children[0]==bankViewport.scrollBarCursor);
   var tabs=GameAccess.buttons.filter(b->b.y==820&&b.x<704);
