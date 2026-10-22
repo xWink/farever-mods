@@ -44,9 +44,9 @@ class ProtocolTest {
         receipt.receive("bob",{id:"old-request",to:"alice",op:"received"},1.1);
         receipt.receive("bob",{id:"receipt",to:"someone-else",op:"received"},1.1);
         check(!receipt.requestReceived,"Only the matching peer, session and recipient can acknowledge");
-        receipt.tick(1.499);check(receipt.active(),"Receipt deadline is not early");receipt.tick(1.5);
-        check(receipt.phase=="cancelled","Unacknowledged request expires at half a second");
-        receipt.receive("bob",{id:"receipt",to:"alice",op:"received"},1.6);check(receipt.phase=="cancelled","Late receipt cannot reopen trade");
+        receipt.tick(1.999);check(receipt.active(),"Receipt deadline is not early");receipt.tick(2);
+        check(receipt.phase=="cancelled","Unacknowledged request expires at one second");
+        receipt.receive("bob",{id:"receipt",to:"alice",op:"received"},2.1);check(receipt.phase=="cancelled","Late receipt cannot reopen trade");
         Sys.println("Protocol checks passed: "+checks);
     }
 }

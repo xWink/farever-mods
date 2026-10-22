@@ -3,7 +3,7 @@ import trade.TradeTypes;
 /** Pure protocol state. Native inventory mutations belong exclusively to TradeExchange. */
 class TradeSession {
     public static inline var STALL_SECONDS = 10.0;
-    public static inline var RECEIPT_SECONDS = 0.5;
+    public static inline var RECEIPT_SECONDS = 1.0;
     public var requestReceived = false;
     var receiptDeadline = 0.0;
     public var self:String;
@@ -116,7 +116,7 @@ class TradeSession {
     }
     public function tick(now:Float):Void {
         if(phase=="inviting"&&!requestReceived&&receiptDeadline>0&&now>=receiptDeadline) {
-            cancel("Player did not respond. They may need to install or update Trade and Marketplace.");return;
+            cancel("Player does not have Trade mod");return;
         }
         if (active() && now >= deadline) cancel(phase == "inviting" ? "Trade request timed out. Both players need Trade + Marketplace installed."
             : phase == "joining" ? "Could not form the trade party. Please try again."

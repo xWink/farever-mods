@@ -55,9 +55,9 @@ class ControllerTest {
     }
     static function requestChecks():Void {
         var timed=fixture(),start=haxe.Timer.stamp();timed.update(GameAccess.app,start);
-        timed.update(GameAccess.app,start+0.499);check(timed.open,"Invitation waits the full half-second");
-        timed.update(GameAccess.app,start+0.5);
-        check(!timed.open&&timed.state.phase=="cancelled"&&latestRed()&&GameAccess.lines[0].text.indexOf("did not respond")>=0,"Missing receipt closes the requester window with a red error");
+        timed.update(GameAccess.app,start+0.999);check(timed.open,"Invitation waits the full second");
+        timed.update(GameAccess.app,start+1);
+        check(!timed.open&&timed.state.phase=="cancelled"&&latestRed()&&GameAccess.lines[0].text=="Player does not have Trade mod","Missing receipt closes the requester window with a red error");
         var acknowledged=fixture(),now=haxe.Timer.stamp();acknowledged.update(GameAccess.app,now);
         for(text in new TradeWire("ACK").encode({id:acknowledged.state.id,to:"me",op:"received"}))
             acknowledged.receive(null,{sender:"peer"},text);
