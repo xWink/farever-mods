@@ -254,6 +254,9 @@ class MarketplaceStateTest {
         // A second tab change can supersede a queued filter request.
         c.refresh();check(c.busy);c.chooseTab("My listings");check(c.tab=="My listings"&&c.busy);
         reply(c,app,{id:"old-query"},null);
+        check(c.busy&&c.tab=="My listings"&&c.rows.length==0);
+        check(Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("mine=true")>=0);
+        ownReply(c,app,[]);
         check(!c.busy&&c.tab=="My listings"&&c.rows.length==0);
 
         // Waiting for an in-flight prefetch is cancellable and must not
