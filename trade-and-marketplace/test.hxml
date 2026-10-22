@@ -70,3 +70,9 @@
 -cp tests/controller-stubs
 -main PartyTest
 --interp
+
+--next
+-cp src
+-cp tests
+-main WindowFlagsTest
+--interp

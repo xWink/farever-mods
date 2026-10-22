@@ -33,8 +33,17 @@ class TradeFrame {
         var flags = 0, names = ["PreventCloseOther","AutoRegisterLayer","NeedLayer"];
         // Incoming requests leave the player's cursor and movement modes alone.
         if (blockInputs) names = names.concat(["FreeCursor","BlockInputs","BlockSkills"]);
-        for (name in names) flags |= 1 << Type.enumIndex(G.enumeration("ui.win.WindowFlags",name));
-        G.call("ui.win.BaseWindow","set_windowFlags",window,[flags]); G.call("ui.win.BaseWindow","rebuild",window);
+        // PTR and older builds can lack some WindowFlags variants. A missing
+        // native enum resolves to null; Type.enumIndex(null) crashes window
+        // construction before the marketplace can render. Preserve any flags
+        // this game build supports and leave its native defaults untouched if
+        // none can be resolved.
+        var found=TradeWindowFlags.resolve(names,name->G.enumeration("ui.win.WindowFlags",name));
+        flags=found.mask;
+        if(found.missing.length>0)
+            TradeDiagnostics.log("Unsupported window flags on this game build: "+found.missing.join(", "));
+        if(found.found>0)G.call("ui.win.BaseWindow","set_windowFlags",window,[flags]);
+        G.call("ui.win.BaseWindow","rebuild",window);
         // Use the native window layer, below HUD item dragging and the cursor.
         G.call("ui.GameUI","attachWindow",ui,[window]);
         root = G.field(window,"parent");
