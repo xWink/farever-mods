@@ -93,11 +93,12 @@ class MarketplaceTest {
   check(MarketQuantity.priceStep(11,-10,200000)==1);
   check(MarketQuantity.priceStep(200000,10,200000)==200000);
   check(marketplace.MarketCategory.classLabels(["Mage","Rogue","Mage"]).join(", ")=="Rogue, Mage");
-  check(marketplace.MarketCategory.classLabels([
-   {ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Critical"},{ref:"Assassin"}]).join(", ")=="Rogue, Mage");
+  var mixedAptitudes:Array<Dynamic>=[
+   {ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Critical"},{ref:"Assassin"}];
+  check(marketplace.MarketCategory.classLabels(mixedAptitudes).join(", ")=="Rogue, Mage");
   check(marketplace.MarketCategory.classLabels([{ref:"Crit"},{ref:"Strength"}]).length==0);
-  TradeInventory.definitions[item.kind]={id:item.kind,type:"Weapon",
-   aptitudes:[{ref:"Assassin"},{ref:{id:"Wizard"}}]};
+  var nativeAptitudes:Array<Dynamic>=[{ref:"Assassin"},{ref:{id:"Wizard"}}];
+  TradeInventory.definitions[item.kind]={id:item.kind,type:"Weapon",aptitudes:nativeAptitudes};
   var nativeCategory=marketplace.MarketCategory.item(item.kind);
   check(nativeCategory.category=="Weapon"&&nativeCategory.classes.join(", ")=="Rogue, Mage");
   TradeInventory.definitions.remove(item.kind);

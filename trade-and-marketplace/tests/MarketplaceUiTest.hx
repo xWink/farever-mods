@@ -645,8 +645,9 @@ class MarketplaceUiTest {
   var totalCounter=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==754&&n.y==536)[0];
   totalCounter.input.text="99";totalCounter.onChange();check(totalCounter.input.text=="9");
   check(GameAccess.labels.filter(l->l.text=="of 9 available").length==1);
+  var sellAptitudes:Array<Dynamic>=[{ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Crit"}];
   trade.TradeInventory.definitions[row.item.baseId]={
-   id:row.item.baseId,type:"Weapon",aptitudes:[{ref:"Assassin"},{ref:{id:"Wizard"}},{ref:"Crit"}]
+   id:row.item.baseId,type:"Weapon",aptitudes:sellAptitudes
   };
   GameAccess.labels=[];view.dirty=true;view.update();
   var sellMeta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Weapons")>=0);
