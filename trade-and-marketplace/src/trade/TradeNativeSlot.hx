@@ -23,8 +23,12 @@ class TradeNativeSlot {
         // HashLink boxes untyped numeric expressions passed through Dynamic as
         // Int. Preserve the fractional scale and centered offset explicitly.
         var extent:Float=maskSize;
-        var scale:Float=MARKET_ART_SCALE;
-        var inset:Float=(extent-extent*scale)/2.0;
+        // Derive Float values from the runtime mask width rather than passing
+        // an inline Float constant through Array<Dynamic>. HashLink otherwise
+        // boxes that constant as an Int (0) and truncates inset positions.
+        var artSize:Float=extent*MARKET_ART_SCALE;
+        var scale:Float=artSize/extent;
+        var inset:Float=(extent-artSize)/2.0;
         G.call("h2d.Object","setScale",button,[scale]);
         position(button,inset,inset);
     }
