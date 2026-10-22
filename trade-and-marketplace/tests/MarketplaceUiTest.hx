@@ -48,7 +48,7 @@ class MarketplaceUiTest {
   // item button, or custom gradient shapes layered underneath it.
   var currentRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
   var nativeRowFrame=GameAccess.nodes.filter(n->n.id=="tradeNativeRarityFrame"&&n.parent==currentRow)[0];
-  check(nativeRowFrame!=null&&nativeRowFrame.inf.id=="Epic");
+  check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
   check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
   check(nativeRowFrame.width==44&&nativeRowFrame.height==44);
   var oldGradient=0;
