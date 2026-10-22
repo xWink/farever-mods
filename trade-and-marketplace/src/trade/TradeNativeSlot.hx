@@ -15,8 +15,17 @@ import trade.TradeUi.*;
  */
 class TradeNativeSlot {
     static inline var NATIVE_SIZE=58;
+    public static inline var MARKET_ART_SCALE=0.82;
     static var idSequence=0;
-    public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,?actualItem:Dynamic):Bool {
+    /** Leave the native rarity frame and clip size intact; inset only item art. */
+    public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
+        if(button==null)return;
+        var inset=(maskSize*(1.0-MARKET_ART_SCALE))/2.0;
+        G.call("h2d.Object","setScale",button,[MARKET_ART_SCALE]);
+        position(button,inset,inset);
+    }
+    public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,
+        ?actualItem:Dynamic,marketplaceArtwork=false):Bool {
         if(parent==null||offer==null)return false;
         var item=actualItem;
         if(item==null)try item=TradeTooltips.previewItem(offer) catch(_:Dynamic){}
@@ -60,6 +69,7 @@ class TradeNativeSlot {
             G.set(mask,"width",NATIVE_SIZE-6);G.set(mask,"height",NATIVE_SIZE-6);
             style(mask,"width",NATIVE_SIZE-6);style(mask,"height",NATIVE_SIZE-6);
             padding(button,0);size(button,NATIVE_SIZE-6,NATIVE_SIZE-6);position(button,0,0);
+            if(marketplaceArtwork)insetMarketplaceArtwork(button,NATIVE_SIZE-6);
             // The marketplace/trade UI owns all interactions and the quantity
             // text. Hide the native duplicate count and all focus/hover states
             // that can apply a bright outline to the decorative slot.

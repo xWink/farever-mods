@@ -12,11 +12,22 @@ class GameBranch {
     public static inline var LIVE="live";
 
     public static function capture(?version=""):String {
-        // The PTR bytecode declares steamBetaName and both getters under
-        // Main (not Config). Older builds may differ, so probe both owners.
+        return captureWith(version,
+            (owner,name)->G.current(owner,name)!=null,
+            (owner,name)->G.staticCall(owner,name,[]));
+    }
+
+    /** Static functions are fields on the game's reflection companion.
+     * Check for their presence before binding them: HLX logs a native ERROR
+     * if a missing getter is passed to resolveStaticMember on live builds. */
+    public static function captureWith(version:String, exists:(String,String)->Bool,
+        read:(String,String)->Dynamic):String {
+        // PTR exposes the beta-name getter under Main. Some live builds omit
+        // it but still expose the regular branch getter (e.g. MAIN).
         return detect(name->{
             for(owner in ["Main","Config"])try {
-                var branch=G.staticCall(owner,name,[]);
+                if(!exists(owner,name))continue;
+                var branch=read(owner,name);
                 if(branch!=null)return branch;
             }catch(_:Dynamic){}
             return null;

@@ -681,6 +681,7 @@ class MarketWindow {
                     G.set(mask,"width",slotSize-6);G.set(mask,"height",slotSize-6);
                     style(mask,"width",slotSize-6);style(mask,"height",slotSize-6);
                     padding(itemButton,0);size(itemButton,slotSize-6,slotSize-6);position(itemButton,0,0);
+                    trade.TradeNativeSlot.insetMarketplaceArtwork(itemButton,slotSize-6);
                 }
                 var count=G.field(itemButton,"countTxt");
                 if(count!=null) {
@@ -871,7 +872,7 @@ class MarketWindow {
     }
     function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int,?rarity="",prismatic=false,?nativeItem:Dynamic):Void {
         var tier=MarketText.rarityId(rarity,"",item.preview==null?"":item.preview.rarity,item.detail);
-        var nativeFrame=trade.TradeNativeSlot.background(parent,item,x,y,sizePx,nativeItem);
+        var nativeFrame=trade.TradeNativeSlot.background(parent,item,x,y,sizePx,nativeItem,true);
         if(!nativeFrame) {
             // Legacy/unsupported previews cannot always make a detached
             // native item. Keep the previous gradient only for those cases.
@@ -886,8 +887,11 @@ class MarketWindow {
         var definition=nativeFrame?null:TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
-            absolute(parent,icon);position(icon,x+2,y+2);
-            G.call("h2d.Bitmap","set_width",icon,[(sizePx-4)*1.0]);G.call("h2d.Bitmap","set_height",icon,[(sizePx-4)*1.0]);
+            // Apply the same spacing to fallback artwork if no native slot exists.
+            var artSize=(sizePx-4)*trade.TradeNativeSlot.MARKET_ART_SCALE;
+            var inset=(sizePx-artSize)/2.0;
+            absolute(parent,icon);position(icon,x+inset,y+inset);
+            G.call("h2d.Bitmap","set_width",icon,[artSize]);G.call("h2d.Bitmap","set_height",icon,[artSize]);
         }
     }
     function tooltip(object:Dynamic,item:TradeItem):Void {

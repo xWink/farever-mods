@@ -54,6 +54,13 @@ class MarketplaceUiTest {
   var rowMask=nativeRowFrame.button.parent;
   check(rowMask.parent==nativeRowFrame.innerSlot&&rowMask.x==3&&rowMask.y==3
    &&rowMask.width==52&&rowMask.height==52);
+  var artScale=trade.TradeNativeSlot.MARKET_ART_SCALE;
+  var artInset=52.0*(1.0-artScale)/2.0;
+  check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
+   &&Math.abs(nativeRowFrame.button.scaleX-artScale)<0.001
+   &&Math.abs(nativeRowFrame.button.scaleY-artScale)<0.001
+   &&Math.abs(nativeRowFrame.button.x-artInset)<0.001
+   &&Math.abs(nativeRowFrame.button.y-artInset)<0.001);
   check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
    &&nativeRowFrame.innerSlot.enableInteractive==false&&nativeRowFrame.selected==false);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
@@ -213,6 +220,11 @@ class MarketplaceUiTest {
   check(sameItem.enable&&sameItem.y==153&&sameItem.width==28&&sameItem.height==28&&sameItem.text=="");
   sameItem.action();check(c.searchedItem);
   var detailName=GameAccess.labels.filter(l->l.text==c.chosen.name&&Std.string(l.parent.id).indexOf("marketDetails")==0)[0];
+  var detailPicture=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketDetailsIcon"))[0];
+  var detailFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")
+   &&n.parent==detailPicture)[0];
+  check(detailFrame!=null&&Math.abs(detailFrame.button.scaleX-artScale)<0.001
+   &&Math.abs(detailFrame.button.x-artInset)<0.001);
   check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==212);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
@@ -271,6 +283,9 @@ class MarketplaceUiTest {
   check(sellSlots[0].component=="item-slot"&&sellSlots[0].innerSlot.nativeRarity=="Epic"&&sellSlots[0].innerSlot.width==58);
   check(sellSlots[1].stack==null&&sellSlots[1].innerSlot.nativeRarity==null&&sellSlots[1].action==null);
   check(sellSlots[0].button.width==52&&sellSlots[0].button.parent.x==3&&sellSlots[0].button.getTip!=null);
+  check(Math.abs(sellSlots[0].button.scaleX-artScale)<0.001
+   &&Math.abs(sellSlots[0].button.x-artInset)<0.001
+   &&Math.abs(sellSlots[0].button.y-artInset)<0.001);
   var stackCount=sellSlots[0].button.countTxt;
   check(stackCount.parent==sellSlots[0]);
   // Native count glyphs can extend past their line box, especially after scaling.
