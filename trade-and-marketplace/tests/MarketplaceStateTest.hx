@@ -69,10 +69,17 @@ class MarketplaceStateTest {
         c.ready=true;c.connectionIssue=false;
         c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
         var noFetch=MarketWorker.current.sent.length,previous=c.selected,previousPage=c.page;
-        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==8&&c.page==previousPage);
-        check(MarketWorker.current.sent.length==noFetch&&c.selected==previous&&!c.busy);
-        c.toggleFilters();check(!c.filtersExpanded&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
-        check(MarketWorker.current.sent.length==noFetch&&c.selected==previous);
+        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&c.page==1&&c.busy);
+        check(MarketWorker.current.sent.length==noFetch+1
+            &&Std.string(MarketWorker.current.sent[noFetch].path).indexOf("limit=6")>=0
+            &&c.selected==null);
+        // Rapidly hiding filters during the six-item request must use the
+        // new eight-item limit after the old response is processed.
+        c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.navigationPending);
+        ownReply(c,app,[{id:"old-layout"}]);
+        check(c.busy&&Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=8")>=0);
+        ownReply(c,app,[{id:"remaining",revision:4}]);
+        check(!c.busy&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
         c.filters["search"]="new search";c.refresh();ownReply(c,app,[{id:"remaining",revision:4}]);
         check(c.selected==c.rows[0]&&c.selected.revision==4);
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
