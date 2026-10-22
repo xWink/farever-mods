@@ -298,6 +298,11 @@ class MarketplaceUiTest {
   check(scrollBar.onAfterReflow==null&&scrollCursor.onAfterReflow==null);
   gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
   var newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];newGrid.onAfterReflow();check(newGrid.scrollPosY==128);
+  // Selection refresh must reconstruct the same native vertical scrolling
+  // hierarchy; painting/reparenting the scrollbar is not needed.
+  check(newGrid.layout=="Vertical"&&newGrid.multiline==false);
+  check(newGrid.scrollBar.parent==newGrid&&newGrid.scrollBarCursor.parent==newGrid.scrollBar);
+  check(newGrid.scrollBar.children.length==1&&newGrid.scrollBar.children[0]==newGrid.scrollBarCursor);
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
   var bankSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
