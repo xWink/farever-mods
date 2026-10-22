@@ -20,8 +20,12 @@ class TradeNativeSlot {
     /** Leave the native rarity frame and clip size intact; inset only item art. */
     public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
         if(button==null)return;
-        var inset=(maskSize*(1.0-MARKET_ART_SCALE))/2.0;
-        G.call("h2d.Object","setScale",button,[MARKET_ART_SCALE]);
+        // HashLink boxes untyped numeric expressions passed through Dynamic as
+        // Int. Preserve the fractional scale and centered offset explicitly.
+        var extent:Float=maskSize;
+        var scale:Float=MARKET_ART_SCALE;
+        var inset:Float=(extent-extent*scale)/2.0;
+        G.call("h2d.Object","setScale",button,[scale]);
         position(button,inset,inset);
     }
     public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,
