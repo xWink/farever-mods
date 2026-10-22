@@ -195,7 +195,7 @@ class MarketplaceUiTest {
   var detailSeller=GameAccess.labels.filter(l->l.text=="Seller: Tester"&&l.parent.x==754)[0];
   check(detailSeller==null&&GameAccess.labels.filter(l->l.text=="Asking price:").length==0);
   var meta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Equipment")>=0)[0];
-  check(meta.text.indexOf("Subcategory: Armour\nClass: Rogue, Mage")>=0,
+  check(Std.string(meta.text).indexOf("Subcategory: Armour\nClass: Rogue, Mage")>=0,
    "Server class restrictions appear below subcategory");
   row.item.classes=[];
   check(meta.scaleX==0.85&&meta.textColor==0xC9BEB5);
@@ -651,7 +651,7 @@ class MarketplaceUiTest {
   };
   GameAccess.labels=[];view.dirty=true;view.update();
   var sellMeta=GameAccess.labels.filter(l->Std.string(l.text).indexOf("Category: Weapons")>=0);
-  check(sellMeta.length==1&&sellMeta[0].text.indexOf("Class: Rogue, Mage")>=0,
+  check(sellMeta.length==1&&Std.string(sellMeta[0].text).indexOf("Class: Rogue, Mage")>=0,
    "Sell details derive classes from native aptitudes");
   trade.TradeInventory.definitions.remove(row.item.baseId);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
