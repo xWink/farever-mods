@@ -9,6 +9,7 @@ class GameAccess {
  public static var removed:Array<Dynamic>=[];
  public static var maskWhitened=false;
  public static var failNextTooltip=false;
+  public static var failNextItemBitmap=false;
  public static var slotIds:Array<Dynamic>=[];
  public static var slotReads=0;
  public static var ui:Dynamic={root:{}};
@@ -31,12 +32,15 @@ class GameAccess {
   case "weaponEffect":a[0].text;
   case "isPressed":false;
   case "getVersion":"test";
-  case "getGfx":a[0];
+  case "getGfx":field(a[0],"valid")==false?null:a[0];
   case "getRarity":{id:field(a[0],"nativeRarityId")==null?"Epic":field(a[0],"nativeRarityId")};
   default:{id:"Epic"};
  };
  public static function call(t:String,n:String,o:Dynamic,?a:Array<Dynamic>):Dynamic {
   if(n=="set_getTip"&&failNextTooltip){failNextTooltip=false;throw "Injected native tooltip failure";}
+  if(t=="h2d.Bitmap"&&n=="set_width"&&failNextItemBitmap){
+   failNextItemBitmap=false;throw "Simulated native bitmap sizing failure";
+  }
   // Object.addChildAt bypasses Flow's parallel properties array. Native scrollbar
   // children must never be reordered with that base implementation.
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
