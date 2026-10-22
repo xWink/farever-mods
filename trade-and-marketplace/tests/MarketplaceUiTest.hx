@@ -50,24 +50,44 @@ class MarketplaceUiTest {
   var nativeRowFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")&&n.parent==currentRow)[0];
   check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
   check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.stack.item!=null);
-  check(nativeRowFrame.button!=null&&nativeRowFrame.button.countTxt.visible==false);
+  check(nativeRowFrame.button!=null&&nativeRowFrame.button.countTxt.visible==false
+   &&nativeRowFrame.button.visible==false);
   var rowMask=nativeRowFrame.button.parent;
   check(rowMask.parent==nativeRowFrame.innerSlot&&rowMask.x==3&&rowMask.y==3
    &&rowMask.width==52&&rowMask.height==52);
   check(trade.TradeNativeSlot.MARKET_ART_PIXELS==52);
   var artPixels=trade.TradeNativeSlot.MARKET_ART_PIXELS;
-  var nativeArtSize:Float=52.0;
-  var artScale:Float=artPixels/nativeArtSize;
-  var artInset=Std.int(Math.round((52-artPixels)/2.0));
+  function maskedBitmap(mask:Dynamic):Dynamic {
+   var bitmaps:Array<Dynamic>=mask.children.filter(n->n.nativeType=="h2d.Bitmap");
+   check(bitmaps.length==1);
+   return bitmaps[0];
+  }
+  var rowArtwork=maskedBitmap(rowMask);
+  check(rowArtwork.width==artPixels&&rowArtwork.height==artPixels
+   &&rowArtwork.x==0&&rowArtwork.y==0&&rowArtwork.parent==rowMask
+   &&rowArtwork.smooth==true);
   check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
-   &&Math.abs(GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleX"))-artScale)<0.001
-   &&Math.abs(GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleY"))-artScale)<0.001
-   &&Math.abs(nativeRowFrame.button.x-artInset)<0.001
-   &&Math.abs(nativeRowFrame.button.y-artInset)<0.001,
-   haxe.Json.stringify({width:nativeRowFrame.button.width,height:nativeRowFrame.button.height,
-    sx:GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleX")),sy:GameAccess.number(GameAccess.field(nativeRowFrame.button,"scaleY")),
-    x:nativeRowFrame.button.x,y:nativeRowFrame.button.y,
-    expectedScale:artScale,expectedInset:artInset}));
+   &&nativeRowFrame.button.x==0&&nativeRowFrame.button.y==0);
+  // Square, wide, and tall native tiles must all fit inside the same mask.
+  var wideMask=GameAccess.object(),wideButton=GameAccess.object(wideMask);
+  check(trade.TradeNativeSlot.replaceMarketplaceArtwork(
+   wideButton,{inf:{width:120.0,height:60.0}},52));
+  var wideArt=maskedBitmap(wideMask);
+  check(wideButton.visible==false&&wideArt.width==52&&wideArt.height==26
+   &&wideArt.x==0&&wideArt.y==13);
+  var tallMask=GameAccess.object(),tallButton=GameAccess.object(tallMask);
+  check(trade.TradeNativeSlot.replaceMarketplaceArtwork(
+   tallButton,{inf:{width:50.0,height:100.0}},52));
+  var tallArt=maskedBitmap(tallMask);
+  check(tallArt.width==26&&tallArt.height==52&&tallArt.x==13&&tallArt.y==0);
+  var fallbackMask=GameAccess.object(),fallbackButton=GameAccess.object(fallbackMask);
+  check(!trade.TradeNativeSlot.replaceMarketplaceArtwork(fallbackButton,{inf:{valid:false}},52)
+   &&fallbackMask.children.length==1&&fallbackButton.visible!=false);
+  var failingMask=GameAccess.object(),failingButton=GameAccess.object(failingMask);
+  GameAccess.failNextItemBitmap=true;
+  check(!trade.TradeNativeSlot.replaceMarketplaceArtwork(
+   failingButton,{inf:{width:52.0,height:52.0}},52)
+   &&failingMask.children.length==1&&failingButton.visible!=false);
   check(nativeRowFrame.enableInteractive==false&&nativeRowFrame.button.enableInteractive==false
    &&nativeRowFrame.innerSlot.enableInteractive==false&&nativeRowFrame.selected==false);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
@@ -230,8 +250,8 @@ class MarketplaceUiTest {
   var detailPicture=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketDetailsIcon"))[0];
   var detailFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")
    &&n.parent==detailPicture)[0];
-  check(detailFrame!=null&&Math.abs(GameAccess.number(GameAccess.field(detailFrame.button,"scaleX"))-artScale)<0.001
-   &&Math.abs(detailFrame.button.x-artInset)<0.001);
+  check(detailFrame!=null&&detailFrame.button.visible==false
+   &&maskedBitmap(detailFrame.button.parent).width==artPixels);
   check(detailName.lineBreak==true&&detailName.useEllipsis==false&&detailName.maxWidth==212);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Vitality")>=0||Std.string(l.text).indexOf("Strength")>=0).length==1);
   detailName.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};detailName.parent.onAfterReflow();
@@ -289,10 +309,10 @@ class MarketplaceUiTest {
   check(sellSlots[0].item.kind==selected.kind&&sellSlots[0].stack.count==selected.count);
   check(sellSlots[0].component=="item-slot"&&sellSlots[0].innerSlot.nativeRarity=="Epic"&&sellSlots[0].innerSlot.width==58);
   check(sellSlots[1].stack==null&&sellSlots[1].innerSlot.nativeRarity==null&&sellSlots[1].action==null);
-  check(sellSlots[0].button.width==52&&sellSlots[0].button.parent.x==3&&sellSlots[0].button.getTip!=null);
-  check(Math.abs(GameAccess.number(GameAccess.field(sellSlots[0].button,"scaleX"))-artScale)<0.001
-   &&Math.abs(sellSlots[0].button.x-artInset)<0.001
-   &&Math.abs(sellSlots[0].button.y-artInset)<0.001);
+  check(sellSlots[0].button.width==52&&sellSlots[0].button.parent.x==3
+   &&sellSlots[0].button.visible==false&&sellSlots[0].getTip!=null
+   &&sellSlots[0].button.getTip==null);
+  check(maskedBitmap(sellSlots[0].button.parent).width==artPixels);
   var stackCount=sellSlots[0].button.countTxt;
   check(stackCount.parent==sellSlots[0]);
   // Native count glyphs can extend past their line box, especially after scaling.
@@ -300,7 +320,7 @@ class MarketplaceUiTest {
   sellSlots[0].onAfterReflow();
   check(Math.abs(stackCount.x+30*0.8-53)<0.001&&Math.abs(stackCount.y+26*0.8-53)<0.001);
   c.busy=true;c.chosen=null;
-  sellSlots[0].button.action();check(c.chosen==selected&&view.dirty);
+  sellSlots[0].action();check(c.chosen==selected&&view.dirty);
   c.chosen=null;sellSlots[0].action();check(c.chosen==selected);c.busy=false;
   GameAccess.nodes=[];view.update();
   c.atLimit=true;GameAccess.buttons=[];view.dirty=true;view.update();
@@ -509,7 +529,9 @@ class MarketplaceUiTest {
    check(slots[0].button.parent.width==52&&slots[0].button.parent.height==52
     &&slots[0].button.parent.x==3&&slots[0].button.parent.y==3);
    check(slots[0].button.countTxt.visible==false
-    &&slots[0].button.enableInteractive==false&&slots[0].selected==false);
+    &&slots[0].button.visible==false&&slots[0].button.enableInteractive==false
+    &&slots[0].selected==false);
+   check(maskedBitmap(slots[0].button.parent).width==artPixels);
    var sx=GameAccess.number(GameAccess.field(slots[0],"scaleX"));
    check(Math.abs(58.0*sx-60.0)<0.01);
    check((cast picture.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);

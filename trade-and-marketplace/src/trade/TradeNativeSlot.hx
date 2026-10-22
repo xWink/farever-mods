@@ -8,8 +8,8 @@ import trade.TradeUi.*;
  * Read-only use of the game's exact ItemSlot frame and rarity background.
  * The original item and its inventory are never moved or exposed to DOMKit.
  * A detached one-item display stack lets the game's ItemSlot build its
- * native icon mask. The previous null-stack approach omitted that mask,
- * allowing item art to protrude over the bevel/border.
+ * native icon mask. Marketplace art is fitted independently inside it,
+ * so resizing the native ItemButton cannot clip the portrait.
  * No inventory references or native transfer actions are ever attached.
  * Scale the full 58px native component into the desired display rectangle.
  */
@@ -17,22 +17,48 @@ class TradeNativeSlot {
     public static inline var NATIVE_SIZE=58;
     public static inline var MARKET_ART_PIXELS=52;
     static var idSequence=0;
-    /** Leave the native rarity frame and clip size intact; inset only item art. */
-    public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
-        if(button==null)return;
-        // Fill 52px of the native 52px item mask, without scaling or inset.
-        // Keep the art and the frame separate so rarity borders aren't scaled.
-        // Integer pixels divided by a Float avoid HashLink's dynamic Float
-        // constant boxing issue, previously exercised by compiled UI tests.
-        var artPixels:Int=Std.int(Math.min(maskSize,MARKET_ART_PIXELS));
-        var nativeSize:Float=maskSize;
-        var scale:Float=artPixels/nativeSize;
-        var inset:Int=Std.int(Math.round((maskSize-artPixels)/2.0));
-        // Keep the fraction in native transform fields; the game instance
-        // holds its scale in Float fields, read via reflection across modules.
-        G.set(button,"scaleX",scale);
-        G.set(button,"scaleY",scale);
-        position(button,inset,inset);
+    /**
+     * Draw only the native item tile inside the existing ItemSlot rarity mask.
+     * Native ItemButton owns its own offsets and layout. Resizing/scaling it
+     * clips off the ends of diagonal weapons even at a nominal 52px scale.
+     *
+     * Hide the native button only after the fitted bitmap is ready, so a
+     * missing tile or incompatible game build safely keeps the original art.
+     */
+    public static function replaceMarketplaceArtwork(button:Dynamic,item:Dynamic,maskSize:Int):Bool {
+        if(button==null||item==null||maskSize<=0)return false;
+        var mask=G.field(button,"parent"),inf=G.field(item,"inf");
+        if(mask==null||inf==null)return false;
+        var bitmap:Dynamic=null;
+        try {
+            // Exactly the same tile entry point used by Item Utilities to
+            // display native item artwork, with no copied/mod-owned graphics.
+            var tile=G.staticCall("HItem","getGfx",[inf]);
+            if(tile==null)return false;
+
+            var target:Float=Math.min(maskSize,MARKET_ART_PIXELS);
+            var tileW=G.number(G.field(tile,"width")),tileH=G.number(G.field(tile,"height"));
+            var drawW:Float=target,drawH:Float=target;
+            if(tileW>0&&tileH>0) {
+                var fit:Float=Math.min(target/tileW,target/tileH);
+                drawW=tileW*fit;
+                drawH=tileH*fit;
+            }
+            bitmap=G.create("h2d.Bitmap",[tile,mask]);
+            if(bitmap==null)throw "Marketplace item bitmap unavailable";
+            G.set(bitmap,"smooth",true);
+            G.call("h2d.Bitmap","set_width",bitmap,[drawW]);
+            G.call("h2d.Bitmap","set_height",bitmap,[drawH]);
+            position(bitmap,Math.round((maskSize-drawW)/2),Math.round((maskSize-drawH)/2));
+
+            // The frame and native mask remain unchanged. The hidden button
+            // never draws a second, differently scaled copy of the artwork.
+            G.call("h2d.Object","set_visible",button,[false]);
+            return true;
+        }catch(_:Dynamic) {
+            if(bitmap!=null)try G.call("h2d.Object","remove",bitmap)catch(_:Dynamic){}
+            return false;
+        }
     }
     public static function background(parent:Dynamic,offer:TradeItem,x:Int,y:Int,sizePx:Int,
         ?actualItem:Dynamic,marketplaceArtwork=false):Bool {
@@ -79,7 +105,7 @@ class TradeNativeSlot {
             G.set(mask,"width",NATIVE_SIZE-6);G.set(mask,"height",NATIVE_SIZE-6);
             style(mask,"width",NATIVE_SIZE-6);style(mask,"height",NATIVE_SIZE-6);
             padding(button,0);size(button,NATIVE_SIZE-6,NATIVE_SIZE-6);position(button,0,0);
-            if(marketplaceArtwork)insetMarketplaceArtwork(button,NATIVE_SIZE-6);
+            if(marketplaceArtwork)replaceMarketplaceArtwork(button,item,NATIVE_SIZE-6);
             // The marketplace/trade UI owns all interactions and the quantity
             // text. Hide the native duplicate count and all focus/hover states
             // that can apply a bright outline to the decorative slot.

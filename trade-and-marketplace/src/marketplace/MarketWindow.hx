@@ -674,6 +674,7 @@ class MarketWindow {
             var inner=G.field(slot,"innerSlot"),itemButton=G.field(slot,"button");
             if(inner!=null){absolute(slot,inner);padding(inner,0);size(inner,slotSize,slotSize);position(inner,0,0);}
             if(item==null||stack==null)continue;
+            var customArtwork=false;
             if(itemButton!=null) {
                 var mask=G.field(itemButton,"parent");
                 if(mask!=null&&inner!=null) {
@@ -681,7 +682,8 @@ class MarketWindow {
                     G.set(mask,"width",slotSize-6);G.set(mask,"height",slotSize-6);
                     style(mask,"width",slotSize-6);style(mask,"height",slotSize-6);
                     padding(itemButton,0);size(itemButton,slotSize-6,slotSize-6);position(itemButton,0,0);
-                    trade.TradeNativeSlot.insetMarketplaceArtwork(itemButton,slotSize-6);
+                    customArtwork=trade.TradeNativeSlot.replaceMarketplaceArtwork(
+                        itemButton,G.field(stack,"item"),slotSize-6);
                 }
                 var count=G.field(itemButton,"countTxt");
                 if(count!=null) {
@@ -716,7 +718,11 @@ class MarketWindow {
             }
             var select=()->{c.chosen=item;quantity=Std.string(item.count);dirty=true;};
             G.call("ui.UIElement","set_onClick",slot,[select]);
-            if(itemButton!=null){tooltip(itemButton,item);G.call("ui.UIElement","set_onClick",itemButton,[select]);}
+            // A hidden native button cannot capture input. The visible slot
+            // retains the same selection callback and original item tooltip.
+            if(itemButton!=null&&!customArtwork){
+                tooltip(itemButton,item);G.call("ui.UIElement","set_onClick",itemButton,[select]);
+            }
         }
         if(selection != null) {
             // A sibling overlay stays above ItemSlot's frame and icon mask. Native
@@ -882,8 +888,8 @@ class MarketWindow {
             for(layer in trade.TradeRarity.gradient(tint,sizePx-2,sizePx-2,4))
                 rounded(bg,x+1+layer.x,y+1+layer.y,layer.width,layer.height,layer.radius,layer.color);
         }
-        // Native ItemSlot already renders the item artwork. Previously this
-        // unconditional Bitmap created the duplicate small/large icons.
+        // Marketplace artwork is fitted inside the native mask. Only previews
+        // without a native frame need this external fallback Bitmap.
         var definition=nativeFrame?null:TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
