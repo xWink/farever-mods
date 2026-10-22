@@ -66,7 +66,13 @@ class MarketExport {
             if(Std.isOfType(i.modifiers,Array))for(m in (cast i.modifiers:Array<Dynamic>))lines.push(G.text(m.name));
             detail=lines.join("\n");
         }
-        return {uid:"",kind:i.baseId,count:i.quantity,name:MarketText.itemName(G.text(i.baseId),G.text(i.name,TradeInventory.itemName(i.baseId)),TradeInventory.itemName),detail:MarketText.detail(detail,TradeInventory.skillName,p==null?"":p.infusion),
+        var kind=G.text(i.baseId),serverName=G.text(i.name,kind);
+        // A seller's API name can be English. Resolve the stable base ID in
+        // this client's native game-data catalogue first.
+        var localName="";
+        try localName=TradeInventory.itemName(kind) catch(_:Dynamic){}
+        var displayName=localName!=""&&localName!=kind&&localName.indexOf("::")<0?localName:serverName;
+        return {uid:"",kind:i.baseId,count:i.quantity,name:MarketText.itemName(kind,displayName,TradeInventory.itemName),detail:MarketText.detail(detail,TradeInventory.skillName,p==null?"":p.infusion),
             color:0xDAC9AA,fingerprint:"",preview:p};
     }
 }

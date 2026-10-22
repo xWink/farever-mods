@@ -14,7 +14,6 @@ class TradeMod {
     static var menuUi:Dynamic;
     static var menuUid:String;
     static var stoppingDrag = false;
-    static final marketWhispers=new marketplace.MarketWhisperWire();
     public static function chatError(message:String):Void {if(controller!=null)controller.chat(message);}
     public static function enabled():Bool return config.enabled;
     public static function rejectsRequests():Bool return config.rejectAllRequests;
@@ -114,19 +113,21 @@ class TradeMod {
     static function receiveChatRow(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receiveTrade(G.field(instance,"chatClient"),message);
     static function receiveTrade(client:Dynamic,message:Dynamic):HlxPrefixResult<Void> {
         var text=G.text(G.field(message,"text"));
-        if(marketplace.MarketWhisperWire.isPacket(text)) {
-            // Do not expose protocol fragments in chat. The completed whisper
-            // is rendered once using this client's localized item definition.
-            var me=G.field(G.staticCall("GameApp","get",[]),"me");
-            var sender=TradeChat.sender(message);
-            if(sender!=""&&TradeChat.isLocalClient(client,me))try {
-                var packet=marketWhispers.receive(sender,text,haxe.Timer.stamp());
-                if(packet!=null&&G.text(G.field(packet,"to"))==G.text(G.field(me,"uid"))) {
-                    G.set(message,"text",marketplace.MarketWhisperWire.display(packet,TradeInventory.itemName));
-                    return Continue;
+        if(marketplace.MarketWhisperMessage.isMessage(text)) {
+            // Localize both an outgoing private-chat echo and an incoming
+            // whisper. A failed lookup leaves the human-readable ID intact.
+            try {
+                var me=G.field(G.staticCall("GameApp","get",[]),"me");
+                var channel=G.field(message,"channel");
+                var mine=G.text(G.field(me,"uid")),from=G.text(G.field(G.field(message,"sender"),"uid"));
+                if(TradeChat.isLocalClient(client,me)&&mine!=""&&G.field(message,"notify")==null
+                    &&G.enumName(channel)=="Player"
+                    &&(from==mine||G.text(G.enumArgument(channel,0))==mine)) {
+                    var translated=marketplace.MarketWhisperMessage.localize(text,TradeInventory.itemName);
+                    if(translated!=null)G.set(message,"text",translated);
                 }
-            }catch(error:Dynamic)trade.TradeDiagnostics.log("Marketplace whisper decode failed: "+Std.string(error));
-            G.set(message,"text","");return Skip;
+            }catch(error:Dynamic)TradeDiagnostics.log("Marketplace whisper localization: "+Std.string(error));
+            return Continue;
         }
         if (!TradeWire.isPacket(text)) return Continue;
         if (controller != null) try controller.receive(client,message,text) catch(e:Dynamic) controller.fail(e);

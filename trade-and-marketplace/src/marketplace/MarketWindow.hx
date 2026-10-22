@@ -568,9 +568,10 @@ class MarketWindow {
         G.call("ui.UIElement","set_onOut",row,[()->draw(false)]);
         var iconY=Std.int((height-4-44)/2);
         stage="item row icon";
-        itemIcon(row,item,8,iconY,44);
+        var prismatic=G.field(G.field(listing,"item"),"prismatic")==true
+            ||(item.preview!=null&&(item.preview.flags&2)!=0);
+        itemIcon(row,item,8,iconY,44,rarity,prismatic);
         stage="item row labels";
-        var rarityLabel=rarity==""?null:labelAt(row,rarity,64,0,90,true,rarityColor(rarity),true);
         var nameX=64;
         var nameRight=c.tab=="Sell"?484:392,extraWidth=0;
         var fullName=item.name+(item.count>1?" ×"+item.count:"");
@@ -590,11 +591,6 @@ class MarketWindow {
         }
         var priceLabel:Dynamic=null;
         function layoutLabels():Void {
-            if(rarityLabel!=null) {
-                centerControlText(rarityLabel,24,64,5);
-                var bounds=G.call("h2d.Object","getBounds",rarityLabel,[rarityLabel,null]);
-                nameX=64+Std.int(Math.ceil((G.number(G.field(bounds,"xMax"))-G.number(G.field(bounds,"xMin")))*G.number(G.field(rarityLabel,"scaleX"),1)))+10;
-            }
             var available=Std.int(Math.max(1,nameRight-nameX));
             var fitted=MarketText.ellipsis(fullName,available,text->G.number(G.call("h2d.Text","calcTextWidth",nameLabel,[text])));
             if(fitted!=displayedName){setText(nameLabel,fitted);displayedName=fitted;}
@@ -876,8 +872,11 @@ class MarketWindow {
         G.call("h2d.Graphics","lineTo",graphics,[points[0],points[1]]);
         G.call("h2d.Graphics","endFill",graphics);
     }
-    function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int):Void {
-        var bg=graphic(parent);rounded(bg,x,y,sizePx,sizePx,5,EDGE);rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,0xF5EBDD);
+    function itemIcon(parent:Dynamic,item:TradeItem,x:Int,y:Int,sizePx:Int,?rarity="",prismatic=false):Void {
+        var tier=MarketText.rarityId(rarity,"",item.preview==null?"":item.preview.rarity,item.detail);
+        var bg=graphic(parent);
+        rounded(bg,x,y,sizePx,sizePx,5,trade.TradeRarity.border(tier,prismatic));
+        rounded(bg,x+1,y+1,sizePx-2,sizePx-2,4,trade.TradeRarity.fill(tier));
         var definition=TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
@@ -908,19 +907,26 @@ class MarketWindow {
         G.call("h2d.FlowProperties","set_isAbsolute",contentLayout,[false]);style(details,"position",false);
         G.set(contentLayout,"verticalAlign",top);G.set(contentLayout,"horizontalAlign",left);
         style(details,"valign",top);style(details,"halign",left);
-        var picture=G.field(node("element",G.field(details,"dom"),[],"marketDetailsIcon"+(sequence++)),"obj");
-        absolute(details,picture);padding(picture,0);size(picture,60,60);position(picture,0,0);
-        // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.
-        itemIcon(picture,item,0,0,60);
-        tooltip(picture,item);
-        var name=labelAt(details,item.name,72,0,212,true,0xFFFFFF);
-        largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
         var requiredLevel=G.integer(G.field(metadata,"requiredLevel")),nativeItem:Dynamic=null;
         if(c.tab=="Sell") {
             var stack=c.inventoryStack(item);
             nativeItem=G.field(stack,"item");
             if(nativeItem!=null)requiredLevel=G.integer(G.call("st.Item","getRequiredLevel",nativeItem));
         }
+        // Show rarity in the icon's native-coloured background, not in text.
+        var nativeRarity=c.tab=="Sell"&&nativeItem!=null
+            ?G.staticCall("HItem","getRarity",[G.field(nativeItem,"inf")]):null;
+        var rarity=MarketText.rarityId(
+            G.text(G.field(metadata,"rarity")),G.text(G.field(nativeRarity,"id")),
+            item.preview==null?"":item.preview.rarity,item.detail);
+        var prismatic=G.field(metadata,"prismatic")==true || (item.preview!=null && (item.preview.flags&2)!=0);
+        var picture=G.field(node("element",G.field(details,"dom"),[],"marketDetailsIcon"+(sequence++)),"obj");
+        absolute(details,picture);padding(picture,0);size(picture,60,60);position(picture,0,0);
+        // set_getTip installs UIElement hover handlers; enabling only the base Flow skips them.
+        itemIcon(picture,item,0,0,60,rarity,prismatic);
+        tooltip(picture,item);
+        var name=labelAt(details,item.name,72,0,212,true,0xFFFFFF);
+        largeLabel(name);G.call("h2d.Text","set_wordBreak",name,[true]);
         var levelLabel=requiredLevel>0?labelAt(details,"Level "+requiredLevel,72,0,212,false,0xC9BEB5):null;
         var upgrade=item.preview==null?G.integer(G.field(metadata,"upgradeLevel")):item.preview.upgrade;
         var stars:Array<Dynamic>=[];
@@ -929,19 +935,6 @@ class MarketWindow {
             absolute(details,icon);padding(icon,0);size(icon,20,20);stars.push(icon);
         }
         var quantityLabel=labelAt(details,"Quantity: "+item.count,72,0,212,false,0xC9BEB5);
-        // API listings carry a canonical rarity ID; the seller's description
-        // may instead begin with a translated heading or the first actual stat.
-        // For Sell, resolve the rarity from the native item held locally.
-        var nativeRarity=c.tab=="Sell"&&nativeItem!=null
-            ?G.staticCall("HItem","getRarity",[G.field(nativeItem,"inf")]):null;
-        var rarity=MarketText.rarityId(
-            G.text(G.field(metadata,"rarity")),
-            G.text(G.field(nativeRarity,"id")),
-            item.preview==null?"":item.preview.rarity,
-            item.detail);
-        var prismatic=G.field(metadata,"prismatic")==true || (item.preview!=null && (item.preview.flags&2)!=0);
-        var rarityLabel=rarity==""?null:
-            labelAt(details,rarity=="Epic"&&prismatic?"Epic (Prismatic)":rarity,72,0,212,true,detailRarityColor(rarity));
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+MarketCategory.label(category));
@@ -972,8 +965,7 @@ class MarketWindow {
                 for(i in 0...stars.length)position(stars[i],starX+i*24,below-1);
                 below+=24;
             }
-            if(rarityLabel!=null)position(rarityLabel,72,below);
-            var quantityY=below+(rarityLabel==null?0:18);
+            var quantityY=below;
             position(quantityLabel,72,quantityY);
             var statsY=Std.int(Math.max(72,quantityY+32));
             position(meta,0,statsY);
@@ -1163,14 +1155,6 @@ class MarketWindow {
         G.call("domkit.Properties","removeClass",G.field(obj,"dom"),["bold-14"]);
         G.call("domkit.Properties","addClass",G.field(obj,"dom"),["bold-16"]);
     }
-    static function rarityColor(rarity:String):Int return switch(rarity) {
-        case "Uncommon":0x426138;case "Rare":0x346A91;case "Epic":0x80529A;
-        case "Legendary":0xA86322;default:INK;
-    };
-    static function detailRarityColor(rarity:String):Int return switch(rarity) {
-        case "Uncommon":0xA8D340;case "Rare":0x64B4E8;case "Epic":0xC88AE8;
-        case "Legendary":0xF2B65D;default:0xFFFFFF;
-    };
     static function textColor(obj:Dynamic,value:Int):Void {
         if(obj==null)return;
         style(obj,"color",value);

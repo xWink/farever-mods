@@ -713,27 +713,18 @@ class MarketController {
         var queued=request("GET","/api/v1/marketplace/listings/"+row.id,null,null,current->{
             try {
                 var seller=G.text(current.seller.characterName),to=G.text(current.seller.accountId);
-                if(G.field(current,"id")==null)Reflect.setField(current,"id",G.field(row,"id"));
-                var packet=MarketWhisperWire.packet(current,to),parts=MarketWhisperWire.encode(packet);
-                var display=MarketWhisperWire.display(packet,TradeInventory.itemName);
-                var pendingParts=parts.length,allDelivered=true;
+                var text=MarketWhisperMessage.message(current);
+                // Send one ordinary, readable whisper with the stable item ID.
+                // Both the buyer's native echo and the recipient's chat localize it.
                 message="Sending whisper...";view.dirty=true;
-                for(part in parts)trade.TradeChat.send(player,to,seller,part,ok->{
-                    if(!ok)allDelivered=false;
-                    pendingParts--;
-                    if(pendingParts!=0)return;
+                trade.TradeChat.send(player,to,seller,text,ok->{
                     contactingSeller="";
-                    if(allDelivered) {
-                        sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
-                        // Echo the original human-readable line once, never the
-                        // transport fragments. The recipient decodes independently.
-                        try trade.TradeChat.echo(player,to,seller,display)
-                        catch(error:Dynamic)trade.TradeDiagnostics.log("Marketplace whisper echo: "+Std.string(error));
-                    } else sellerWhisperAfter.remove(sellerId);
-                    message=allDelivered?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade."
+                    if(ok)sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
+                    else sellerWhisperAfter.remove(sellerId);
+                    message=ok?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade."
                         :"Could not send the whisper. The seller may be unavailable.";
                     view.dirty=true;
-                });
+                },true);
             }catch(error:Dynamic){
                 contactingSeller="";
                 message="Could not send the marketplace whisper: "+Std.string(error);

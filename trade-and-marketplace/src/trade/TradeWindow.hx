@@ -27,7 +27,7 @@ class TradeWindow {
     var dragStartX = 0.0;
     var dragStartY = 0.0;
     var ghost:Dynamic;
-    var slotViews:Array<{background:Dynamic,color:Int,empty:Bool,disabled:Bool}> = [];
+    var slotViews:Array<{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool}> = [];
     static inline var WIDTH = 612;
     static inline var HEIGHT = 560;
     static inline var PANEL_WIDTH = 568;
@@ -118,10 +118,10 @@ class TradeWindow {
         G.call("h2d.Graphics","clear",graphic); rounded(graphic,0,0,PANEL_WIDTH,28,5,accepted ? 4154186 : 14273207);
         rounded(graphic,11,11,6,6,3,accepted ? 12445103 : 10191981); setText(label,text); ink(label,accepted ? 16187376 : 6969158);
     }
-    function paintSlot(slot:{background:Dynamic,color:Int,empty:Bool,disabled:Bool}):Void {
+    function paintSlot(slot:{background:Dynamic,color:Int,fill:Int,empty:Bool,disabled:Bool}):Void {
         var g = slot.background; G.call("h2d.Graphics","clear",g);
         rounded(g,0,2,80,80,7,4601647,0.15); rounded(g,0,0,80,80,7,slot.disabled ? 10262933 : slot.color);
-        rounded(g,2,2,76,76,5,slot.disabled ? 12170929 : slot.empty ? 13022367 : 3683900);
+        rounded(g,2,2,76,76,5,slot.disabled ? 12170929 : slot.empty ? 13022367 : slot.fill);
     }
     function render(parent:Dynamic,items:Array<TradeItem>,own:Bool):Void {
         for (c in children(parent)) G.call("h2d.Object","remove",c);
@@ -129,7 +129,10 @@ class TradeWindow {
             var row = G.field(node("element",G.field(parent,"dom"),[],"tradeSlot"+index),"obj");
             absolute(parent,row); padding(row,0); size(row,80,80); position(row,14+index*92,0);
             var empty = index >= items.length, item = empty ? null : items[index];
-            var slot = {background:graphic(row),empty:empty,color:empty ? 10127480 : item.color,disabled:!controller.state.editable()};
+            var tier=empty?"":marketplace.MarketText.rarityId("","",
+                item.preview==null?"":item.preview.rarity,item.detail);
+            var fill=empty?13022367:tier!=""?TradeRarity.fill(tier):TradeRarity.fromTint(item.color);
+            var slot = {background:graphic(row),empty:empty,color:empty ? 10127480 : item.color,fill:fill,disabled:!controller.state.editable()};
             slotViews.push(slot); paintSlot(slot); G.call("ui.UIElement","set_onClick",row,[()->{}]);
             if (empty) continue;
             var cursor = G.enumeration("hxd.Cursor","Button");
