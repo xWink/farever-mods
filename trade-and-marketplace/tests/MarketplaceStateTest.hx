@@ -80,6 +80,9 @@ class MarketplaceStateTest {
         check(c.busy&&Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=8")>=0);
         ownReply(c,app,[{id:"remaining",revision:4}]);
         check(!c.busy&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
+        // The layout switch clears the previous page's selection; select an
+        // item again to test ID-preserving refresh and error behavior.
+        c.selected=c.rows[0];
         c.filters["search"]="new search";c.refresh();ownReply(c,app,[{id:"remaining",revision:4}]);
         check(c.selected==c.rows[0]&&c.selected.revision==4);
         c.refresh();MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",
