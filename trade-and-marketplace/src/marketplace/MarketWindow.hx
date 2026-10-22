@@ -887,7 +887,7 @@ class MarketWindow {
         var definition=nativeFrame?null:TradeInventory.definition(item.kind);
         if(definition!=null) {
             var icon=G.create("h2d.Bitmap",[G.staticCall("HItem","getGfx",[definition]),parent]);
-            // Match the 50px art within the native 58px frame at any
+            // Match the 52px art within the native 58px frame at any
             // rendered slot size; don't overflow smaller 44px listing icons.
             var fullSize:Float=sizePx;
             var nativeSize:Float=trade.TradeNativeSlot.NATIVE_SIZE;
