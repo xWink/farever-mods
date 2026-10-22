@@ -57,7 +57,7 @@ class MarketplaceUiTest {
   check(iconRings.length>=12&&iconRings[0].color!=iconRings[iconRings.length-1].color
    &&iconRings[0].width>iconRings[iconRings.length-1].width);
   check(GameAccess.labels.filter(l->l.text=="Epic"&&l.parent==collapsedRow).length==0);
-  check(GameAccess.labels.filter(l->l.text=="500").length==MarketController.PAGE_SIZE);
+  check(GameAccess.labels.filter(l->l.text=="500").length==c.pageSize());
   var prices=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketMoneyContent")==0),money=prices[0];
   var moneyLabels=GameAccess.labels.filter(l->l.parent==money);
   var moneyIcons=(cast money.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
