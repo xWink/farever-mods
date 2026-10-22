@@ -718,12 +718,42 @@ class MarketWindow {
                 selectionBorder(border,G.number(G.field(bounds,"xMax"))-x,G.number(G.field(bounds,"yMax"))-y);
             });
         }
+        inventoryScrollbar(viewport);
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
         G.set(viewport,"onAfterReflow",()->{
             if(previous!=null)Reflect.callMethod(viewport,previous,[]);
             if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
         });
+    }
+    static function inventoryScrollbar(viewport:Dynamic):Void {
+        // Keep Flow's wheel, track-click and drag behavior, but give its native
+        // scrollbar an explicit visible skin inside the grid's right margin.
+        var bar=G.field(viewport,"scrollBar"),cursor=G.field(viewport,"scrollBarCursor");
+        if(bar==null||cursor==null)return;
+        G.call("h2d.Object","addChild",viewport,[bar]);
+        absolute(viewport,bar);
+        var layout=G.call("h2d.Flow","getProperties",viewport,[bar]);
+        var right=G.enumeration("h2d.FlowAlign","Right"),top=G.enumeration("h2d.FlowAlign","Top");
+        G.set(layout,"horizontalAlign",right);G.set(layout,"verticalAlign",top);
+        style(bar,"halign",right);style(bar,"valign",top);
+        for(part in [bar,cursor]) {
+            padding(part,0);size(part,12,-1);
+            G.set(part,"alpha",1.0);style(part,"alpha",1.0);
+            var paint=graphic(part);
+            // The track must stay behind its draggable thumb.
+            G.call("h2d.Object","addChildAt",part,[paint,0]);
+            absolute(part,paint);
+            var lastHeight=-1.0;
+            afterReflow(part,()->{
+                var background=G.field(part,"background");
+                if(background!=null)G.call("h2d.Object","set_visible",background,[false]);
+                var height=G.number(G.field(part,"calculatedHeight"));
+                if(height==lastHeight)return;
+                lastHeight=height;G.call("h2d.Graphics","clear",paint);
+                if(height>0)rounded(paint,1,0,10,height,5,part==bar?EDGE:MUTED,part==bar?0.6:1.0);
+            });
+        }
     }
     static function selectionBorder(border:Dynamic,width:Float,height:Float):Void {
         var arm=Math.min(width,height)*0.28;
