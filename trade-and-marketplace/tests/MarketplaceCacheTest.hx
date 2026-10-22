@@ -130,10 +130,10 @@ class MarketplaceCacheTest {
         // server cursor until eight *visible* rows exist.
         var owned=[for(i in 0...8){id:"owned-"+i,seller:{accountId:"self"}}];
         respond(c,app,last(),owned,"next-owned");
-        check(c.rows.length==0&&c.busy&&last().path.indexOf("cursor=next-owned")>=0);
+        check(c.rows.length==0&&c.busy&&Std.string(last().path).indexOf("cursor=next-owned")>=0);
         var firstOthers=[for(i in 0...6){id:"first-"+i,seller:{accountId:"other"}}];
         respond(c,app,last(),firstOthers,"next-others");
-        check(c.rows.length==6&&c.busy&&last().path.indexOf("cursor=next-others")>=0);
+        check(c.rows.length==6&&c.busy&&Std.string(last().path).indexOf("cursor=next-others")>=0);
         var more=[for(i in 0...8){id:"second-"+i,seller:{accountId:"other"}}];
         respond(c,app,last(),more,null);
         check(!c.busy&&c.rows.length==8&&c.rows[0].id=="first-0"&&c.rows[7].id=="second-1");
@@ -150,7 +150,7 @@ class MarketplaceCacheTest {
         c.chooseTab("Browse");check(c.rows.length==8&&c.rows[0].id=="first-0");
         // A new filter invalidates the stream without reusing stale cursors.
         c.filters["rarity"]="Epic";c.refresh();
-        check(c.busy&&last().path.indexOf("rarity=Epic")>=0&&last().path.indexOf("cursor=")<0);
+        check(c.busy&&Std.string(last().path).indexOf("rarity=Epic")>=0&&Std.string(last().path).indexOf("cursor=")<0);
         respond(c,app,last(),[other],null);
         check(!c.busy&&c.rows.length==1&&c.rows[0].id=="other");
     }
