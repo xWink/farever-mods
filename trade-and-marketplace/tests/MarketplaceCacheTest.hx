@@ -115,48 +115,80 @@ class MarketplaceCacheTest {
     static function ownListingFilter():Void {
         var player:Dynamic={isMe:true,uid:"self",hero:{loadout:{banks:[]}}},app={me:player};
         var c=new MarketController();
-        c.player=player;c.inv=new TradeInventory(player);c.account="self";c.server="europe";c.ready=true;
+        c.player=player;c.inv=new TradeInventory(player);c.account="self";c.server="north-america";c.ready=true;
         c.filters["online"]="false";
-        var own:Dynamic={id:"mine",server:"europe",seller:{accountId:"self",characterName:"Different character"}},
-            other:Dynamic={id:"other",seller:{accountId:"other",characterName:"My name"}};
+        var own:Dynamic={id:"mine",server:"north-america",seller:{accountId:"self",characterName:"Another character"}},
+            other:Dynamic={id:"other",server:"north-america",seller:{accountId:"other",characterName:"My name"}};
         c.open();
         var first=last();
-        check(Std.string(first.path).indexOf("hideMine")<0);
+        check(Std.string(first.path).indexOf("excludeAccountId=")<0);
+        check(Std.string(first.path).indexOf("limit=8")>=0);
         respond(c,app,first,[own,other],null);
         check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine");
         var sent=MarketWorker.current.sent.length;
+
         c.setHideMine(true);
+        var request=last(),path=Std.string(request.path);
         check(c.hideMine&&c.busy&&MarketWorker.current.sent.length==sent+1);
-        check(last().path==first.path);
-        // Entire raw page can belong to this account. Keep following the
-        // server cursor until eight *visible* rows exist.
-        var owned=[for(i in 0...8){id:"owned-"+i,seller:{accountId:"self"}}];
-        respond(c,app,last(),owned,"next-owned");
-        check(c.rows.length==0&&c.busy&&Std.string(last().path).indexOf("cursor=next-owned")>=0);
-        var firstOthers=[for(i in 0...6){id:"first-"+i,seller:{accountId:"other"}}];
-        respond(c,app,last(),firstOthers,"next-others");
-        check(c.rows.length==6&&c.busy&&Std.string(last().path).indexOf("cursor=next-others")>=0);
-        var more=[for(i in 0...8){id:"second-"+i,seller:{accountId:"other"}}];
-        respond(c,app,last(),more,null);
-        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="first-0"&&c.rows[7].id=="second-1");
-        check(c.pages==2);
+        check(StringTools.startsWith(path,"/api/v1/marketplace/listings?server=north-america&excludeAccountId=self&limit=24"));
+        check(path.indexOf("cursor=")<0&&path.indexOf("hideMine")<0);
+
+        // All 24 items were already filtered by the server. Only one fetch is
+        // needed for the first three UI pages, with no owner-based client refill.
+        var listings:Array<Dynamic>=[for(i in 0...24){id:"public-"+i,seller:{accountId:"other"}}];
+        respond(c,app,request,listings,"next-batch");
+        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-0");
         sent=MarketWorker.current.sent.length;
-        c.goPage(2);check(c.rows.length==6&&c.rows[0].id=="second-2"&&MarketWorker.current.sent.length==sent);
+        c.goPage(2);
+        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-8"&&MarketWorker.current.sent.length==sent);
+        c.goPage(3);
+        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-16"&&MarketWorker.current.sent.length==sent);
+        c.goPage(4);
+        check(c.busy&&MarketWorker.current.sent.length==sent+1);
+        check(Std.string(last().path).indexOf("excludeAccountId=self&limit=24")>=0
+            &&Std.string(last().path).indexOf("cursor=next-batch")>=0);
+        respond(c,app,last(),[for(i in 0...3){id:"tail-"+i,seller:{accountId:"other"}}],null);
+        check(!c.busy&&c.rows.length==3&&c.rows[0].id=="tail-0"&&c.pages==4);
         c.goPage(1);check(c.rows.length==8&&!c.busy);
+
+        // Turning off Hide mine returns to the unchanged eight-item API cache
+        // and restores the listings the user was previously allowed to see.
+        sent=MarketWorker.current.sent.length;
         c.setHideMine(false);
         check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
         c.setHideMine(true);
-        check(c.rows.length==8&&!c.busy); // Reuse the already loaded filtered stream.
+        check(c.rows.length==8&&!c.busy&&MarketWorker.current.sent.length==sent);
         c.chooseTab("My listings");respond(c,app,last(),[own],null);
         check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="mine");
-        c.chooseTab("Browse");check(c.rows.length==8&&c.rows[0].id=="first-0");
-        // A new filter invalidates the stream without reusing stale cursors.
-        c.filters["rarity"]="Epic";c.refresh();
-        check(c.busy&&Std.string(last().path).indexOf("rarity=Epic")>=0&&Std.string(last().path).indexOf("cursor=")<0);
-        respond(c,app,last(),[other],null);
+        c.chooseTab("Browse");
+        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-0");
+
+        // Search/filter changes make new API requests with server exclusion.
+        c.filters["rarity"]="Epic";c.refresh();request=last();path=Std.string(request.path);
+        check(c.busy&&path.indexOf("excludeAccountId=self&limit=24")>=0
+            &&path.indexOf("rarity=Epic")>=0&&path.indexOf("cursor=")<0);
+        respond(c,app,request,[other],null);
         check(!c.busy&&c.rows.length==1&&c.rows[0].id=="other");
-        // Return the fake config to its defaults for subsequent isolated tests.
+
+        // Never issue a request without a valid account ID when exclusion is on.
+        c.account="";sent=MarketWorker.current.sent.length;c.refresh();
+        check(!c.busy&&c.rows.length==0&&MarketWorker.current.sent.length==sent);
+        check(c.message.indexOf("account could not be identified")>=0);
+        // URL-encode the authenticated account identity before sending it.
+        c.account="farever:account_123";c.refresh();request=last();
+        check(c.busy&&Std.string(request.path).indexOf("excludeAccountId=farever%3Aaccount_123")>=0);
+        respond(c,app,request,[],null);check(!c.busy&&c.rows.length==0);
         c.setHideMine(false);
+
+        // API batch size is 24, not eight. Preserve opaque cursors and reject
+        // responses that exceed the documented page limit.
+        var feed=new MarketBrowseFeed("/api/v1/marketplace/listings?limit=24");
+        feed.append({listings:[for(i in 0...24){id:"row-"+i}],nextCursor:"next"},10);
+        check(feed.rows.length==24&&feed.url().indexOf("cursor=next")>=0);
+        var invalid=false;
+        try feed.append({listings:[for(i in 0...25){id:"too-many-"+i}],nextCursor:null},11)
+        catch(_:Dynamic)invalid=true;
+        check(invalid&&feed.rows.length==24);
     }
 
     static function keyAndPreferencePersistence():Void {

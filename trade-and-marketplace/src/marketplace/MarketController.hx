@@ -289,9 +289,9 @@ class MarketController {
         if(tab=="Browse") {
             cancelPrefetch();
             page=pages=1;selected=null;rows=[];browseRows=[];total=0;
-            // The saved raw pages can still be used when Hide mine is disabled.
-            // Enabling it switches to a stream that continues loading cursor
-            // pages until each displayed page contains eight visible rows.
+            // The unfiltered cache remains available when Hide mine is off.
+            // When enabled, the server excludes this account and returns
+            // batches of up to 24 for the existing eight-row UI pages.
             if(busy){navigationPending=true;navigationForce=false;}
             else showListings(false);
         }
@@ -302,9 +302,10 @@ class MarketController {
         var raw=source==null?browseRows:source;
         return raw.filter(row->{
             var expiry=G.text(G.field(row,"expiresAt")),seller=G.field(row,"seller");
+            // Hide mine is handled on the server with excludeAccountId.
+            // Never discard own listings here and refill from extra pages.
             return (expiry==""||Protocol.expiry(expiry)>now)
-                &&(filters["online"]!="true"||seller==null||listingOnline(row,now))
-                &&(!hideMine||account==""||G.text(G.field(seller,"accountId"))!=account);
+                &&(filters["online"]!="true"||seller==null||listingOnline(row,now));
         });
     }
     public function canBrowse():Bool return ready||Protocol.validKey(key);
@@ -459,7 +460,13 @@ class MarketController {
     public function isLocked(item:TradeItem):Bool return item!=null&&lockedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketPages {
-        var limit=pageSize(),params=["limit="+limit,"server="+StringTools.urlEncode(server)];
+        // Normal Browse retains its eight-item API pages/prefetch behavior.
+        // Hide mine requests 24 already-filtered listings from the API and
+        // serves three eight-row UI pages from each batch.
+        var limit=hideMine?MarketBrowseFeed.LIMIT:pageSize();
+        var params=["server="+StringTools.urlEncode(server)];
+        if(hideMine)params.push("excludeAccountId="+StringTools.urlEncode(account));
+        params.push("limit="+limit);
         var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
         for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
         var path="/api/v1/marketplace/listings?"+params.join("&"),cache=listingCaches[tab];
@@ -492,6 +499,13 @@ class MarketController {
             message=MarketText.SIGN_IN_TO_BROWSE;view.dirty=true;return;
         }
         if(server==""){message="Reconnect to identify your game server before browsing.";view.dirty=true;return;}
+        if(hideMine&&!Protocol.validAccount(account)) {
+            // Never fall back to unfiltered results when the account cannot be
+            // identified: that would silently defeat the user's Hide mine choice.
+            rows=[];browseRows=[];selected=null;total=0;pages=page=1;
+            message="Your Farever account could not be identified. Reconnect before browsing with Hide mine.";
+            view.dirty=true;return;
+        }
         if(hideMine){showFilledBrowse(force);return;}
         var cache=cacheForTab();activePages=cache;
         if(page>1&&cache.cursors[page-1]==null)page=1;
@@ -514,9 +528,9 @@ class MarketController {
             }
         });
     }
-    // Hide mine is a local filter, so the server can return an entire page
-    // owned by this player. Consume additional cursor pages rather than leave
-    // sparse display pages. Keep already-seen visible rows for later pages.
+    // The API excludes our account and returns up to 24 listings in one
+    // server batch. Keep eight visible entries per UI page and request the next
+    // cursor only when the user advances beyond the buffered results.
     function showFilledBrowse(force:Bool):Void {
         var cache=cacheForTab();
         if(filledBrowse==null||filledBrowse.path!=cache.path||force

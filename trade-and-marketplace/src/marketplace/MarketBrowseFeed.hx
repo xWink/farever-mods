@@ -1,12 +1,13 @@
 package marketplace;
 
 /**
- * An ordered stream of raw marketplace API pages. Display pages use eight
- * visible listings, not eight raw listings: owner filtering can skip entries
- * without leaving gaps or losing the server's opaque next cursor.
+ * Server-filtered Browse batches of up to 24 listings. Each batch supplies up
+ * to three eight-row UI pages. The server excludes the current account using
+ * excludeAccountId; no client-side owner filtering/refill is needed. Retain
+ * opaque cursors only when the player navigates beyond the buffered rows.
  */
 class MarketBrowseFeed {
-    public static inline var LIMIT=8;
+    public static inline var LIMIT=24;
     public static inline var MAX_BATCHES=48;
     public final path:String;
     public var current=1;
