@@ -53,7 +53,7 @@ class MarketWhisperWire {
         var encoded=Base64.encode(bytes);
         var count=Std.int(Math.ceil(encoded.length/PART_SIZE));
         if(count<1||count>MAX_PARTS)throw "Marketplace listing is too large to whisper.";
-        var id=haxe.crypto.Md5.encode(Std.string(Date.now().getTime())+":"+Std.string(++sequence)+":"+Std.string(Math.random())).substr(0,16);
+        var id=haxe.crypto.Sha256.encode(Std.string(Date.now().getTime())+":"+Std.string(++sequence)+":"+Std.string(Math.random())).substr(0,16);
         return [for(i in 0...count)PREFIX+id+":"+i+":"+count+":"+encoded.substr(i*PART_SIZE,PART_SIZE)];
     }
 
