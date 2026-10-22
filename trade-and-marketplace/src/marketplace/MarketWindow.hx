@@ -767,6 +767,11 @@ class MarketWindow {
         var bar=G.field(viewport,"scrollBar"),cursor=G.field(viewport,"scrollBarCursor");
         if(bar==null||cursor==null)return;
         absolute(viewport,bar);padding(bar,0);size(bar,10);size(cursor,10);
+        // Explicitly discard inherited Right/Top Flow alignment. The native
+        // UIElement had been aligning to x=viewportWidth (outside the clip).
+        var layout=G.call("h2d.Flow","getProperties",viewport,[bar]);
+        G.set(layout,"horizontalAlign",null);G.set(layout,"verticalAlign",null);
+        style(bar,"halign",null);style(bar,"valign",null);
         // Four pixels of clearance from the right edge, with room for the
         // native 10-pixel-wide bar inside the inventory/bank scroll region.
         position(bar,viewportWidth-14,0);
