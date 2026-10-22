@@ -47,9 +47,9 @@ class GameAccess {
    case "set_overflow":
     o.overflow=a[0];
     if(a[0]=="Scroll"&&field(o,"scrollBar")==null) {
-     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;
+     o.scrollBar=object(o);o.scrollBar.nativeScrollbar=true;o.scrollBar.dom.classes=["scrollbar"];
      o.scrollBar.flowProperties={isAbsolute:true,horizontalAlign:"Right",verticalAlign:"Top"};
-     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;
+     o.scrollBarCursor=object(o.scrollBar);o.scrollBarCursor.nativeScrollbar=true;o.scrollBarCursor.dom.classes=["cursor"];
     }null;
    case "getProperties":
     var child=a[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;
@@ -76,7 +76,7 @@ class GameAccess {
     null;
    case "displayDialog": dialogs++;null;
    case "setItem": o.item=a[0];null;
-   case "set_filter", "set_scrollPosY", "set_minHeight", "set_maxHeight", "set_verticalSpacing": Reflect.setField(o,n.substr(4),a[0]);null;
+   case "set_filter", "set_scrollPosY", "set_minHeight", "set_maxHeight", "set_verticalSpacing", "set_layout", "set_multiline": Reflect.setField(o,n.substr(4),a[0]);null;
    case "updateScale": o.scaleX=1.;o.scaleY=1.;null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;

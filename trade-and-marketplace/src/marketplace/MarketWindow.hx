@@ -644,6 +644,12 @@ class MarketWindow {
         inventoryViewport=G.field(node("element",G.field(root,"dom"),[],"marketInventoryViewport"+(sequence++)),"obj");
         var viewport=inventoryViewport;
         absolute(root,viewport);padding(viewport,0);size(viewport,676,806-contentY-64);position(viewport,30,contentY+52);
+        // DOMKit elements can start in Stack layout, which clamps contentHeight
+        // to the viewport and makes native scrollbars (and wheel input) disappear.
+        // Vertical measures the whole normal-flow grid before clipping it.
+        var vertical=G.enumeration("h2d.FlowLayout","Vertical");
+        G.call("h2d.Flow","set_layout",viewport,[vertical]);style(viewport,"layout",vertical);
+        G.call("h2d.Flow","set_multiline",viewport,[false]);style(viewport,"multiline",false);
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
         var content=G.field(node("element",G.field(viewport,"dom"),[],"marketInventoryGrid"+(sequence++)),"obj");
@@ -730,10 +736,16 @@ class MarketWindow {
         });
     }
     static function inventoryScrollbar(viewport:Dynamic):Void {
-        // Flow owns these children and their parallel layout properties. Styling
-        // them must not reorder children through Object or add reflow painters.
-        var bar=G.field(viewport,"scrollBar");
-        if(bar!=null)G.call("domkit.Properties","addClass",G.field(bar,"dom"),["market-inventory-scrollbar"]);
+        // Use the game's own scrollbar skin, hover, thumb geometry and dragging.
+        // Pin the native bar in the right gutter without changing its children,
+        // backgrounds or event/reflow handlers.
+        var bar=G.field(viewport,"scrollBar"),cursor=G.field(viewport,"scrollBarCursor");
+        if(bar==null||cursor==null)return;
+        var top=G.enumeration("h2d.FlowAlign","Top"),right=G.enumeration("h2d.FlowAlign","Right");
+        absolute(viewport,bar);padding(bar,0);size(bar,10);size(cursor,10);
+        var layout=G.call("h2d.Flow","getProperties",viewport,[bar]);
+        G.set(layout,"horizontalAlign",right);G.set(layout,"verticalAlign",top);
+        style(bar,"halign",right);style(bar,"valign",top);
     }
     static function selectionBorder(border:Dynamic,width:Float,height:Float):Void {
         var arm=Math.min(width,height)*0.28;

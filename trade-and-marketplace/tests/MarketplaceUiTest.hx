@@ -283,13 +283,19 @@ class MarketplaceUiTest {
   c.bound=false;
   c.listed=false;GameAccess.nodes=[];view.dirty=true;view.update();
   var gridViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];
-  check(gridViewport.overflow=="Scroll"&&gridViewport.y+gridViewport.height<806&&gridViewport.height<sellSlots[118].parent.height);
+  check(gridViewport.overflow=="Scroll"&&gridViewport.layout=="Vertical"&&gridViewport.multiline==false);
+  check(gridViewport.y+gridViewport.height<806&&gridViewport.height<sellSlots[118].parent.height);
+  // Preserve full normal-flow height so the native scrollbar can measure overflow.
+  check(sellSlots[118].parent.flowProperties.isAbsolute==false);
   var scrollBar:Dynamic=gridViewport.scrollBar,scrollCursor:Dynamic=gridViewport.scrollBarCursor;
   check(scrollBar!=null&&scrollCursor.parent==scrollBar&&scrollBar.parent==gridViewport);
-  check((cast scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")>=0);
+  check(scrollBar.width==10&&scrollCursor.width==10);
+  check(scrollBar.flowProperties.isAbsolute&&scrollBar.flowProperties.horizontalAlign=="Right"&&scrollBar.flowProperties.verticalAlign=="Top");
+  check((cast scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
+  check((cast scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")<0);
+  check((cast scrollCursor.dom.classes:Array<String>).indexOf("cursor")>=0);
   check(scrollBar.children.length==1&&scrollBar.children[0]==scrollCursor);
   check(scrollBar.onAfterReflow==null&&scrollCursor.onAfterReflow==null);
-  check(scrollBar.flowProperties.isAbsolute&&scrollBar.flowProperties.horizontalAlign=="Right");
   gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
   var newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];newGrid.onAfterReflow();check(newGrid.scrollPosY==128);
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
@@ -297,7 +303,11 @@ class MarketplaceUiTest {
   check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
   check(bankSlots[0].parent.width==634&&bankSlots[0].parent.flowProperties.horizontalAlign=="Middle");
   var bankViewport:Dynamic=bankSlots[0].parent.parent;
-  check((cast bankViewport.scrollBar.dom.classes:Array<String>).indexOf("market-inventory-scrollbar")>=0);
+  check(bankViewport.overflow=="Scroll"&&bankViewport.layout=="Vertical"&&bankViewport.multiline==false);
+  check(bankSlots[0].parent.flowProperties.isAbsolute==false&&bankSlots[0].parent.height>bankViewport.height);
+  check(bankViewport.scrollBar.width==10&&bankViewport.scrollBarCursor.width==10);
+  check(bankViewport.scrollBar.flowProperties.isAbsolute&&bankViewport.scrollBar.flowProperties.horizontalAlign=="Right");
+  check((cast bankViewport.scrollBar.dom.classes:Array<String>).indexOf("scrollbar")>=0);
   check(bankViewport.scrollBar.children.length==1&&bankViewport.scrollBar.children[0]==bankViewport.scrollBarCursor);
   var tabs=GameAccess.buttons.filter(b->b.y==820&&b.x<704);
   check(tabs.length==2&&tabs[0].text=="First tab"&&tabs[1].text=="Second tab"&&tabs[0].selected);
