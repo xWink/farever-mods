@@ -47,9 +47,10 @@ class MarketplaceDrawerTest {
                 var action=G.buttons.filter(b->b.text=="Whisper seller"||b.text=="Your listing")[0];
                 check(action.y-(back.y+back.height)==806-(action.y+36));
             }
-            table.scrollPosY=70.;rows()[1].action();view.update();
-            table=node("marketListingViewport");table.onAfterReflow();
-            check(c.selected==other&&node("marketDetailsDrawer").x==0&&table.scrollPosY==70);
+            check(table.overflow=="Hidden");
+            rows()[1].action();view.update();
+            table=node("marketListingViewport");
+            check(c.selected==other&&node("marketDetailsDrawer").x==0&&table.overflow=="Hidden");
             rows()[1].action();view.update();check(c.selected==null&&node("marketDetailsDrawer")!=null);
             var closing=node("marketDetailsDrawer"),closingMask=closing.parent;
             finish(view);check(node("marketDetailsDrawer")==null&&G.removed.indexOf(closing)>=0);
