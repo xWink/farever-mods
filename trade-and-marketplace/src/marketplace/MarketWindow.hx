@@ -270,19 +270,16 @@ class MarketWindow {
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
     }
     function listingRows(rowHeight:Int):Void {
-        // A fixed API page stays intact when the filter area expands; the
-        // remaining rows are reachable by scrolling instead of another fetch.
+        // Browse is paginated rather than scrollable: six rows fit when the
+        // filters are shown, and eight fit when they are hidden. Extra items
+        // appear via Next, not an embedded scrollbar.
         var viewport=G.field(node("element",G.field(frame.container,"dom"),[],"marketListingViewport"+(sequence++)),"obj");
         absolute(frame.container,viewport);padding(viewport,0);size(viewport,692,806-contentY-48);position(viewport,22,contentY+48);
-        var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
-        G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
+        var hidden=G.enumeration("h2d.FlowOverflow","Hidden");
+        G.call("h2d.Flow","set_overflow",viewport,[hidden]);style(viewport,"overflow",hidden);
         var content=G.field(node("element",G.field(viewport,"dom"),[],"marketListingRows"+(sequence++)),"obj");
         padding(content,0);size(content,686,c.rows.length*rowHeight);alignScrollContent(viewport,content);
         listingViewport=viewport;
-        var key=c.tab+":"+c.page+":"+[for(row in c.rows)G.text(G.field(row,"id"))].join(",");
-        if(key!=listingScrollKey){listingScroll=0;listingScrollKey=key;}
-        var saved=listingScroll,restored=false;
-        G.set(viewport,"onAfterReflow",()->{if(!restored){restored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}});
         tableLayouts.push(extra->{size(viewport,692+extra,806-contentY-48);size(content,686+extra,c.rows.length*rowHeight);});
         for(i in 0...c.rows.length)savedRow(c.rows[i],i*rowHeight,rowHeight,i,content);
     }
