@@ -46,6 +46,7 @@ class MarketWindow {
     var offers = false;
     var contentY = 284;
     var inventoryViewport:Dynamic;
+    var sellScrollbar:MarketScrollbar;
     var inventoryScroll=0.0;
     var inventoryScrollKey="";
     static inline var SELL_FORM_Y=500;
@@ -60,6 +61,7 @@ class MarketWindow {
     public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();
+        sellScrollbar=null;
         shown = false; closeDropdowns();
         filterControls.clear();searchClearButtons=[];
         if(cart!=null){cart.dispose();cart=null;}
@@ -106,6 +108,12 @@ class MarketWindow {
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
         stage="window layout";frame.layout();
+        // Skin only. If it fails, do not take down the marketplace or native
+        // scrollbar input; the existing viewport remains intact.
+        if(sellScrollbar!=null)try sellScrollbar.update() catch(error:Dynamic) {
+            report("Sell scrollbar skin",error);
+            sellScrollbar=null;
+        }
         stage="dropdown input";dismissOutsideDropdowns();
         if(c.connectionIssue&&!c.signingIn&&!connectionNoticeShown)showConnectionError();
     }
@@ -139,7 +147,12 @@ class MarketWindow {
         rememberInventoryScroll();rememberListingScroll();
         closeDropdowns();
         filterControls.begin();
-        for (child in children(frame.container)) if(child!=backdrop&&!filterControls.contains(child))G.call("h2d.Object", "remove", child);
+        var keepScrollbar=c.tab=="Sell"&&!recovery;
+        for (child in children(frame.container))
+            if(child!=backdrop&&!filterControls.contains(child)
+                &&!(keepScrollbar&&sellScrollbar!=null&&sellScrollbar.owns(child)))
+                G.call("h2d.Object", "remove", child);
+        if(!keepScrollbar)sellScrollbar=null;
         var root = frame.container;
         // Keep one background below the retained inputs. Inserting new cards into
         // a native Flow during refresh can put them over its first controls.
@@ -729,6 +742,9 @@ class MarketWindow {
             });
         }
         inventoryScrollbar(viewport,viewportWidth);
+        if(sellScrollbar==null||!sellScrollbar.attachedTo(root))
+            sellScrollbar=new MarketScrollbar(root);
+        sellScrollbar.bind(viewport,content,key);
         // Restore only once, after Flow has measured the content and can clamp scrolling.
         var saved=inventoryScroll,previous=G.field(viewport,"onAfterReflow"),restored=false;
         G.set(viewport,"onAfterReflow",()->{
