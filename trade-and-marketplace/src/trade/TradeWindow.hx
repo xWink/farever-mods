@@ -151,7 +151,9 @@ class TradeWindow {
             if (empty) continue;
             var cursor = G.enumeration("hxd.Cursor","Button");
             G.call("h2d.Interactive","set_cursor",G.field(row,"interactive"),[cursor]); style(row,"cursor",cursor);
-            var definition = TradeInventory.definition(item.kind);
+            // The native slot paints its own item image. Only fallback
+            // custom backgrounds need the manual Bitmap.
+            var definition = nativeFrame ? null : TradeInventory.definition(item.kind);
             if (definition != null) {
                 var tile = G.staticCall("HItem","getGfx",[definition]), icon = G.create("h2d.Bitmap",[tile,row]);
                 absolute(row,icon); position(icon,10,8); G.call("h2d.Bitmap","set_width",icon,[60.0]); G.call("h2d.Bitmap","set_height",icon,[60.0]);

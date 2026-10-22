@@ -47,10 +47,15 @@ class MarketplaceUiTest {
   // A real DOMKit ItemSlot should provide the rarity frame, with no stack,
   // item button, or custom gradient shapes layered underneath it.
   var currentRow=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0];
-  var nativeRowFrame=GameAccess.nodes.filter(n->n.id=="tradeNativeRarityFrame"&&n.parent==currentRow)[0];
+  var nativeRowFrame=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")&&n.parent==currentRow)[0];
   check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
   check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
-  check(nativeRowFrame.width==44&&nativeRowFrame.height==44);
+  check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
+  check(Math.abs(nativeRowFrame.scaleX*nativeRowFrame.width-44)<0.01
+   &&Math.abs(nativeRowFrame.scaleY*nativeRowFrame.height-44)<0.01);
+  check(nativeRowFrame.x==8&&nativeRowFrame.x+nativeRowFrame.width*nativeRowFrame.scaleX<64);
+  // Native ItemSlot draws the item itself: no duplicate custom Bitmap.
+  check((cast currentRow.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);
   var oldGradient=0;
   for(child in (cast currentRow.children:Array<Dynamic>))if(child.shapes!=null)
    for(shape in (cast child.shapes:Array<Dynamic>))if(shape.width==42&&shape.x==9)oldGradient++;
@@ -467,10 +472,12 @@ class MarketplaceUiTest {
   function detailNativeFrame():Dynamic {
    var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
    check(picture!=null);
-   var slots=GameAccess.nodes.filter(n->n.id=="tradeNativeRarityFrame"&&n.parent==picture);
+   var slots=GameAccess.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"tradeNativeRarityFrame")&&n.parent==picture);
    check(slots.length==1);
    check(slots[0].button==null&&slots[0].inf!=null
-    &&slots[0].width==60&&slots[0].height==60);
+    &&slots[0].width==58&&slots[0].height==58);
+   check(Math.abs(slots[0].width*slots[0].scaleX-60)<0.01);
+   check((cast picture.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);
    return slots[0];
   }
   for(tab in ["Browse","My listings","Sell"]) {
