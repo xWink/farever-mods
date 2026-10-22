@@ -15,12 +15,12 @@ import trade.TradeUi.*;
  */
 class TradeNativeSlot {
     public static inline var NATIVE_SIZE=58;
-    public static inline var MARKET_ART_PIXELS=48;
+    public static inline var MARKET_ART_PIXELS=50;
     static var idSequence=0;
     /** Leave the native rarity frame and clip size intact; inset only item art. */
     public static function insetMarketplaceArtwork(button:Dynamic,maskSize:Int):Void {
         if(button==null)return;
-        // Fill 48px of the native 52px item mask, leaving a 2px inset.
+        // Fill 50px of the native 52px item mask, leaving a 1px inset.
         // Keep the art and the frame separate so rarity borders aren't scaled.
         // Integer pixels divided by a Float avoid HashLink's dynamic Float
         // constant boxing issue, previously exercised by compiled UI tests.
