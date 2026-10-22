@@ -40,13 +40,23 @@ class GameBranchTest {
         check(GameBranch.detect(name->name=="get_branchName"?"Public test branch - ":null)=="Public test branch -");
         check(GameBranch.isPtr("public-test-branch")&&GameBranch.isPtr("PTR")
             &&!GameBranch.isPtr("live"));
-        check(GameBranch.uploadable("live")&&GameBranch.uploadable("main")
-            &&!GameBranch.uploadable("public-test-branch")&&!GameBranch.uploadable("unknown")
-            &&!GameBranch.uploadable("experimental"));
-        check(GameBranch.recordMayUpload({gameBranch:"live"}));
-        check(!GameBranch.recordMayUpload({gameBranch:"public-test-branch"}));
-        check(!GameBranch.recordMayUpload({gameBranch:"unknown"}));
-        check(GameBranch.recordMayUpload({gameVersion:"0.3.0.30001"}));
+        check(GameBranch.uploadable("MAIN") && GameBranch.uploadable("main")
+            && GameBranch.uploadable(" MAIN "));
+        for(branch in ["live","default","public","release","stable","production",
+            "public-test-branch","PTR","unknown","experimental","",null])
+            check(!GameBranch.uploadable(branch));
+        check(GameBranch.sessionMayUpload(true,"MAIN"));
+        check(!GameBranch.sessionMayUpload(false,"MAIN"));
+        for(branch in ["PTR","unknown","live","public-test-branch",""])
+            check(!GameBranch.sessionMayUpload(true,branch));
+        check(GameBranch.recordMayUpload({gameBranch:"MAIN"}));
+        check(GameBranch.recordMayUpload({gameBranch:" main "}));
+        for(branch in ["PTR","public-test-branch","unknown","experimental",
+            "live","stable","production","",null,123,true])
+            check(!GameBranch.recordMayUpload({gameBranch:branch}));
+        check(!GameBranch.recordMayUpload({gameVersion:"0.3.0.30001"}));
+        check(!GameBranch.recordMayUpload({gameBranchMissing:true}));
+        check(!GameBranch.recordMayUpload(null));
         trace("Game branch safety checks passed: "+checks);
     }
 }

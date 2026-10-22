@@ -71,8 +71,8 @@ class FareverlyUploader {
         write(folder + "/cooldown.json", Json.stringify({until:nextRequest}));
     }
     public function enqueue(record:Dynamic):Void {
-        // Archiving and submission are independent: PTR runs still enter local
-        // history, but never acquire a durable upload/retry queue entry.
+        // Archiving and submission are independent: only MAIN runs enter the
+        // upload queue. All other branches remain in local fight history.
         if (!GameBranch.recordMayUpload(record) || !FareverlyContract.candidate(record)) return;
         FileSystem.createDirectory(folder);
         var path = reportPath(record.id);
@@ -148,18 +148,20 @@ class FareverlyUploader {
             }
             if (saved.status != "pending" || now < saved.nextAttempt) continue;
             if (saved.attempts >= MAX_ATTEMPTS) { finish(path, saved, "failed", "Retry limit reached; local log retained.", true); continue; }
-            if (!fetchCatalog(now)) return;
-            if (catalog == null) { finish(path, saved, "failed", catalogError, true); continue; }
             var bytes:Bytes; var record:Dynamic;
             try {
                 if (FileSystem.stat(path).size > MAX_BODY) throw "Log exceeds Fareverly's 5 MiB limit.";
                 bytes = File.getBytes(path); record = Json.parse(bytes.toString());
                 if(!GameBranch.recordMayUpload(record)) {
-                    finish(path,saved,"failed","PTR/beta or unverified game branch; local history retained.",false);
+                    finish(path,saved,"failed","Only MAIN branch logs may be uploaded; local history retained.",false);
                     continue;
                 }
                 var reason = FareverlyContract.validate(record, now); if (reason != "") throw reason;
             } catch (error:Dynamic) { finish(path, saved, "failed", Std.string(error), false); continue; }
+            // Reject old/beta/legacy queued payloads before fetching the
+            // encounter catalog. No network request is necessary for them.
+            if (!fetchCatalog(now)) return;
+            if (catalog == null) { finish(path, saved, "failed", catalogError, true); continue; }
             // The server authenticates this bearer key and checks the log's
             // uploader account. No account/Steam metadata is stored in config.
             var matching = [for (entry in catalog) if (entry.bossKind == record.bossKind && FareverlyContract.category(entry.category) == record.category) entry];

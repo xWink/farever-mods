@@ -72,7 +72,7 @@ class EquippedWeaponsTest {
                 "Rarity, equip requirement and upgrades use native metadata, not hidden level");
         }
         check(collector.profile(me) == mine, "Repeated hits reuse the 250 ms profile cache");
-        var fight = new Fight(10, "0.3.0.test");
+        var fight = new Fight(10, "0.3.0.test", "MAIN");
         fight.me = "me"; fight.startedAt = 100000; fight.closed = 20;
         fight.category = "World Bosses"; fight.bossKind = "Boss"; fight.bossName = "Boss"; fight.activityId = "BossActivity";
         fight.partySize = 3; fight.difficulty = -1; fight.outcome = "Victory";

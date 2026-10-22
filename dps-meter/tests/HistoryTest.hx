@@ -1104,7 +1104,8 @@ class HistoryTest {
         var root = temp("victory-uploads");
         var uploader = new LogUploader(root);
         for (outcome in ["Defeat", "", "Victory"]) {
-            var fight = sample(); fight.outcome = outcome; fight.bossKind = "BossKind";
+            var fight = sample(); fight.gameBranch = "MAIN";
+            fight.outcome = outcome; fight.bossKind = "BossKind";
             var id = outcome == "" ? "unknown" : outcome;
             uploader.archive(FightHistory.encode(fight, id), true);
         }
@@ -1117,8 +1118,8 @@ class HistoryTest {
         check(saved.id == "Victory" && saved.outcome == "Victory", "Submission preserves existing fight JSON and outcome");
         check(File.getContent(root + "/fareverly/" + submissions[0]) == File.getContent(archivePath(root, "Victory")),
             "Local and submitted records have the same format");
-        // PTR and unverified builds are archived normally, never enqueued.
-        for(branch in ["public-test-branch","PTR","unknown","experimental"]) {
+        // Other branches and old aliases are archived normally, never enqueued.
+        for(branch in ["public-test-branch","PTR","unknown","experimental","live","stable","production",""]) {
             var ptr = sample(); ptr.gameBranch=branch;ptr.outcome="Victory";ptr.bossKind="BossKind";
             uploader.archive(FightHistory.encode(ptr,"branch_"+branch),true);
         }

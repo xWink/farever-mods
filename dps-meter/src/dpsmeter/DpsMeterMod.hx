@@ -66,9 +66,13 @@ class DpsMeterMod {
     }
 
     static function flushFights():Void {
-        writer.setUploadsEnabled(config.sendLogs);
+        // Gate both the background worker (including queued retries) and new
+        // submissions by the currently running game's verified branch.
+        // Local history is still recorded on PTR and unknown branches.
+        var submit=GameBranch.sessionMayUpload(config.sendLogs,collector.model.gameBranch);
+        writer.setUploadsEnabled(submit);
         writer.setRetention(config.autoDeleteLogs, config.logRetentionMonths);
-        writer.archiveHistory(collector.model, config.sendLogs);
+        writer.archiveHistory(collector.model, submit);
         while (collector.model.completed.length > 0 && collector.model.completed[0].pendingHealing == 0) {
             collector.model.completed.shift();
         }

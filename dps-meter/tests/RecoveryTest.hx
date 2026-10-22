@@ -29,7 +29,7 @@ class RecoveryTest {
     }
     static function fixture(id:String = "offline-test"):Dynamic {
         // These synthetic values are used only by injected transports in this test.
-        return {version:1, categoryVersion:2, id:id, name:"Test Encounter", gameVersion:"test",
+        return {version:1, categoryVersion:2, id:id, name:"Test Encounter", gameVersion:"test", gameBranch:"MAIN",
             activityId:"test-activity", bossKind:"TestBoss", category:"Boss Dungeons", difficulty:0,
             startedAt:Date.fromString("2026-01-01 00:00:00").getTime(), duration:10, partySize:1, outcome:"Victory", me:"test-player",
             players:[{uid:"test-player", name:"Test Player", isMe:true, accountId:"test-account", characterId:"test-character",
@@ -39,7 +39,7 @@ class RecoveryTest {
     static function response(status:Int, body:Dynamic = null, retryAfter:String = ""):FareverlyResponse
         return {status:status, body:body == null ? "" : Json.stringify(body), retryAfter:retryAfter, error:""};
     static function main():Void {
-        cleanup(); retention(); uploads(); filters(); openButton();
+        cleanup(); retention(); uploads(); branchSafety(); filters(); openButton();
         Sys.println('Recovery and startup cleanup: $checks checks passed');
     }
     static function cleanup():Void {
@@ -152,6 +152,67 @@ class RecoveryTest {
         var local = Date.fromString("2026-10-15 12:00:00");
         var utc = (local.getTime() - local.getTimezoneOffset() * 60000) / 1000;
         check(FareverlyUploader.retryAfter("Thu, 15 Oct 2026 12:02:00 GMT", utc) == 120, "HTTP-date Retry-After handles the local timezone");
+    }
+    /** Guard old persisted queues and manual retries, not just new records. */
+    static function branchSafety():Void {
+        var root="build/recovery-branch-" + Std.random(0x3fffffff), gets=0, posts=0;
+        var now=Date.fromString("2026-10-15 12:00:00").getTime()/1000;
+        var queue=new FareverlyUploader(root,(method,url,body,token)->{
+            if(method=="GET"){
+                gets++;
+                return response(200,{encounters:[{bossKind:"TestBoss",category:"boss-dungeons",ranked:true}]});
+            }
+            posts++;
+            var parsed:Dynamic=Json.parse(body.toString());
+            check(parsed.gameBranch=="MAIN","Only MAIN logs may reach the POST transport");
+            return response(201,{status:"accepted",url:"/reports/branch-test"});
+        },_->{},()->now,()->0,testApiKey);
+        var variants:Array<{id:String,branch:Dynamic}>=[
+            {id:"ptr",branch:"PTR"},
+            {id:"public-test",branch:"public-test-branch"},
+            {id:"live-alias",branch:"live"},
+            {id:"stable-alias",branch:"stable"},
+            {id:"unknown",branch:"unknown"},
+            {id:"blank",branch:""},
+            {id:"null",branch:null},
+            {id:"invalid-type",branch:42}
+        ];
+        FileSystem.createDirectory(root+"/fareverly");
+        var paths:Array<String>=[];
+        for(variant in variants){
+            var record=fixture("blocked-"+variant.id);
+            Reflect.setField(record,"gameBranch",variant.branch);
+            check(!FareverlyContract.candidate(record),"Non-MAIN record is not eligible: "+variant.id);
+            queue.enqueue(record);
+            var path=queue.reportPath(record.id);
+            check(!FileSystem.exists(path),"Blocked record cannot enter new queue: "+variant.id);
+            // Emulate pre-update persisted queues without losing the bytes.
+            File.saveContent(path,Json.stringify(record));
+            paths.push(path);
+        }
+        var legacy=fixture("blocked-legacy");
+        Reflect.deleteField(legacy,"gameBranch");
+        check(!FareverlyContract.candidate(legacy),"Legacy record missing branch is not eligible");
+        queue.enqueue(legacy);
+        var legacyPath=queue.reportPath(legacy.id);
+        check(!FileSystem.exists(legacyPath),"Legacy record never enters new queue");
+        File.saveContent(legacyPath,Json.stringify(legacy));
+        paths.push(legacyPath);
+        queue.step();
+        check(posts==0&&gets==0,"Old queued PTR/unknown/legacy logs make no network requests");
+        for(path in paths)
+            check(FileSystem.exists(path)&&queue.state(path).status=="failed"
+                &&queue.state(path).retryable==false,
+                "Blocked queued log is retained and cannot retry: "+path);
+        queue.retryFailed();
+        queue.step();
+        check(posts==0&&gets==0,"Manual retry cannot upload a blocked branch");
+        var main=fixture("verified-main");
+        queue.enqueue(main);
+        queue.step();
+        check(posts==1&&gets==1&&queue.state(queue.reportPath(main.id)).status=="accepted",
+            "A verified MAIN log uploads normally, without blocked-queue interference");
+        remove(root);
     }
     static function filters():Void {
         var a = CombatTimeline.event("damage", "me", "one", "test"); a.sourceName = "Player"; a.targetName = "Enemy"; a.amount = 10;

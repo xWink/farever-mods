@@ -56,21 +56,21 @@ class GameBranch {
             ||text.indexOf("test-branch")>=0||text.indexOf("public test branch")>=0;
     }
 
-    public static function uploadable(branch:String):Bool {
-        var text=branch==null?"":StringTools.trim(branch).toLowerCase();
-        // Never guess that a named beta branch is a production build.
-        return ["live","default","public","release","stable","main","production"].indexOf(text)>=0;
-    }
+    /** Only an explicitly identified MAIN branch is eligible for uploads.
+        A blank beta name, old "live" label, or version number is not proof. */
+    public static function uploadable(branch:String):Bool
+        return branch!=null && StringTools.trim(branch).toUpperCase()=="MAIN";
 
-    /** Pre-branch archives keep their old behavior; new unknown/beta logs
-        cannot enter a submission queue or be retried from an existing one. */
+    /** Do not run any background uploads while connected to PTR or an
+        unverified branch, even if an older MAIN payload is still queued. */
+    public static function sessionMayUpload(enabled:Bool,branch:String):Bool
+        return enabled && uploadable(branch);
+
+    /** Pre-branch archives remain readable locally, but cannot be uploaded
+        without an explicit MAIN tag; this also guards restart/retry queues. */
     public static function recordMayUpload(record:Dynamic):Bool {
         if(record==null)return false;
-        if(!Reflect.hasField(record,"gameBranch"))return true;
         var branch=Reflect.field(record,"gameBranch");
-        // Blank comes from pre-branch archives and uninitialized test fixtures.
-        // Actual new sessions store either a resolved branch or "unknown";
-        // unknown is deliberately blocked, so PTR cannot silently upload.
-        return Std.isOfType(branch,String)&&(branch==""||uploadable(branch));
+        return Std.isOfType(branch,String) && uploadable(branch);
     }
 }
