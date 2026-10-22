@@ -49,6 +49,8 @@ class MarketController {
     var minePage=1;
     var mineSelectedId="";
     public var selected:Dynamic;
+    public var editingListingId="";
+    public var editQuantityLimit=1;
     public var chosen:TradeItem;
     public var page=1;
     public var pages=1;
@@ -115,9 +117,11 @@ class MarketController {
                     } else {pending=null;if(failed!=null)failed();
                         var code=data==null?"":G.text(G.field(data.error,"code"),G.text(data.error));
                         if(code=="listing_limit")ownedListingCount=LISTING_LIMIT;
+                        if(method=="PUT"&&code=="stale_revision"){ownedKnown=false;editingListingId="";}
                         cooldown.record(method,path,response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
                         message=response.status==0||response.status>=500?MarketText.TEMPORARY_ERROR:
-                            response.status==429?cooldown.message(method,path,haxe.Timer.stamp()):error(code);
+                            response.status==429?cooldown.message(method,path,haxe.Timer.stamp()):
+                            method=="PUT"&&code=="stale_revision"?"This listing changed. Refresh before editing it again.":error(code);
                         if(method=="GET")retryOnOpen=true;
                         if(response.status>=200&&response.status<300&&response.error=="")
                             MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
@@ -161,7 +165,7 @@ class MarketController {
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
-        contactingSeller="";
+        contactingSeller="";editingListingId="";
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;ownOnlineServer="";
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;
@@ -205,7 +209,7 @@ class MarketController {
     }
     public function chooseTab(value:String):Void {
         if(busy)return;
-        rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];selected=null;total=0;page=pages=1;
+        editingListingId="";rememberTab();cancelPrefetch();opened=true;tab=value;rows=[];selected=null;total=0;page=pages=1;
         if(tab=="Sell") {
             activePages=null;
             if(ownedKnown){loadInventory();message="";}
@@ -221,6 +225,7 @@ class MarketController {
     }
     public function toggleListing(row:Dynamic):Void {
         if(busy)return;
+        editingListingId="";
         selected=selected!=null&&G.text(G.field(selected,"id"))==G.text(G.field(row,"id"))?null:row;
         rememberTab();view.dirty=true;
     }
@@ -487,6 +492,52 @@ class MarketController {
                 page=1;refresh();
             });
         } catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
+    }
+    /** A price edit keeps the original character and item snapshot. Increasing a
+        stack also requires an unlocked matching stack in the current inventory/bank. */
+    function editAvailable(row:Dynamic):Int {
+        var original=G.field(G.field(row,"export"),"item");
+        if(original==null||inv==null)return 0;
+        var identity=MarketItemIdentity.key(original),available=0;
+        for(bank in [false,true])for(source in MarketInventory.sources(inv,bank))for(stack in source.stacks()) {
+            if(G.text(G.field(stack.item,"kind"))!=G.text(original.baseId)||!source.canDrop(stack,stack.count))continue;
+            var offer=TradeInventory.describe(stack.item,stack.count);
+            if(MarketItemIdentity.key(MarketExport.itemData(stack.item,offer,stack.count))==identity)
+                available=Std.int(Math.max(available,stack.count));
+        }
+        return available;
+    }
+    public function beginEdit():Bool {
+        if(busy||selected==null||tab!="My listings")return false;
+        if(!ownedKnown){refreshSell();return false;}
+        var original=G.field(selected,"export");
+        if(original==null||G.text(original.server)!=server) {
+            message="Refresh My listings to load this listing for editing.";view.dirty=true;return false;
+        }
+        try {
+            editQuantityLimit=Std.int(Math.min(10000,Math.max(G.integer(original.item.quantity),editAvailable(selected))));
+            editingListingId=G.text(selected.id);view.dirty=true;return true;
+        }catch(e:Dynamic){message=Std.string(e);view.dirty=true;return false;}
+    }
+    public function cancelEdit():Void {if(!busy){editingListingId="";view.dirty=true;}}
+    public function edit(quantity:Int,trays:Int,offers:Bool):Void {
+        if(busy||selected==null||editingListingId==""||G.text(selected.id)!=editingListingId||tab!="My listings")return;
+        var row=selected,id=editingListingId,revision=G.integer(row.revision),original=G.field(row,"export");
+        try {
+            if(original==null||revision<1||G.text(original.server)!=server)throw "Refresh My listings before editing this listing.";
+            if(quantity<1||quantity>10000||(!offers&&(trays<1||trays>200000)))throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
+            if(quantity>G.integer(original.item.quantity)&&quantity>editAvailable(row))throw "Not enough of this item available to increase the listing quantity.";
+            var value:Dynamic=haxe.Json.parse(haxe.Json.stringify(original));
+            value.item.quantity=quantity;value.price=offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays};
+            request("PUT","/api/v1/marketplace/listings/"+id,value,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
+                if(G.text(data.id)!=id||G.integer(data.revision)<=revision)throw "Invalid listing edit receipt";
+                var updated:Dynamic=haxe.Json.parse(haxe.Json.stringify(row));
+                updated.revision=data.revision;updated.export=value;updated.item.quantity=quantity;updated.price=value.price;
+                ownedRows=[for(existing in ownedRows)G.text(existing.id)==id?updated:existing];
+                editingListingId="";indexOwned();cancelPrefetch();listingCaches=[];activePages=null;
+                selected=updated;mineSelectedId=id;displayOwned();message="Listing updated.";
+            });
+        }catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
     }
     public function remove():Void {
         if(selected==null||busy)return;

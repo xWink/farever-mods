@@ -3,6 +3,9 @@ import trade.TradeTypes;
 /** Pure protocol state. Native inventory mutations belong exclusively to TradeExchange. */
 class TradeSession {
     public static inline var STALL_SECONDS = 10.0;
+    public static inline var RECEIPT_SECONDS = 0.5;
+    public var requestReceived = false;
+    var receiptDeadline = 0.0;
     public var self:String;
     public var peer = "";
     public var id = "";
@@ -35,6 +38,7 @@ class TradeSession {
     }
     function reset(peer:String,id:String,leader:Bool,now:Float):Void {
         this.peer = Std.string(peer); this.id = Std.string(id); this.leader = leader;
+        requestReceived = false; receiptDeadline = 0;
         mine = []; theirs = []; revision = 0; peerRevision = ack = -1;
         accepted = peerAccepted = received = peerReceived = false; error = ""; outbox = []; deadline = now+180; remember(id);
     }
@@ -76,6 +80,7 @@ class TradeSession {
         }
         if (!active() || sender != peer || p.id != id) return;
         switch (p.op) {
+            case "received": if(leader&&phase=="inviting")requestReceived=true;
             case "ack": if (editable() && p.revision == revision && p.hash == TradeOffer.hash(mine)) { ack = revision; changed++; }
             case "cancel": cancel(TradeOffer.str(p.reason,160) ? p.reason : "The other player cancelled.",false);
             case "commit": if (!leader && phase == "preparing" && p.key == key()) { phase = "exchanging"; deadline = now+STALL_SECONDS; changed++; }
@@ -106,7 +111,13 @@ class TradeSession {
         if (notify) emit("cancel",{reason:reason.substr(0,160)});
         phase = "cancelled"; error = reason; accepted = peerAccepted = false; changed++;
     }
+    public function invitationSent(now:Float):Void {
+        if(leader&&phase=="inviting"&&!requestReceived)receiptDeadline=now+RECEIPT_SECONDS;
+    }
     public function tick(now:Float):Void {
+        if(phase=="inviting"&&!requestReceived&&receiptDeadline>0&&now>=receiptDeadline) {
+            cancel("Player did not respond. They may need to install or update Trade and Marketplace.");return;
+        }
         if (active() && now >= deadline) cancel(phase == "inviting" ? "Trade request timed out. Both players need Trade + Marketplace installed."
             : phase == "joining" ? "Could not form the trade party. Please try again."
             : closingLocked() ? "Trade stalled for 10 seconds. Check your inventory and any items on the ground." : "Trade timed out.");

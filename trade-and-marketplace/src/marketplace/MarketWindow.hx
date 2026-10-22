@@ -644,9 +644,9 @@ class MarketWindow {
         var scroll=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
         var content=G.field(node("element",G.field(viewport,"dom"),[],"marketInventoryGrid"+(sequence++)),"obj");
-        var columns=10,pitch=64,slotSize=58;
-        padding(content,0);size(content,640,Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch);
-        alignScrollContent(viewport,content);
+        var columns=c.bankOnly?10:7,pitch=64,slotSize=58;
+        padding(content,0);size(content,columns*pitch-(pitch-slotSize),Std.int(Math.ceil(c.inventorySlots.length/columns))*pitch);
+        alignScrollContent(viewport,content,true);
         var selection:Dynamic = null;
         for(index in 0...c.inventorySlots.length) {
             var item=c.inventorySlots[index];
@@ -742,8 +742,8 @@ class MarketWindow {
         }
     }
 
-    static function alignScrollContent(viewport:Dynamic,content:Dynamic):Void {
-        var top=G.enumeration("h2d.FlowAlign","Top"),left=G.enumeration("h2d.FlowAlign","Left");
+    static function alignScrollContent(viewport:Dynamic,content:Dynamic,center=false):Void {
+        var top=G.enumeration("h2d.FlowAlign","Top"),left=G.enumeration("h2d.FlowAlign",center?"Middle":"Left");
         G.call("h2d.Flow","set_verticalAlign",viewport,[top]);G.call("h2d.Flow","set_horizontalAlign",viewport,[left]);
         style(viewport,"content-valign",top);style(viewport,"content-halign",left);
         var layout=G.call("h2d.Flow","getProperties",viewport,[content]);
@@ -848,7 +848,7 @@ class MarketWindow {
     }
     function selectedItem(item:TradeItem,?metadata:Dynamic):Void {
         var root=frame.container, y=contentY+58;
-        var bottom=c.tab=="Sell"?SELL_FORM_Y-20:(c.tab=="My listings"?704:726);
+        var bottom=c.tab=="Sell"||c.editingListingId!=""?SELL_FORM_Y-20:(c.tab=="My listings"?704:726);
         rounded(detailBackdrop==null?backdrop:detailBackdrop,754,y-8,316,bottom-y+16,4,0x4A423C);
         var viewport=G.field(node("element",G.field(root,"dom"),[],"marketDetailViewport"+(sequence++)),"obj");
         absolute(root,viewport);padding(viewport,0);size(viewport,300,bottom-y);position(viewport,762,y);
@@ -949,12 +949,6 @@ class MarketWindow {
             var box=counter(trays,754,y+76,190,200000,s->{
                 trays=s.substr(0,6);conversion(int(trays));
             },true);
-            var icon=currencyIcon(frame.container,"SilverTray");position(icon,946,y+89);
-            var unit=labelAt(frame.container,"Silver Trays",972,y+76,116,false,MUTED,true);
-            afterReflow(box,()->{
-                updateTextScale(unit);G.call("h2d.Object","setScale",unit,[0.85]);
-                centerControlText(unit,46,972,y+76);
-            });
         } else labelAt(frame.container,"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
     }
     function sellPanel():Void {
@@ -979,8 +973,23 @@ class MarketWindow {
     function listingPanel(row:Dynamic):Void {
         try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}
         if(c.tab=="My listings") {
-            labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,714,316,false,MUTED);
-            button("Remove listing",754,752,316,c.remove,"cancel",c.selected!=null);
+            if(c.editingListingId==G.text(row.id)) {
+                line(frame.container,754,SELL_FORM_Y-8,316);
+                labelAt(frame.container,"Quantity to sell",754,SELL_FORM_Y+8,316,true);
+                counter(quantity,754,SELL_FORM_Y+36,132,c.editQuantityLimit,s->quantity=s);
+                priceFields(SELL_FORM_Y+92);
+                button("Save changes",754,752,152,()->c.edit(int(quantity),int(trays),offers),"accept",!c.busy);
+                button("Cancel",918,752,152,c.cancelEdit,"",!c.busy);
+            } else {
+                labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,714,316,false,MUTED);
+                button("Edit listing",754,752,152,()->{
+                    if(c.beginEdit()) {
+                        quantity=Std.string(row.item.quantity);trays=Std.string(G.integer(row.price.silverTrays,1));
+                        offers=row.price.mode=="offers";dirty=true;
+                    }
+                },"",c.selected!=null&&!c.busy);
+                button("Remove listing",918,752,152,c.remove,"cancel",c.selected!=null&&!c.busy);
+            }
         } else {
             button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",c.selected!=null&&row.seller.accountId!=c.account);
         }

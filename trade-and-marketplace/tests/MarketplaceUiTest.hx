@@ -160,7 +160,7 @@ class MarketplaceUiTest {
   check(MarketText.detail("549 ETAttribute(Armor), 12 ETAttribute(Strength)")=="549 Armor, 12 Strength");
   check(MarketText.askingPrice(row.price)=="Asking price: 500 gold / 1 Silver Tray");
   check(MarketText.unitPrice({mode:"fixed",silverTrays:5},10)=="250 gold each");
-  check(MarketText.unitPrice({mode:"fixed",silverTrays:1},3)=="166.67 gold each");
+  check(MarketText.unitPrice({mode:"fixed",silverTrays:1},3)=="166.7 gold each");
   check(MarketText.unitPrice({mode:"offers"},10)==""&&MarketText.unitPrice({mode:"fixed",silverTrays:1},1)=="");
   check(MarketText.conversion(5)=="5 Silver Trays = 2,500 gold");
   c.chosen=marketplace.MarketExport.offer(row);c.chosen.detail="Epic\n50 ETAttribute(Vitality)\n10 ETAttribute(Strength)";
@@ -206,8 +206,7 @@ class MarketplaceUiTest {
   plus.onAfterReflow();var buttonX=plus.btnText.x,buttonY=plus.btnText.y;
   plus.btnText.x=15;plus.btnText.y=15;plus.btnText.needUpdateScale=true;plus.onAfterReflow();
   check(plus.btnText.x==buttonX&&plus.btnText.y==buttonY);
-  var trayLabel=GameAccess.labels.filter(l->l.text=="Silver Trays")[0];
-  check(trayLabel.textColor==0x806B5B);
+  check(GameAccess.labels.filter(l->l.text=="Silver Trays").length==0);
   plus.action();check(priceBox.input.text=="6");minus.action();check(priceBox.input.text=="5");
   plusTen.action();check(priceBox.input.text=="15");minusTen.action();check(priceBox.input.text=="5");
   priceBox.input.text="nope";priceBox.onChange();check(priceBox.input.text=="5");
@@ -243,7 +242,10 @@ class MarketplaceUiTest {
   c.atLimit=false;GameAccess.buttons=[];view.dirty=true;view.update();check(GameAccess.buttons.filter(b->b.text=="List item for sale").pop().enable);
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);
+  var sevenSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
+  check(sevenSlots[6].x==384&&sevenSlots[6].y==0&&sevenSlots[7].x==0&&sevenSlots[7].y==64);
   var selectedGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryGrid")==0)[0];
+  check(selectedGrid.width==442&&selectedGrid.flowProperties.horizontalAlign=="Middle");
   var overlays=(cast selectedGrid.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Object");
   check(overlays.length==1&&overlays[0].parent==selectedGrid&&overlays[0].children[0].nativeType=="h2d.Graphics");
   check(selectedGrid.children[selectedGrid.children.length-1]==overlays[0]);
@@ -278,6 +280,9 @@ class MarketplaceUiTest {
   gridViewport.scrollPosY=128.;sellSlots[0].action();GameAccess.nodes=[];view.update();
   var newGrid=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventoryViewport")==0)[0];newGrid.onAfterReflow();check(newGrid.scrollPosY==128);
   GameAccess.nodes=[];GameAccess.buttons=[];GameAccess.labels=[];c.bankOnly=true;view.dirty=true;view.update();
+  var bankSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
+  check(bankSlots[9].x==576&&bankSlots[9].y==0&&bankSlots[10].x==0&&bankSlots[10].y==64);
+  check(bankSlots[0].parent.width==634&&bankSlots[0].parent.flowProperties.horizontalAlign=="Middle");
   var tabs=GameAccess.buttons.filter(b->b.y==820&&b.x<704);
   check(tabs.length==2&&tabs[0].text=="First tab"&&tabs[1].text=="Second tab"&&tabs[0].selected);
   tabs[1].action();GameAccess.nodes=[];view.update();check(c.bankTab==1);
@@ -426,6 +431,14 @@ class MarketplaceUiTest {
   check(GameAccess.nodes.filter(n->n.id=="marketSearchClear").length==1&&c.refreshes==searches+1);
   sellInput.input.text="new";sellInput.onChange();check(clearSearch.visible);view.close();
   MarketplaceDrawerTest.run(row);
+  view.open();c.tab="My listings";c.selected=row;c.rows=[row];row.item.quantity=5;row.price={mode:"fixed",silverTrays:7};
+  GameAccess.buttons=[];GameAccess.nodes=[];view.dirty=true;view.update();
+  GameAccess.buttons.filter(b->b.text=="Edit listing")[0].action();GameAccess.buttons=[];GameAccess.nodes=[];view.update();
+  check(c.editingListingId==row.id&&GameAccess.buttons.filter(b->b.text=="Save changes").length==1);
+  var editInputs=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0);
+  check(editInputs.length==2&&editInputs[0].input.text=="5"&&editInputs[1].input.text=="7");
+  GameAccess.buttons.filter(b->b.text=="Save changes")[0].action();check(c.edited.quantity==5&&c.edited.trays==7&&!c.edited.offers);
+  GameAccess.buttons.filter(b->b.text=="Cancel")[0].action();check(c.editingListingId=="");
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

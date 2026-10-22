@@ -38,6 +38,15 @@ class ProtocolTest {
         var prep = new TradeSession("alice"); prep.id = "p"; prep.peer = "bob"; prep.phase = "offering";
         prep.leader = true; prep.mine = [item]; prep.ack = prep.revision; prep.peerRevision = 0; prep.peerAccepted = true;
         prep.accept(0); check(prep.phase == "preparing" && prep.deadline == 10,"Prepare handshake also allows ten seconds");
+        var receipt=new TradeSession("alice");receipt.start("bob","receipt",0);
+        receipt.tick(1);check(receipt.active(),"Receipt timeout is armed only when transmitted");receipt.invitationSent(1);
+        receipt.receive("outsider",{id:"receipt",to:"alice",op:"received"},1.1);
+        receipt.receive("bob",{id:"old-request",to:"alice",op:"received"},1.1);
+        receipt.receive("bob",{id:"receipt",to:"someone-else",op:"received"},1.1);
+        check(!receipt.requestReceived,"Only the matching peer, session and recipient can acknowledge");
+        receipt.tick(1.499);check(receipt.active(),"Receipt deadline is not early");receipt.tick(1.5);
+        check(receipt.phase=="cancelled","Unacknowledged request expires at half a second");
+        receipt.receive("bob",{id:"receipt",to:"alice",op:"received"},1.6);check(receipt.phase=="cancelled","Late receipt cannot reopen trade");
         Sys.println("Protocol checks passed: "+checks);
     }
 }

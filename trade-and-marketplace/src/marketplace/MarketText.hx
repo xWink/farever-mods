@@ -16,8 +16,8 @@ class MarketText {
         if(quantity<=1||price==null||Reflect.field(price,"mode")!="fixed")return "";
         var gold=Std.parseFloat(Std.string(Reflect.field(price,"silverTrays")))*500/quantity;
         if(!Math.isFinite(gold)||gold<=0)return "";
-        if(gold<0.01)return "<0.01 gold each";
-        var rounded=Math.round(gold*100)/100;
+        if(gold<0.05)return "<0.1 gold each";
+        var rounded=Math.round(gold*10)/10;
         var parts=Std.string(rounded).split(".");
         return number(parts[0])+(parts.length>1?"."+parts[1]:"")+" gold each";
     }

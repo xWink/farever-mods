@@ -175,6 +175,30 @@ class MarketplaceStateTest {
         check(MarketWorker.current.sent.length==limitCalls);
         capped.chooseTab("My listings");capped.selected=capped.rows[0];capped.remove();
         ownReply(capped,app,[]);check(!capped.listingLimitReached());
+        var editor=new MarketController();editor.player=player;editor.inv=new TradeInventory(player);editor.server="europe";editor.ready=true;editor.tab="My listings";
+        editor.inv.hero.loadout.banks=[];
+        var held:Dynamic={uid:"edit-item",kind:"Shoulders_EManfish_WizCle",inf:{}};
+        editor.inv.inventory={content:[{item:held,count:12}]};
+        var export:Dynamic={schemaVersion:2,server:"europe",gameVersion:"test",character:{id:"original-character",name:"Original name"},
+            item:marketplace.MarketExport.itemData(held,TradeInventory.describe(held,12),5),price:{mode:"fixed",silverTrays:4}};
+        var listing:Dynamic={id:"edit-me",revision:3,server:"europe",expiresAt:"2099-01-01T00:00:00.000Z",item:haxe.Json.parse(haxe.Json.stringify(export.item)),price:export.price};
+        Reflect.setField(listing,"export",export);
+        editor.ownedRows=[listing];editor.ownedKnown=true;editor.ownedListingCount=20;editor.rows=[listing];editor.selected=listing;
+        check(editor.beginEdit()&&editor.editQuantityLimit==12);
+        var edits=MarketWorker.current.sent.length;editor.edit(13,4,false);check(MarketWorker.current.sent.length==edits&&editor.message.indexOf("Not enough")>=0);
+        held.locked=true;editor.edit(10,4,false);check(MarketWorker.current.sent.length==edits);held.locked=false;
+        editor.edit(10,8,false);var update=MarketWorker.current.sent[edits],payload=haxe.Json.parse(update.body),match:Map<String,String>=update.headers;
+        check(update.method=="PUT"&&match["If-Match"]=='"3"'&&payload.item.quantity==10&&payload.price.silverTrays==8);
+        check(payload.character.id=="original-character"&&payload.character.name=="Original name"&&payload.server=="europe");
+        check(export.item.quantity==5&&export.price.silverTrays==4); // Never mutate the stored snapshot before success.
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",response:{status:200,error:"",retryAfter:"",body:'{"id":"edit-me","revision":4}'}});editor.update(app,0);
+        check(editor.selected.item.quantity==10&&editor.selected.price.silverTrays==8&&editor.selected.revision==4&&editor.editingListingId=="");
+        check(editor.selected.expiresAt==listing.expiresAt&&editor.ownedRows.length==1&&MarketWorker.current.sent.length==edits+1);
+        check(editor.beginEdit());editor.edit(4,1,true);
+        payload=haxe.Json.parse(MarketWorker.current.sent[edits+1].body);check(payload.price.mode=="offers"&&!Reflect.hasField(payload.price,"silverTrays"));
+        MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"request",response:{status:409,error:"Conflict",retryAfter:"",body:'{"error":{"code":"stale_revision"}}'}});editor.update(app,0);
+        check(editor.selected.item.quantity==10&&editor.selected.revision==4&&!editor.ownedKnown&&editor.editingListingId=="");
+        check(editor.message=="This listing changed. Refresh before editing it again.");
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
         MarketplaceRecoveryTest.run();

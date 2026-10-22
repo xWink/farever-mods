@@ -38,11 +38,11 @@ class ControllerTest {
         var encoder = new TradeWire("I"+(++inviteSequence));
         for (text in encoder.encode({id:id,to:to,op:"invite"},"Bob")) c.receive(null,{sender:sender},text);
     }
-    static function sentPackets():Array<Dynamic> {
+    static function sentPackets(includeReceipts=false):Array<Dynamic> {
         var decoder = new TradeWire("R"), packets:Array<Dynamic> = [];
         for (message in TradeChat.sent) {
             var packet = decoder.receive("me",message.text,0);
-            if (packet != null) packets.push(packet);
+            if (packet != null && (includeReceipts || packet.op!="received")) packets.push(packet);
         }
         return packets;
     }
@@ -54,10 +54,19 @@ class ControllerTest {
             && packets[0].to == "peer" && packets[0].reason == reason, "Rejection carries the exact reason to the requester");
     }
     static function requestChecks():Void {
+        var timed=fixture(),start=haxe.Timer.stamp();timed.update(GameAccess.app,start);
+        timed.update(GameAccess.app,start+0.499);check(timed.open,"Invitation waits the full half-second");
+        timed.update(GameAccess.app,start+0.5);
+        check(!timed.open&&timed.state.phase=="cancelled"&&latestRed()&&GameAccess.lines[0].text.indexOf("did not respond")>=0,"Missing receipt closes the requester window with a red error");
+        var acknowledged=fixture(),now=haxe.Timer.stamp();acknowledged.update(GameAccess.app,now);
+        for(text in new TradeWire("ACK").encode({id:acknowledged.state.id,to:"me",op:"received"}))
+            acknowledged.receive(null,{sender:"peer"},text);
+        acknowledged.update(GameAccess.app,now+1);
+        check(acknowledged.open&&acknowledged.state.phase=="inviting","Receipt keeps request open without accepting it");
         var c = fixture(false); invite(c);
         check(c.state.phase == "invited" && !c.open, "An available player receives a request without opening trade");
         invite(c); c.update(GameAccess.app,haxe.Timer.stamp());
-        check(c.state.phase == "invited" && TradeChat.sent.length == 0, "Repeated delivery does not reject the accepted invitation");
+        check(c.state.phase == "invited" && sentPackets().length == 0 && sentPackets(true).length == 1 && sentPackets(true)[0].op=="received", "Repeated delivery does not reject the accepted invitation");
         c = fixture(false); c.inv.hero.isInCombat = true;
         rejection(c,"Player is busy.");
         c.inv.hero.isInCombat = false; invite(c); c.update(GameAccess.app,haxe.Timer.stamp()+1);

@@ -47,6 +47,12 @@ class MarketController {
  public function isLocked(item:trade.TradeTypes.TradeItem):Bool return locked;
  public function isListed(item:trade.TradeTypes.TradeItem):Bool return listed;
  public function inventoryLocation(i:trade.TradeTypes.TradeItem):String return bankOnly?"In bank":"In backpack";
+ public var editingListingId="";
+ public var editQuantityLimit=10000;
+ public function beginEdit():Bool {editingListingId=selected.id;view.dirty=true;return true;}
+ public function cancelEdit():Void {editingListingId="";view.dirty=true;}
+ public var edited:Dynamic;
+ public function edit(q:Int,t:Int,o:Bool):Void {edited={quantity:q,trays:t,offers:o};}
  public function remove():Void{}
  public function contact():Void{}
 }
