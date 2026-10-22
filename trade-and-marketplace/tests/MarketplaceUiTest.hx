@@ -51,9 +51,11 @@ class MarketplaceUiTest {
   check(nativeRowFrame!=null&&nativeRowFrame.inf.nativeRarityId=="Epic");
   check(nativeRowFrame.innerSlot.nativeRarity=="Epic"&&nativeRowFrame.button==null);
   check(nativeRowFrame.width==58&&nativeRowFrame.height==58);
-  check(Math.abs(nativeRowFrame.scaleX*nativeRowFrame.width-44)<0.01
-   &&Math.abs(nativeRowFrame.scaleY*nativeRowFrame.height-44)<0.01);
-  check(nativeRowFrame.x==8&&nativeRowFrame.x+nativeRowFrame.width*nativeRowFrame.scaleX<64);
+  var scaleX=GameAccess.number(GameAccess.field(nativeRowFrame,"scaleX"));
+  var scaleY=GameAccess.number(GameAccess.field(nativeRowFrame,"scaleY"));
+  check(Math.abs(scaleX*58.0-44.0)<0.01
+   &&Math.abs(scaleY*58.0-44.0)<0.01);
+  check(nativeRowFrame.x==8&&nativeRowFrame.x+58.0*scaleX<64);
   // Native ItemSlot draws the item itself: no duplicate custom Bitmap.
   check((cast currentRow.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);
   var oldGradient=0;
@@ -476,7 +478,8 @@ class MarketplaceUiTest {
    check(slots.length==1);
    check(slots[0].button==null&&slots[0].inf!=null
     &&slots[0].width==58&&slots[0].height==58);
-   check(Math.abs(slots[0].width*slots[0].scaleX-60)<0.01);
+   var sx=GameAccess.number(GameAccess.field(slots[0],"scaleX"));
+   check(Math.abs(58.0*sx-60.0)<0.01);
    check((cast picture.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap").length==0);
    return slots[0];
   }
