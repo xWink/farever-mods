@@ -22,6 +22,8 @@ class Collector {
     var riftWait:Dynamic;
     var appliedStatuses:Map<String, Bool> = [];
     var countedSummons:Map<String, Bool> = [];
+    var countedBombletAreas:Map<String, Bool> = [];
+    var goldenBombletUntil:Map<String, Float> = [];
     // Replicated proc steps are authoritative execution evidence, but a single
     // activation may play multiple steps (e.g. a pair of Unstable Bomblets).
     // Group only near-simultaneous steps; never estimate casts from hit count.
@@ -54,6 +56,7 @@ class Collector {
             riftWait = null;
             appliedStatuses = [];
             countedSummons = [];
+            countedBombletAreas = []; goldenBombletUntil = [];
             recentProcSteps = []; recentProcStatuses = [];
         }
         healingCapture.flush(now);
@@ -146,6 +149,49 @@ class Collector {
         if (status!=null && now>=status && now-status<PROC_BURST) return;
         recentProcSteps[key]=now;
         model.recordCast(uid,id);
+    }
+
+    /** Unstable Bomblets does not play a passive client skill step. The
+        game's Infusion_Kobold_DPS.onInflictDamage instead creates a SkillArea
+        with a "Bomblet" or "GoldenBomblet" step. Observe that replicated
+        area once, not its later damage hits or tick events.
+
+        Golden bomblets spawn several child Bomblet areas on their first
+        tick. Ignore those near the parent explosion, while letting later
+        independent normal procs count separately. */
+    public function bombletArea(area:Dynamic, now:Float):Void {
+        if (!config.enabled || hero == null || area == null || !Math.isFinite(now)
+            || G.field(area, "simulatingServer") == true) return;
+        var root = NativeCasts.origin(G.field(area, "baseSkill"));
+        var id = NativeCasts.id(root);
+        if (id != "Infusion_Kobold_DPS") return;
+        var stepKind = G.text(G.call("st.skill.SkillArea", "get_stepKind", area));
+        if (stepKind != "Bomblet" && stepKind != "GoldenBomblet") return;
+        var areaUid = G.uid(area);
+        if (areaUid == "" || areaUid == "0" || countedBombletAreas.exists(areaUid)) return;
+        var source = NativeHealing.owner(null, root).source;
+        if (profile(source) == null) return;
+        var uid = G.uid(source);
+        if (uid == "" || uid == "0") return;
+        // The same area may initialize or be observed through replication
+        // more than once; count its identity even if it is a child fragment.
+        countedBombletAreas[areaUid] = true;
+        var key = uid + "/" + id;
+        var recentGolden = goldenBombletUntil.get(key);
+        if (stepKind == "Bomblet" && recentGolden != null && now < recentGolden) return;
+        if (stepKind == "GoldenBomblet") {
+            // The golden first tick creates its fragments after the parent
+            // area is established. Use the native duration if available, but
+            // never hold suppression across a long fight.
+            var seconds = G.number(G.field(area, "duration"));
+            goldenBombletUntil[key] = now + Math.min(2.5, Math.max(0.6, seconds + 0.3));
+        }
+        var last = recentProcSteps.get(key);
+        if (last != null && now >= last && now - last < PROC_BURST) return;
+        var status = recentProcStatuses.get(key);
+        if (status != null && now >= status && now - status < PROC_BURST) return;
+        recentProcSteps[key] = now;
+        model.recordCast(uid, id);
     }
 
     public function statusApplied(status:Dynamic, refreshed = false):Void {

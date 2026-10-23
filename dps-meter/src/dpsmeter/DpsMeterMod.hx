@@ -223,6 +223,14 @@ class DpsMeterMod {
         if (timeline != null) try timeline.charges(instance, value) catch (error:Dynamic) timeline.report(error);
         return Continue;
     }
+    @:hlx.postfix(st.skill.SkillArea.initData)
+    static function recordBombletArea(instance:Dynamic, result:Void):Void {
+        // The client receives each Bomblet/GoldenBomblet area with its
+        // baseSkill and stepIndex already initialized. No game mutation and
+        // no hit-based cast inference.
+        if (collector != null) try collector.bombletArea(instance, haxe.Timer.stamp())
+            catch (error:Dynamic) trace("[DPS Meter] Bomblet cast capture: " + Std.string(error));
+    }
     @:hlx.postfix(st.skill.Status.postInit)
     static function recordStatusInit(instance:Dynamic, result:Bool):Bool {
         if (result && collector != null) try collector.statusApplied(instance)

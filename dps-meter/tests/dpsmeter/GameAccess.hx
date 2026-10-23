@@ -61,6 +61,7 @@ class GameAccess {
         case "st.skill.Skill.shouldHighlight": field(object, "highlight") == true;
         case "st.skill.Status.isInfinite": field(object, "infinite") == true;
         case "st.skill.Status.isPeriodic": field(object, "periodic") == true;
+        case "st.skill.SkillArea.get_stepKind": field(object, "stepKind");
         case "st.skill.BaseSkill.getDurationLeft": field(object, "duration");
         case "st.skill.BaseSkill.checkAlignment": field(args[0], "aligned") != false;
         case "st.skill.DamageResult.get_source": field(object, "source");

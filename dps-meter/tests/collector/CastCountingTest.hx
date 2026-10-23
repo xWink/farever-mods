@@ -153,6 +153,50 @@ class CastCountingTest {
         c.procStep(fakeTalent,haxe.Timer.stamp());
         check(c.model.activation("me","Rogue_Talent_Proc")==0,
             "Non-infusion/enchant passives are not inferred from proc steps");
+        // Unstable Bomblets spawns server-replicated SkillArea entities
+        // instead of client skill steps. One proc should count once despite
+        // repeated initialization, area ticks, and golden fragments.
+        var bomblet:Dynamic = {__type:"st.skill.Skill", owner:me,
+            kind:"Infusion_Kobold_DPS",inf:{nature:5}};
+        var at = haxe.Timer.stamp();
+        var area = (areaId:String,areaStep:String,duration:Float) -> ({
+            __uid:areaId,baseSkill:bomblet,stepKind:areaStep,duration:duration
+        }:Dynamic);
+        var baseline=c.model.activation("me","Infusion_Kobold_DPS");
+        var firstArea=area("bomblet-1","Bomblet",0.0);
+        c.bombletArea(firstArea,at);
+        c.bombletArea(firstArea,at+0.01);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+1,
+            "One native Bomblet area counts once, even if initialized twice");
+        hit(bomblet,me,39.31);hit(bomblet,me,39.32);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+1,
+            "Bomblet damage never counts as extra casts");
+        var gold=area("golden-1","GoldenBomblet",0.9);
+        c.bombletArea(gold,at+0.4);
+        c.bombletArea(area("fragment-1","Bomblet",0),at+0.75);
+        c.bombletArea(area("fragment-2","Bomblet",0),at+1.1);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+2,
+            "Golden Bomblet fragment explosions cannot add casts");
+        c.bombletArea(area("bomblet-later","Bomblet",0),at+2.1);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+3,
+            "Later normal Bomblet procs count independently");
+        c.bombletArea(area("irrelevant-area","Unrelated",0),at+2.4);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+3,
+            "Unrelated steps never count as Bomblets");
+        config.enabled=false;
+        c.bombletArea(area("disabled-area","Bomblet",0),at+3);
+        config.enabled=true;
+        var simulation=area("server-area","Bomblet",0);
+        simulation.simulatingServer=true;
+        c.bombletArea(simulation,at+3.3);
+        check(c.model.activation("me","Infusion_Kobold_DPS")==baseline+3,
+            "Disabled and server-simulated areas are ignored");
+        var allyBomblet:Dynamic={__type:"st.skill.Skill",owner:ally,
+            kind:"Infusion_Kobold_DPS",inf:{nature:5}};
+        c.bombletArea({__uid:"ally-bomblet",baseSkill:allyBomblet,
+            stepKind:"Bomblet",duration:0},at+4);
+        check(c.model.activation("ally","Infusion_Kobold_DPS")==1,
+            "Bomblet casts belong to the source player, not the area receiver");
         var cube:Dynamic = {__type:"st.skill.Skill", owner:me, kind:"ConsumeItem", originItem:{kind:"SparkCube"}};
         c.skillUse(cube, null); hit(cube, me, 39.3); hit(cube, me, 39.4);
         check(p.skills["SparkCube"].casts == 1 && p.skills["SparkCube"].hits == 2 && !p.skills.exists("ConsumeItem"),
