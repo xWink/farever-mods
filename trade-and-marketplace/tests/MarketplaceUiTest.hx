@@ -68,6 +68,37 @@ class MarketplaceUiTest {
    &&rowArtwork.smooth==true);
   check(nativeRowFrame.button.width==52&&nativeRowFrame.button.height==52
    &&nativeRowFrame.button.x==0&&nativeRowFrame.button.y==0);
+  // Synthetic atlas: opaque art has asymmetric transparent margins.
+  // Validate the actual sub-tile and cache, not just a new zoom factor.
+  var rectangles:Array<Dynamic>=[
+   {x:7,y:5,w:46,h:48,alpha:255},{x:70,y:12,w:50,h:35,alpha:255}
+  ];
+  var p:Dynamic={width:128,height:128,areas:rectangles};
+  var tex:Dynamic={width:128,height:128,pixels:p,captureCalls:0};
+  var padded:Dynamic={innerTex:tex,x:0.0,y:0.0,width:64.0,height:64.0,dx:2.0,dy:3.0};
+  var testMask=GameAccess.object(),testButton=GameAccess.object(testMask);
+  check(trade.TradeNativeSlot.replaceMarketplaceArtwork(testButton,{inf:padded},52));
+  var trimmed=maskedBitmap(testMask);
+  check(trimmed.tile!=padded&&trimmed.tile.x==7&&trimmed.tile.y==5
+   &&trimmed.tile.width==46&&trimmed.tile.height==48
+   &&trimmed.tile.dx==0&&trimmed.tile.dy==0);
+  // The compiled HashLink Dynamic bridge may truncate a subpixel bitmap width.
+  check(trimmed.width>=49&&trimmed.width<=50
+   &&trimmed.height==52&&trimmed.x==1&&trimmed.y==0
+   &&testButton.visible==false,
+   "fit="+haxe.Json.stringify({w:trimmed.width,h:trimmed.height,
+     x:trimmed.x,y:trimmed.y,visible:testButton.visible}));
+  check(padded.width==64&&padded.height==64&&padded.dx==2
+   &&padded.dy==3&&tex.captureCalls==1);
+  var second:Dynamic={innerTex:tex,x:64.0,y:0.0,width:64.0,
+   height:64.0,dx:0.0,dy:0.0};
+  var secondMask=GameAccess.object(),secondButton=GameAccess.object(secondMask);
+  check(trade.TradeNativeSlot.replaceMarketplaceArtwork(secondButton,{inf:second},52));
+  check(maskedBitmap(secondMask).tile.x==70&&tex.captureCalls==1);
+  var bounds=trade.MarketArtTrim.contentBounds(8,8,(x,y)->
+   x>=2&&x<=6&&y>=1&&y<=6?255:(x==0&&y==0?3:0));
+  check(bounds.x==2&&bounds.y==1&&bounds.w==5&&bounds.h==6);
+  check(trade.MarketArtTrim.contentBounds(8,8,(x,y)->0)==null);
   // Square, wide, and tall native tiles must all fit inside the same mask.
   var wideMask=GameAccess.object(),wideButton=GameAccess.object(wideMask);
   check(trade.TradeNativeSlot.replaceMarketplaceArtwork(

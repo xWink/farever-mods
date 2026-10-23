@@ -37,25 +37,30 @@ class TradeNativeSlot {
             var tile=G.staticCall("HItem","getGfx",[inf]);
             if(tile==null)return false;
 
-            // Two extra pixels fill transparent padding toward the bottom/right.
-            // Only overscan the bitmap; the native mask clips the excess.
-            var target:Float=Math.min(maskSize,MARKET_ART_PIXELS)+MARKET_ART_OVERSCAN;
-            var tileW=G.number(G.field(tile,"width")),tileH=G.number(G.field(tile,"height"));
+            // Crop transparent margins from a detached sub-tile. Keep the
+            // existing overscan path when this game texture cannot be read.
+            var artTile=MarketArtTrim.trim(tile),cropped=artTile!=tile;
+            var target:Float=Math.min(maskSize,MARKET_ART_PIXELS)
+                +(cropped?0:MARKET_ART_OVERSCAN);
+            var tileW=G.number(G.field(artTile,"width")),tileH=G.number(G.field(artTile,"height"));
             var drawW:Float=target,drawH:Float=target;
             if(tileW>0&&tileH>0) {
                 var fit:Float=Math.min(target/tileW,target/tileH);
                 drawW=tileW*fit;
                 drawH=tileH*fit;
             }
-            bitmap=G.create("h2d.Bitmap",[tile,mask]);
+            bitmap=G.create("h2d.Bitmap",[artTile,mask]);
             if(bitmap==null)throw "Marketplace item bitmap unavailable";
             G.set(bitmap,"smooth",true);
             G.call("h2d.Bitmap","set_width",bitmap,[drawW]);
             G.call("h2d.Bitmap","set_height",bitmap,[drawH]);
-            // Keep the image aligned to the top/left when it exceeds the
-            // native mask, so the extra coverage fills bottom/right gaps.
-            position(bitmap,Math.max(0,Math.round((maskSize-drawW)/2)),
-                Math.max(0,Math.round((maskSize-drawH)/2)));
+            // Center the visible content when the tile was actually trimmed.
+            // No resizing or repositioning of the native ItemButton.
+            if(cropped)
+                position(bitmap,Math.round((maskSize-drawW)/2),Math.round((maskSize-drawH)/2));
+            else
+                position(bitmap,Math.max(0,Math.round((maskSize-drawW)/2)),
+                    Math.max(0,Math.round((maskSize-drawH)/2)));
 
             // The frame and native mask remain unchanged. The hidden button
             // never draws a second, differently scaled copy of the artwork.
