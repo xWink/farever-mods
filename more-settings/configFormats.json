@@ -148,7 +148,7 @@
       "label": "Hold skill button to repeat it",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Repeatedly sends the native skill press while held (up to 10 presses/sec). Works with every skill action and uses your existing bindings; cooldowns, targeting, and other native skill restrictions still apply."
+        "tooltipText": "Repeatedly presses class and weapon skills while held (up to 10 presses/sec). Does not repeat items, dodge, or mount actions. Native cooldowns, targeting, and skill restrictions still apply."
       }
     },
     {
