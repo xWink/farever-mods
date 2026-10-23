@@ -1,7 +1,7 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.1.0",
-  "commit": "c401ae39272e45beff7654b3cd0026371a0ec1bd",
-  "notes": "- Cancelling or completing a trade now makes players leave party\n- Marketplace UI improvements\n- Existing listings can now be edited\n- When selling an item, the maximum quantity is now the total amount possessed instead of the size of the selected stack\n- Added a filter to hide your own listings in the Browse page\n- When whispering a player about an item via the marketplace, the whisper will show the item's name in the right language for both the sender and receiver of the whisper\n- Fixed an issue where item names were displayed in English when the game was set to another language\n",
+  "project": "dps-meter",
+  "version": "1.11.8",
+  "commit": "8c6263114fd294e7e3ec83374ad2a02c8858642c",
+  "notes": "- Improved detection of casts of certain passive abilities\n",
   "dry_run": false
 }
