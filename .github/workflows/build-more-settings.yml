@@ -83,6 +83,13 @@ jobs:
           mkdir -p build
           haxe -cp src -cp ../shared/src -cp tests/damage-stubs -cp tests -main DamageNumbersTest -hl build/damage-numbers-test.hl
           ../.combat-hashlink/hl build/damage-numbers-test.hl
+      - name: Test visual presets and legacy config migration on HashLink
+        working-directory: more-settings
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink
+        run: |
+          haxe -cp src -cp ../shared/src -cp tests/stubs -cp tests -main PerformanceVisualsTest -hl build/performance-visuals-test.hl
+          ../.combat-hashlink/hl build/performance-visuals-test.hl
       - name: Test character locks and 64-bit IDs on HashLink
         working-directory: more-settings
         env:

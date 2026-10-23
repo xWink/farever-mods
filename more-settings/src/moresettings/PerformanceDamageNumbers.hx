@@ -8,11 +8,13 @@ class PerformanceDamageNumbers {
     static var budget = new VisualDamageBudget();
     static var failed = false;
     static var warned = false;
-    static var limit:Int = 20;
-    public static function configure(active:Bool, amount:Int):Void {
-        var count=Std.int(Math.max(0,Math.min(200,amount)));
+    static var limit:Int = -1;
+    public static function configure(amount:Int):Void {
+        var count=amount < 0 ? -1 : amount;
+        var active=count >= 0;
         if (enabled != active || count != limit) reset();
-        enabled=active;limit=count;budget.configure(count);
+        enabled=active;limit=count;
+        if (active) budget.configure(count);
     }
     public static function reset():Void { budget.reset(); failed = false; warned = false; }
     public static function suppress():Bool {
@@ -22,7 +24,7 @@ class PerformanceDamageNumbers {
             var skip = !budget.allow(haxe.Timer.stamp(), widget -> G.field(widget, "parent") != null);
             if (skip && !warned) {
                 warned = true;
-                trace("[More Settings] Performance: floating numbers limited to "+Std.string(limit)+" active and new per second.");
+                trace("[More Settings] Floating numbers limited to "+Std.string(limit)+" active and new per second.");
             }
             return skip;
         } catch (e:Dynamic) {

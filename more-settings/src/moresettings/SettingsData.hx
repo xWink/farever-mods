@@ -14,9 +14,10 @@ typedef MoreSettingsConfig = {
     var fancyDamageNumbers:Bool;
     var damageNumberScale:Int;
     var damageNumberOpacity:Int;
-    var damageNumberLimit:Int;
-    var beeVisualLimit:Int;
-    var bombletVisualLimit:Int;
+    // Normalized option strings; Dynamic also accepts legacy numeric sliders on HashLink.
+    var damageNumberLimit:Dynamic;
+    var beeVisualLimit:Dynamic;
+    var bombletVisualLimit:Dynamic;
     var showEnemyDistance:Bool;
     var holdSkillRepeat:Bool;
     var showSkillIconNextToDamageNumber:Bool;
@@ -68,9 +69,9 @@ class SettingsData {
         fancyDamageNumbers: false,
         damageNumberScale: 100,
         damageNumberOpacity: 100,
-        damageNumberLimit: 20,
-        beeVisualLimit: 100,
-        bombletVisualLimit: 100,
+        damageNumberLimit: "Medium",
+        beeVisualLimit: "Max",
+        bombletVisualLimit: "Max",
         showEnemyDistance: false,
         holdSkillRepeat: false,
         showSkillIconNextToDamageNumber: false,
@@ -107,11 +108,11 @@ class SettingsData {
         config.skillProcAlertSize = Std.int(Math.max(50, Math.min(200, config.skillProcAlertSize)));
         config.damageNumberScale = percent(Reflect.field(config,"damageNumberScale"),50,150,100);
         config.damageNumberOpacity = percent(Reflect.field(config,"damageNumberOpacity"),0,100,100);
-        config.damageNumberLimit = percent(Reflect.field(config,"damageNumberLimit"),0,200,20);
-        config.beeVisualLimit = percent(Reflect.field(config,"beeVisualLimit"),0,100,100);
-        config.bombletVisualLimit = percent(Reflect.field(config,"bombletVisualLimit"),0,100,100);
+        config.damageNumberLimit = VisualLimit.damage.normalize(config.damageNumberLimit);
+        config.beeVisualLimit = VisualLimit.bees.normalize(config.beeVisualLimit);
+        config.bombletVisualLimit = VisualLimit.bomblets.normalize(config.bombletVisualLimit);
         if (config.disableDamageNumbers) {
-            config.damageNumberLimit = 0; // Migrate the old checkbox once.
+            config.damageNumberLimit = "None"; // Migrate the old checkbox once.
             config.disableDamageNumbers = false;
         }
         if (["Left", "Right", "Below"].indexOf(config.skillProcAlertPosition) < 0)

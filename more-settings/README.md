@@ -7,10 +7,18 @@ Additional camera, combat, social, and visual settings for Farever.
 ## Features
 
 - **General:** field-of-view slider, hide-UI hotkey, leave-dungeon and leave-rift buttons, and optional performance improvements and diagnostics.
-- **Combat:** damage-number styles, scale, opacity, and limit (0–200); adjustable bee and Bomblet visuals (0–100, default 100); hold-to-repeat combat skills (excluding item use, dodge and mount), enemy-distance nameplates, skill icons/proc alerts, outlined buff stacks, boss health, Crabgantua warnings, and allied minion health-bar visibility.
+- **Combat:** damage-number styles, scale, and opacity; independent None/Low/Medium/High/Max limits for damage numbers, bees, and Bomblets; hold-to-repeat combat skills (excluding item use, dodge and mount), enemy-distance nameplates, skill icons/proc alerts, outlined buff stacks, boss health, Crabgantua warnings, and allied minion health-bar visibility.
 - **Social:** message timestamps, profanity-filter control, friend notes and notifications, self chat bubbles, chat behavior, and social-interact bindings.
 - **Effects:** separate controls for your own and allied attacks/buffs in rifts, dungeons, and the overworld, plus ally visibility controls.
 - **Character tools:** character deletion locks and a native appearance editor with Save/Cancel.
+
+Visual limits work with **Performance improvements** on or off. **Max** preserves the game's default visuals without a mod-imposed cap. Damage numbers default to **Medium**; bees and Bomblets default to **Max**. Saved numeric sliders migrate to the nearest preset.
+
+| Visual limit | None | Low | Medium | High | Max |
+| --- | --- | --- | --- | --- | --- |
+| Damage numbers | 0 | 10 | 25 | 50 | Game default |
+| Bees | 0 | 2 | 10 | 30 | Game default |
+| Bomblets | 0 | 5 | 25 | 50 | Game default |
 
 Quick casting and target-lock camera controls are provided by [Fix Target Lock](../fix-target-lock/).
 

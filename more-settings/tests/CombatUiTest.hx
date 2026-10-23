@@ -153,7 +153,7 @@ class CombatUiTest {
 
     static function descriptor():Void {
         var config = SettingsData.defaults();
-        eq(config.damageNumberLimit,20,"Damage number budget preserves a 20 per second default");
+        eq(config.damageNumberLimit,"Medium","Damage number default uses the Medium preset");
         eq(config.hideAlliedMinionHealthBars, false, "minion bar hiding opt-in");
         var descriptor:Dynamic = haxe.Json.parse(sys.io.File.getContent("configFormats.json"));
         var rows:Array<Dynamic> = descriptor.configs;
@@ -173,6 +173,14 @@ class CombatUiTest {
         eq(keys.indexOf("showSkillIconNextToDamageNumber"), keys.indexOf("holdSkillRepeat") + 1,
             "skill icons follow the new Combat controls");
         eq(keys.indexOf("disableDamageNumbers"), -1, "Old damage number disable checkbox was removed");
+        for (key in ["damageNumberLimit", "beeVisualLimit", "bombletVisualLimit"]) {
+            var row=rows[keys.indexOf(key)];
+            eq(row.type,"dropdown",key+" uses a dropdown");
+            eq((cast row.options:Array<String>).join(","),"None,Low,Medium,High,Max",
+                key+" presents all five presets in order");
+            eq(Reflect.hasField(row,"min"),false,key+" has no slider minimum");
+            eq(Reflect.hasField(row,"max"),false,key+" has no slider maximum");
+        }
         var social = [for (row in rows) Std.string(row.label)].indexOf("Social");
         eq(keys[social - 1], "showEnemyDistance", "enemy distance is last in Combat");
         eq(keys.indexOf("showEnemyDistance"),keys.indexOf("hideAlliedMinionHealthBars")+1,

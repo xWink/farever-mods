@@ -4,20 +4,20 @@ import moresettings.GameAccess as G;
 
 private typedef BeeVisual = { var obj:Dynamic; var visible:Bool; }
 
-/** Client-only performance budget. Bees and attacks still simulate normally. */
+/** Client-only visual budget. Bees and attacks still simulate normally. */
 class BeeEffects {
     public static var enabled:Bool = false;
-    static var quota = new VisualQuota(100);
+    static var quota = new VisualQuota(0);
     static var rate = new VisualRateLimit(0.01);
     static var shapeRate = new VisualRateLimit(0.01);
-    static var amount:Int = 100;
-    public static function configure(performance:Bool, value:Int):Void {
-        var next=Std.int(Math.max(0,Math.min(100,value)));
-        var shouldLimit=performance && next<100;
+    static var amount:Int = -1;
+    public static function configure(value:Int):Void {
+        var next=value < 0 ? -1 : value;
+        var shouldLimit=next >= 0;
         if(amount==next && enabled==shouldLimit)return;
         reset();
         amount=next;
-        quota=new VisualQuota(next);
+        quota=new VisualQuota(Std.int(Math.max(0,next)));
         rate=new VisualRateLimit(1.0/Math.max(1,next));
         shapeRate=new VisualRateLimit(1.0/Math.max(1,next));
         enabled=shouldLimit;

@@ -7,7 +7,7 @@ import moresettings.SettingsData.MoreSettingsConfig;
     Scale and opacity belong to the text itself, preserving parent fade. */
 class DamageNumberAppearance {
     public static function apply(display:Dynamic,config:MoreSettingsConfig):Void {
-        if(config.damageNumberLimit==0 || display==null)return;
+        if(config.damageNumberLimit=="None" || display==null)return;
         applyText(G.field(display,"counter"),config);
     }
     static function applyText(counter:Dynamic,config:MoreSettingsConfig):Void {
@@ -19,13 +19,13 @@ class DamageNumberAppearance {
     }
     /** HUD feed rows are independent of the native floating damage components. */
     public static function healingFeed(feed:Dynamic,damage:Dynamic,config:MoreSettingsConfig):Void {
-        if(config.damageNumberLimit==0||damage==null
+        if(config.damageNumberLimit=="None"||damage==null
             || (config.damageNumberScale==100&&config.damageNumberOpacity==100))return;
         var row=HealingFeed.lastAddedRow(feed,damage);
         if(row!=null)applyRow(row,config);
     }
     public static function damageFeed(feed:Dynamic,damage:Dynamic,config:MoreSettingsConfig):Void {
-        if(config.damageNumberLimit==0||damage==null
+        if(config.damageNumberLimit=="None"||damage==null
             || (config.damageNumberScale==100&&config.damageNumberOpacity==100))return;
         var lines=G.field(feed,"activeLines");
         var count=G.integer(G.field(lines,"length"));

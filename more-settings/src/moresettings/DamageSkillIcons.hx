@@ -9,7 +9,7 @@ class DamageSkillIcons {
     static var tiles:Map<String, Dynamic> = [];
 
     public static function apply(display:Dynamic, config:MoreSettingsConfig):Void {
-        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == 0) return;
+        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == "None") return;
         if (display == null) return;
         var counter = G.field(display, "counter");
         var parent = G.field(counter, "parent");
@@ -30,7 +30,7 @@ class DamageSkillIcons {
 
     /** Self/received heals use a scrolling HUD row instead of HealDisplay. */
     public static function applyHealingFeed(feed:Dynamic, damage:Dynamic, config:MoreSettingsConfig):Void {
-        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == 0) return;
+        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == "None") return;
         var row = HealingFeed.lastAddedRow(feed, damage);
         if (row == null) return;
         var counter:Dynamic = null;
@@ -78,7 +78,7 @@ class DamageSkillIcons {
     }
 
     public static function resolve(display:Dynamic, inf:Dynamic, nativeIcon:Dynamic, config:MoreSettingsConfig):Dynamic {
-        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == 0) return nativeIcon;
+        if (!config.showSkillIconNextToDamageNumber || config.damageNumberLimit == "None") return nativeIcon;
         var skill = gamecompat.HitSkill.read(G.field(display, "dmg"), G.field);
         var tile = sourceTile(skill, inf);
         return tile == null ? nativeIcon : tile;

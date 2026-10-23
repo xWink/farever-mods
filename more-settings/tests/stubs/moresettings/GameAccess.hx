@@ -78,6 +78,9 @@ class GameAccess {
         case "set_minWidth", "set_maxWidth", "set_textMultiline", "set_lineBreak":
             set(o,name.substr(4),args[0]);args[0];
         case "isDead": field(o,"dead")==true;
+        case "get_isServer": field(o,"isServer")==true;
+        case "get_visible": field(o,"visible")==true;
+        case "get_stepKind": field(o,"stepKind");
         case "get_myPlayer": field(data, "player");
         case "set_visible": set(o, "visible", args[0]); args[0];
         case "isOwner": field(o, "isOwner") == true;

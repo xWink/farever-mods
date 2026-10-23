@@ -10,10 +10,10 @@ class BombletEffects {
     static var travelWarned = false;
     static var travelRate = new VisualRateLimit(0.01);
     static var explosionRate = new VisualRateLimit(0.01);
-    static var amount:Int = 100;
-    public static function configure(performance:Bool, value:Int):Void {
-        var next=Std.int(Math.max(0,Math.min(100,value)));
-        var shouldLimit=performance && next<100;
+    static var amount:Int = -1;
+    public static function configure(value:Int):Void {
+        var next=value < 0 ? -1 : value;
+        var shouldLimit=next >= 0;
         if(amount==next && enabled==shouldLimit)return;
         reset();
         amount=next;

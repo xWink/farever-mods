@@ -51,9 +51,9 @@ class DamageSkillIconsTest {
         hit.nativeType = "ui.comp.HealDisplay";
         eq(DamageSkillIcons.resolve(hit, inf, native, config), tile, "Healing resolves its responsible skill art");
         hit.nativeType = "ui.comp.DamageDisplay";
-        config.damageNumberLimit = 0;
+        config.damageNumberLimit = "None";
         eq(DamageSkillIcons.resolve(hit, inf, native, config), native, "Hidden numbers do not get custom icons");
-        config.damageNumberLimit = 20;
+        config.damageNumberLimit = "Medium";
         config.showSkillIconNextToDamageNumber = false;
         eq(DamageSkillIcons.resolve(hit, inf, native, config), native, "Disabling restores native selection despite cached art");
         config.showSkillIconNextToDamageNumber = true;
@@ -168,11 +168,11 @@ class DamageSkillIconsTest {
         unknownHeal.nativeType = "ui.comp.HealDisplay";
         DamageSkillIcons.apply(unknownHeal, config);
         eq(unknownHeal.iconBmp, null, "unknown healing source does not invent an icon");
-        config.damageNumberLimit = 0;
+        config.damageNumberLimit = "None";
         var hidden = display(source);
         DamageSkillIcons.apply(hidden, config);
         eq(hidden.iconBmp, null, "suppressed numbers do not allocate icon widgets");
-        config.damageNumberLimit = 20;
+        config.damageNumberLimit = "Medium";
         config.showSkillIconNextToDamageNumber = false;
         var off = display(source);
         DamageSkillIcons.apply(off, config);
@@ -236,10 +236,10 @@ class DamageSkillIconsTest {
         feed.activeLines = [{elt:old,elapsed:0.5}];
         DamageSkillIcons.applyHealingFeed(feed, {skill:skill,amount:2.0,scale:0.25}, config);
         eq(old.children.length, 1, "sub-one scaled heals cannot attach the new source to an older row");
-        config.damageNumberLimit = 0;
+        config.damageNumberLimit = "None";
         DamageSkillIcons.applyHealingFeed(feed, heal, config);
         eq(old.children.length, 1, "skipped native heal display cannot modify the previous row");
-        config.damageNumberLimit = 20;
+        config.damageNumberLimit = "Medium";
         DamageSkillIcons.applyHealingFeed(feed, {skill:{kind:"Unknown"},amount:500.0,scale:1.0}, config);
         eq(old.children.length, 1, "unknown healing source does not invent art");
         DamageSkillIcons.applyHealingFeed(feed, {skill:{kind:"Regeneration",sourceSkill:skill},amount:0.5,scale:2.0}, config);

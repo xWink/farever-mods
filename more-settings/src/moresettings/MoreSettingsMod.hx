@@ -30,9 +30,9 @@ class MoreSettingsMod {
         SettingsData.normalize(config);
         BossHealth.enabled = config.showBossHealth;
         PerformanceHooks.enabled = config.performanceOptimization;
-        BeeEffects.configure(config.performanceOptimization, config.beeVisualLimit);
-        BombletEffects.configure(config.performanceOptimization, config.bombletVisualLimit);
-        PerformanceDamageNumbers.configure(config.performanceOptimization, config.damageNumberLimit);
+        BeeEffects.configure(VisualLimit.bees.count(config.beeVisualLimit));
+        BombletEffects.configure(VisualLimit.bomblets.count(config.bombletVisualLimit));
+        PerformanceDamageNumbers.configure(VisualLimit.damage.count(config.damageNumberLimit));
         EnemyDistance.enabled = config.showEnemyDistance;
         InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
         StallMetrics.configure(config.performanceDiagnostics);
@@ -52,9 +52,9 @@ class MoreSettingsMod {
             SettingsData.normalize(config);
             BossHealth.enabled = config.showBossHealth;
             PerformanceHooks.enabled = config.performanceOptimization;
-            BeeEffects.configure(config.performanceOptimization, config.beeVisualLimit);
-            BombletEffects.configure(config.performanceOptimization, config.bombletVisualLimit);
-            PerformanceDamageNumbers.configure(config.performanceOptimization, config.damageNumberLimit);
+            BeeEffects.configure(VisualLimit.bees.count(config.beeVisualLimit));
+            BombletEffects.configure(VisualLimit.bomblets.count(config.bombletVisualLimit));
+            PerformanceDamageNumbers.configure(VisualLimit.damage.count(config.damageNumberLimit));
             EnemyDistance.enabled = config.showEnemyDistance;
             InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
             StallMetrics.configure(config.performanceDiagnostics);
@@ -111,15 +111,15 @@ class MoreSettingsMod {
 
     @:hlx.prefix(ui.comp.HealDisplay.display)
     static function beforeHealingNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic>
-        return config.damageNumberLimit == 0 ? SkipWith(null) : Continue;
+        return config.damageNumberLimit == "None" ? SkipWith(null) : Continue;
 
     @:hlx.prefix(ui.hud.EffectsFeed.displayDamage)
     static function beforeIncomingDamageNumber(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void>
-        return config.damageNumberLimit == 0 ? Skip : Continue;
+        return config.damageNumberLimit == "None" ? Skip : Continue;
 
     @:hlx.prefix(ui.hud.EffectsFeed.displayHeal)
     static function beforeIncomingHealingNumber(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void>
-        return config.damageNumberLimit == 0 ? Skip : Continue;
+        return config.damageNumberLimit == "None" ? Skip : Continue;
 
     @:hlx.postfix(ui.win.GearAppearance.init)
     static function afterGearAppearanceInit(instance:Dynamic, result:Void):Void {

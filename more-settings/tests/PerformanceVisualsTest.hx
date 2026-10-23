@@ -5,12 +5,22 @@ import moresettings.VisualQuota;
 import moresettings.VisualDamageBudget;
 import moresettings.HoldRepeat;
 import moresettings.SettingsData;
+import moresettings.VisualLimit;
+import moresettings.BeeEffects;
+import moresettings.BombletEffects;
+import moresettings.PerformanceDamageNumbers;
 
 class PerformanceVisualsTest {
     static var checks=0;
     static function eq(actual:Dynamic,expected:Dynamic,message:String):Void {
         checks++;
         if(actual!=expected)throw message+": expected "+Std.string(expected)+", got "+Std.string(actual);
+    }
+    static function applyLimits(c:moresettings.SettingsData.MoreSettingsConfig):Void {
+        SettingsData.normalize(c);
+        BeeEffects.configure(VisualLimit.bees.count(c.beeVisualLimit));
+        BombletEffects.configure(VisualLimit.bomblets.count(c.bombletVisualLimit));
+        PerformanceDamageNumbers.configure(VisualLimit.damage.count(c.damageNumberLimit));
     }
     static function main():Void {
         var c=SettingsData.defaults();
@@ -19,27 +29,51 @@ class PerformanceVisualsTest {
         eq(c.holdSkillRepeat,false,"Hold-to-repeat remains opt-in");
         eq(c.damageNumberScale,100,"Default damage scale is neutral");
         eq(c.damageNumberOpacity,100,"Default damage alpha is neutral");
-        eq(c.damageNumberLimit,20,"Damage number limit defaults to previous throughput");
-        eq(c.beeVisualLimit,100,"Bee visual slider defaults to maximum");
-        eq(c.bombletVisualLimit,100,"Bomblet visual slider defaults to maximum");
+        eq(c.damageNumberLimit,"Medium","Damage number dropdown defaults to Medium");
+        eq(c.beeVisualLimit,"Max","Bee visual dropdown defaults to Max");
+        eq(c.bombletVisualLimit,"Max","Bomblet visual dropdown defaults to Max");
         eq(c.showEnemyDistance,false,"Enemy distance is opt-in");
-        for (key in ["damageNumberLimit","beeVisualLimit","bombletVisualLimit"]) {
-            Reflect.setField(c,key,-20);
+        var choices=["None","Low","Medium","High","Max"];
+        var damageCounts=[0,10,25,50,-1],beeCounts=[0,2,10,30,-1],bombCounts=[0,5,25,50,-1];
+        for (i in 0...choices.length) {
+            eq(VisualLimit.damage.count(choices[i]),damageCounts[i],choices[i]+" damage count");
+            eq(VisualLimit.bees.count(choices[i]),beeCounts[i],choices[i]+" bee count");
+            eq(VisualLimit.bomblets.count(choices[i]),bombCounts[i],choices[i]+" Bomblet count");
+            c.damageNumberLimit=choices[i];c.beeVisualLimit=choices[i];c.bombletVisualLimit=choices[i];
+            SettingsData.normalize(c);
+            eq(c.damageNumberLimit,choices[i],"Damage dropdown survives normalization");
+            eq(c.beeVisualLimit,choices[i],"Bee dropdown survives normalization");
+            eq(c.bombletVisualLimit,choices[i],"Bomblet dropdown survives normalization");
         }
+        // Exercise the same dynamic JSON representation as a pre-upgrade config.
+        c=cast haxe.Json.parse(haxe.Json.stringify(SettingsData.defaults()));
+        c.damageNumberLimit=20;c.beeVisualLimit=100;c.bombletVisualLimit=100;
         SettingsData.normalize(c);
-        eq(c.damageNumberLimit,0,"Damage number budget lower clamp");
-        eq(c.beeVisualLimit,0,"Bee visual count lower clamp");
-        eq(c.bombletVisualLimit,0,"Bomblet visual count lower clamp");
-        c.damageNumberLimit=999;c.beeVisualLimit=999;c.bombletVisualLimit=999;
+        eq(c.damageNumberLimit,"Medium","Old damage default migrates to nearest preset");
+        eq(c.beeVisualLimit,"Max","Old bee maximum stays game default");
+        eq(c.bombletVisualLimit,"Max","Old Bomblet maximum stays game default");
+        c.damageNumberLimit=0;c.beeVisualLimit=0;c.bombletVisualLimit=0;
         SettingsData.normalize(c);
-        eq(c.damageNumberLimit,200,"Damage number budget upper clamp");
-        eq(c.beeVisualLimit,100,"Bee visual count upper clamp");
-        eq(c.bombletVisualLimit,100,"Bomblet visual count upper clamp");
+        eq(c.damageNumberLimit,"None","Old damage zero stays hidden");
+        eq(c.beeVisualLimit,"None","Old bee zero stays hidden");
+        eq(c.bombletVisualLimit,"None","Old Bomblet zero stays hidden");
+        c.damageNumberLimit=49;c.beeVisualLimit=8;c.bombletVisualLimit=4;
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,"High","Custom damage slider migrates to nearest preset");
+        eq(c.beeVisualLimit,"Medium","Custom bee slider migrates to nearest preset");
+        eq(c.bombletVisualLimit,"Low","Custom Bomblet slider migrates to nearest preset");
+        c.damageNumberLimit=null;c.beeVisualLimit="invalid";c.bombletVisualLimit=Math.NaN;
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,"Medium","Missing damage choice uses default");
+        eq(c.beeVisualLimit,"Max","Invalid bee choice uses default");
+        eq(c.bombletVisualLimit,"Max","Invalid Bomblet choice uses default");
         c.disableDamageNumbers=true;
         SettingsData.normalize(c);
-        eq(c.damageNumberLimit,0,"Old disable setting migrates to zero");
+        eq(c.damageNumberLimit,"None","Old disable setting migrates to None");
         eq(c.disableDamageNumbers,false,"Old disable flag clears after migration");
-        c.damageNumberLimit=20;
+        c.damageNumberLimit="Max";
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,"Max","Legacy checkbox cannot override a later selection");
         c.damageNumberScale=1;c.damageNumberOpacity=-5;
         SettingsData.normalize(c);
         eq(c.damageNumberScale,50,"Damage scale clamps at 50%");
@@ -64,7 +98,7 @@ class PerformanceVisualsTest {
         eq(BeeEffectPolicy.projectile(true,"SummonBee_HoneyBolt",false),true,
             "HoneyBolt projectile FX in budget");
         eq(BeeEffectPolicy.projectile(false,"SummonBee_HoneyBolt",false),false,
-            "Disabled optimization has no visual effect");
+            "Disabled visual limiter has no effect");
         eq(BombletEffectPolicy.explosion(true,"Infusion_Kobold_DPS","Bomblet",false),true,
             "Normal Bomblet cosmetic matched");
         eq(BombletEffectPolicy.explosion(true,"Infusion_Kobold_DPS","GoldenBomblet",false),true,
@@ -98,9 +132,9 @@ class PerformanceVisualsTest {
         eq(budget.maximum,20,"Default floating damage budget is twenty");
         budget.configure(0);
         eq(budget.allow(0,widget->widget.parent!=null),false,
-            "Damage number slider zero suppresses all widgets");
+            "A zero damage budget suppresses all widgets");
         budget.configure(200);
-        eq(budget.maximum,200,"Slider maximum allows two hundred simultaneous widgets");
+        eq(budget.maximum,200,"Numeric budget supports two hundred simultaneous widgets");
         eq(budget.allow(0,widget->widget.parent!=null),true,
             "Two hundred per second first number");
         eq(budget.allow(0.004,widget->widget.parent!=null),false,
@@ -108,7 +142,7 @@ class PerformanceVisualsTest {
         eq(budget.allow(0.006,widget->widget.parent!=null),true,
             "Two hundred per second permits number after five milliseconds");
         budget.configure(20);
-        eq(budget.maximum,20,"Live slider updates replace the old hardcoded limit");
+        eq(budget.maximum,20,"Live budget updates replace the old limit");
         eq(budget.allow(0,widget->widget.parent!=null),true,
             "First damage number is allowed");
         eq(budget.allow(0.04,widget->widget.parent!=null),false,
@@ -132,30 +166,52 @@ class PerformanceVisualsTest {
         budget.reset();
         eq(budget.allow(3,widget->widget.parent!=null),true,
             "Reset restores the native number budget");
-        moresettings.BeeEffects.configure(true,100);
-        eq(moresettings.BeeEffects.enabled,false,
-            "Bee slider max preserves normal visuals");
-        moresettings.BeeEffects.configure(true,2);
-        eq(moresettings.BeeEffects.enabled,true,
-            "Lower bee slider enables visual optimization");
-        moresettings.BeeEffects.configure(false,2);
-        eq(moresettings.BeeEffects.enabled,false,
-            "Performance toggle off disables bee limitations");
-        moresettings.BombletEffects.configure(true,100);
-        eq(moresettings.BombletEffects.enabled,false,
-            "Bomblet slider maximum preserves normal visuals");
-        moresettings.BombletEffects.configure(true,4);
-        eq(moresettings.BombletEffects.enabled,true,
-            "Bomblet visual limiter can be enabled");
-        moresettings.BombletEffects.configure(false,4);
-        eq(moresettings.BombletEffects.enabled,false,
-            "Performance toggle off disables bomblet limitations");
-        moresettings.PerformanceDamageNumbers.configure(false,0);
-        eq(moresettings.PerformanceDamageNumbers.suppress(),true,
-            "Damage limit 0 hides numbers even without performance toggle");
-        moresettings.PerformanceDamageNumbers.configure(false,20);
-        eq(moresettings.PerformanceDamageNumbers.suppress(),false,
-            "No damage throttling when performance optimization is disabled");
+        for (performance in [false,true]) {
+            c.performanceOptimization=performance;
+            c.damageNumberLimit="None";c.beeVisualLimit="None";c.bombletVisualLimit="None";
+            applyLimits(c);
+            eq(PerformanceDamageNumbers.suppress(),true,
+                "None hides damage with performance="+performance);
+            var bee:Dynamic={kind:"Summon_Bee",obj:{visible:true},isServer:false};
+            BeeEffects.update(bee);
+            eq(bee.obj.visible,false,"None hides bee with performance="+performance);
+            var area:Dynamic={baseSkill:{inf:{id:"Infusion_Kobold_DPS"}},stepKind:"Bomblet",isServer:false};
+            eq(BombletEffects.suppress(area),true,"None hides Bomblet with performance="+performance);
+            var travel:Dynamic={id:"Bomblet",visuals:{bellFx:{set:"Projectile_CheeseBomb"}}};
+            eq(BombletEffects.suppressTravel(travel,{isServer:false}),true,
+                "None hides Bomblet travel with performance="+performance);
+            area.isServer=true;
+            eq(BombletEffects.suppress(area),false,"None never suppresses server Bomblet damage");
+            area.isServer=false;
+            c.damageNumberLimit="Max";c.beeVisualLimit="Max";c.bombletVisualLimit="Max";
+            applyLimits(c);
+            eq(bee.obj.visible,true,"Max restores previously hidden bee");
+            eq(BeeEffects.enabled,false,"Max disables bee limit");
+            eq(BombletEffects.suppress(area),false,"Max allows Bomblet visuals");
+            eq(BombletEffects.suppressTravel(travel,{isServer:false}),false,"Max allows Bomblet travel");
+            for (i in 0...250) {
+                eq(PerformanceDamageNumbers.suppress(),false,"Max preserves native damage display "+i);
+                PerformanceDamageNumbers.created({parent:{}});
+            }
+            c.damageNumberLimit="Low";c.beeVisualLimit="Low";c.bombletVisualLimit="Low";
+            applyLimits(c);
+            var bees:Array<Dynamic>=[for (i in 0...3) {kind:"Summon_Bee",obj:{visible:true},isServer:false}];
+            for (item in bees) BeeEffects.update(item);
+            eq(bees[0].obj.visible,true,"Low keeps first bee visible");
+            eq(bees[1].obj.visible,true,"Low keeps second bee visible");
+            eq(bees[2].obj.visible,false,"Low hides third bee independently of performance");
+            for (i in 0...10) PerformanceDamageNumbers.created({parent:{}});
+            eq(PerformanceDamageNumbers.suppress(),true,"Low limits damage to ten attached widgets");
+            eq(BombletEffects.enabled,true,"Low enables Bomblet limiter independently of performance");
+            eq(BombletEffects.suppress(area),false,"Low admits first Bomblet after live selection");
+            // Switching to Max must also remove stale claims before limiting again.
+            c.damageNumberLimit="Max";c.beeVisualLimit="Max";c.bombletVisualLimit="Max";
+            applyLimits(c);
+            eq(bees[2].obj.visible,true,"Max restores bee visibility after Low");
+            c.damageNumberLimit="Low";
+            applyLimits(c);
+            eq(PerformanceDamageNumbers.suppress(),false,"Re-enabling limit starts with an empty budget");
+        }
         // updateSkillInputs also polls non-skill controls. These must remain
         // native, single-press actions even when hold-repeat is enabled.
         for(action in ["Item", "Item1", "UseItem", "QuickItem1", "ConsumeItem",
