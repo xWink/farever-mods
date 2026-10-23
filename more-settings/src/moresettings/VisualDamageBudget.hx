@@ -3,8 +3,8 @@ package moresettings;
 /** Tracks attached floating widgets, not damage or healing events. */
 class VisualDamageBudget {
     var active:Array<Dynamic> = [];
-    var rate = new VisualRateLimit(0.1);
-    public var maximum(default, null):Int = 8;
+    var rate = new VisualRateLimit(0.05);
+    public var maximum(default, null):Int = 16;
     public function new() {}
     public function reset():Void { active = []; rate.reset(); }
     public function allow(now:Float, attached:Dynamic->Bool):Bool {

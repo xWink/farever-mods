@@ -74,15 +74,24 @@ class PerformanceVisualsTest {
         eq(rate.allow(5.26),true,"Later events are shown");
         eq(rate.allow(1),true,"Clock reset allows new event");
         var budget=new VisualDamageBudget();
+        eq(budget.maximum,16,"Floating damage widgets can have sixteen active");
+        eq(budget.allow(0,widget->widget.parent!=null),true,
+            "First damage number is allowed");
+        eq(budget.allow(0.04,widget->widget.parent!=null),false,
+            "Twenty new numbers per second still enforces a rate limit");
+        eq(budget.allow(0.051,widget->widget.parent!=null),true,
+            "A new number is allowed after fifty milliseconds");
+        budget.reset();
         var active=new Array<Dynamic>();
-        for(i in 0...8) {
+        for(i in 0...16) {
             var o:Dynamic={parent:{}};
-            eq(budget.allow(i*0.11, widget->widget.parent!=null),true,
+            eq(budget.allow(i*0.055, widget->widget.parent!=null),true,
                 "Attached widget budget admits number "+i);
             budget.created(o);
             active.push(o);
         }
-        eq(budget.allow(2,widget->widget.parent!=null),false,"At most eight attached widgets");
+        eq(budget.allow(2,widget->widget.parent!=null),false,
+            "At most sixteen attached widgets");
         active[0].parent=null;
         eq(budget.allow(2.11,widget->widget.parent!=null),true,
             "Detached damage number releases its visual slot");

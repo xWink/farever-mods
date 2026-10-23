@@ -15,7 +15,7 @@ class PerformanceDamageNumbers {
             var skip = !budget.allow(haxe.Timer.stamp(), widget -> G.field(widget, "parent") != null);
             if (skip && !warned) {
                 warned = true;
-                trace("[More Settings] Performance: floating numbers limited to 8 active and 10 new/second.");
+                trace("[More Settings] Performance: floating numbers limited to 16 active and 20 new/second.");
             }
             return skip;
         } catch (e:Dynamic) {
