@@ -112,7 +112,7 @@
       "label": "Damage number limit",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Limits simultaneous floating damage numbers and new numbers per second. None: hidden; Low: 10; Medium: 25; High: 50; Max: game default. None also hides healing numbers. Independent of Performance improvements."
+        "tooltipText": "Limits simultaneous floating damage numbers and new numbers per second. None: hidden; Low: 10; Medium: 25; High: 50; Max: game default. None also hides healing numbers."
       },
       "options": [
         "None",
@@ -128,7 +128,7 @@
       "label": "Bee visual limit",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Limits visible bee models and bee projectile visuals. None: hidden; Low: 2; Medium: 10; High: 30; Max: game default. Independent of Performance improvements."
+        "tooltipText": "Limits visible bee models and bee projectile visuals. None: hidden; Low: 2; Medium: 10; High: 30; Max: game default."
       },
       "options": [
         "None",
@@ -144,7 +144,7 @@
       "label": "Bomblet visual limit",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Limits Bomblet explosion and travel effects per second. None: hidden; Low: 5; Medium: 25; High: 50; Max: game default. Independent of Performance improvements."
+        "tooltipText": "Limits Bomblet explosion and travel effects per second. None: hidden; Low: 5; Medium: 25; High: 50; Max: game default."
       },
       "options": [
         "None",
