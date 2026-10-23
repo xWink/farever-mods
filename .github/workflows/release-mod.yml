@@ -78,6 +78,7 @@ jobs:
     if: needs.prepare.outputs.project == 'dps-meter'
     permissions:
       contents: write
+      actions: read # Required by DPS Meter's audited native DLL bootstrap.
     uses: ./.github/workflows/build-dps-meter.yml
     with:
       mod-version: ${{ fromJSON(needs.prepare.outputs.plan).version }}

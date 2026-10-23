@@ -28,13 +28,119 @@ on:
 
 permissions:
   contents: read
+  actions: read # Used only to seed the pinned Windows native DLL from a verified run.
 
 concurrency:
   group: build-dps-meter-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source-ref }}
   cancel-in-progress: ${{ github.ref_type != 'tag' && inputs.source-ref == '' }}
 
 jobs:
+  native:
+    name: Windows desktop plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
+
+      # No Haxe source influences this DLL. Key every local native input,
+      # including both layers of included headers, so UI edits skip MinGW.
+      - name: Restore cached desktop plugin
+        id: native_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: dps-meter/build/native/dps_meter_desktop.hdll
+          key: dps-native-win64-mingw-posix13-v1-${{ hashFiles('dps-meter/native/desktop.cpp', 'dps-meter/native/build.sh', 'dps-meter/native/image_buffer.h', 'dps-meter/native/ready_audio.h', 'dps-meter/native/fareverly_account.h', 'dps-meter/native/fareverly_browser.h', 'shared/native/fareverly_account.h', 'shared/native/fareverly_browser.h') }}
+
+      # Bootstrap a cold cache without downloading the Windows toolchain.
+      # The successful run 39895163698 compiled this exact native source and
+      # passed its Windows audio, clipboard and Recycle Bin integration tests.
+      # Native changes bypass this shortcut and rebuild.
+      - name: Check audited native source compatibility
+        id: seed_sources
+        if: steps.native_cache.outputs.cache-hit != 'true'
+        run: |
+          if [[ "$(git hash-object dps-meter/native/desktop.cpp)" == "f5d1aec3516964aaf361558df82957615f6ac43e" &&
+                "$(git hash-object dps-meter/native/build.sh)" == "5b9e38cc5b1c4ed130e58e9b1d4c2294e43a19c8" &&
+                "$(git hash-object dps-meter/native/image_buffer.h)" == "b0c40976b54d1ea80da70ce4d0670bbbbc841bf9" &&
+                "$(git hash-object dps-meter/native/ready_audio.h)" == "9643b40c96462b6dbef2de06592524b57747044a" &&
+                "$(git hash-object dps-meter/native/fareverly_account.h)" == "c6d5e421c9d2de76113c67fbef513b9ec26c1c2e" &&
+                "$(git hash-object dps-meter/native/fareverly_browser.h)" == "48be4b134fc359a4f9d801c6ad452ba3dc49fe25" &&
+                "$(git hash-object shared/native/fareverly_account.h)" == "b30cd5852b0883e29203cd59ea9124ad5d7a52cd" &&
+                "$(git hash-object shared/native/fareverly_browser.h)" == "dc2afd3984615cc6de4c7cabd967188f01439023" ]]; then
+            echo "compatible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "compatible=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download audited DPS Meter native DLL
+        id: seed_download
+        if: steps.native_cache.outputs.cache-hit != 'true' && steps.seed_sources.outputs.compatible == 'true'
+        uses: actions/download-artifact@v4
+        continue-on-error: true # An expired prior run triggers a fresh build.
+        with:
+          name: farever-dps-meter
+          run-id: 39895163698
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: dps-meter/build/native/audited
+
+      - name: Reuse audited DPS Meter native DLL
+        id: seed_reuse
+        if: steps.seed_download.outcome == 'success'
+        run: |
+          src=dps-meter/build/native/audited/hlx/plugins/dps-meter/dps_meter_desktop.hdll
+          dst=dps-meter/build/native/dps_meter_desktop.hdll
+          if [[ -s "$src" ]] && echo "e9506e8e6ff7a50770e4ea9f9d4a7820687bca580951b90820851f04b01c6b13  $src" | sha256sum --check --status; then
+            cp "$src" "$dst"
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo "Reused SHA-256 audited DLL from passing build 39895163698."
+          else
+            echo "::warning::Audited DLL missing or SHA-256 mismatch; compiling from source."
+          fi
+
+      - name: Compile native DLL if sources changed
+        if: steps.native_cache.outputs.cache-hit != 'true' && steps.seed_reuse.outputs.reused != 'true'
+        working-directory: dps-meter
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update -qq
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends g++-mingw-w64-x86-64-posix
+          bash native/build.sh
+
+      - name: Validate Windows DLL and primitive exports
+        run: |
+          dll=dps-meter/build/native/dps_meter_desktop.hdll
+          test -s "$dll"
+          file "$dll" | grep -Eq 'PE32[+] executable.*x86-64'
+          for primitive in hlp_open_folder hlp_recycle_file hlp_copy_image \
+            hlp_prepare_audio hlp_play_audio hlp_update_audio hlp_stop_audio \
+            hlp_dispose_audio hlp_secure_random hlp_write_credential hlp_open_url; do
+            grep -aFq "$primitive" "$dll" || { echo "::error::Missing native export $primitive"; exit 1; }
+          done
+          echo "Validated native DLL and exported primitives."
+
+      - name: Cache native DLL by native source hash
+        if: steps.native_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dps-meter/build/native/dps_meter_desktop.hdll
+          key: dps-native-win64-mingw-posix13-v1-${{ hashFiles('dps-meter/native/desktop.cpp', 'dps-meter/native/build.sh', 'dps-meter/native/image_buffer.h', 'dps-meter/native/ready_audio.h', 'dps-meter/native/fareverly_account.h', 'dps-meter/native/fareverly_browser.h', 'shared/native/fareverly_account.h', 'shared/native/fareverly_browser.h') }}
+
+      - name: Upload native DLL for DPS Meter packaging
+        uses: actions/upload-artifact@v4
+        with:
+          name: dps-meter-native-dll
+          path: dps-meter/build/native/dps_meter_desktop.hdll
+          if-no-files-found: error
+          compression-level: 0
+
   build:
+    needs: [native]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -94,11 +200,11 @@ jobs:
           ../.audio-hashlink/hl build/ready-audio-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main EquippedWeaponsTest -dce full -hl build/equipped-weapons-test.hl
           ../.audio-hashlink/hl build/equipped-weapons-test.hl
-      - name: Build desktop plugin
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y g++-mingw-w64-x86-64-posix
-          bash native/build.sh
+      - name: Download native DLL from parallel job
+        uses: actions/download-artifact@v4
+        with:
+          name: dps-meter-native-dll
+          path: dps-meter/build/native
       - name: Test snapshot pixel buffers
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror tests/image_buffer_test.cpp -o build/native/image-buffer-test
