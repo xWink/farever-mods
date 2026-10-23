@@ -69,6 +69,10 @@ jobs:
           ../.minimap-hashlink/hl build/map-refinements-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main SharedMapFiltersTest -hl build/shared-map-filters-test.hl
           ../.minimap-hashlink/hl build/shared-map-filters-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main MinimapFilterPanelTest -hl build/minimap-filter-panel-test.hl
+          ../.minimap-hashlink/hl build/minimap-filter-panel-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main MapChangesTest -hl build/map-changes-test.hl
+          ../.minimap-hashlink/hl build/map-changes-test.hl
 
   build:
     needs: test

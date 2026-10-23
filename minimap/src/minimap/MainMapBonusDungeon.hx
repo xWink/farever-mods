@@ -13,6 +13,8 @@ class MainMapBonusDungeon {
     var title:Dynamic;
     var nameText:Dynamic;
     var icon:Dynamic;
+    var input:Dynamic;
+    var select:String->Void;
     var fontSource:Dynamic;
     var font:Dynamic;
     var lastHero:Dynamic;
@@ -23,9 +25,10 @@ class MainMapBonusDungeon {
     var layoutKey:String = "";
     var reportedError:Bool = false;
 
-    public function new(parent:Dynamic, styleParent:Dynamic) {
+    public function new(parent:Dynamic, styleParent:Dynamic, ?select:String->Void) {
         this.parent = parent;
         this.styleParent = styleParent;
+        this.select = select;
     }
 
     public function update(hero:Dynamic, mapWidth:Float, mapHeight:Float):Void {
@@ -110,6 +113,15 @@ class MainMapBonusDungeon {
         G.call("h2d.Object", "setPosition", nameText, [48., 27.]);
         font = null;
         refreshFont();
+        input = G.create("h2d.Interactive", [1., 56., root, null]);
+        G.set(input, "propagateEvents", false);
+        G.set(input, "enableRightButton", true);
+        G.call("h2d.Interactive", "set_cursor", input, [G.current("hxd.Cursor", "Button")]);
+        G.set(input, "onClick", (event:Dynamic) -> {
+            G.set(event, "propagate", false);
+            if (visible && lastId != null && lastId != "" && select != null && G.integer(G.field(event, "button")) == 0)
+                select(lastId);
+        });
     }
 
     function refreshFont():Void {
@@ -147,6 +159,7 @@ class MainMapBonusDungeon {
         layoutKey = key;
         var textWidth = Math.max(1, G.number(G.call("h2d.Text", "get_textWidth", nameText)));
         width = Math.min(Math.max(220, textWidth * 18 / fontSize + 62), Math.max(220, Math.min(340, mapWidth * 0.32)));
+        G.set(input, "width", width);
         G.call("h2d.Object", "setScale", nameText, [Math.min(18 / fontSize, (width - 62) / textWidth)]);
         G.call("h2d.Graphics", "clear", background);
         for (border in [true, false]) {
@@ -168,7 +181,7 @@ class MainMapBonusDungeon {
 
     public function dispose():Void {
         for (object in [root, fontSource]) if (object != null) G.call("h2d.Object", "remove", object);
-        root = null; fontSource = null; font = null;
+        root = null; input = null; fontSource = null; font = null;
         visible = false;
     }
 }

@@ -62,6 +62,8 @@ class GameAccess {
         return o;
     }
     public static function staticCall(type:String, name:String, args:Array<Dynamic>):Dynamic {
+        if (type == "st.player._Progress.ProgressState_Impl_" && name == "getNpcProgressIcon")
+            return "NativeQuestState" + args[0];
         if (type == "hxd.impl.Allocator" && name == "get") return {};
         if (type == "hxd.BufferFormat" && name == "get_INDEX32") return "INDEX32";
         if (type == "domkit.Properties" && name == "createNew") {
@@ -269,6 +271,11 @@ class GameAccess {
         }
         if (type == "ui.win.map.MapMarker" && name == "get_showOffscreen") return field(o, "showOffscreen") == true;
         if (type == "ui.win.MapWindow") return switch name {
+            case "scrollTo":
+                if (args.length != 4 || args[2] != null || args[3] != null) throw "Expected smooth pan without zoom change";
+                o.scrolledTo = {x:args[0], y:args[1]};
+                o.targetPanning = {x:args[0] * o.tileScale * o.zoom, y:args[1] * o.tileScale * o.zoom};
+                null;
             case "getLocation": field(o, "zoneAt") == null ? {id:"known", type:1} : Reflect.callMethod(o, o.zoneAt, args);
             case "isSelector": field(o, "selector") == true;
             case "clampTargetZoom": o.targetZoom = Math.max(0.5, Math.min(2., number(o.targetZoom))); null;

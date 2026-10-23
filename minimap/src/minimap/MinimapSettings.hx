@@ -8,7 +8,10 @@ typedef MinimapSettings = {
     var ?mainMapHiddenFilters:Array<String>;
     var ?mainMapMarkerScale:Float;
     var ?mainMapMovement:Bool;
-    var enabled:Bool;
+    /** Legacy import only; replaced by the two map switches. */
+    var ?enabled:Bool;
+    var ?mainMapEnabled:Bool;
+    var ?minimapEnabled:Bool;
     var transparency:Int;
     var zoom:Float;
     var size:Int;

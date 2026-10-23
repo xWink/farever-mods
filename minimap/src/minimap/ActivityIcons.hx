@@ -7,6 +7,7 @@ class ActivityIcons {
     public static function draw(g:Dynamic, kind:String, r:Float):Void {
         var color = switch kind {
             case "quest": 0x439b27;
+            case "questStarted", "questUnknown": 0x777777;
             case "orbRace": 0x0754ef;
             case "battle": 0xb52b28;
             case "orbChest": 0xbc7537;
@@ -17,6 +18,7 @@ class ActivityIcons {
         polygon(g, r, color, [0,-0.98,0.98,0,0,0.98,-0.98,0]);
         polygon(g, r, switch kind {
             case "quest": 0x68bf36;
+            case "questStarted", "questUnknown": 0x999999;
             case "orbRace": 0x148eff;
             case "battle": 0xda4540;
             case "orbChest": 0xd99c59;
@@ -29,8 +31,11 @@ class ActivityIcons {
                 for (x in [-0.17,0.17]) circle(g,r,color,x,-0.16,0.105);
                 polygon(g,r,color,[0,0.04,0.07,0.17,-0.07,0.17]);
                 for (x in [-0.09,0.09]) polygon(g,r,color,[x-0.025,0.26,x+0.025,0.26,x+0.025,0.39,x-0.025,0.39]);
-            case "quest":
+            case "quest", "questStarted":
                 polygon(g,r,0xfffcf5,[-0.12,-0.58,0.12,-0.58,0.09,0.18,-0.09,0.18]);
+                circle(g,r,0xfffcf5,0,0.39,0.115);
+            case "questUnknown":
+                polygon(g,r,0xfffcf5,[-0.34,-0.35,-0.32,-0.53,-0.15,-0.64,0.16,-0.64,0.34,-0.47,0.34,-0.2,0.1,0.04,0.1,0.18,-0.1,0.18,-0.1,-0.06,0.12,-0.3,0.12,-0.44,0.02,-0.49,-0.1,-0.44,-0.12,-0.31]);
                 circle(g,r,0xfffcf5,0,0.39,0.115);
             case "orbRace":
                 circle(g,r,0x0630b1,0,0,0.57);

@@ -12,7 +12,7 @@ class MainMapControls {
 
     public function new() {}
     public function update(window:Dynamic, config:MinimapSettings):Void {
-        var allow = config.enabled && config.mainMapMovement == true
+        var allow = config.mainMapEnabled != false && config.mainMapMovement == true
             && G.call("ui.win.MapWindow", "isSelector", window) != true;
         if (allow) {
             if (keyboardFlag == 0) keyboardFlag = G.enumBit("ui.win.WindowFlags", "AllowKeyboardInput");
@@ -20,7 +20,7 @@ class MainMapControls {
             if (!movementWindows.exists(window)) movementWindows.set(window, (flags & keyboardFlag) != 0);
             if ((flags & keyboardFlag) == 0) G.call("ui.win.BaseWindow", "set_windowFlags", window, [flags | keyboardFlag]);
         } else restoreMovement(window);
-        if (!config.enabled && extendedWindows.exists(window)) {
+        if (config.mainMapEnabled == false && extendedWindows.exists(window)) {
             extendedWindows.remove(window);
             G.call("ui.win.MapWindow", "clampTargetZoom", window);
         }
@@ -37,7 +37,7 @@ class MainMapControls {
         return result;
     }
     public function beforeClamp(window:Dynamic, config:MinimapSettings):Void {
-        if (config.enabled)
+        if (config.mainMapEnabled != false)
             zoomRequests.set(window, G.number(G.field(window, "targetZoom")));
         else zoomRequests.remove(window);
     }

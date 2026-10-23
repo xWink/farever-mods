@@ -15,7 +15,7 @@ class BigMapTest {
         if (a != b) throw message + ': expected ' + b + ', got ' + a;
     }
     static function config():MinimapSettings return cast {
-        enabled: true, markerScale: 100., mainMapPlayerFiltersInitialized:true,
+        mainMapEnabled: true, minimapEnabled: true, markerScale: 100., mainMapPlayerFiltersInitialized:true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: false,
         showNpcs: true, showChests: true, showCompanions: true, hideCollectedCompanions: true,
         sparklingCompanionAlerts: false, showRespawnPoints: true, showObelisks: true,
@@ -486,7 +486,7 @@ class BigMapTest {
         var oldFontSource = view.bonusDungeon.fontSource;
         c = change(c, 'overrideBigMapMarkers', false); view.update(window, c);
         eq(view.root, oldRoot, 'Legacy override=false cannot disable enhanced map');
-        c = change(c, 'enabled', false); view.update(window, c);
+        c = change(c, 'mainMapEnabled', false); view.update(window, c);
         eq(view.root, null, 'Disabling mod removes overlay');
         eq(oldRoot.removed, true, 'Old overlay detached');
         eq(oldViewport.removed, true, 'Smoothing viewport detached with overlay');
@@ -515,7 +515,7 @@ class BigMapTest {
         eq(oldRoot.removed, true, 'Instance transition clears overworld overlay');
         eq(obelisk.alpha, 0.8, 'Instance map retains native artwork');
         world.level = 'World/W1_Siagarta'; view.update(window, c);
-        c = change(c, 'enabled', false); view.update(window, c);
+        c = change(c, 'mainMapEnabled', false); view.update(window, c);
         eq(view.root, null, 'Master Enabled also controls big map');
         view.update(window, config());
         // Force an uncached appearance to exercise the native fallback.

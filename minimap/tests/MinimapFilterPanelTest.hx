@@ -53,7 +53,7 @@ class MinimapFilterPanelTest {
         eq(bar.root.visible, false, 'Filter panel starts closed');
         bar.gear.object.onClick(); bar.updateHud(250, true, 1920, 1080, 1660, 10);
         eq(bar.root.visible, true, 'Gear starts opening filters');
-        eq(Math.abs(bar.root.scale / (250 / 534) - 1.12 * 1.10 * 1.05) < 0.00001, true, 'HUD buttons and their contents grow by another five percent');
+        eq(Math.abs(G.number(bar.root.scale) / (250 / 534) - 1.12 * 1.10 * 1.05) < 0.00001, true, 'HUD buttons and their contents grow by another five percent');
         eq(bar.buttons[0].icon.scale, 1.35 * 1.20, 'HUD symbols grow twenty percent within buttons');
         var opening = bar.animationStart;
         bar.updateHud(250, true, 1920, 1080, 1660, 10, opening);
@@ -61,14 +61,14 @@ class MinimapFilterPanelTest {
         bar.buttons[0].object.onClick(); bar.buttons[0].object.onRightClick();
         eq(saves, initialSaves, 'Moving buttons cannot accidentally toggle filters');
         eq(bar.popup, null, 'Moving buttons cannot open subfilters');
-        var collapsedX = bar.root.x + bar.buttons[0].object.x * bar.root.scale;
-        eq(Math.abs(collapsedX - bar.gear.object.x) < 0.001, true, 'Buttons emerge from behind the gear');
+        var collapsedX = G.number(bar.root.x) + G.number(bar.buttons[0].object.x) * G.number(bar.root.scale);
+        eq(Math.abs(collapsedX - G.number(bar.gear.object.x)) < 0.001, true, 'Buttons emerge from behind the gear');
         bar.updateHud(250, true, 1920, 1080, 1660, 10, opening + 0.14);
         eq(Math.abs(bar.expansion - 0.5) < 0.001, true, 'Opening has a smooth midpoint');
-        var movingCenter = 125., movingRadius = movingCenter + 34 * bar.root.scale;
+        var movingCenter = 125., movingRadius = movingCenter + 34 * G.number(bar.root.scale);
         for (button in bar.buttons) {
-            var dx = (button.object.x + 24) * bar.root.scale - movingCenter;
-            var dy = (button.object.y + 24) * bar.root.scale - movingCenter;
+            var dx = (G.number(button.object.x) + 24) * G.number(bar.root.scale) - movingCenter;
+            var dy = (G.number(button.object.y) + 24) * G.number(bar.root.scale) - movingCenter;
             eq(Math.abs(Math.sqrt(dx * dx + dy * dy) - movingRadius) < 0.001, true, 'Animation follows arc, not a chord');
         }
         bar.updateHud(250, true, 1920, 1080, 1660, 10, opening + 1);
@@ -91,15 +91,15 @@ class MinimapFilterPanelTest {
         }
         eq(bar.popup != null, true, 'Subfilter popup opened');
         eq(bar.boxes[0].object.nativeType, 'check-box', 'HUD uses the same native checkbox as main map');
-        var arcScale = bar.root.scale, center = 125., radius = center + 34 * arcScale;
+        var arcScale = G.number(bar.root.scale), center = 125., radius = center + 34 * arcScale;
         for (button in bar.buttons) {
-            var dx = (button.object.x + 24) * arcScale - center;
-            var dy = (button.object.y + 24) * arcScale - center;
+            var dx = (G.number(button.object.x) + 24) * arcScale - center;
+            var dy = (G.number(button.object.y) + 24) * arcScale - center;
             eq(Math.abs(Math.sqrt(dx * dx + dy * dy) - radius) < 0.001, true, 'Buttons follow the circular rim');
         }
-        eq(bar.buttons[0].object.x > bar.buttons[4].object.x, true, 'Upper buttons curve inward');
-        eq(bar.buttons[8].object.x > bar.buttons[4].object.x, true, 'Lower buttons curve inward');
-        eq(bar.popup.x == Math.round(bar.popup.x) && bar.popup.y == Math.round(bar.popup.y), true, 'Popup origin is pixel aligned');
+        eq(G.number(bar.buttons[0].object.x) > G.number(bar.buttons[4].object.x), true, 'Upper buttons curve inward');
+        eq(G.number(bar.buttons[8].object.x) > G.number(bar.buttons[4].object.x), true, 'Lower buttons curve inward');
+        eq(G.number(bar.popup.x) == Math.round(G.number(bar.popup.x)) && G.number(bar.popup.y) == Math.round(G.number(bar.popup.y)), true, 'Popup origin is pixel aligned');
         var close = G.created.filter(o -> G.field(G.field(o, 'dom'), 'id') == 'mainMapFilterClose').pop();
         eq(close.nativeType, 'button', 'Close has native hover and pressed styling');
         G.globals['keyFrame'] = 100; G.globals['mouseDown'] = true;
@@ -134,48 +134,66 @@ class MinimapFilterPanelTest {
         eq(popup.removed, true, 'Closed popup removed from input tree');
         bar.gear.object.onClick();
         bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 0.14);
-        for (button in bar.buttons) eq(button.object.x, 0., 'Square animation stays in a straight column');
+        for (button in bar.buttons) eq(G.number(button.object.x) == 0. || G.number(button.object.y) == 0., true,
+            'Square animation moves left before descending the side');
         bar.updateHud(160, false, 800, 600, 0, 0, bar.animationStart + 1);
         bar.updateHud(160, false, 800, 600, 400, 100);
-        eq(bar.gear.object.y, 0., 'Square gear returns to the top edge of the map');
+        eq(G.number(bar.gear.object.y), 0., 'Square gear returns to the top edge of the map');
+        eq(G.number(bar.gear.object.x), 0., 'Square gear is inside the top-left map corner');
         bar.updateHud(160, false, 800, 600, 0, 0);
-        var small = bar.root.scale;
-        eq(bar.root.x >= 0, true, 'Left-edge map keeps buttons on screen');
+        var small = G.number(bar.root.scale);
+        eq(G.number(bar.root.x) >= 0, true, 'Left-edge map keeps buttons on screen');
         for (button in bar.buttons) {
             eq(button.squareFace.visible, true, 'Square map restores square button faces');
             eq(button.roundFace.visible, false, 'Square map hides round faces');
         }
         bar.updateHud(400, false, 800, 600, 390, 190);
-        eq(Math.abs(bar.root.scale / small - 2.5) < 0.00001, true, 'Filter size scales proportionally with minimap size');
+        eq(Math.abs(G.number(bar.root.scale) / small - 2.5) < 0.00001, true, 'Filter size scales proportionally with minimap size');
         var last = bar.buttons[bar.buttons.length - 1].object;
-        eq(190 + bar.root.y + (last.y + 48) * bar.root.scale <= 600, true, 'Larger column stays within viewport');
+        eq(190 + G.number(bar.root.y) + (G.number(last.y) + 48) * G.number(bar.root.scale) <= 600, true, 'Larger column stays within viewport');
         bar.updateHud(250, false, 1920, 1080, 1660, 10);
-        var side = bar.buttons.filter(b -> b.object.y * bar.root.scale < 261.99);
-        var underside = bar.buttons.filter(b -> b.object.y * bar.root.scale >= 261.99);
-        eq(side.length, 7, 'Seventh side category fills the previously skipped slot');
-        eq(underside.length, 2, 'Last categories occupy the corner and underside');
-        eq(underside[0].object.x, 0., 'First overflow button fills the lower-left corner');
-        var previousY = 0., stride = underside[0].object.y / 8;
-        for (button in side.concat([underside[0]])) {
-            eq(Math.abs(button.object.y - previousY - stride) < 0.001, true, 'Every vertical slot is evenly occupied through the corner');
-            previousY = button.object.y;
+        bar.expansion = 0; bar.layoutHud();
+        for (button in bar.buttons) {
+            eq(Math.abs(G.number(bar.root.x) + G.number(button.object.x) * G.number(bar.root.scale) - G.number(bar.gear.object.x)) < 0.001,
+                true, 'Square filters start behind the inside gear');
+            eq(button.object.y, 0., 'Square filters start at the top edge');
         }
-        eq(Math.abs(underside[1].object.x - stride) < 0.001, true, 'Horizontal spacing matches vertical spacing');
-        var sideGap = -(bar.root.x + 48 * bar.root.scale);
-        var bottomGap = bar.root.y + underside[0].object.y * bar.root.scale - (250 + 2 * minimap.MinimapGeometry.FRAME_BORDER);
+        var leftLeg = (G.number(bar.gear.object.x) - G.number(bar.root.x)) / G.number(bar.root.scale);
+        bar.expansion = 0.01; bar.layoutHud();
+        for (button in bar.buttons) {
+            eq(button.object.y, 0., 'Square filters first travel horizontally');
+            eq(G.number(button.object.x) > 0 && G.number(button.object.x) < leftLeg, true,
+                'Square filters emerge to the left of the gear');
+        }
+        bar.expansion = 1; bar.layoutHud();
+        var side = bar.buttons.filter(b -> G.number(b.object.y) * G.number(bar.root.scale) < 261.99);
+        var underside = bar.buttons.filter(b -> G.number(b.object.y) * G.number(bar.root.scale) >= 261.99);
+        eq(side.length, 8, 'First category occupies the former gear slot above the seven side slots');
+        eq(underside.length, 1, 'Last category occupies the lower-left corner');
+        eq(G.number(underside[0].object.x), 0., 'First overflow button fills the lower-left corner');
+        var stride = G.number(underside[0].object.y) / 8, previousY = -stride;
+        for (button in side.concat([underside[0]])) {
+            eq(Math.abs(G.number(button.object.y) - previousY - stride) < 0.001, true, 'Every vertical slot is evenly occupied through the corner');
+            previousY = G.number(button.object.y);
+        }
+        var sideGap = -(G.number(bar.root.x) + 48 * G.number(bar.root.scale));
+        var bottomGap = G.number(bar.root.y) + G.number(underside[0].object.y) * G.number(bar.root.scale) - (250 + 2 * minimap.MinimapGeometry.FRAME_BORDER);
         eq(Math.abs(bottomGap - sideGap) < 0.001, true, 'Bottom and side gaps match at the outer map border');
-        for (button in underside) eq(Math.abs(button.object.y * bar.root.scale - 262) < 0.001, true, 'Overflow buttons sit below the bottom edge');
-        eq(underside[1].object.x > underside[0].object.x, true, 'Underside runs left to right');
-        var wrapped = underside[1].object;
-        var turn = 262 / bar.root.scale;
-        bar.expansion = (turn + wrapped.x / 2) / (turn + wrapped.x);
+        for (button in underside) eq(Math.abs(G.number(button.object.y) * G.number(bar.root.scale) - 262) < 0.001, true, 'Overflow buttons sit below the bottom edge');
+        eq(G.number(bar.buttons[0].object.x), 0., 'First filter aligns with the old gear X');
+        eq(G.number(bar.buttons[0].object.y), 0., 'First filter starts at the old gear Y');
+        bar.updateHud(400, false, 800, 600, 390, 190);
+        var wrapped = bar.buttons[bar.buttons.length - 1].object;
+        eq(G.number(wrapped.x) > 0, true, 'Limited vertical room still wraps filters under the map');
+        var turn = G.number(wrapped.y), lead = (G.number(bar.gear.object.x) - G.number(bar.root.x)) / G.number(bar.root.scale);
+        bar.expansion = (lead + turn + G.number(wrapped.x) / 2) / (lead + turn + G.number(wrapped.x));
         bar.layoutHud();
-        eq(wrapped.x > 0 && Math.abs(wrapped.y - turn) < 0.001, true, 'Animation travels around the L corner');
+        eq(G.number(wrapped.x) > 0 && Math.abs(G.number(wrapped.y) - turn) < 0.001, true, 'Animation travels around the L corner');
         bar.expansion = 1; bar.layoutHud();
         bar.updateHud(400, false, 800, 600, 390, 190);
         bar.buttons[2].object.onRightClick();
-        eq(bar.popup.x + 390 >= 0 && bar.popup.x + 390 + 286 * bar.popup.scale <= 800, true, 'Popup stays inside horizontal viewport');
-        eq(bar.popup.y + 190 >= 0 && bar.popup.y + 190 + 216 * bar.popup.scale <= 600, true, 'Popup stays inside vertical viewport');
+        eq(G.number(bar.popup.x) + 390 >= 0 && G.number(bar.popup.x) + 390 + 286 * G.number(bar.popup.scale) <= 800, true, 'Popup stays inside horizontal viewport');
+        eq(G.number(bar.popup.y) + 190 >= 0 && G.number(bar.popup.y) + 190 + 216 * G.number(bar.popup.scale) <= 600, true, 'Popup stays inside vertical viewport');
         var saved = saves, positions = G.positionWrites;
         for (_ in 0...50) { hud.bind(restored); bar.updateHud(400, false, 800, 600, 390, 190); }
         eq(saves, saved, 'Idle HUD does not save config');

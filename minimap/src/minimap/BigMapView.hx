@@ -77,7 +77,7 @@ class BigMapView {
         var nextHero = G.call("ui.BaseElement", "get_myHero", nextWindow);
         var nextWorld = G.field(G.field(nextHero, "layer"), "world");
         // Instance coordinates must not be projected onto the overworld.
-        if (!config.enabled || nextHero == null
+        if (config.mainMapEnabled == false || nextHero == null
             || G.field(nextHero, "removed") == true || G.text(G.field(nextWorld, "level")) != LEVEL
             || G.field(nextWindow, "removed") == true) {
             dispose();
@@ -105,7 +105,7 @@ class BigMapView {
         // The entire map can be panned, not just the minimap's area around the
         // hero. Static locations remain cached; live data still samples at 5 Hz.
         markers.setViewport(projection.x, projection.y, projection.width, projection.height);
-        markers.update(hero, filters.settings(), 0, 0, Math.POSITIVE_INFINITY, scale, 0, rifts);
+        markers.update(hero, fastTravel ? filters.travelSettings() : filters.settings(), 0, 0, Math.POSITIVE_INFINITY, scale, 0, rifts);
         if (!markers.healthy) throw "Marker refresh failed";
         var count = G.integer(G.field(G.field(window, "markers"), "length"));
         if (revision != markers.revision || nativeCount != count) {
@@ -144,7 +144,7 @@ class BigMapView {
         var foreground = G.create("h2d.Object", [root]);
         markers = new MinimapMarkers(players, foreground, root, LEVEL, MARKER_SIZE, priorityRoot, iconCache);
         markers.ownFirst = true;
-        markers.pointFilter = point -> filters.accepts(point) && (!fastTravel || travelPoint(point) && MapDiscovery.travelUnlocked(point, hero));
+        markers.pointFilter = point -> fastTravel ? travelPoint(point) && MapDiscovery.travelUnlocked(point, hero) : filters.accepts(point);
         markers.obeliskScale = fastTravel ? 1.5 : 1.;
         markers.highlightObelisks = fastTravel;
         // Travel destinations must stay visible and clickable regardless of elevation.
@@ -164,7 +164,14 @@ class BigMapView {
         G.set(properties, "verticalAlign", null);
         G.set(properties, "offsetX", 0);
         G.set(properties, "offsetY", 0);
-        bonusDungeon = new MainMapBonusDungeon(overlay, container);
+        bonusDungeon = new MainMapBonusDungeon(overlay, container, id -> {
+            var point = markers.activityLocation(id);
+            if (point == null) return;
+            // Native scrollTo takes world coordinates and smoothly centers them
+            // without changing zoom or interfering with later manual panning.
+            G.call("ui.win.MapWindow", "scrollTo", window, [point.x, point.y, null, null]);
+            filterBar.closePopup();
+        });
         filterBar = new MainMapFilterBar(container, filters, markers.createFilterIcon);
     }
 

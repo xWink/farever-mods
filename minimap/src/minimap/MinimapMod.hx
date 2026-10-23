@@ -8,7 +8,7 @@ import hlx.runtime.HlxPrefixResult;
 class MinimapMod {
     @:hlx.config
     static var config:MinimapSettings = {
-        enabled: true, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
+        mainMapEnabled: null, minimapEnabled: null, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
         circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
         mainMapMarkerScale: 100, mainMapMovement: false, useSameMapFilters: true,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
@@ -44,6 +44,7 @@ class MinimapMod {
     }
 
     static function normalize():Void {
+        MapVisibility.migrate(config);
         MainMapFilters.prepare(config);
         // A null initial default lets old false preferences migrate to None.
         config.clockTimerMode = ClockTimer.mode(Reflect.field(config, "clockTimerMode"), config.showRiftTimer);
@@ -99,7 +100,7 @@ class MinimapMod {
 
     @:hlx.postfix(ui.GameUI.blockAttackClick)
     static function blockMinimapCloseClick(instance:Dynamic, result:Bool):Bool {
-        return result || config.enabled && view != null && view.blocksAttackClick();
+        return result || config.minimapEnabled != false && view != null && view.blocksAttackClick();
     }
 
     @:hlx.postfix(ui.win.MapWindow.update)

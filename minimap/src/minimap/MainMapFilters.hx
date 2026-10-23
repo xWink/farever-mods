@@ -11,10 +11,11 @@ class MainMapFilters {
         category("enemies", "Enemies", "enemy", ["regular", "boss", "targetDummy", "completed", "mastered"],
             ["Regular enemies", "Bosses and elites", "Target dummies", "Codex partially completed", "Codex mastery completed"]),
         category("companions", "Companions", "companion", ["regular", "sparkling", "collected"], ["Regular companions", "Sparkling companions", "Collected companions"]),
-        category("activities", "Activities", "activity", ["activity", "ascension", "completed"],
-            ["Activities", "Ascensions", "Completed activities"]),
+        category("activities", "Activities", "activity", ["activity", "ascension", "dungeon", "rifts", "soulstone", "completed"],
+            ["Activities", "Ascensions", "Dungeons", "Rifts", "Soulstones", "Completed activities"]),
         category("players", "Players", "player", ["regular", "party", "friends"], ["Players", "Party members", "Friends"]),
-        category("npcs", "NPCs", "npc", [], []),
+        category("npcs", "NPCs", "npc", ["obelisk", "respawn", "factionMerchant", "station"],
+            ["Obelisks", "Respawns", "Faction merchants", "Stations"]),
         category("chests", "Chests", "chest", [], []),
         category("secretOrbs", "Secret orbs", "secretOrb", [], [])
     ];
@@ -23,6 +24,7 @@ class MainMapFilters {
     var hidden:Map<String, Bool> = [];
     var derived:MinimapSettings;
     var hudDerived:MinimapSettings;
+    var travelDerived:MinimapSettings;
     var hudMarkerScale:Float = Math.NaN;
     var markerScale:Float = Math.NaN;
     var save:Void->Void;
@@ -62,6 +64,7 @@ class MainMapFilters {
         for (key in saved) if (key != null) hidden[key] = true;
         derived = null;
         hudDerived = null;
+        travelDerived = null;
         revision++;
     }
 
@@ -80,6 +83,7 @@ class MainMapFilters {
         if (source.useSameMapFilters) source.minimapHiddenFilters = saved;
         derived = null;
         hudDerived = null;
+        travelDerived = null;
         revision++;
         if (save != null) save();
     }
@@ -103,11 +107,21 @@ class MainMapFilters {
         return hudDerived;
     }
 
+    /** Travel destinations must remain usable even when their map filter is off. */
+    public function travelSettings():MinimapSettings {
+        var normal = settings();
+        if (travelDerived == null || travelDerived.markerScale != normal.markerScale) {
+            travelDerived = Reflect.copy(normal);
+            travelDerived.showObelisks = true;
+        }
+        return travelDerived;
+    }
+
     function applyFilters(config:MinimapSettings):MinimapSettings {
-        // These categories have no toggle on either map. Ignore legacy hidden
-        // preferences while still applying the shared height filter afterward.
         config.showPlayers = enabled("players");
-        config.showObelisks = config.showRespawnPoints = config.showSoulstoneCircles = true;
+        config.showObelisks = enabled("npcs") && enabled("npcs", "obelisk");
+        config.showRespawnPoints = enabled("npcs") && enabled("npcs", "respawn");
+        config.showSoulstoneCircles = enabled("activities") && enabled("activities", "soulstone");
         config.showOre = enabled("ore"); config.showPlants = enabled("plants");
         config.showEnemies = enabled("enemies"); config.showCompanions = enabled("companions");
         config.showActivities = enabled("activities"); config.showNpcs = enabled("npcs");
@@ -123,7 +137,8 @@ class MainMapFilters {
         config.hideTargetDummies = !enabled("enemies", "targetDummy");
         config.hideCollectedCompanions = !enabled("companions", "collected");
         config.hideCompletedActivities = !enabled("activities", "completed");
-        config.hideAscensions = !enabled("activities", "ascension"); config.hideDungeons = false;
+        config.hideAscensions = !enabled("activities", "ascension");
+        config.hideDungeons = !enabled("activities") || !enabled("activities", "dungeon");
         config.hideInactiveRifts = false;
         return config;
     }
@@ -135,8 +150,11 @@ class MainMapFilters {
         case "enemy": enabled("enemies", "regular");
         case "boss", "targetDummy": enabled("enemies", point.kind);
         case "companion": enabled("companions", point.sparkling == true ? "sparkling" : "regular");
-        case "activity", "ascension": enabled("activities", point.kind);
-        case "dungeon", "inactiveRift", "nextRift", "upcomingRift", "riftPortal": true;
+        case "activity", "ascension", "dungeon", "soulstone": enabled("activities") && enabled("activities", point.kind);
+        case "inactiveRift", "nextRift", "upcomingRift", "riftPortal": enabled("activities") && enabled("activities", "rifts");
+        case "obelisk", "respawn": enabled("npcs") && enabled("npcs", point.kind);
+        case "demon", "pilgrim", "glory": enabled("npcs") && enabled("npcs", "factionMerchant");
+        case "craft", "upgrade", "recycler", "infusion", "soulWell": enabled("npcs") && enabled("npcs", "station");
         default: true;
     };
 }

@@ -12,7 +12,7 @@ class MainMapControlsTest {
         w.targetZoom=z; c.beforeClamp(w,s); G.call('ui.win.MapWindow','clampTargetZoom',w); c.afterClamp(w); return w.targetZoom;
     }
     static function main():Void {
-        var s:MinimapSettings=cast {enabled:true,mainMapMovement:false};
+        var s:MinimapSettings=cast {mainMapEnabled:true,minimapEnabled:true,mainMapMovement:false};
         var c=new MainMapControls(), w:Dynamic={windowFlags:1034,targetZoom:1.}, other:Dynamic={windowFlags:10};
         c.update(w,s); eq(blocks(w),true,'Movement blocked by default');
         s.mainMapMovement=true; c.update(w,s);
@@ -39,15 +39,15 @@ class MainMapControlsTest {
         eq(clamp(c,selector,s,0.1),0.25,'Fast travel can zoom out to half the native minimum');
         eq(clamp(c,selector,s,0.35),0.35,'Fast travel retains intermediate zoom-out requests');
         eq(clamp(c,selector,s,1.5),1.5,'Fast travel normal zoom is unchanged');
-        s.enabled=false; c.update(selector,s);
+        s.mainMapEnabled=false; c.update(selector,s);
         eq(clamp(c,selector,s,0.1),0.5,'Disabled mod restores fast-travel minimum');
-        s.enabled=true;
+        s.mainMapEnabled=true;
         Reflect.setField(s, 'overrideBigMapMarkers', false); c.update(w,s);
         eq(clamp(c,w,s,5.),4.,'Retired override preference cannot disable extra zoom');
-        s.enabled=false; c.update(w,s); eq(w.targetZoom,2.,'Disable mod restores normal range');
+        s.mainMapEnabled=false; c.update(w,s); eq(w.targetZoom,2.,'Disable mod restores normal range');
         eq(clamp(c,w,s,5.),2.,'Disabled mod uses native clamp');
-        s.enabled=false; c.update(w,s); eq(blocks(w),true,'Disable mod restores lock');
-        s.enabled=true; c.update(w,s); c.dispose(); eq(blocks(w),true,'Teardown restores flags');
+        s.mainMapEnabled=false; c.update(w,s); eq(blocks(w),true,'Disable mod restores lock');
+        s.mainMapEnabled=true; c.update(w,s); c.dispose(); eq(blocks(w),true,'Teardown restores flags');
         Sys.println('Main-map controls: $checks checks passed.');
     }
 }

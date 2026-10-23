@@ -179,8 +179,8 @@ class MainMapFilterBar {
             }
         } else {
             var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - HUD_MAP_GAP);
-            // The gear starts beside the top edge, independent of the clock.
-            // Overflow follows a continuous down-then-right path under the map.
+            // Keep the gear inside the top-left corner. Filters emerge left
+            // into its former slot, then follow the same down-and-right rail.
             var top = Math.max(0, 2 - panelY);
             var buttonHeight = BUTTON_SIZE * scale, step = BUTTON_STEP * scale;
             var outerSize = mapSize + MinimapGeometry.FRAME_BORDER * 2;
@@ -190,14 +190,22 @@ class MainMapFilterBar {
             var intervals = Std.int(Math.max(1, Math.round(rowY / step)));
             var sideCount = intervals - 1;
             var cornerY = rowY / scale, stride = cornerY / intervals;
-            position(gear.object, left, top);
+            // At the screen's left edge the rail moves inward; leave enough
+            // space beside it that the first filter cannot hide under the gear.
+            var gearX = Math.max(0, left + buttonHeight + HUD_MAP_GAP);
+            var lead = (gearX - left) / scale;
+            position(gear.object, gearX, top);
             position(root, left, top);
             for (i in 0...buttons.length) {
-                var slot = i + 1;
+                var slot = i;
                 var endX = slot <= sideCount ? 0. : (slot - sideCount - 1) * stride;
                 var endY = slot <= sideCount ? slot * stride : cornerY;
-                var distance = (endY + endX) * expansion;
-                position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
+                var distance = (lead + endY + endX) * expansion;
+                if (distance < lead) position(buttons[i].object, lead - distance, 0);
+                else {
+                    distance -= lead;
+                    position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
+                }
             }
         }
     }

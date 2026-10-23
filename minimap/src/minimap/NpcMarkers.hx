@@ -23,7 +23,22 @@ class NpcMarkers {
         // Native ProgressState: 0=no goals, 1=available, 2=started,
         // 3=ready to turn in, 4=completed. Check all goals on every sample.
         var state = G.integer(G.call("st.player.Progress", "getNpcProgressState", progress, [inf]));
+        return kindForState(state, showCompleted);
+    }
+
+    static function kindForState(state:Int, showCompleted:Bool):String
         return state == 0 || state == 4 && !showCompleted ? "npc" : "quest";
+
+    public static function updateProgress(point:MapPoint, kind:String, inf:Dynamic, progress:Dynamic, showCompleted:Bool):Void {
+        point.kind = kind; point.questIcon = null; point.questState = null;
+        if (kind != "quest" || progress == null) return;
+        var state = G.integer(G.call("st.player.Progress", "getNpcProgressState", progress, [inf]));
+        point.kind = kindForState(state, showCompleted);
+        if (point.kind != "quest") return;
+        point.questState = state;
+        // Match NpcWidget.updateState, including the native available,
+        // in-progress, ready-to-turn-in and completed artwork.
+        point.questIcon = G.text(G.staticCall("st.player._Progress.ProgressState_Impl_", "getNpcProgressIcon", [state]));
     }
 
     public static function availableDefinition(inf:Dynamic):Bool {

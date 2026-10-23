@@ -84,7 +84,7 @@ class MainMapFiltersTest {
         filters.setEnabled('npcs', null, false);
         eq(filters.settings().showNpcs, false, 'NPC category can still hide all NPC services');
         filters.setEnabled('npcs', null, true);
-        for (category in MainMapFilters.CATEGORIES) if (['npcs', 'chests', 'secretOrbs'].indexOf(category.key) >= 0)
+        for (category in MainMapFilters.CATEGORIES) if (['chests', 'secretOrbs'].indexOf(category.key) >= 0)
             eq(category.items.length, 0, category.label + ' has no subfilters');
         filters.setEnabled('ore', 'copper', false);
         filters.setEnabled('ore', null, false);
@@ -110,13 +110,13 @@ class MainMapFiltersTest {
         reloaded.mainMapHiddenFilters = ['activities', 'activities:dungeon', 'activities:rifts', 'activities:inactiveRifts'];
         reopened.bind(reloaded);
         for (settings in [reopened.settings(), reopened.minimapSettings()]) {
-            eq(settings.hideDungeons, false, 'Legacy dungeon hiding is ignored');
+            eq(settings.hideDungeons, true, 'Dungeon exclusion reaches both collectors');
             eq(settings.hideInactiveRifts, false, 'Legacy inactive-rift hiding is ignored');
         }
         for (kind in ['dungeon', 'inactiveRift', 'nextRift', 'upcomingRift', 'riftPortal'])
-            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Activities off cannot hide ' + kind);
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), false, 'Activities off hides ' + kind);
         for (category in MainMapFilters.CATEGORIES) if (category.key == 'activities')
-            eq([for (item in category.items) item.key].join(','), 'activity,ascension,completed', 'Travel filter controls removed');
+            eq([for (item in category.items) item.key].join(','), 'activity,ascension,dungeon,rifts,soulstone,completed', 'Activity destinations have subfilters');
         var before = saves;
         filters.setEnabled('ore', 'copper', false);
         eq(saves, before, 'No-op changes do not save again');

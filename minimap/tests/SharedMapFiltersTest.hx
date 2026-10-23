@@ -51,7 +51,7 @@ class SharedMapFiltersTest {
         eq(hud.accepts({kind:'enemy', x:0, y:0, z:0}), false, 'Minimap uses shared regular-enemy subtype');
         eq(hud.accepts({kind:'boss', x:0, y:0, z:0}), true, 'Bosses retain their own subtype');
         main.setEnabled('activities', 'rifts', false); hud.bind(c);
-        eq(hud.accepts({kind:'riftPortal', x:0, y:0, z:0}), true, 'Retired Rift subtype cannot hide minimap rifts');
+        eq(hud.accepts({kind:'riftPortal', x:0, y:0, z:0}), false, 'Rift subtype hides minimap rifts');
         main.setEnabled('companions', 'sparkling', false); hud.bind(c);
         eq(hud.accepts({kind:'companion', sparkling:true, x:0, y:0, z:0}), false, 'Shared sparkling subtype');
         for (field in ['showPlayers', 'showObelisks', 'showRespawnPoints', 'showSoulstoneCircles']) {
@@ -132,7 +132,7 @@ class SharedMapFiltersTest {
             var travel = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta'); travel.pointFilter = hud.accepts;
             travel.update(hero, settings, 0, 0, 100, 1, 0, rifts);
             for (kind in ['dungeon', 'riftPortal', 'inactiveRift'])
-                eq(travel.points.filter(p -> p.kind == kind).length, 1, 'Collector retains protected destination ' + kind);
+                eq(travel.points.filter(p -> p.kind == kind).length, 0, 'Activity filter hides destination ' + kind);
             eq(travel.points.filter(p -> p.kind == 'activity').length, 0, 'Activities off still hides ordinary activities');
         }
         var playerConfig:MinimapSettings = Reflect.copy(reloaded);

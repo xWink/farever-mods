@@ -123,3 +123,9 @@
 -cp tests/big-map-stubs
 -main MapRefinementsTest
 --interp
+--next
+-cp src
+-cp tests
+-cp tests/big-map-stubs
+-main MapChangesTest
+--interp

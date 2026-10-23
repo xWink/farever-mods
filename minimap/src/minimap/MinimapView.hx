@@ -95,7 +95,7 @@ class MinimapView {
         var ui = G.current("ui.BaseUI", "current");
         if (nextWorld != world || ui != owner) dispose();
         var hero = G.field(app, "hero");
-        if (!config.enabled || hero == null || G.field(hero, "removed") == true
+        if (config.minimapEnabled == false || hero == null || G.field(hero, "removed") == true
             || G.text(G.field(nextWorld, "level")) != LEVEL || ui == null) {
             show(false);
             return;

@@ -479,8 +479,9 @@ class MinimapMarkers {
                 var key = "npc:" + G.text(G.field(element, "kind"));
                 // Prefer a loaded NPC's actual position (or hidden state) over its prefab.
                 var inf = G.field(element, "inf");
-                liveNpcs[key] = active ? {kind: NpcMarkers.forProgress(npcKind(inf), inf, progress, !config.hideCompletedActivities), x: px, y: py,
+                liveNpcs[key] = active ? {kind: npcKind(inf), x: px, y: py,
                     z: G.number(G.field(element, "posz"), Math.NaN), entity: element} : null;
+                if (active) NpcMarkers.updateProgress(liveNpcs[key], npcKind(inf), inf, progress, !config.hideCompletedActivities);
             } else if (category == "chest") {
                 if (!active || player == null) continue;
                 // Player-specific completion and respawn rules are resolved by
@@ -510,7 +511,7 @@ class MinimapMarkers {
             };
             if (show && near(point.x, point.y, x, y, radius)) {
                 if (isNpc(point.kind) && !NpcMarkers.eventVisible(point.inf, G.field(layer, "worldEvents"), worldEvents)) continue;
-                if (isNpc(point.kind)) point.kind = NpcMarkers.forProgress(npcKind(point.inf), point.inf, progress, !config.hideCompletedActivities);
+                if (isNpc(point.kind)) NpcMarkers.updateProgress(point, npcKind(point.inf), point.inf, progress, !config.hideCompletedActivities);
                 // Definitions are cached, but unlocks belong to the current
                 // character and must refresh after activating a respawn point.
                 if (point.kind == "respawn") point.respawnUnlocked = RespawnMarkers.unlocked(point.inf, progress);
@@ -525,7 +526,7 @@ class MinimapMarkers {
             if (!SecretOrbMarkers.collected(progress, id)) points.push(point);
         }
         {
-            // Dungeons and rifts remain available even with Activities off.
+            // Individual destination filters are applied by the shared pointFilter.
             refreshActivities();
             var events = G.field(layer, "worldEvents");
             for (point in activities) {
@@ -601,6 +602,19 @@ class MinimapMarkers {
                 z: G.number(G.field(matrix, "_43"), Math.NaN),
                 eventElement: G.text(G.field(inf, "id"))});
         }
+    }
+
+    /** Use the same unfiltered entrance positions as our markers. Entries from
+        instanceOrbs come last and take precedence over interior definitions. */
+    public function activityLocation(id:String):Null<MapPoint> {
+        refreshActivities();
+        var i = activities.length;
+        while (i > 0) {
+            var point = activities[--i];
+            if (point.kind == "dungeon" && G.text(G.field(point.inf, "id")) == id
+                && Math.isFinite(point.x) && Math.isFinite(point.y)) return point;
+        }
+        return null;
     }
 
     static function checkpointStart(prefab:Dynamic):Dynamic {
@@ -886,6 +900,7 @@ class MinimapMarkers {
             var point = points[i], marker = pool[i];
             var key = point.kind + (point.sparkling == true ? ":spark" : "") + (point.partyMember == true ? ":party" : "")
                 + (point.activityIcon == null ? "" : ":" + point.activityIcon)
+                + (point.kind == "quest" ? ":quest:" + point.questState + ":" + point.questIcon : "")
                 + (point.kind == "obelisk" && highlightObelisks ? ":travel" : "")
                 + (point.bonusDungeon == true ? ":bonus" : "")
                 + (point.friend == true ? ":friend" : "")
@@ -896,7 +911,8 @@ class MinimapMarkers {
                 var paint = (target:Dynamic) -> {
                     graphics = target;
                     drawIcon({kind: point.kind, sparkling: point.sparkling, partyMember: point.partyMember, friend: point.friend,
-                        respawnUnlocked: point.respawnUnlocked, activityIcon: point.activityIcon, bonusDungeon: point.bonusDungeon, heading: 0, x: 0, y: 0, z: 0});
+                        respawnUnlocked: point.respawnUnlocked, activityIcon: point.activityIcon, bonusDungeon: point.bonusDungeon,
+                        questState: point.questState, questIcon: point.questIcon, heading: 0, x: 0, y: 0, z: 0});
                 };
                 if (iconCache == null) {
                     G.call("h2d.Graphics", "clear", marker.icon);
@@ -956,8 +972,11 @@ class MinimapMarkers {
         }
         if (kind == "pilgrim" && NativeMarkerIcons.draw(graphics, "faction", "Pilgrims", 20)) return;
         if (kind == "demon" && NativeMarkerIcons.draw(graphics, "faction", "Riftstalkers", 16)) return;
+        if (kind == "quest" && point.questIcon != null && point.questIcon != ""
+            && NativeMarkerIcons.draw(graphics, "icon", point.questIcon, 18)) return;
         if (kind == "quest" || kind == "activity" && point.activityIcon != null && point.activityIcon != "activity") {
-            ActivityIcons.draw(graphics, kind == "quest" ? "quest" : point.activityIcon, markerRadius(kind));
+            var art = kind == "quest" ? (point.questState == 3 ? "quest" : point.questState == null || point.questState == 1 ? "questUnknown" : "questStarted") : point.activityIcon;
+            ActivityIcons.draw(graphics, art, markerRadius(kind));
             return;
         }
         if (kind == "respawn") {
