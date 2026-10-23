@@ -70,15 +70,15 @@ class MarketplaceUiTest {
    &&nativeRowFrame.button.x==0&&nativeRowFrame.button.y==0);
   // Synthetic atlas: opaque art has asymmetric transparent margins.
   // Validate the actual sub-tile and cache, not just a new zoom factor.
-  var p:Dynamic={width:128,height:128,areas:[
+  var rectangles:Array<Dynamic>=[
    {x:7,y:5,w:46,h:48,alpha:255},{x:70,y:12,w:50,h:35,alpha:255}
-  ]};
+  ];
+  var p:Dynamic={width:128,height:128,areas:rectangles};
   var tex:Dynamic={width:128,height:128,pixels:p,captureCalls:0};
   var padded:Dynamic={innerTex:tex,x:0.0,y:0.0,width:64.0,height:64.0,dx:2.0,dy:3.0};
   var testMask=GameAccess.object(),testButton=GameAccess.object(testMask);
   check(trade.TradeNativeSlot.replaceMarketplaceArtwork(testButton,{inf:padded},52));
   var trimmed=maskedBitmap(testMask);
-  Sys.println("TRIM PROBE "+haxe.Json.stringify({same:trimmed.tile==padded,tx:trimmed.tile.x,ty:trimmed.tile.y,tw:trimmed.tile.width,th:trimmed.tile.height,dx:trimmed.tile.dx,dy:trimmed.tile.dy,captures:tex.captureCalls,artWidth:trimmed.width,artHeight:trimmed.height}));
   check(trimmed.tile!=padded&&trimmed.tile.x==7&&trimmed.tile.y==5
    &&trimmed.tile.width==46&&trimmed.tile.height==48
    &&trimmed.tile.dx==0&&trimmed.tile.dy==0);
