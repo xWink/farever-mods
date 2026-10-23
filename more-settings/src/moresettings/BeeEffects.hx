@@ -24,8 +24,6 @@ class BeeEffects {
     }
     static var hidden = new haxe.ds.ObjectMap<Dynamic, BeeVisual>();
     static var failed = false;
-    static var warned = false;
-    static var auraWarned = false;
 
     static function isClient(state:Dynamic):Bool
         return G.call("st.BaseState", "get_isServer", state) == false;
@@ -36,7 +34,7 @@ class BeeEffects {
         // Disabling the option restores exactly the pre-existing visibility.
         for (entry in hidden) try show(entry.obj, entry.visible) catch (_:Dynamic) {}
         hidden = new haxe.ds.ObjectMap(); quota.reset(); rate.reset(); shapeRate.reset();
-        failed = false; warned = false; auraWarned = false;
+        failed = false;
     }
     static function error(e:Dynamic):Void {
         reset(); failed = true;
@@ -69,10 +67,6 @@ class BeeEffects {
                 entry={obj:obj,visible:visible};hidden.set(unit,entry);
             }
             show(obj,false);
-            if (!warned) {
-                warned = true;
-                trace("[More Settings] Bee visual budget active ("+Std.string(amount)+" displayed bee models).");
-            }
         } catch(e:Dynamic) error(e);
     }
     public static function suppressAura(entity:Dynamic, fx:Dynamic, skill:Dynamic):Bool {
@@ -82,10 +76,6 @@ class BeeEffects {
             if (name!="Honey_Aura") return false;
             var id=G.text(G.field(G.field(skill,"inf"),"id"));
             if (!BeeEffectPolicy.aura(enabled,id,name,!isClient(skill))) return false;
-            if (!auraWarned) {
-                auraWarned=true;
-                trace("[More Settings] Bee Honey_Aura visual/audio suppressed; buff retained.");
-            }
             return true;
         } catch(e:Dynamic) { error(e); return false; }
     }
