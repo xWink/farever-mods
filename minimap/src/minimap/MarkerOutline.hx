@@ -10,13 +10,25 @@ class MarkerOutline {
         default: false; // Other markers already include an outline in their geometry.
     };
 
-    public static function apply(object:Dynamic, pixels:Float):Void {
-        var outline = G.create("h2d.filter.Outline", [null, null, null, null]);
-        G.call("h2d.filter.Outline", "set_size", outline, [pixels]);
-        G.call("h2d.filter.Outline", "set_quality", outline, [1.]);
-        G.call("h2d.filter.Outline", "set_color", outline, [0x201b1b]);
-        G.call("h2d.filter.Outline", "set_alpha", outline, [1.]);
-        G.call("h2d.filter.Filter", "set_useScreenResolution", outline, [true]);
-        G.call("h2d.Object", "set_filter", object, [outline]);
+    public static function compose(parent:Dynamic, tile:Dynamic, pixels:Float, blend:Dynamic):Void {
+        // Bake a small dilation of the source alpha. Native Outline filters
+        // turn the offscreen capture's bounds into an opaque rectangle here.
+        // Tinting bitmap RGB to black preserves every transparent source pixel.
+        for (i in 0...8) {
+            var angle = i * Math.PI / 4;
+            var shadow = bitmap(parent, tile, blend);
+            G.call("h3d.Vector4Impl", "setColor", G.field(shadow, "color"), [0xff000000]);
+            G.call("h2d.Object", "setPosition", shadow, [Math.cos(angle) * pixels, Math.sin(angle) * pixels]);
+        }
+        // Original artwork covers the inside of the silhouette, at its original
+        // position and size. Only the one-pixel outer edge remains visible.
+        bitmap(parent, tile, blend);
+    }
+
+    static function bitmap(parent:Dynamic, tile:Dynamic, blend:Dynamic):Dynamic {
+        var object = G.create("h2d.Bitmap", [tile, parent]);
+        G.set(object, "smooth", true);
+        G.set(object, "blendMode", blend);
+        return object;
     }
 }

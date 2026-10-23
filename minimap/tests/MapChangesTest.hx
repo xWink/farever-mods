@@ -52,11 +52,11 @@ class MapChangesTest {
         for (fps in [30,60,144]) {
             var w:Dynamic = {panning:{x:20.,y:-40.},tileScale:2.,zoom:0.5,targetZoom:0.5};
             pan.scrollTo(w, 300., 400.);
-            // Two slowed frames must equal one native frame at any frame rate.
-            for (_ in 0...2) { pan.beginUpdate(w); nativeStep(w, 1. / fps); pan.beforeScroll(w); }
-            var fraction = 1 - Math.pow(0.7, 60. / fps);
-            near(G.number(w.panning.x), 20 + 280 * fraction, 'Half-time easing X at '+fps+'fps');
-            near(G.number(w.panning.y), -40 + 440 * fraction, 'Half-time easing Y at '+fps+'fps');
+            // Four frames now equal one frame of the previous half-speed pan.
+            for (_ in 0...4) { pan.beginUpdate(w); nativeStep(w, 1. / fps); pan.beforeScroll(w); }
+            var fraction = 1 - Math.pow(0.7, 30. / fps);
+            near(G.number(w.panning.x), 20 + 280 * fraction, 'Quarter of previous speed X at '+fps+'fps');
+            near(G.number(w.panning.y), -40 + 440 * fraction, 'Quarter of previous speed Y at '+fps+'fps');
             eq(w.zoom, 0.5, 'Slower pan does not alter zoom');
             var x = G.number(w.panning.x); pan.beforeScroll(w);
             near(G.number(w.panning.x), x, 'Repeated scroll refresh cannot slow a frame twice');

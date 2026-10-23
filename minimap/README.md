@@ -14,7 +14,7 @@ Adds a configurable minimap and enhances the main overworld map with detailed ma
 - Activities include subfilters for dungeons, rifts, and soulstones. NPCs include subfilters for obelisks, respawns, faction merchants, and stations. Your own marker stays visible.
 - The main map shows the next rift countdown beneath its marker, highlights the Heroic Bonus Dungeon with a green plus, and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
 - Activity and faction merchant markers have dark silhouette outlines for readability, cached once per appearance on both maps.
-- Click the Heroic Bonus Dungeon card to smoothly center the main map on its entrance at half the native pan speed, even when dungeon markers are filtered out. Manual panning and zooming take over immediately.
+- Click the Heroic Bonus Dungeon card to smoothly center the main map on its entrance at one eighth of the native pan speed, even when dungeon markers are filtered out. Manual panning and zooming take over immediately.
 - The main map keeps native right-click pin placement and the player’s camera-direction cone.
 - Obelisk fast travel shows only unlocked destinations, with clickable yellow rings, your marker and camera-direction cone. Height arrows and the vertical-distance filter are disabled in this view.
 - Both maps hide markers in regions whose obelisk has not been activated; the minimap also retains the game’s fog of war.

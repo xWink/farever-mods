@@ -11,7 +11,44 @@ class MainMapPerformanceTest {
         checks++;
         if (actual != expected) throw message + ': expected ' + expected + ', got ' + actual;
     }
+    static function outlinePixels():Void {
+        var root = G.create('h2d.Object', [null]);
+        var source:Dynamic = {width:32., height:32.};
+        var start = G.created.length;
+        minimap.MarkerOutline.compose(root, source, 1., 'AlphaAdd');
+        var layers = G.created.slice(start);
+        eq(layers.length, 9, 'Outline consists of eight alpha-preserving silhouettes and original art');
+        for (i in 0...layers.length) {
+            var layer = layers[i];
+            eq(layer.nativeType, 'h2d.Bitmap', 'Outline uses source pixels without native filters');
+            eq(layer.tile, source, 'Every layer samples the same alpha mask');
+            eq(layer.blendMode, 'AlphaAdd', 'Premultiplied source alpha survives composition');
+            eq(layer.scale, 1., 'Outline does not enlarge or distort artwork');
+            var x = G.number(layer.x), y = G.number(layer.y);
+            eq(Math.abs(x*x + y*y - (i == 8 ? 0 : 1)) < 0.000001, true, 'Silhouettes extend only one pixel');
+            eq(layer.color.argb, i == 8 ? 0xffffffff : 0xff000000, 'Tint changes RGB while keeping source alpha');
+        }
+        // Sample the actual configured bitmap transforms over a diamond alpha
+        // fixture. Transparent corners and holes must not acquire a background.
+        var hole = false;
+        function pixel(x:Float, y:Float):Int {
+            var result = 0;
+            for (layer in layers) {
+                var dx = x - G.number(layer.x) - 16, dy = y - G.number(layer.y) - 16;
+                if (Math.abs(dx) + Math.abs(dy) <= 5 && (!hole || dx*dx + dy*dy >= 4))
+                    result = layer.color.argb == 0xffffffff ? 0xff79ef93 : 0xff000000;
+            }
+            return result;
+        }
+        eq(pixel(16,16), 0xff79ef93, 'Original icon color remains intact');
+        eq(pixel(21.75,16), 0xff000000, 'A thin black edge appears just beyond the icon');
+        eq(pixel(22.01,16), 0, 'Pixels beyond the one-pixel border stay transparent');
+        for (x in [0.5,31.5]) for (y in [0.5,31.5]) eq(pixel(x,y), 0, 'Texture corners stay transparent');
+        hole = true;
+        eq(pixel(16,16), 0, 'Transparent internal space is preserved');
+    }
     static function main():Void {
+        outlinePixels();
         var cache = new MainMapIconCache([]);
         var markers = new MinimapMarkers({}, {}, {}, 'World/W1_Siagarta', 1.5, {}, cache);
         var hero:Dynamic = {layer:{}, posx:0., posy:0., posz:0.};
@@ -78,11 +115,11 @@ class MainMapPerformanceTest {
                 x:100.+i*25, y:100., z:0.}];
         var beforeActivities = G.bakes;
         markers.draw(activityPoints, 1);
-        eq(G.bakes, beforeActivities + 5, "Each activity appearance gets its own cached texture");
+        eq(G.bakes, beforeActivities + 10, "Each activity appearance is baked and outlined once");
         eq(markers.mapIconMarkers[0].icon.tile, markers.mapIconMarkers[5].icon.tile, "Matching activity types share artwork");
         eq(markers.mapIconMarkers[0].icon.tile == markers.mapIconMarkers[1].icon.tile, false, "Boss and chest artwork cannot collide");
         markers.draw(activityPoints, 1);
-        eq(G.bakes, beforeActivities + 5, "Refreshing activities never rebakes unchanged artwork");
+        eq(G.bakes, beforeActivities + 10, "Refreshing activities never rebakes unchanged artwork");
         var outlinedKinds = ['activity','quest','dungeon','soulstone','riftPortal','upcomingRift','inactiveRift','nextRift','pilgrim','demon','glory'];
         var firstOutline = G.created.length;
         var outlined:Array<MapPoint> = [for (i in 0...outlinedKinds.length)
@@ -94,16 +131,29 @@ class MainMapPerformanceTest {
             eq(G.field(marker.icon, 'filter'), null, 'Live marker has no per-frame outline filter');
         }
         var outlines = G.created.slice(firstOutline).filter(o -> G.field(o,'nativeType') == 'h2d.filter.Outline');
-        eq(outlines.length, outlinedKinds.length, 'Every added activity and faction style receives an outline');
-        for (outline in outlines) {
-            eq(outline.size, 8., 'One local pixel becomes eight pixels in supersampled bake');
-            eq(outline.color, 0x201b1b, 'Outline matches existing NPC and enemy borders');
-            eq(outline.useScreenResolution, true, 'Outline size is measured in bake pixels');
+        eq(outlines.length, 0, 'Offscreen icon baking never uses the rectangular native outline filter');
+        var silhouettes = G.created.slice(firstOutline).filter(o -> G.field(o,'nativeType') == 'h2d.Bitmap'
+            && G.field(G.field(o,'color'),'argb') == 0xff000000);
+        eq(silhouettes.length, outlinedKinds.length * 8, 'Every activity and faction style receives its alpha silhouette');
+        for (shadow in silhouettes) {
+            var x = G.number(shadow.x), y = G.number(shadow.y);
+            eq(Math.abs(x*x + y*y - 64) < 0.000001, true, 'One local pixel becomes eight supersampled pixels');
+            eq(shadow.tile.texture.bakedBackground, 0, 'Silhouettes sample a transparent source texture');
         }
         var outlinedBakes = G.bakes, outlinedObjects = G.created.length;
         markers.draw(outlined, 1);
         eq(G.bakes, outlinedBakes, 'Outlined artwork is reused after refresh');
         eq(G.created.length, outlinedObjects, 'No new outline filters are allocated while markers move');
+        var firstFailedOutline = G.created.length;
+        G.failComposite = true;
+        var compositeFailed = false;
+        try cache.tile('failed-outline', g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xffffff), 2, true)
+            catch (_:Dynamic) compositeFailed = true;
+        G.failComposite = false;
+        eq(compositeFailed, true, 'Failed outline composition is reported');
+        for (o in G.created.slice(firstFailedOutline)) if (G.field(o,'nativeType') == 'h3d.mat.Texture')
+            eq(o.disposed, true, 'Failed composition releases both source and target textures');
+        cache.tile('failed-outline', g -> MinimapMarkers.drawPlayerArrow(g, 10, 0xffffff), 2, true);
         var beforeFailure = G.bakes;
         G.failBake = true;
         var failed = false;

@@ -45,7 +45,6 @@ class MainMapIconCache {
             var graphics = G.create("h2d.Graphics", [holder]);
             draw(graphics);
             G.call("h2d.Object", "setScale", graphics, [SAMPLES * 1.]);
-            if (outline) MarkerOutline.apply(graphics, SAMPLES);
             G.call("h2d.Object", "setPosition", graphics, [size * SAMPLES / 2., size * SAMPLES / 2.]);
             texture = G.create("h3d.mat.Texture", [size * SAMPLES, size * SAMPLES, flags, format]);
             allocated.push(texture);
@@ -54,6 +53,17 @@ class MainMapIconCache {
             G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
             G.call("h2d.Object", "drawTo", holder, [texture]);
             geometryReleased = true;
+            if (outline) {
+                var source = G.staticCall("h2d.Tile", "fromTexture", [texture]);
+                holder = G.create("h2d.Object", [null]);
+                geometryReleased = false;
+                MarkerOutline.compose(holder, source, SAMPLES, blend);
+                texture = G.create("h3d.mat.Texture", [size * SAMPLES, size * SAMPLES, flags, format]);
+                allocated.push(texture);
+                G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);
+                G.call("h2d.Object", "drawTo", holder, [texture]);
+                geometryReleased = true;
+            }
             for (pixels in (resolution == 4 ? [size * 4] : [size * 4, size * 2])) {
                 var source = G.staticCall("h2d.Tile", "fromTexture", [texture]);
                 G.call("h2d.Tile", "scaleToSize", source, [pixels * 1., pixels * 1.]);

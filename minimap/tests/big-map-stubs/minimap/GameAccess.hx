@@ -8,6 +8,7 @@ class GameAccess {
     public static var bakes:Int = 0;
     public static var reductions:Int = 0;
     public static var failReduction:Bool = false;
+    public static var failComposite:Bool = false;
     public static var positionWrites:Int = 0;
     public static var visibilityWrites:Int = 0;
     public static var failBake:Bool = false;
@@ -206,7 +207,18 @@ class GameAccess {
                         if (field(o, "smooth") != true || field(o, "blendMode") != "AlphaAdd") throw "Downsample must average premultiplied RGBA";
                         if (target.clearArgb != 0 || source.bakedBackground != 0) throw "Downsample must preserve transparent padding";
                         reductions++;
-                    } else bakes++;
+                    } else {
+                        var bitmaps = created.filter(child -> field(child, 'parent') == o && field(child, 'nativeType') == 'h2d.Bitmap');
+                        if (bitmaps.length > 0) {
+                            if (failComposite) throw 'Outline composition failed';
+                            for (bitmap in bitmaps) {
+                                var source = bitmap.tile.texture;
+                                if (source.disposed || !source.baked || source == args[0] || source.bakedBackground != 0)
+                                    throw 'Outline must sample a separate transparent source';
+                            }
+                        }
+                        bakes++;
+                    }
                     args[0].baked = true;
                     args[0].bakedBackground = args[0].clearArgb;
                 case "addChild": args[0].parent = o;

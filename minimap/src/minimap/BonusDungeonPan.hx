@@ -50,10 +50,10 @@ class BonusDungeonPan {
         var movedX = G.number(G.field(panning, "x")) - startX;
         var movedY = G.number(G.field(panning, "y")) - startY;
         var fraction = Math.max(0, Math.min(1, (movedX * dx + movedY * dy) / distanceSquared));
-        // Native interpolation is 1 - pow(0.7, dt * wantedFPS). Taking the
-        // square root of its remaining fraction runs that easing at half time,
+        // Native interpolation is 1 - pow(0.7, dt * wantedFPS). Run its easing
+        // at 1/8 native speed: one quarter of the previous half-speed pan,
         // consistently across frame rates, before native scroll/layout work.
-        var slower = 1 - Math.sqrt(1 - fraction);
+        var slower = 1 - Math.pow(1 - fraction, 0.125);
         G.set(panning, "x", startX + dx * slower);
         G.set(panning, "y", startY + dy * slower);
     }
