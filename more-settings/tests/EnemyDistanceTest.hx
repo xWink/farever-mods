@@ -35,7 +35,8 @@ class EnemyDistanceTest {
         eq(label.textColor,0xF4F4E8,"Enemy title colour preserved");
         eq(label.scaleX,0.72,"Distance font is smaller than enemy title");
         eq(label.x,108.,"Label is to the right of the down arrow");
-        check(label.y>=10.&&label.y<=22.,"Distance label aligns with the arrow");
+        check(Math.abs(label.y+font.size*0.72/2-16.0)<0.001,
+            "Distance text center aligns with the native arrow center");
         EnemyDistance.tick(widget,1.02);
         eq(parent.children.length,1,"Repeated updates do not allocate more labels");
         foe.posx=30.;foe.posy=40.;
