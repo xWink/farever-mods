@@ -196,6 +196,14 @@ class DpsMeterMod {
         if (timeline != null) try timeline.started(instance, result) catch (error:Dynamic) timeline.report(error);
         return result;
     }
+    @:hlx.postfix(st.skill.BaseSkill.clientsPlayStep__impl)
+    static function recordPassiveProcStep(instance:Dynamic, step:String, rank:Dynamic,
+        variation:String, target:Dynamic, result:Void):Void {
+        // The shipped client receives skill steps here. Passive procs can
+        // execute without Skill.start; AoE hits and DoT ticks arrive later.
+        if (collector != null) try collector.procStep(instance, haxe.Timer.stamp())
+            catch (error:Dynamic) trace("[DPS Meter] Proc cast capture: " + Std.string(error));
+    }
     @:hlx.prefix(st.skill.Skill.doStop)
     static function recordSkillStop(instance:Dynamic, reason:Dynamic):HlxPrefixResult<Void> {
         if (timeline != null) try timeline.stopped(instance, reason) catch (error:Dynamic) timeline.report(error);

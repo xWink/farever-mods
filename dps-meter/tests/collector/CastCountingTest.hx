@@ -94,6 +94,65 @@ class CastCountingTest {
             kind:"ProcDot", instigatorSkill:statusProc, periodic:true};
         c.statusApplied(procDot);hit(procDot, me, 39.25);
         check(p.skills["StatusProc"].casts == 1, "Periodic procs from persistent statuses count applications too");
+        // Passive infusion/enchant executions are replicated via client
+        // play-step messages rather than direct Skill.start activations.
+        // Confirm two-step bomblet bursts count once, not one cast per hit.
+        for (id in ["Infusion_Kobold_DPS", "Infusion_Crimson_Support", "Enchant_FlamingWeapon"]) {
+            var passiveProc:Dynamic = {__type:"st.skill.Skill", __uid:id, owner:me,
+                kind:id, inf:{nature:5}};
+            var before=c.model.activation("me",id);
+            c.skillUse(passiveProc,null);
+            check(c.model.activation("me",id)==before,id+": equipping passive is not a cast");
+            var now=haxe.Timer.stamp();
+            c.procStep(passiveProc,now);
+            c.procStep(passiveProc,now+0.01);
+            c.procStep(passiveProc,now+0.04);
+            check(c.model.activation("me",id)==before+1,
+                id+": several replicated steps in one burst count once");
+            hit(passiveProc,me,39.26);hit(passiveProc,me,39.27);
+            check(p.skills[id].casts==before+1&&p.skills[id].hits==2,
+                id+": damage hits never create extra casts");
+            c.procStep(passiveProc,now+0.21);
+            check(p.skills[id].casts==before+2,
+                id+": a later independent proc increments the count");
+            passiveProc.simulatingServer=true;
+            c.procStep(passiveProc,now+0.5);passiveProc.simulatingServer=false;
+            config.enabled=false;c.procStep(passiveProc,now+0.5);config.enabled=true;
+            check(p.skills[id].casts==before+2,id+": simulated and disabled callbacks excluded");
+        }
+        var activeInfusion:Dynamic={__type:"st.skill.Skill", owner:me,
+            kind:"Infusion_Manfish_DPS_Ultimate",inf:{nature:2}};
+        c.skillUse(activeInfusion,null);
+        c.procStep(activeInfusion,haxe.Timer.stamp());
+        check(c.model.activation("me","Infusion_Manfish_DPS_Ultimate")==1,
+            "Active infusions count only their real Skill.start, not their steps");
+        var otherProc:Dynamic={__type:"st.skill.Skill", owner:ally,
+            kind:"Enchant_FlamingWeapon",inf:{nature:5}};
+        c.procStep(otherProc,haxe.Timer.stamp());
+        check(c.model.activation("ally","Enchant_FlamingWeapon")==1,
+            "Remote player procs have independent owners");
+        var coupled:Dynamic={__type:"st.skill.Skill",owner:me,
+            kind:"Infusion_MixedStatus",inf:{nature:5}};
+        var coupledStatus:Dynamic={__type:"st.skill.Status",__uid:"mixed-status",owner:target,
+            instigator:me,kind:"MixedStatusDot",instigatorSkill:coupled,periodic:true};
+        var procTime=haxe.Timer.stamp();
+        c.procStep(coupled,procTime);
+        c.statusApplied(coupledStatus);
+        check(c.model.activation("me","Infusion_MixedStatus")==1,
+            "A periodic status created by a proc step is not another cast");
+        var statusFirst:Dynamic={__type:"st.skill.Skill",owner:me,
+            kind:"Enchant_StatusFirst",inf:{nature:5}};
+        var priorStatus:Dynamic={__type:"st.skill.Status",__uid:"status-first",owner:target,
+            instigator:me,kind:"StatusFirstDot",instigatorSkill:statusFirst,periodic:true};
+        c.statusApplied(priorStatus);
+        c.procStep(statusFirst,haxe.Timer.stamp());
+        check(c.model.activation("me","Enchant_StatusFirst")==1,
+            "A proc step following a counted status is not duplicated");
+        var fakeTalent:Dynamic={__type:"st.skill.Skill",owner:me,
+            kind:"Rogue_Talent_Proc",inf:{nature:5}};
+        c.procStep(fakeTalent,haxe.Timer.stamp());
+        check(c.model.activation("me","Rogue_Talent_Proc")==0,
+            "Non-infusion/enchant passives are not inferred from proc steps");
         var cube:Dynamic = {__type:"st.skill.Skill", owner:me, kind:"ConsumeItem", originItem:{kind:"SparkCube"}};
         c.skillUse(cube, null); hit(cube, me, 39.3); hit(cube, me, 39.4);
         check(p.skills["SparkCube"].casts == 1 && p.skills["SparkCube"].hits == 2 && !p.skills.exists("ConsumeItem"),

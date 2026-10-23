@@ -22,6 +22,12 @@ class Collector {
     var riftWait:Dynamic;
     var appliedStatuses:Map<String, Bool> = [];
     var countedSummons:Map<String, Bool> = [];
+    // Replicated proc steps are authoritative execution evidence, but a single
+    // activation may play multiple steps (e.g. a pair of Unstable Bomblets).
+    // Group only near-simultaneous steps; never estimate casts from hit count.
+    static inline var PROC_BURST:Float = 0.15;
+    var recentProcSteps:Map<String, Float> = [];
+    var recentProcStatuses:Map<String, Float> = [];
     public function new(config:MeterSettings, ?timeline:NativeTimeline) {
         this.config = config;
         this.timeline = timeline;
@@ -48,6 +54,7 @@ class Collector {
             riftWait = null;
             appliedStatuses = [];
             countedSummons = [];
+            recentProcSteps = []; recentProcStatuses = [];
         }
         healingCapture.flush(now);
         if (timeline != null) timeline.update(hero, now);
@@ -118,6 +125,29 @@ class Collector {
         if (profile(owner) == null) return;
         model.recordCast(G.uid(owner), NativeCasts.id(skill));
     }
+    /** Count the server-replicated execution of a passive infusion/enchant.
+        One proc may hit several targets or play multiple client steps. Do not
+        infer an activation from any damage/healing notification. */
+    public function procStep(skill:Dynamic, now:Float):Void {
+        if (!config.enabled || hero == null || skill == null || !Math.isFinite(now)
+            || G.field(skill, "simulatingServer") == true) return;
+        var origin = NativeCasts.origin(skill);
+        if (!NativeCasts.stepDrivenProc(origin)) return;
+        var source = NativeHealing.owner(null, origin).source;
+        if (profile(source) == null) return;
+        var uid = G.uid(source), id = NativeCasts.id(origin);
+        if (uid == "" || uid == "0" || id == "") return;
+        var key=uid+"/"+id;
+        var last=recentProcSteps.get(key);
+        if (last!=null && now>=last && now-last<PROC_BURST) return;
+        // Avoid counting twice if the same passive first applied a periodic
+        // status and then replicated the corresponding client skill step.
+        var status=recentProcStatuses.get(key);
+        if (status!=null && now>=status && now-status<PROC_BURST) return;
+        recentProcSteps[key]=now;
+        model.recordCast(uid,id);
+    }
+
     public function statusApplied(status:Dynamic, refreshed = false):Void {
         if (!config.enabled || hero == null || status == null || G.field(status, "simulatingServer") == true
             || G.call("st.skill.Status", "isPeriodic", status) != true) return;
@@ -132,7 +162,16 @@ class Collector {
         var instance = G.uid(status);
         if (instance == "" || instance == "0" || (!refreshed && appliedStatuses.exists(instance))) return;
         appliedStatuses[instance] = true;
-        model.recordCast(G.uid(owner), NativeCasts.id(origin));
+        var uid=G.uid(owner), id=NativeCasts.id(origin);
+        if (NativeCasts.stepDrivenProc(origin)) {
+            var now=haxe.Timer.stamp(), key=uid+"/"+id;
+            var step=recentProcSteps.get(key);
+            // A replicated step for this same passive may create the status.
+            // Keep the existing per-instance/refresh counting otherwise.
+            if (step!=null && now>=step && now-step<PROC_BURST) return;
+            recentProcStatuses[key]=now;
+        }
+        model.recordCast(uid,id);
     }
     public function statusRemoved(status:Dynamic):Void {
         appliedStatuses.remove(G.uid(status));
