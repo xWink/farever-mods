@@ -220,14 +220,23 @@ class PerformanceVisualsTest {
             eq(HoldRepeat.repeatableSkillAction(action),false,
                 action+": item/dodge/mount buttons never repeat");
         }
-        for(action in ["Skill1", "Skill2", "Skill3", "Attack",
-            "SecondarySkill", "WeaponSkill1", "UltimateSkill"]) {
+        for(action in ["Attack", "Secondary", "WeaponSkill1", "WeaponSkill2",
+            "WeaponSkill3", "WeaponSkill4", "Skill1", "Skill2", "Skill3", "Skill4",
+            "SignatureSkill", "weaponskill1", "SIGNATURESKILL"]) {
             eq(HoldRepeat.repeatableSkillAction(action),true,
                 action+": combat skill buttons remain repeatable");
         }
-        for(action in ["Jump", "Roll", "Interact", "Block", "Inventory"]) {
+        // PlayerController.updateSpecificSkillInputs uses this same action
+        // to draw and sheathe; holding it must never toggle repeatedly.
+        for(action in ["DrawWeapon", "drawweapon", "DRAWWEAPON"]) {
             eq(HoldRepeat.repeatableSkillAction(action),false,
-                action+": movement or UI commands remain native");
+                action+": drawing/sheathing weapons never repeats");
+        }
+        for(action in ["Jump", "Roll", "Interact", "Block", "Inventory", "GroupSkill1",
+            "CloseWindow", "TargetLock", "Skill5", "WeaponSkill5", "WeaponSkill1Extra",
+            "SignatureSkillExtra", "SecondarySkill", "UltimateSkill", "UnknownAction", "", null]) {
+            eq(HoldRepeat.repeatableSkillAction(action),false,
+                action+": every action outside the skill allowlist stays native");
         }
         var repeat=new HoldRepeat();
         eq(repeat.sample(true,true,true,1,true),true,"Native first press preserved");

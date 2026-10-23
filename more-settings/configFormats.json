@@ -160,7 +160,7 @@
       "label": "Hold skill button to repeat it",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Repeatedly presses class and weapon skills while held (up to 10 presses/sec). Does not repeat items, dodge, or mount actions. Native cooldowns, targeting, and skill restrictions still apply."
+        "tooltipText": "Repeats only weapon, class, and signature skills while held (up to 10 presses/sec). All other actions keep their normal behavior. Native cooldowns, targeting, and skill restrictions still apply."
       }
     },
     {
