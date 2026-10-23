@@ -12,6 +12,9 @@ typedef MoreSettingsConfig = {
     var showSelfChatBubbles:Bool;
     var addMessageTimestamps:Bool;
     var fancyDamageNumbers:Bool;
+    var damageNumberScale:Int;
+    var damageNumberOpacity:Int;
+    var holdSkillRepeat:Bool;
     var showSkillIconNextToDamageNumber:Bool;
     var obviousSkillProcs:Bool;
     var skillProcAlertSize:Int;
@@ -24,6 +27,7 @@ typedef MoreSettingsConfig = {
     var showBossHealth:Bool;
     var performanceOptimization:Bool;
     var performanceDiagnostics:Bool;
+    var preventCtrlFFullscreen:Bool;
     var waitForParty:Bool;
     var leaveDungeonButton:Bool;
     var leaveRiftButton:Bool;
@@ -57,6 +61,9 @@ class SettingsData {
         showSelfChatBubbles: false,
         addMessageTimestamps: false,
         fancyDamageNumbers: false,
+        damageNumberScale: 100,
+        damageNumberOpacity: 100,
+        holdSkillRepeat: false,
         showSkillIconNextToDamageNumber: false,
         obviousSkillProcs: false,
         skillProcAlertSize: 100,
@@ -69,6 +76,7 @@ class SettingsData {
         showBossHealth: false,
         performanceOptimization: false,
         performanceDiagnostics: false,
+        preventCtrlFFullscreen: false,
         waitForParty: true,
         leaveDungeonButton: true,
         leaveRiftButton: true,
@@ -88,7 +96,14 @@ class SettingsData {
         config.hideUiKey = Hotkey.normalize(config.hideUiKey, 113);
         config.socialInteractKey = Hotkey.normalize(config.socialInteractKey);
         config.skillProcAlertSize = Std.int(Math.max(50, Math.min(200, config.skillProcAlertSize)));
+        config.damageNumberScale = percent(Reflect.field(config,"damageNumberScale"),50,150,100);
+        config.damageNumberOpacity = percent(Reflect.field(config,"damageNumberOpacity"),0,100,100);
         if (["Left", "Right", "Below"].indexOf(config.skillProcAlertPosition) < 0)
             config.skillProcAlertPosition = "Right";
+    }
+    static function percent(value:Dynamic,min:Int,max:Int,fallback:Int):Int {
+        if(value==null)return fallback;
+        var parsed=Std.parseFloat(Std.string(value));
+        return !Math.isFinite(parsed)?fallback:Std.int(Math.max(min,Math.min(max,parsed)));
     }
 }

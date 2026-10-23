@@ -30,6 +30,10 @@ class MoreSettingsMod {
         SettingsData.normalize(config);
         BossHealth.enabled = config.showBossHealth;
         PerformanceHooks.enabled = config.performanceOptimization;
+        BeeEffects.enabled = config.performanceOptimization;
+        BombletEffects.enabled = config.performanceOptimization;
+        PerformanceDamageNumbers.enabled = config.performanceOptimization;
+        InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
         StallMetrics.configure(config.performanceDiagnostics);
         DungeonPartyGuard.enabled = config.waitForParty;
         DungeonLeaveButton.enabled = config.leaveDungeonButton;
@@ -46,7 +50,17 @@ class MoreSettingsMod {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             SettingsData.normalize(config);
             BossHealth.enabled = config.showBossHealth;
+            var changedPerformance=PerformanceHooks.enabled!=config.performanceOptimization;
             PerformanceHooks.enabled = config.performanceOptimization;
+            if(changedPerformance) {
+                BeeEffects.reset();
+                BombletEffects.reset();
+                PerformanceDamageNumbers.reset();
+            }
+            BeeEffects.enabled = config.performanceOptimization;
+            BombletEffects.enabled = config.performanceOptimization;
+            PerformanceDamageNumbers.enabled = config.performanceOptimization;
+            InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
             StallMetrics.configure(config.performanceDiagnostics);
             DungeonPartyGuard.enabled = config.waitForParty;
             DungeonLeaveButton.enabled = config.leaveDungeonButton;
@@ -85,7 +99,13 @@ class MoreSettingsMod {
 
     @:hlx.prefix(ui.comp.DamageDisplay.display)
     static function beforeDamageNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic> {
-        return config.disableDamageNumbers ? SkipWith(null) : Continue;
+        return config.disableDamageNumbers || PerformanceDamageNumbers.suppress() ? SkipWith(null) : Continue;
+    }
+
+    @:hlx.postfix(ui.comp.DamageDisplay.display)
+    static function afterFloatingDamage(damage:Dynamic,position:Dynamic,result:Dynamic):Dynamic {
+        if(!config.disableDamageNumbers) PerformanceDamageNumbers.created(result);
+        return result;
     }
 
     @:hlx.prefix(ui.comp.HealDisplay.display)
@@ -141,18 +161,27 @@ class MoreSettingsMod {
         if (G.isA(instance, "ui.comp.HealDisplay")) return;
         try DamageSkillIcons.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
+        try DamageNumberAppearance.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
     }
 
     @:hlx.postfix(ui.comp.HealDisplay.init)
     static function afterHealDisplayInit(instance:Dynamic, result:Void):Void {
         try DamageSkillIcons.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
+        try DamageNumberAppearance.apply(instance, config) catch (error:Dynamic) damageNumberError(error);
+    }
+
+    @:hlx.postfix(ui.hud.EffectsFeed.displayDamage)
+    static function afterReceivedDamage(instance:Dynamic,damage:Dynamic,result:Void):Void {
+        try DamageNumberAppearance.damageFeed(instance,damage,config)
+        catch(error:Dynamic)damageNumberError(error);
     }
 
     @:hlx.postfix(ui.hud.EffectsFeed.displayHeal)
     static function afterReceivedHeal(instance:Dynamic, damage:Dynamic, result:Void):Void {
         try DamageSkillIcons.applyHealingFeed(instance, damage, config) catch (error:Dynamic) damageNumberError(error);
         try FancyDamageNumbers.applyHealingFeed(instance, damage, config) catch (error:Dynamic) damageNumberError(error);
+        try DamageNumberAppearance.healingFeed(instance, damage, config) catch (error:Dynamic) damageNumberError(error);
     }
 
     @:hlx.postfix(h2d.filter.Filter.bind)
@@ -226,10 +255,24 @@ class MoreSettingsMod {
         return Continue;
     }
 
+    @:hlx.prefix(lib.Input.checkInput)
+    static function suppressCtrlFFullscreen(action:String,checkKey:Dynamic,checkPad:Dynamic):HlxPrefixResult<Bool>
+        return InputComfort.blockFullscreen(action) ? SkipWith(false) : Continue;
+
+    @:hlx.prefix(client.UnitController.updateSkillInputs)
+    static function beforeSkillInput(controller:Dynamic):HlxPrefixResult<Void> {
+        InputComfort.begin(controller);
+        return Continue;
+    }
+
+    @:hlx.postfix(client.UnitController.updateSkillInputs)
+    static function afterSkillInput(controller:Dynamic,result:Void):Void InputComfort.end();
+
     @:hlx.postfix(lib.Input.isPressed)
     static function hideUiPressed(key:String, result:Bool):Bool {
-        try return hideUi.pressed(key, result) catch (e:Dynamic) inputError(e);
-        return result;
+        var pressed=InputComfort.pressed(key,result);
+        try return hideUi.pressed(key,pressed) catch (e:Dynamic) inputError(e);
+        return pressed;
     }
 
     @:hlx.prefix(GameApp.update)
@@ -242,10 +285,50 @@ class MoreSettingsMod {
         return Continue;
     }
 
+    // Cosmetic FX suppression never touches skill damage, area-hit callbacks,
+    // server simulation, or any object owned by the combat model.
+    @:hlx.prefix(st.skill.SkillArea.playAreaFx)
+    static function reduceBombletExplosions(area:Dynamic):HlxPrefixResult<Void>
+        return BombletEffects.suppress(area)?Skip:Continue;
+
+    @:hlx.prefix(world.World.playBellFx)
+    static function reduceBombletTravel(world:Dynamic,inf:Dynamic,owner:Dynamic,
+        from:Dynamic,to:Dynamic,duration:Float):HlxPrefixResult<Void>
+        return BombletEffects.suppressTravel(inf,owner)?Skip:Continue;
+
+    @:hlx.prefix(ent.GameObject.playSkillFx)
+    static function reduceBeeAura(entity:Dynamic,fx:Dynamic,skill:Dynamic,
+        force:hl.Ref<Bool>):HlxPrefixResult<Dynamic>
+        return BeeEffects.suppressAura(entity,fx,skill)?SkipWith(null):Continue;
+
+    @:hlx.prefix(st.skill.SkillArea.playTelegraph)
+    static function reduceBeeOutlines(area:Dynamic,immediate:Bool):HlxPrefixResult<Void>
+        return BeeEffects.suppressSkillFx(area)?Skip:Continue;
+
+    @:hlx.prefix(st.skill.SkillStep.tryPlayShapeFx)
+    static function reduceBeeAttackShapes(step:Dynamic,shape:Dynamic,fx:Dynamic):HlxPrefixResult<Void>
+        return BeeEffects.suppressSkillFx(step)?Skip:Continue;
+
+    @:hlx.postfix(ent.Unit.clientUpdate)
+    static function reduceBeeModels(unit:Dynamic,dt:Float,result:Void):Void
+        BeeEffects.update(unit);
+
+    @:hlx.prefix(ent.Unit.removeVisual)
+    static function restoreBeeOnRemove(unit:Dynamic):HlxPrefixResult<Void> {
+        BeeEffects.release(unit);
+        return Continue;
+    }
+
+    @:hlx.prefix(ent.Projectile.playVisuals)
+    static function reduceBeeProjectileFx(projectile:Dynamic,mode:Int):HlxPrefixResult<Dynamic>
+        return BeeEffects.suppressProjectile(projectile)?SkipWith(null):Continue;
+
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         StallMetrics.suspend();
         PerformanceHooks.dispose();
+        BeeEffects.reset();BombletEffects.reset();PerformanceDamageNumbers.reset();
+        InputComfort.reset();
         DungeonLeaveButton.clear();
         try FancyDamageNumbers.dispose() catch (error:Dynamic) damageNumberError(error);
         DamageSkillIcons.clear();

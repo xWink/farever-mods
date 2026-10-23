@@ -25,6 +25,15 @@
       }
     },
     {
+      "key": "preventCtrlFFullscreen",
+      "type": "checkbox",
+      "label": "Fix Ctrl+F fullscreen shortcut",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Prevents Ctrl+F from toggling fullscreen while both keys are held. Does not change the other fullscreen bindings."
+      }
+    },
+    {
       "key": "leaveDungeonButton",
       "type": "checkbox",
       "label": "Leave dungeon button",
@@ -44,7 +53,8 @@
     },
     {
       "key": "hideUiKey",
-      "type": "keybinding", "modifiers": true,
+      "type": "keybinding",
+      "modifiers": true,
       "label": "Hide UI hotkey"
     },
     {
@@ -54,7 +64,10 @@
       "min": 50,
       "max": 150,
       "step": 5,
-      "tooltip": {"enabled": true, "tooltipText": "Adjusts the gameplay camera's field of view. 100% keeps the game's default, including its sprint effect."}
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Adjusts the gameplay camera's field of view. 100% keeps the game's default, including its sprint effect."
+      }
     },
     {
       "type": "title",
@@ -67,6 +80,39 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Changes the appearance of damage numbers.\n\nBlue: magic hit\nBlue/pink: magic critical hit\nOrange: physical hit\nOrange/red: physical critical hit\nWhite: raw hit\nWhite/gold: raw critical hit\nGreen: heal\nGold/green: critical heal"
+      }
+    },
+    {
+      "key": "damageNumberScale",
+      "type": "slider",
+      "label": "Damage number scale (%)",
+      "min": 50,
+      "max": 150,
+      "step": 5,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Scales floating damage and healing numbers, whether Fancy damage numbers is enabled or not. 100% is the game's normal size."
+      }
+    },
+    {
+      "key": "damageNumberOpacity",
+      "type": "slider",
+      "label": "Damage number opacity (%)",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Controls transparency of floating damage and healing numbers independently of Fancy damage numbers. 100% is fully opaque."
+      }
+    },
+    {
+      "key": "holdSkillRepeat",
+      "type": "checkbox",
+      "label": "Hold skill button to repeat it",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Repeatedly sends the native skill press while held (up to 10 presses/sec). Works with every skill action and uses your existing bindings; cooldowns, targeting, and other native skill restrictions still apply."
       }
     },
     {
@@ -108,7 +154,11 @@
       "key": "skillProcAlertPosition",
       "type": "dropdown",
       "label": "Skill proc alert position",
-      "options": ["Left", "Right", "Below"]
+      "options": [
+        "Left",
+        "Right",
+        "Below"
+      ]
     },
     {
       "key": "buffStackNumberOutline",
@@ -211,7 +261,8 @@
     },
     {
       "key": "socialInteractKey",
-      "type": "keybinding", "modifiers": true,
+      "type": "keybinding",
+      "modifiers": true,
       "label": "Social interact hotkey"
     },
     {

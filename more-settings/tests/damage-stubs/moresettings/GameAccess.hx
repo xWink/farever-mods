@@ -71,6 +71,9 @@ class GameAccess {
             o.needReflow = true;
             return null;
         }
+        if (type == "h2d.Object" && name == "setScale") {
+            o.scaleX=args[0];o.scaleY=args[0];return null;
+        }
         if (type == "haxe.ds.StringMap" && name == "get") return (cast o:Map<String, Dynamic>)[args[0]];
         if (type == "h2d.Tile" && name == "clone") return Reflect.copy(o);
         if (type == "h2d.Tile" && name == "scaleToSize") { o.width = args[0]; o.height = args[1]; return null; }

@@ -1,4 +1,5 @@
 import moresettings.FancyDamageNumbers;
+import moresettings.DamageNumberAppearance;
 import moresettings.SettingsData;
 import moresettings.GameAccess as G;
 
@@ -26,6 +27,47 @@ class DamageNumbersTest {
     static function main():Void {
         var config = SettingsData.defaults();
         eq(config.fancyDamageNumbers, false, "Fancy damage numbers remains opt-in");
+        for(fancy in [false,true]) {
+            config.fancyDamageNumbers=fancy;
+            var number=display(false);
+            DamageNumberAppearance.apply(number,config);
+            eq(Reflect.hasField(number.counter,"scaleX"),false,
+                "100% scale keeps native number transform unchanged");
+            eq(Reflect.hasField(number.counter,"alpha"),false,
+                "100% opacity keeps native fade unchanged");
+            config.damageNumberScale=65;
+            config.damageNumberOpacity=40;
+            DamageNumberAppearance.apply(number,config);
+            near(number.counter.scaleX,0.65,
+                "Number scale applies regardless of fancy appearance");
+            near(number.counter.scaleY,0.65,
+                "Number scales equally on both axes");
+            near(number.counter.alpha,0.4,
+                "Number opacity applies regardless of fancy appearance");
+            eq(number.counter.text,"123,456",
+                "Presentation changes cannot modify the damage amount");
+            var healing=display(false);
+            healing.nativeType="ui.comp.HealDisplay";
+            DamageNumberAppearance.apply(healing,config);
+            near(healing.counter.scaleX,0.65,"Native healing counters also scale");
+            near(healing.counter.alpha,0.4,"Native healing counters also fade");
+            var text:Dynamic={nativeType:"ui.comp.FmtText",text:"+500"};
+            var row:Dynamic={dom:{classes:["heal"]},children:[text]};
+            var feed:Dynamic={activeLines:[{elt:row}]};
+            DamageNumberAppearance.healingFeed(feed,
+                {amount:250.,scale:2.0},config);
+            near(text.scaleX,0.65,"Incoming healing scales independently of fancy");
+            near(text.alpha,0.4,"Incoming healing opacity survives native feed fade");
+            var msg:Dynamic={nativeType:"ui.comp.FmtText",text:"100"};
+            var dmgRow:Dynamic={dom:{classes:["damage"]},children:[msg]};
+            DamageNumberAppearance.damageFeed({activeLines:[{elt:dmgRow}]},
+                {amount:100.},config);
+            near(msg.scaleX,0.65,"Incoming damage feed uses requested number scale");
+            near(msg.alpha,0.4,"Incoming damage feed uses requested opacity");
+            config.damageNumberScale=100;
+            config.damageNumberOpacity=100;
+        }
+        config.fancyDamageNumbers=false;
         for (critical in [false, true]) for (magic in [false, true]) for (raw in [false, true]) {
             var disabled = display(critical, magic, raw);
             FancyDamageNumbers.apply(disabled, config);
