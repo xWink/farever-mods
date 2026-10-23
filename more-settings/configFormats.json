@@ -107,6 +107,42 @@
       }
     },
     {
+      "key": "damageNumberLimit",
+      "type": "slider",
+      "label": "Damage number limit",
+      "min": 0,
+      "max": 200,
+      "step": 5,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "When Performance improvements is enabled, limits simultaneous floating damage numbers and new floating numbers per second. 0 hides damage and healing numbers, even if Performance improvements is disabled. Default: 20."
+      }
+    },
+    {
+      "key": "beeVisualLimit",
+      "type": "slider",
+      "label": "Bee visual limit",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "With Performance improvements enabled, limits visible bee models and bee projectile visuals. 0 hides them and 100 preserves normal visuals. Default: 100."
+      }
+    },
+    {
+      "key": "bombletVisualLimit",
+      "type": "slider",
+      "label": "Bomblet visual limit",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "With Performance improvements enabled, limits Bomblet explosion and travel effects per second. 0 hides them and 100 preserves normal effects. Default: 100."
+      }
+    },
+    {
       "key": "holdSkillRepeat",
       "type": "checkbox",
       "label": "Hold skill button to repeat it",
@@ -122,15 +158,6 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Shows the responsible skill's icon beside floating damage and healing numbers, including received healing in the HUD feed. Works with or without Fancy damage numbers."
-      }
-    },
-    {
-      "key": "disableDamageNumbers",
-      "type": "checkbox",
-      "label": "Disable damage numbers",
-      "tooltip": {
-        "enabled": true,
-        "tooltipText": "Hides floating damage and healing numbers, including incoming damage and healing numbers in the effects feed."
       }
     },
     {
@@ -194,6 +221,15 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Hides health bars above allied minions. Your own summons' health bars remain visible."
+      }
+    },
+    {
+      "key": "showEnemyDistance",
+      "type": "checkbox",
+      "label": "Show enemy distance",
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Displays the distance in meters next to the down arrow above a targeted enemy's name. Uses the same font as its name, at a smaller size."
       }
     },
     {

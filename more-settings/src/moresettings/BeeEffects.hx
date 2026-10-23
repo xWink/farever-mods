@@ -7,8 +7,21 @@ private typedef BeeVisual = { var obj:Dynamic; var visible:Bool; }
 /** Client-only performance budget. Bees and attacks still simulate normally. */
 class BeeEffects {
     public static var enabled:Bool = false;
-    static var quota = new VisualQuota(2);
-    static var rate = new VisualRateLimit();
+    static var quota = new VisualQuota(100);
+    static var rate = new VisualRateLimit(0.01);
+    static var shapeRate = new VisualRateLimit(0.01);
+    static var amount:Int = 100;
+    public static function configure(performance:Bool, value:Int):Void {
+        var next=Std.int(Math.max(0,Math.min(100,value)));
+        var shouldLimit=performance && next<100;
+        if(amount==next && enabled==shouldLimit)return;
+        reset();
+        amount=next;
+        quota=new VisualQuota(next);
+        rate=new VisualRateLimit(1.0/Math.max(1,next));
+        shapeRate=new VisualRateLimit(1.0/Math.max(1,next));
+        enabled=shouldLimit;
+    }
     static var hidden = new haxe.ds.ObjectMap<Dynamic, BeeVisual>();
     static var failed = false;
     static var warned = false;
@@ -22,7 +35,7 @@ class BeeEffects {
     public static function reset():Void {
         // Disabling the option restores exactly the pre-existing visibility.
         for (entry in hidden) try show(entry.obj, entry.visible) catch (_:Dynamic) {}
-        hidden = new haxe.ds.ObjectMap(); quota.reset(); rate.reset();
+        hidden = new haxe.ds.ObjectMap(); quota.reset(); rate.reset(); shapeRate.reset();
         failed = false; warned = false; auraWarned = false;
     }
     static function error(e:Dynamic):Void {
@@ -58,7 +71,7 @@ class BeeEffects {
             show(obj,false);
             if (!warned) {
                 warned = true;
-                trace("[More Settings] Bee visual budget active (2 displayed bee models).");
+                trace("[More Settings] Bee visual budget active ("+Std.string(amount)+" displayed bee models).");
             }
         } catch(e:Dynamic) error(e);
     }
@@ -81,7 +94,8 @@ class BeeEffects {
         try {
             var skill=G.field(source,"baseSkill");
             var id=G.text(G.field(G.field(skill,"inf"),"id"));
-            return id=="SummonBee_HoneyBolt" && BeeEffectPolicy.projectile(enabled,id,!isClient(skill));
+            return id=="SummonBee_HoneyBolt" && BeeEffectPolicy.projectile(enabled,id,!isClient(skill))
+                && (amount==0 || !shapeRate.allow(haxe.Timer.stamp()));
         } catch(e:Dynamic) { error(e); return false; }
     }
     public static function suppressProjectile(projectile:Dynamic):Bool {
@@ -91,7 +105,7 @@ class BeeEffects {
             var id=G.text(G.field(G.field(skill,"inf"),"id"));
             return id=="SummonBee_HoneyBolt"
                 && BeeEffectPolicy.projectile(enabled,id,!isClient(projectile))
-                && !rate.allow(haxe.Timer.stamp());
+                && (amount==0 || !rate.allow(haxe.Timer.stamp()));
         } catch(e:Dynamic) { error(e); return false; }
     }
 }

@@ -8,10 +8,23 @@ class BombletEffects {
     static var failed = false;
     static var warned = false;
     static var travelWarned = false;
-    static var travelRate = new VisualRateLimit();
-
+    static var travelRate = new VisualRateLimit(0.01);
+    static var explosionRate = new VisualRateLimit(0.01);
+    static var amount:Int = 100;
+    public static function configure(performance:Bool, value:Int):Void {
+        var next=Std.int(Math.max(0,Math.min(100,value)));
+        var shouldLimit=performance && next<100;
+        if(amount==next && enabled==shouldLimit)return;
+        reset();
+        amount=next;
+        var interval=1.0/Math.max(1,next);
+        travelRate=new VisualRateLimit(interval);
+        explosionRate=new VisualRateLimit(interval);
+        enabled=shouldLimit;
+    }
     public static function reset():Void {
-        failed=false;warned=false;travelWarned=false;travelRate.reset();
+        failed=false;warned=false;travelWarned=false;
+        travelRate.reset();explosionRate.reset();
     }
     static function isClient(state:Dynamic):Bool
         return G.call("st.BaseState","get_isServer",state) == false;
@@ -23,10 +36,11 @@ class BombletEffects {
             if (id!="Infusion_Kobold_DPS") return false;
             var step=G.text(G.call("st.skill.SkillArea","get_stepKind",area));
             if (!BombletEffectPolicy.explosion(enabled,id,step,!isClient(area))) return false;
-            if (!warned) {
-                warned=true;trace("[More Settings] Bomblet explosion cosmetics suppressed; damage retained.");
+            var skip=amount==0 || !explosionRate.allow(haxe.Timer.stamp());
+            if (skip && !warned) {
+                warned=true;trace("[More Settings] Bomblet explosion FX limit: "+Std.string(amount)+" new/second; damage retained.");
             }
-            return true;
+            return skip;
         } catch(e:Dynamic) {
             failed=true;trace("[More Settings] Bomblet visual protection disabled: "+Std.string(e));
             return false;
@@ -39,9 +53,9 @@ class BombletEffects {
             if (step!="Bomblet"&&step!="GoldenBomblet") return false;
             var fx=G.text(G.field(G.field(G.field(inf,"visuals"),"bellFx"),"set"));
             if (!BombletEffectPolicy.travel(enabled,step,fx,!isClient(owner))) return false;
-            var skip=!travelRate.allow(haxe.Timer.stamp());
+            var skip=amount==0 || !travelRate.allow(haxe.Timer.stamp());
             if (skip && !travelWarned) {
-                travelWarned=true;trace("[More Settings] Bomblet travel FX capped at 4 starts/sec.");
+                travelWarned=true;trace("[More Settings] Bomblet travel FX capped at "+Std.string(amount)+" starts/sec.");
             }
             return skip;
         } catch(e:Dynamic) {

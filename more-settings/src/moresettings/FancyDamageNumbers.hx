@@ -28,7 +28,7 @@ class FancyDamageNumbers {
     public static function applyHealingFeed(feed:Dynamic, damage:Dynamic, config:MoreSettingsConfig):Void {
         // HLX runs postfixes even when the hiding prefix skipped the native row.
         // Do not restyle the previous heal when no new row was added.
-        if (config.disableDamageNumbers || !config.fancyDamageNumbers || damage == null) return;
+        if (config.damageNumberLimit == 0 || !config.fancyDamageNumbers || damage == null) return;
         var element = HealingFeed.lastAddedRow(feed, damage);
         if (element == null) return;
         var children = G.integer(G.call("h2d.Object", "get_numChildren", element));

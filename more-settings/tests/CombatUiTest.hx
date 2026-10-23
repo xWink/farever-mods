@@ -153,7 +153,7 @@ class CombatUiTest {
 
     static function descriptor():Void {
         var config = SettingsData.defaults();
-        eq(config.disableDamageNumbers, false, "damage hiding opt-in");
+        eq(config.damageNumberLimit,20,"Damage number budget preserves a 20 per second default");
         eq(config.hideAlliedMinionHealthBars, false, "minion bar hiding opt-in");
         var descriptor:Dynamic = haxe.Json.parse(sys.io.File.getContent("configFormats.json"));
         var rows:Array<Dynamic> = descriptor.configs;
@@ -162,13 +162,21 @@ class CombatUiTest {
             "damage number scale follows fancy numbers");
         eq(keys.indexOf("damageNumberOpacity"), keys.indexOf("damageNumberScale") + 1,
             "damage number opacity follows scale");
-        eq(keys.indexOf("holdSkillRepeat"), keys.indexOf("damageNumberOpacity") + 1,
+        eq(keys.indexOf("damageNumberLimit"), keys.indexOf("damageNumberOpacity") + 1,
+            "damage number limit follows opacity");
+        eq(keys.indexOf("beeVisualLimit"), keys.indexOf("damageNumberLimit") + 1,
+            "bee limit follows damage number limit");
+        eq(keys.indexOf("bombletVisualLimit"), keys.indexOf("beeVisualLimit") + 1,
+            "bomblet limit follows bee limit");
+        eq(keys.indexOf("holdSkillRepeat"), keys.indexOf("bombletVisualLimit") + 1,
             "hold skill repeat is available in Combat");
         eq(keys.indexOf("showSkillIconNextToDamageNumber"), keys.indexOf("holdSkillRepeat") + 1,
             "skill icons follow the new Combat controls");
-        eq(keys.indexOf("disableDamageNumbers"), keys.indexOf("showSkillIconNextToDamageNumber") + 1, "damage toggle follows skill icons");
+        eq(keys.indexOf("disableDamageNumbers"), -1, "Old damage number disable checkbox was removed");
         var social = [for (row in rows) Std.string(row.label)].indexOf("Social");
-        eq(keys[social - 1], "hideAlliedMinionHealthBars", "minion bars last in Combat");
+        eq(keys[social - 1], "showEnemyDistance", "enemy distance is last in Combat");
+        eq(keys.indexOf("showEnemyDistance"),keys.indexOf("hideAlliedMinionHealthBars")+1,
+            "enemy distance follows minion HP display control");
         for (row in rows) {
             if (row.type == "title") eq(["Appearance", "Unfocused Volume", "Fast Travel Music"].indexOf(row.label), -1, "retired sections removed");
             eq(["changeAppearance", "adjustUnfocusedVolume", "backgroundVolume", "adjustFastTravelVolume", "fastTravelVolume"].indexOf(row.key), -1, "retired controls removed");

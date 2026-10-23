@@ -159,3 +159,10 @@
 -cp tests
 -main PerformanceVisualsTest
 --interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests/enemy-distance-stubs
+-cp tests
+-main EnemyDistanceTest
+--interp

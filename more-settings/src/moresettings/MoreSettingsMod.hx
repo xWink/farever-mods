@@ -30,9 +30,10 @@ class MoreSettingsMod {
         SettingsData.normalize(config);
         BossHealth.enabled = config.showBossHealth;
         PerformanceHooks.enabled = config.performanceOptimization;
-        BeeEffects.enabled = config.performanceOptimization;
-        BombletEffects.enabled = config.performanceOptimization;
-        PerformanceDamageNumbers.enabled = config.performanceOptimization;
+        BeeEffects.configure(config.performanceOptimization, config.beeVisualLimit);
+        BombletEffects.configure(config.performanceOptimization, config.bombletVisualLimit);
+        PerformanceDamageNumbers.configure(config.performanceOptimization, config.damageNumberLimit);
+        EnemyDistance.enabled = config.showEnemyDistance;
         InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
         StallMetrics.configure(config.performanceDiagnostics);
         DungeonPartyGuard.enabled = config.waitForParty;
@@ -50,16 +51,11 @@ class MoreSettingsMod {
             config = ModConfig.load(HlxRuntime.moduleName(), config);
             SettingsData.normalize(config);
             BossHealth.enabled = config.showBossHealth;
-            var changedPerformance=PerformanceHooks.enabled!=config.performanceOptimization;
             PerformanceHooks.enabled = config.performanceOptimization;
-            if(changedPerformance) {
-                BeeEffects.reset();
-                BombletEffects.reset();
-                PerformanceDamageNumbers.reset();
-            }
-            BeeEffects.enabled = config.performanceOptimization;
-            BombletEffects.enabled = config.performanceOptimization;
-            PerformanceDamageNumbers.enabled = config.performanceOptimization;
+            BeeEffects.configure(config.performanceOptimization, config.beeVisualLimit);
+            BombletEffects.configure(config.performanceOptimization, config.bombletVisualLimit);
+            PerformanceDamageNumbers.configure(config.performanceOptimization, config.damageNumberLimit);
+            EnemyDistance.enabled = config.showEnemyDistance;
             InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
             StallMetrics.configure(config.performanceDiagnostics);
             DungeonPartyGuard.enabled = config.waitForParty;
@@ -92,6 +88,11 @@ class MoreSettingsMod {
         try MinionHealthBars.attach(instance) catch (e:Dynamic) MinionHealthBars.report(e);
     }
 
+    @:hlx.postfix(ui.hud.FoeWidget.init)
+    static function afterFoeWidgetInit(instance:Dynamic,result:Void):Void {
+        try EnemyDistance.attach(instance) catch (error:Dynamic) EnemyDistance.report(error);
+    }
+
     @:hlx.postfix(ui.comp.AttributeBar.init)
     static function afterAttributeBarInit(instance:Dynamic, result:Void):Void {
         try MinionHealthBars.attachLifetime(instance) catch (e:Dynamic) MinionHealthBars.report(e);
@@ -99,26 +100,26 @@ class MoreSettingsMod {
 
     @:hlx.prefix(ui.comp.DamageDisplay.display)
     static function beforeDamageNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic> {
-        return config.disableDamageNumbers || PerformanceDamageNumbers.suppress() ? SkipWith(null) : Continue;
+        return PerformanceDamageNumbers.suppress() ? SkipWith(null) : Continue;
     }
 
     @:hlx.postfix(ui.comp.DamageDisplay.display)
     static function afterFloatingDamage(damage:Dynamic,position:Dynamic,result:Dynamic):Dynamic {
-        if(!config.disableDamageNumbers) PerformanceDamageNumbers.created(result);
+        PerformanceDamageNumbers.created(result);
         return result;
     }
 
     @:hlx.prefix(ui.comp.HealDisplay.display)
     static function beforeHealingNumber(damage:Dynamic, position:Dynamic):HlxPrefixResult<Dynamic>
-        return config.disableDamageNumbers ? SkipWith(null) : Continue;
+        return config.damageNumberLimit == 0 ? SkipWith(null) : Continue;
 
     @:hlx.prefix(ui.hud.EffectsFeed.displayDamage)
     static function beforeIncomingDamageNumber(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void>
-        return config.disableDamageNumbers ? Skip : Continue;
+        return config.damageNumberLimit == 0 ? Skip : Continue;
 
     @:hlx.prefix(ui.hud.EffectsFeed.displayHeal)
     static function beforeIncomingHealingNumber(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void>
-        return config.disableDamageNumbers ? Skip : Continue;
+        return config.damageNumberLimit == 0 ? Skip : Continue;
 
     @:hlx.postfix(ui.win.GearAppearance.init)
     static function afterGearAppearanceInit(instance:Dynamic, result:Void):Void {
@@ -128,6 +129,7 @@ class MoreSettingsMod {
     @:hlx.postfix(ui.BaseElement.onRemove)
     static function afterElementRemoved(instance:Dynamic, result:Void):Void {
         MinionHealthBars.forget(instance);
+        EnemyDistance.forget(instance);
         BarbershopButton.forget(instance);
         ObviousSkillProcs.forget(instance);
         BuffStackOutlines.forget(instance);
@@ -327,6 +329,7 @@ class MoreSettingsMod {
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         StallMetrics.suspend();
         PerformanceHooks.dispose();
+        EnemyDistance.clear();
         BeeEffects.reset();BombletEffects.reset();PerformanceDamageNumbers.reset();
         InputComfort.reset();
         DungeonLeaveButton.clear();

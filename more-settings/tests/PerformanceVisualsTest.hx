@@ -19,6 +19,27 @@ class PerformanceVisualsTest {
         eq(c.holdSkillRepeat,false,"Hold-to-repeat remains opt-in");
         eq(c.damageNumberScale,100,"Default damage scale is neutral");
         eq(c.damageNumberOpacity,100,"Default damage alpha is neutral");
+        eq(c.damageNumberLimit,20,"Damage number limit defaults to previous throughput");
+        eq(c.beeVisualLimit,100,"Bee visual slider defaults to maximum");
+        eq(c.bombletVisualLimit,100,"Bomblet visual slider defaults to maximum");
+        eq(c.showEnemyDistance,false,"Enemy distance is opt-in");
+        for (key in ["damageNumberLimit","beeVisualLimit","bombletVisualLimit"]) {
+            Reflect.setField(c,key,-20);
+        }
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,0,"Damage number budget lower clamp");
+        eq(c.beeVisualLimit,0,"Bee visual count lower clamp");
+        eq(c.bombletVisualLimit,0,"Bomblet visual count lower clamp");
+        c.damageNumberLimit=999;c.beeVisualLimit=999;c.bombletVisualLimit=999;
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,200,"Damage number budget upper clamp");
+        eq(c.beeVisualLimit,100,"Bee visual count upper clamp");
+        eq(c.bombletVisualLimit,100,"Bomblet visual count upper clamp");
+        c.disableDamageNumbers=true;
+        SettingsData.normalize(c);
+        eq(c.damageNumberLimit,0,"Old disable setting migrates to zero");
+        eq(c.disableDamageNumbers,false,"Old disable flag clears after migration");
+        c.damageNumberLimit=20;
         c.damageNumberScale=1;c.damageNumberOpacity=-5;
         SettingsData.normalize(c);
         eq(c.damageNumberScale,50,"Damage scale clamps at 50%");
@@ -74,7 +95,20 @@ class PerformanceVisualsTest {
         eq(rate.allow(5.26),true,"Later events are shown");
         eq(rate.allow(1),true,"Clock reset allows new event");
         var budget=new VisualDamageBudget();
-        eq(budget.maximum,16,"Floating damage widgets can have sixteen active");
+        eq(budget.maximum,20,"Default floating damage budget is twenty");
+        budget.configure(0);
+        eq(budget.allow(0,widget->widget.parent!=null),false,
+            "Damage number slider zero suppresses all widgets");
+        budget.configure(200);
+        eq(budget.maximum,200,"Slider maximum allows two hundred simultaneous widgets");
+        eq(budget.allow(0,widget->widget.parent!=null),true,
+            "Two hundred per second first number");
+        eq(budget.allow(0.004,widget->widget.parent!=null),false,
+            "Two hundred per second still rate-limits tiny bursts");
+        eq(budget.allow(0.006,widget->widget.parent!=null),true,
+            "Two hundred per second permits number after five milliseconds");
+        budget.configure(20);
+        eq(budget.maximum,20,"Live slider updates replace the old hardcoded limit");
         eq(budget.allow(0,widget->widget.parent!=null),true,
             "First damage number is allowed");
         eq(budget.allow(0.04,widget->widget.parent!=null),false,
@@ -83,7 +117,7 @@ class PerformanceVisualsTest {
             "A new number is allowed after fifty milliseconds");
         budget.reset();
         var active=new Array<Dynamic>();
-        for(i in 0...16) {
+        for(i in 0...20) {
             var o:Dynamic={parent:{}};
             eq(budget.allow(i*0.055, widget->widget.parent!=null),true,
                 "Attached widget budget admits number "+i);
@@ -91,13 +125,37 @@ class PerformanceVisualsTest {
             active.push(o);
         }
         eq(budget.allow(2,widget->widget.parent!=null),false,
-            "At most sixteen attached widgets");
+            "At most twenty attached widgets");
         active[0].parent=null;
         eq(budget.allow(2.11,widget->widget.parent!=null),true,
             "Detached damage number releases its visual slot");
         budget.reset();
         eq(budget.allow(3,widget->widget.parent!=null),true,
             "Reset restores the native number budget");
+        moresettings.BeeEffects.configure(true,100);
+        eq(moresettings.BeeEffects.enabled,false,
+            "Bee slider max preserves normal visuals");
+        moresettings.BeeEffects.configure(true,2);
+        eq(moresettings.BeeEffects.enabled,true,
+            "Lower bee slider enables visual optimization");
+        moresettings.BeeEffects.configure(false,2);
+        eq(moresettings.BeeEffects.enabled,false,
+            "Performance toggle off disables bee limitations");
+        moresettings.BombletEffects.configure(true,100);
+        eq(moresettings.BombletEffects.enabled,false,
+            "Bomblet slider maximum preserves normal visuals");
+        moresettings.BombletEffects.configure(true,4);
+        eq(moresettings.BombletEffects.enabled,true,
+            "Bomblet visual limiter can be enabled");
+        moresettings.BombletEffects.configure(false,4);
+        eq(moresettings.BombletEffects.enabled,false,
+            "Performance toggle off disables bomblet limitations");
+        moresettings.PerformanceDamageNumbers.configure(false,0);
+        eq(moresettings.PerformanceDamageNumbers.suppress(),true,
+            "Damage limit 0 hides numbers even without performance toggle");
+        moresettings.PerformanceDamageNumbers.configure(false,20);
+        eq(moresettings.PerformanceDamageNumbers.suppress(),false,
+            "No damage throttling when performance optimization is disabled");
         var repeat=new HoldRepeat();
         eq(repeat.sample(true,true,true,1,true),true,"Native first press preserved");
         eq(repeat.sample(true,true,true,1.05,false),false,"Repeat never fires early");
