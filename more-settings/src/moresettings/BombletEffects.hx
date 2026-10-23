@@ -6,8 +6,6 @@ import moresettings.GameAccess as G;
 class BombletEffects {
     public static var enabled:Bool = false;
     static var failed = false;
-    static var warned = false;
-    static var travelWarned = false;
     static var travelRate = new VisualRateLimit(0.01);
     static var explosionRate = new VisualRateLimit(0.01);
     static var amount:Int = -1;
@@ -23,7 +21,7 @@ class BombletEffects {
         enabled=shouldLimit;
     }
     public static function reset():Void {
-        failed=false;warned=false;travelWarned=false;
+        failed=false;
         travelRate.reset();explosionRate.reset();
     }
     static function isClient(state:Dynamic):Bool
@@ -36,11 +34,7 @@ class BombletEffects {
             if (id!="Infusion_Kobold_DPS") return false;
             var step=G.text(G.call("st.skill.SkillArea","get_stepKind",area));
             if (!BombletEffectPolicy.explosion(enabled,id,step,!isClient(area))) return false;
-            var skip=amount==0 || !explosionRate.allow(haxe.Timer.stamp());
-            if (skip && !warned) {
-                warned=true;trace("[More Settings] Bomblet explosion FX limit: "+Std.string(amount)+" new/second; damage retained.");
-            }
-            return skip;
+            return amount==0 || !explosionRate.allow(haxe.Timer.stamp());
         } catch(e:Dynamic) {
             failed=true;trace("[More Settings] Bomblet visual protection disabled: "+Std.string(e));
             return false;
@@ -53,11 +47,7 @@ class BombletEffects {
             if (step!="Bomblet"&&step!="GoldenBomblet") return false;
             var fx=G.text(G.field(G.field(G.field(inf,"visuals"),"bellFx"),"set"));
             if (!BombletEffectPolicy.travel(enabled,step,fx,!isClient(owner))) return false;
-            var skip=amount==0 || !travelRate.allow(haxe.Timer.stamp());
-            if (skip && !travelWarned) {
-                travelWarned=true;trace("[More Settings] Bomblet travel FX capped at "+Std.string(amount)+" starts/sec.");
-            }
-            return skip;
+            return amount==0 || !travelRate.allow(haxe.Timer.stamp());
         } catch(e:Dynamic) {
             failed=true;trace("[More Settings] Bomblet travel FX limit disabled: "+Std.string(e));
             return false;
