@@ -50,7 +50,8 @@ class GameAccess {
     o.captureCalls=integer(field(o,"captureCalls"))+1;o.pixels;
    case "getPixel" if(t=="hxd.Pixels"):
     var x=integer(a[0]),y=integer(a[1]);
-    var areas:Array<Dynamic>=cast o.areas,alpha=0;
+    var areas:Array<Dynamic>=cast o.areas;
+    var alpha=0;
     for(r in areas)if(x>=r.x&&y>=r.y&&x<r.x+r.w&&y<r.y+r.h)alpha=integer(r.alpha);
     (alpha<<24)|0x00808080;
    case "sub" if(t=="h2d.Tile"):
