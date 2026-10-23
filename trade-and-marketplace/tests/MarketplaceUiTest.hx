@@ -78,6 +78,7 @@ class MarketplaceUiTest {
   var testMask=GameAccess.object(),testButton=GameAccess.object(testMask);
   check(trade.TradeNativeSlot.replaceMarketplaceArtwork(testButton,{inf:padded},52));
   var trimmed=maskedBitmap(testMask);
+  Sys.println("TRIM PROBE "+haxe.Json.stringify({tile:trimmed.tile,src:padded,captures:tex.captureCalls,artWidth:trimmed.width,artHeight:trimmed.height}));
   check(trimmed.tile!=padded&&trimmed.tile.x==7&&trimmed.tile.y==5
    &&trimmed.tile.width==46&&trimmed.tile.height==48
    &&trimmed.tile.dx==0&&trimmed.tile.dy==0);
