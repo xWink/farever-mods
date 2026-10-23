@@ -5,6 +5,8 @@ class GameAccess {
     public static var hero:Dynamic;
     public static function field(o:Dynamic,k:String):Dynamic
         return o==null?null:Reflect.field(o,k);
+    public static function set(o:Dynamic,k:String,v:Dynamic):Void
+        Reflect.setField(o,k,v);
     public static function number(v:Dynamic,fallback:Float=0):Float {
         if(v==null)return fallback;
         var f=Std.parseFloat(Std.string(v));
@@ -25,6 +27,17 @@ class GameAccess {
         children.push(label);
         return label;
     }
+    /** Native Flow positions ordinary children during HUD layout. Absolute
+        children with no alignment keep their explicitly assigned position. */
+    public static function reflow(parent:Dynamic):Void {
+        var children:Array<Dynamic>=parent.children;
+        for(child in children) {
+            var p=field(child,"flowProperties");
+            if(p!=null&&p.isAbsolute==true
+                &&p.horizontalAlign==null&&p.verticalAlign==null)continue;
+            child.x=0.;child.y=0.;
+        }
+    }
     public static function call(t:String,n:String,o:Dynamic,?args:Array<Dynamic>):Dynamic {
         if(args==null)args=[];
         return switch(n) {
@@ -38,6 +51,14 @@ class GameAccess {
             case "setScale":o.scaleX=args[0];o.scaleY=args[0];null;
             case "setPosition":o.x=args[0];o.y=args[1];null;
             case "set_visible":o.visible=args[0];null;
+            case "getProperties":
+                if(!isA(o,"h2d.Flow"))throw "Flow properties requested on a non-Flow parent";
+                var child=args[0];
+                if(field(child,"flowProperties")==null)
+                    child.flowProperties={isAbsolute:false,horizontalAlign:null,
+                        verticalAlign:null,offsetX:0,offsetY:0};
+                child.flowProperties;
+            case "set_isAbsolute":o.isAbsolute=args[0];null;
             case "getBounds":o.bounds;
             case "get_textHeight":o.font.size*1.0;
             case "remove":

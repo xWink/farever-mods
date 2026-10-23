@@ -12,7 +12,7 @@ class EnemyDistanceTest {
     }
     static function main():Void {
         var font:Dynamic={size:20};
-        var parent:Dynamic={children:new Array<Dynamic>()};
+        var parent:Dynamic={type:"h2d.Flow",children:new Array<Dynamic>()};
         var arrow:Dynamic={parent:parent,visible:true,bounds:{
             xMin:98.,xMax:105.,yMin:10.,yMax:22.}};
         var foe:Dynamic={type:"ent.Foe",posx:15.,posy:20.,posz:0.};
@@ -37,9 +37,20 @@ class EnemyDistanceTest {
         eq(label.x,108.,"Label is to the right of the down arrow");
         check(Math.abs(label.y+font.size*0.72/2-16.0)<0.001,
             "Distance text center aligns with the native arrow center");
+        G.reflow(parent);
+        eq(label.x,108.,"Nameplate reflow cannot center the label over the enemy");
+        check(Math.abs(label.y+font.size*0.72/2-16.0)<0.001,
+            "Nameplate reflow preserves vertical anchoring too");
+        arrow.bounds={xMin:158.,xMax:165.,yMin:40.,yMax:52.};
+        foe.posx=30.;foe.posy=40.;
         EnemyDistance.tick(widget,1.02);
         eq(parent.children.length,1,"Repeated updates do not allocate more labels");
-        foe.posx=30.;foe.posy=40.;
+        eq(label.text,"25m","Distance text retains its refresh interval");
+        eq(label.x,168.,"Arrow motion updates label before the next distance refresh");
+        check(Math.abs(label.y+font.size*0.72/2-46.0)<0.001,
+            "Label follows vertical arrow motion every frame");
+        G.reflow(parent);
+        eq(label.x,168.,"Reflow after a moving frame cannot displace the label");
         EnemyDistance.tick(widget,1.2);
         eq(label.text,"50m","Distance updates as foe moves");
         G.hero.posx=30.;G.hero.posy=40.;
@@ -52,9 +63,13 @@ class EnemyDistanceTest {
         EnemyDistance.tick(widget,1.8);
         eq(label.visible,true,"Re-enabling shows the existing label");
         arrow.visible=false;
-        EnemyDistance.tick(widget,2.0);
+        EnemyDistance.tick(widget,1.81);
         eq(label.visible,false,"Hidden native target arrow hides its distance");
         arrow.visible=true;
+        G.hero.posx=0.;G.hero.posy=0.;
+        EnemyDistance.tick(widget,1.82);
+        eq(label.visible,true,"Returning arrow restores label within the refresh interval");
+        eq(label.text,"50m","Returning arrow refreshes its distance immediately");
         widget.active=false;
         EnemyDistance.tick(widget,2.2);
         eq(label.visible,false,"Inactive HUD widgets do not display distance");
@@ -71,8 +86,15 @@ class EnemyDistanceTest {
         widget.gameObject=foe;
         EnemyDistance.tick(widget,3);
         eq(label.visible,true,"Enemy widget restores distance");
+        var plainParent:Dynamic={type:"h2d.Object",children:new Array<Dynamic>()};
+        arrow.parent=plainParent;
+        EnemyDistance.tick(widget,3.01);
+        eq(parent.children.length,0,"Reparented arrow releases its old distance label");
+        eq(plainParent.children.length,1,"Plain display parent also supports the label");
+        eq(plainParent.children[0].x,168.,"Reparented label stays anchored to arrow bounds");
         EnemyDistance.forget(widget);
-        eq(parent.children.length,0,"Native removal releases the decoration");
+        eq(plainParent.children.length,0,"Native removal releases the decoration");
+        arrow.parent=parent;
         EnemyDistance.attach(widget);
         EnemyDistance.enabled=true;
         EnemyDistance.tick(widget,4);

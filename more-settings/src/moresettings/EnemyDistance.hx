@@ -13,8 +13,8 @@ private typedef EnemyDistanceView = {
 /** Adds a small label beside the native FoeWidget target chevron.
 
     We reuse FoeWidget.foeName.font and targetIndicator's actual bounds,
-    rather than cloning its name or changing native DOMKit layout. The only
-    game objects created here are detached client-side text decorations. */
+    rather than cloning its name or changing native DOMKit layout. The label
+    is a client-side decoration excluded from the nameplate's Flow layout. */
 class EnemyDistance {
     public static var enabled:Bool = false;
     static var views=new haxe.ds.ObjectMap<Dynamic,EnemyDistanceView>();
@@ -68,24 +68,32 @@ class EnemyDistance {
             drop(view);
             var label=G.create("h2d.Text",[font,parent]);
             if(label==null)return;
+            view.arrow=arrow;view.label=label;view.lastText="";view.nextUpdate=-1;
+            // FoeWidget uses a Flow. A normal child is repositioned by native
+            // reflow, overriding our arrow-relative coordinates as the HUD moves.
+            if(G.isA(parent,"h2d.Flow")) {
+                var props=G.call("h2d.Flow","getProperties",parent,[label]);
+                G.call("h2d.FlowProperties","set_isAbsolute",props,[true]);
+                G.set(props,"horizontalAlign",null);G.set(props,"verticalAlign",null);
+                G.set(props,"offsetX",0);G.set(props,"offsetY",0);
+            }
             G.call("h2d.Text","set_lineBreak",label,[false]);
             G.call("h2d.Text","set_textColor",label,
                 [G.integer(G.field(foeName,"textColor"),0xFFFFFF)]);
             G.call("h2d.Object","setScale",label,[FONT_SCALE]);
-            view.arrow=arrow;view.label=label;view.lastText="";view.nextUpdate=-1;
         }
         if(!Math.isFinite(now))return;
-        if(view.nextUpdate>=0&&now<view.nextUpdate&&now>=view.nextUpdate-UPDATE_SECONDS)
-            return;
-        view.nextUpdate=now+UPDATE_SECONDS;
-        var value=distance(hero,foe);
-        if(value==""){hide(view);return;}
-        if(value!=view.lastText) {
-            G.call("h2d.Text","set_text",view.label,[value]);
-            view.lastText=value;
+        if(view.nextUpdate<0||now>=view.nextUpdate||now<view.nextUpdate-UPDATE_SECONDS) {
+            view.nextUpdate=now+UPDATE_SECONDS;
+            var value=distance(hero,foe);
+            if(value==""){hide(view);return;}
+            if(value!=view.lastText) {
+                G.call("h2d.Text","set_text",view.label,[value]);
+                view.lastText=value;
+            }
         }
-        // Position in the chevron's parent coordinates, following native HUD
-        // scaling and the target indicator's actual animated location.
+        // Only the distance text is throttled. Follow the arrow's animated
+        // bounds in its parent's coordinates on every native HUD update.
         var bounds=G.call("h2d.Object","getBounds",arrow,[parent,null]);
         var x=G.number(G.field(bounds,"xMax"),Math.NaN);
         var top=G.number(G.field(bounds,"yMin"),Math.NaN);
@@ -97,6 +105,7 @@ class EnemyDistance {
             G.call("h2d.Object","set_visible",view.label,[true]);
     }
     static function hide(entry:EnemyDistanceView):Void {
+        entry.nextUpdate=-1;
         if(entry.label!=null&&G.field(entry.label,"visible")==true)
             G.call("h2d.Object","set_visible",entry.label,[false]);
     }
