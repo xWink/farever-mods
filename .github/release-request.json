@@ -1,7 +1,7 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.1.1",
-  "commit": "8c6263114fd294e7e3ec83374ad2a02c8858642c",
-  "notes": "- Improved UI appearance and button performance in marketplace\n",
+  "project": "more-settings",
+  "version": "1.22.0",
+  "commit": "7b727876b8d4e2d788ea50f0cc570de3a02d325e",
+  "notes": "- Added options for bee, bomblet, and damage number limits\n- Added an option to disable Ctrl+F causing fullscreen\n- Added an option to hold any skill button to repeat it\n- Added options to change the size and opacity of damage numbers (with or without fancy damage numbers)\n- Huge shoutout to Seers/Smedz for the ideas and source code that produced the above performance improvements!\n- Added an option to display an enemy's distance from the player next to their targeting arrow. Also a huge shoutout to Morkai for this idea!",
   "dry_run": false
 }
