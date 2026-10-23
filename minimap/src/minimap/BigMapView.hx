@@ -19,6 +19,7 @@ class BigMapView {
     var filters:MainMapFilters;
     var filterBar:MainMapFilterBar;
     var bonusDungeon:MainMapBonusDungeon;
+    public var bonusPan(default, null) = new BonusDungeonPan();
     var arrow:Dynamic;
     var iconCache:MainMapIconCache;
     var projection:Null<{x:Float, y:Float, width:Int, height:Int, zoom:Float, scale:Float}>;
@@ -167,9 +168,7 @@ class BigMapView {
         bonusDungeon = new MainMapBonusDungeon(overlay, container, id -> {
             var point = markers.activityLocation(id);
             if (point == null) return;
-            // Native scrollTo takes world coordinates and smoothly centers them
-            // without changing zoom or interfering with later manual panning.
-            G.call("ui.win.MapWindow", "scrollTo", window, [point.x, point.y, null, null]);
+            bonusPan.scrollTo(window, point.x, point.y);
             filterBar.closePopup();
         });
         filterBar = new MainMapFilterBar(container, filters, markers.createFilterIcon);
@@ -389,6 +388,7 @@ class BigMapView {
     }
 
     public function dispose():Void {
+        bonusPan.reset();
         restoreNativeInput();
         if (nativeMarkers != null) try nativeMarkers.dispose() catch (_:Dynamic) {}
         if (filterBar != null) try filterBar.dispose() catch (_:Dynamic) {}

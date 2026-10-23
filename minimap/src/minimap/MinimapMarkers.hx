@@ -227,7 +227,7 @@ class MinimapMarkers {
         // Keep geometry cached; only position and rotate the few active arrows
         // each frame so they follow movement and camera rotation smoothly.
         var c = Math.cos(rotation), s = Math.sin(rotation);
-        var north = config.showNorthIndicator ? MinimapGeometry.north(size, config.circular, rotation, markerScale) : null;
+        var north = config.showNorthIndicator ? MinimapGeometry.north(size, (config.minimapShape != "Square"), rotation, markerScale) : null;
         for (i in 0...count) {
             var point = alertTargets[i];
             var party = point.partyMember == true;
@@ -247,11 +247,11 @@ class MinimapMarkers {
                 config.hideVerticallyDistantMarkers, config.verticallyDistantThreshold);
             var visible = (party ? config.showPlayers : config.sparklingCompanionAlerts)
                 && G.field(point.entity, "removed") != true && MinimapGeometry.showAlert(hasMarker,
-                    sx, sy, size, config.circular, (markerRadius(point.kind) + (party ? 4.5 : 3.5)) * markerScale);
+                    sx, sy, size, (config.minimapShape != "Square"), (markerRadius(point.kind) + (party ? 4.5 : 3.5)) * markerScale);
             G.call("h2d.Object", "setScale", arrow, [markerScale]);
             G.call("h2d.Object", "set_visible", arrow, [visible]);
             if (!visible) continue;
-            var pos = MinimapGeometry.alert(sx, sy, size, config.circular, markerScale, north);
+            var pos = MinimapGeometry.alert(sx, sy, size, (config.minimapShape != "Square"), markerScale, north);
             G.call("h2d.Object", "setPosition", arrow, [pos.x, pos.y]);
             G.call("h2d.Object", "set_rotation", arrow, [Math.atan2(sy, sx)]);
             alertPositions.push({x: pos.x, y: pos.y, point: point});
@@ -287,15 +287,15 @@ class MinimapMarkers {
             var sx = dx * c - dy * s, sy = dx * s + dy * c;
             var hasMarker = !MarkerDetails.hidden(target.z, heroHeight,
                 config.hideVerticallyDistantMarkers, config.verticallyDistantThreshold);
-            visible = MinimapGeometry.showAlert(hasMarker, sx, sy, size, config.circular,
+            visible = MinimapGeometry.showAlert(hasMarker, sx, sy, size, (config.minimapShape != "Square"),
                 (markerRadius(target.kind) + 1) * markerScale);
             if (visible) {
                 if (riftArrow == null) {
                     riftArrow = G.create("h2d.Graphics", [alertLayer]);
                     LandmarkIcons.alertArrow(riftArrow, 11, LandmarkIcons.RIFT_ALERT_COLOR);
                 }
-                var north = config.showNorthIndicator ? MinimapGeometry.north(size, config.circular, rotation, markerScale) : null;
-                var pos = MinimapGeometry.alert(sx, sy, size, config.circular, markerScale, north);
+                var north = config.showNorthIndicator ? MinimapGeometry.north(size, (config.minimapShape != "Square"), rotation, markerScale) : null;
+                var pos = MinimapGeometry.alert(sx, sy, size, (config.minimapShape != "Square"), markerScale, north);
                 G.call("h2d.Object", "setScale", riftArrow, [markerScale]);
                 G.call("h2d.Object", "setPosition", riftArrow, [pos.x, pos.y]);
                 G.call("h2d.Object", "set_rotation", riftArrow, [Math.atan2(sy, sx)]);
@@ -918,7 +918,7 @@ class MinimapMarkers {
                     G.call("h2d.Graphics", "clear", marker.icon);
                     paint(marker.icon);
                 } else {
-                    iconCache.apply(marker.icon, key, paint);
+                    iconCache.apply(marker.icon, key, paint, MarkerOutline.needed(point.kind));
                 }
                 marker.key = key;
             }
@@ -947,7 +947,7 @@ class MinimapMarkers {
     }
 
     public function createFilterIcon(parent:Dynamic, kind:String):Dynamic {
-        return iconCache.bitmap(parent, kind, target -> drawFilterIcon(target, kind), 4);
+        return iconCache.bitmap(parent, kind, target -> drawFilterIcon(target, kind), 4, MarkerOutline.needed(kind));
     }
 
     public function drawFilterIcon(target:Dynamic, kind:String):Void {

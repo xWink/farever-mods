@@ -7,9 +7,11 @@ import hlx.runtime.HlxPrefixResult;
 @:build(hlx.runtime.Mod.build())
 class MinimapMod {
     @:hlx.config
+    // Keep the legacy checkbox in the defaults until load: ModConfig imports
+    // only known keys. A null shape lets normalize preserve old false values.
     static var config:MinimapSettings = {
         mainMapEnabled: null, minimapEnabled: null, mainMapHiddenFilters: ["activities:completed", "companions:collected", "enemies:mastered"], transparency: 0, zoom: 30, size: 250, markerScale: 100, rotateMap: true, followCamera: true,
-        circular: true, leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
+        circular: null, minimapShape: null, filterButtonPosition: "Left", leftCorner: false, showNorthIndicator: true, xOffset: 0, yOffset: 0,
         mainMapMarkerScale: 100, mainMapMovement: false, useSameMapFilters: true,
         clockTimerMode: null, showRiftTimer: true, riftAlerts: true,
         showPlayers: true, showPlants: true, showOre: true, showEnemies: true,
@@ -45,6 +47,7 @@ class MinimapMod {
 
     static function normalize():Void {
         MapVisibility.migrate(config);
+        MinimapLayout.migrate(config);
         MainMapFilters.prepare(config);
         // A null initial default lets old false preferences migrate to None.
         config.clockTimerMode = ClockTimer.mode(Reflect.field(config, "clockTimerMode"), config.showRiftTimer);
@@ -114,10 +117,17 @@ class MinimapMod {
         return Continue;
     }
 
+    @:hlx.prefix(ui.win.MapWindow.refreshScrollPos)
+    static function slowBonusDungeonPan(instance:Dynamic):HlxPrefixResult<Void> {
+        if (bigMap != null) bigMap.bonusPan.beforeScroll(instance);
+        return Continue;
+    }
+
     @:hlx.prefix(ui.win.MapWindow.update)
     static function updateMapControls(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
         mapControls.endInputs();
         mapControls.update(instance, config);
+        if (bigMap != null) bigMap.bonusPan.beginUpdate(instance);
         return Continue;
     }
 

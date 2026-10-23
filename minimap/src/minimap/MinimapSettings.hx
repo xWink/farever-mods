@@ -18,7 +18,10 @@ typedef MinimapSettings = {
     var markerScale:Float;
     var rotateMap:Bool;
     var followCamera:Bool;
-    var circular:Bool;
+    /** Legacy import only; replaced by minimapShape. */
+    var ?circular:Bool;
+    var ?minimapShape:String;
+    var ?filterButtonPosition:String;
     /** Legacy import only; converted to xOffset and removed before saving. */
     var ?leftCorner:Bool;
     var showNorthIndicator:Bool;

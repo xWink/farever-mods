@@ -42,6 +42,7 @@ class MainMapFilterBar {
     var gear:MapFilterButton;
     var expanded:Bool = false;
     var circular:Bool = false;
+    var rightSide:Bool = false;
     var expansion:Float = 0;
     var animationFrom:Float = 0;
     var animationStart:Float = -1;
@@ -143,11 +144,11 @@ class MainMapFilterBar {
     public static function hudButtonHeight(size:Float):Float return size / (BAR_HEIGHT + BUTTON_STEP) * HUD_BUTTON_SCALE * BUTTON_SIZE;
     function hudScale():Float return hudButtonHeight(mapSize) / BUTTON_SIZE;
 
-    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float):Void {
+    public function updateHud(size:Float, round:Bool, screenWidth:Float, screenHeight:Float, x:Float, y:Float, ?now:Float, right:Bool = false):Void {
         var moving = advanceAnimation(now == null ? haxe.Timer.stamp() : now);
-        var layoutChanged = mapSize != size || circular != round || width != screenWidth || height != screenHeight || panelX != x || panelY != y;
+        var layoutChanged = mapSize != size || circular != round || rightSide != right || width != screenWidth || height != screenHeight || panelX != x || panelY != y;
         if (layoutChanged) {
-            mapSize = size; circular = round; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
+            mapSize = size; circular = round; rightSide = right; width = screenWidth; height = screenHeight; panelX = x; panelY = y;
             G.call("h2d.Object", "setScale", root, [hudScale()]);
             G.call("h2d.Object", "setScale", gear.object, [hudScale()]);
         }
@@ -162,12 +163,16 @@ class MainMapFilterBar {
 
     function layoutHud():Void {
         var scale = hudScale();
+        var extent = circular ? mapSize : mapSize + MinimapGeometry.FRAME_BORDER * 2;
+        // Lay out the original left path using the selected side's clearance,
+        // then reflect positions only. Artwork and text remain upright.
+        var edgeX = rightSide ? width - panelX - extent : panelX;
         if (circular) {
             var center = mapSize / scale / 2, radius = center + BUTTON_SIZE / 2 + 10;
             // Use the fully expanded arc for screen-edge clearance, so it stays
             // stationary throughout the animation. Interpolate angles, not chords.
             var minX = center - radius - BUTTON_SIZE / 2;
-            var shift = Math.max(0, 4 - panelX - minX * scale);
+            var shift = Math.max(0, 4 - edgeX - minX * scale);
             position(root, shift, 0);
             var gearAngle = 230 * Math.PI / 180;
             position(gear.object, shift + (center + Math.cos(gearAngle) * radius - BUTTON_SIZE / 2) * scale,
@@ -178,7 +183,7 @@ class MainMapFilterBar {
                     center + Math.sin(angle) * radius - BUTTON_SIZE / 2);
             }
         } else {
-            var left = Math.max(4 - panelX, -BUTTON_SIZE * scale - HUD_MAP_GAP);
+            var left = Math.max(4 - edgeX, -BUTTON_SIZE * scale - HUD_MAP_GAP);
             // Keep the gear inside the top-left corner. Filters emerge left
             // into its former slot, then follow the same down-and-right rail.
             var top = Math.max(0, 2 - panelY);
@@ -207,6 +212,13 @@ class MainMapFilterBar {
                     position(buttons[i].object, Math.max(0, distance - cornerY), Math.min(distance, cornerY));
                 }
             }
+        }
+        if (rightSide) {
+            var buttonWidth = BUTTON_SIZE * scale;
+            position(gear.object, extent - G.number(G.field(gear.object, "x")) - buttonWidth, G.number(G.field(gear.object, "y")));
+            position(root, extent - G.number(G.field(root, "x")) - buttonWidth, G.number(G.field(root, "y")));
+            for (button in buttons)
+                position(button.object, -G.number(G.field(button.object, "x")), G.number(G.field(button.object, "y")));
         }
     }
 
@@ -355,8 +367,10 @@ class MainMapFilterBar {
             var anchor = buttons[MainMapFilters.CATEGORIES.indexOf(popupCategory)].object;
             var ax = G.number(G.field(root, "x")) + G.number(G.field(anchor, "x")) * buttonScale;
             var ay = G.number(G.field(root, "y")) + G.number(G.field(anchor, "y")) * buttonScale;
-            var preferred = ax - 286 * scale - 8;
-            if (preferred + panelX < 8) preferred = ax + BUTTON_SIZE * buttonScale + 8;
+            var left = ax - 286 * scale - 8, right = ax + BUTTON_SIZE * buttonScale + 8;
+            var preferred = rightSide ? right : left;
+            if (rightSide && preferred + panelX + 286 * scale > width - 8) preferred = left;
+            if (!rightSide && preferred + panelX < 8) preferred = right;
             G.call("h2d.Object", "setScale", popup, [scale]);
             position(popup, Math.round(Math.max(8 - panelX, Math.min(preferred, width - panelX - 286 * scale - 8))),
                 Math.round(Math.max(8 - panelY, Math.min(ay, height - panelY - h * scale - 8))));

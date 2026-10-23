@@ -16,7 +16,70 @@ class MapChangesTest {
         if (a != b) throw why + ': expected ' + b + ', got ' + a;
     }
     static function point(kind:String):MapPoint return {kind:kind, x:0., y:0., z:0.};
+    static function near(a:Float, b:Float, why:String):Void {
+        checks++; if (Math.abs(a-b) > 0.000001) throw why + ': expected $b, got $a';
+    }
+    static function layoutMigration():Void {
+        for (old in [null, true, false]) {
+            var config:MinimapSettings = cast {circular:old, minimapShape:null, filterButtonPosition:null};
+            minimap.MinimapLayout.migrate(config);
+            eq(config.minimapShape, old == false ? 'Square' : 'Circular', 'Existing checkbox and fresh shape defaults');
+            eq(config.filterButtonPosition, 'Left', 'Filter controls default left');
+            eq(Reflect.hasField(config, 'circular'), false, 'Legacy checkbox removed from saved config');
+            config = haxe.Json.parse(haxe.Json.stringify(config));
+            minimap.MinimapLayout.migrate(config);
+            eq(config.minimapShape, old == false ? 'Square' : 'Circular', 'Migrated shape survives reload');
+        }
+        for (shape in ['Circular', 'Square']) {
+            var config:MinimapSettings = cast {circular:shape == 'Square', minimapShape:shape, filterButtonPosition:'Right'};
+            minimap.MinimapLayout.migrate(config);
+            eq(config.minimapShape, shape, 'New dropdown overrides conflicting legacy key');
+            eq(config.filterButtonPosition, 'Right', 'Right side survives normalization');
+        }
+        var invalid:MinimapSettings = cast {minimapShape:'Unknown', filterButtonPosition:'Unknown'};
+        minimap.MinimapLayout.migrate(invalid);
+        eq(invalid.minimapShape, 'Circular', 'Invalid shape falls back safely');
+        eq(invalid.filterButtonPosition, 'Left', 'Invalid side falls back safely');
+    }
+    static function nativeStep(window:Dynamic, dt:Float):Void {
+        var fraction = 1 - Math.pow(0.7, dt * 60);
+        var p = window.panning, t = window.targetPanning;
+        p.x = G.number(p.x) + (G.number(t.x) - G.number(p.x)) * fraction;
+        p.y = G.number(p.y) + (G.number(t.y) - G.number(p.y)) * fraction;
+    }
+    static function bonusPanning():Void {
+        var pan = new minimap.BonusDungeonPan();
+        for (fps in [30,60,144]) {
+            var w:Dynamic = {panning:{x:20.,y:-40.},tileScale:2.,zoom:0.5,targetZoom:0.5};
+            pan.scrollTo(w, 300., 400.);
+            // Two slowed frames must equal one native frame at any frame rate.
+            for (_ in 0...2) { pan.beginUpdate(w); nativeStep(w, 1. / fps); pan.beforeScroll(w); }
+            var fraction = 1 - Math.pow(0.7, 60. / fps);
+            near(G.number(w.panning.x), 20 + 280 * fraction, 'Half-time easing X at '+fps+'fps');
+            near(G.number(w.panning.y), -40 + 440 * fraction, 'Half-time easing Y at '+fps+'fps');
+            eq(w.zoom, 0.5, 'Slower pan does not alter zoom');
+            var x = G.number(w.panning.x); pan.beforeScroll(w);
+            near(G.number(w.panning.x), x, 'Repeated scroll refresh cannot slow a frame twice');
+        }
+        for (input in ['pan','zoom','reset']) {
+            var w:Dynamic = {panning:{x:0.,y:0.},tileScale:1.,zoom:1.,targetZoom:1.};
+            pan.scrollTo(w, 300., 400.); pan.beginUpdate(w);
+            if (input == 'pan') w.targetPanning.x = 500.;
+            else if (input == 'zoom') w.targetZoom = 2.;
+            else pan.reset();
+            nativeStep(w, 1./60); var x = G.number(w.panning.x);
+            pan.beforeScroll(w);
+            near(G.number(w.panning.x), x, 'Manual '+input+' retains native speed');
+            pan.beginUpdate(w); nativeStep(w, 1./60); x = G.number(w.panning.x); pan.beforeScroll(w);
+            near(G.number(w.panning.x), x, 'Automatic pan stays cancelled after '+input);
+        }
+        var ordinary:Dynamic = {panning:{x:0.,y:0.},targetPanning:{x:50.,y:60.}};
+        pan.beginUpdate(ordinary); nativeStep(ordinary, 1./60); pan.beforeScroll(ordinary);
+        near(G.number(ordinary.panning.x), 15., 'Ordinary map panning is unaffected');
+    }
     static function main():Void {
+        layoutMigration();
+        bonusPanning();
         var fresh:MinimapSettings = cast {};
         MapVisibility.migrate(fresh);
         eq(fresh.mainMapEnabled, true, 'Main map defaults on');

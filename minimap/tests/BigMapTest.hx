@@ -331,7 +331,7 @@ class BigMapTest {
         for (button in view.filterBar.buttons) {
             eq(G.field(button.object, 'textTip'), null, 'Filter toggle has no hover tooltip');
             eq(button.icon.nativeType, 'h2d.Bitmap', 'Filter symbol uses shared cached artwork');
-            eq(button.icon.tile.texture.width, 128, 'Filter symbol retains four times native resolution');
+            eq(button.icon.tile.texture.width, G.number(button.icon.tile.width) * 4, 'Filter symbol retains four times native resolution');
             eq(button.icon.smooth, true, 'Filter symbols are smoothly downsampled');
             eq(button.icon.tile.texture.bakedBackground, 0, 'Filter icon background is transparent');
             eq(G.field(button.icon, 'filter'), null, 'Filter symbols have no per-frame smoothing pass');

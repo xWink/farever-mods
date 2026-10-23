@@ -11,6 +11,54 @@ class MinimapFilterPanelTest {
     static function eq(a:Dynamic, b:Dynamic, why:String):Void {
         checks++; if (a != b) throw why + ': expected $b, got $a';
     }
+    static function near(a:Float, b:Float, why:String):Void {
+        checks++; if (Math.abs(a-b) > 0.000001) throw why + ': expected $b, got $a';
+    }
+    static function mirroredControls(filters:MainMapFilters):Void {
+        for (round in [true, false]) for (size in [160,400]) for (edge in [true,false]) {
+            var extent = size + (round ? 0 : 2 * minimap.MinimapGeometry.FRAME_BORDER);
+            var screen = 1400., leftX = edge ? 0. : 450., rightX = screen - leftX - extent;
+            var top = size == 400 ? 390. : 20.;
+            var bars:Array<MainMapFilterBar> = [];
+            for (_ in 0...2) {
+                var container:Dynamic = {}; container.dom = {obj:container};
+                bars.push(new MainMapFilterBar(container, filters, (parent, _) -> G.create('h2d.Graphics',[parent]), true));
+            }
+            var left = bars[0], right = bars[1];
+            left.toggleExpanded(100); right.toggleExpanded(100);
+            for (time in [100.,100.07,100.14,100.28,101.,101.07,101.14,101.28]) {
+                if (time == 101.) { left.toggleExpanded(time); right.toggleExpanded(time); }
+                left.updateHud(size, round, screen, 800, leftX, top, time, false);
+                right.updateHud(size, round, screen, 800, rightX, top, time, true);
+                var scale = G.number(left.root.scale), bw = 48 * scale;
+                near(G.number(right.gear.object.x), extent - G.number(left.gear.object.x) - bw, 'Gear mirrors without mirroring its artwork');
+                near(G.number(right.gear.object.y), G.number(left.gear.object.y), 'Gear preserves height');
+                eq(right.root.visible, left.root.visible, 'Opening and closing visibility matches');
+                for (i in 0...left.buttons.length) {
+                    var a = left.buttons[i].object, b = right.buttons[i].object;
+                    var ax = G.number(left.root.x) + G.number(a.x) * scale;
+                    var bx = G.number(right.root.x) + G.number(b.x) * scale;
+                    near(bx, extent - ax - bw, 'Every animation position is reflected');
+                    near(G.number(b.y), G.number(a.y), 'Mirrored controls follow the same vertical path');
+                    eq(rightX + bx >= 0 && rightX + bx + bw <= screen, true, 'Right rail remains on screen');
+                }
+                if (time == 100.28) {
+                    left.buttons[2].object.onRightClick(); right.buttons[2].object.onRightClick();
+                    var pw = 286 * G.number(right.popup.scale);
+                    eq(Math.abs((leftX + G.number(left.popup.x)) + (rightX + G.number(right.popup.x)) + pw - screen) <= 1,
+                        true, 'Popup placement and edge fallback mirror too');
+                    eq(rightX + G.number(right.popup.x) >= 0 && rightX + G.number(right.popup.x) + pw <= screen,
+                        true, 'Right popup stays visible');
+                }
+            }
+            // Changing sides on an open panel preserves its expansion and filters.
+            left.toggleExpanded(102); left.updateHud(size, round, screen, 800, leftX, top, 103);
+            left.updateHud(size, round, screen, 800, rightX, top, 103, true);
+            eq(left.expansion, 1., 'Side changes do not collapse an open panel');
+            eq(left.rightSide, true, 'Changing only the side triggers relayout');
+            for (bar in bars) bar.dispose();
+        }
+    }
     static function main():Void {
         var config:MinimapSettings = cast {markerScale:100., mainMapMarkerScale:100.};
         var saves = 0;
@@ -40,6 +88,7 @@ class MinimapFilterPanelTest {
         eq(hud.minimapSettings().showPlants, true, 'Unlinking again starts with synchronized choices');
 
         G.globals['ui.BaseUI.current'] = {style:{}};
+        mirroredControls(hud);
         var container:Dynamic = {dom:null}; container.dom = {obj:container};
         var icons:Array<String> = [];
         var bar = new MainMapFilterBar(container, hud, (parent, kind) -> {

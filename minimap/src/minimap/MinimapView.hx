@@ -41,7 +41,7 @@ class MinimapView {
     var fog:MinimapFog;
     var filters:MainMapFilters;
     var filterBar:MainMapFilterBar;
-    var filterIcons:MainMapIconCache;
+    var iconCache:MainMapIconCache;
     var controls:Dynamic;
     var compass:MinimapCompass;
     var rifts:RiftMarkers;
@@ -118,7 +118,8 @@ class MinimapView {
             create(G.field(G.field(hero, "layer"), "units"));
         }
 
-        if (size != config.size || circular != config.circular) layout(config.size, config.circular);
+        var round = config.minimapShape != "Square";
+        if (size != config.size || circular != round) layout(config.size, round);
         if (markerScale != config.markerScale) {
             markerScale = config.markerScale;
             G.call("h2d.Object", "setScale", arrow, [markerScale / 100]);
@@ -175,7 +176,7 @@ class MinimapView {
         markers.updateAlerts(markerSettings, x, y, size, scale, rotation, rifts);
         compass.update(size, circular, rotation, markerScale / 100, config.showNorthIndicator);
         updateClockTimer(config);
-        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY);
+        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY, null, config.filterButtonPosition == "Right");
         show(true);
         updateHover(hero, x, y, rotation);
     }
@@ -245,7 +246,8 @@ class MinimapView {
         // the same transform above both landmarks and edge alerts.
         npcPivot = G.create("h2d.Object", [mask]);
         npcTerrain = G.create("h2d.Object", [npcPivot]);
-        markers = new MinimapMarkers(terrain, npcTerrain, mask, LEVEL);
+        iconCache = new MainMapIconCache(nativeArray);
+        markers = new MinimapMarkers(terrain, npcTerrain, mask, LEVEL, 1, null, iconCache);
         markers.pointFilter = filters.accepts;
         compass = new MinimapCompass(mask);
         partyPivot = G.create("h2d.Object", [mask]);
@@ -273,13 +275,12 @@ class MinimapView {
         // Outside the terrain mask, above the map's wheel/hover input. Keeping
         // the native controls under panel also preserves HUD layering/visibility.
         G.call("h2d.Object", "addChild", panel, [controls]);
-        filterIcons = new MainMapIconCache(nativeArray);
         filterBar = new MainMapFilterBar(controls, filters, (parent, kind) ->
-            filterIcons.bitmap(parent, kind, target -> {
+            iconCache.bitmap(parent, kind, target -> {
                 if (kind == "settings") MainMapFilterBar.drawGear(target);
                 else if (kind == "filterRound" || kind == "filterSquare") MainMapFilterBar.drawButtonFace(target, kind == "filterRound");
                 else markers.drawFilterIcon(target, kind);
-            }, 4), true);
+            }, 4, MarkerOutline.needed(kind)), true);
     }
 
     function trackMouse(event:Dynamic):Void {
@@ -590,8 +591,8 @@ class MinimapView {
     public function dispose():Void {
         if (filterBar != null) filterBar.dispose();
         filterBar = null; controls = null;
-        if (filterIcons != null) filterIcons.dispose();
-        filterIcons = null;
+        if (iconCache != null) iconCache.dispose();
+        iconCache = null;
         // The hidden font source belongs to gameRoot's DOM, outside our panel.
         if (riftFontSource != null) G.call("h2d.Object", "remove", riftFontSource);
         if (panel != null) {

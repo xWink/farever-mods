@@ -83,6 +83,27 @@ class MainMapPerformanceTest {
         eq(markers.mapIconMarkers[0].icon.tile == markers.mapIconMarkers[1].icon.tile, false, "Boss and chest artwork cannot collide");
         markers.draw(activityPoints, 1);
         eq(G.bakes, beforeActivities + 5, "Refreshing activities never rebakes unchanged artwork");
+        var outlinedKinds = ['activity','quest','dungeon','soulstone','riftPortal','upcomingRift','inactiveRift','nextRift','pilgrim','demon','glory'];
+        var firstOutline = G.created.length;
+        var outlined:Array<MapPoint> = [for (i in 0...outlinedKinds.length)
+            {kind:outlinedKinds[i], x:50.+i*25, y:100., z:0., bonusDungeon:outlinedKinds[i] == 'dungeon'}];
+        markers.draw(outlined, 1);
+        for (marker in markers.mapIconMarkers.concat(markers.npcIconMarkers)) {
+            eq(marker.icon.tile.texture.width, 72, 'Outlined markers retain padding beyond the heroic plus');
+            eq(marker.icon.tile.texture.bakedBackground, 0, 'Outlined marker background remains transparent');
+            eq(G.field(marker.icon, 'filter'), null, 'Live marker has no per-frame outline filter');
+        }
+        var outlines = G.created.slice(firstOutline).filter(o -> G.field(o,'nativeType') == 'h2d.filter.Outline');
+        eq(outlines.length, outlinedKinds.length, 'Every added activity and faction style receives an outline');
+        for (outline in outlines) {
+            eq(outline.size, 8., 'One local pixel becomes eight pixels in supersampled bake');
+            eq(outline.color, 0x201b1b, 'Outline matches existing NPC and enemy borders');
+            eq(outline.useScreenResolution, true, 'Outline size is measured in bake pixels');
+        }
+        var outlinedBakes = G.bakes, outlinedObjects = G.created.length;
+        markers.draw(outlined, 1);
+        eq(G.bakes, outlinedBakes, 'Outlined artwork is reused after refresh');
+        eq(G.created.length, outlinedObjects, 'No new outline filters are allocated while markers move');
         var beforeFailure = G.bakes;
         G.failBake = true;
         var failed = false;

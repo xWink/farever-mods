@@ -8,17 +8,18 @@ Adds a configurable minimap and enhances the main overworld map with detailed ma
 
 - Markers for resources, enemies, companions, activities, players, NPCs, chests, and secret orbs, with hover details and distance.
 - Quest NPCs use the game's native markers for available quests, quests in progress, and quests ready to turn in.
-- Filter buttons: left-click to toggle a category; right-click for subfilters where available. The minimap's top-left gear shows or hides its filter buttons.
+- Filter buttons: left-click to toggle a category; right-click for subfilters where available. The minimap's gear shows or hides its filter buttons. **Filter button position** places it on the left (default) or right, with matching mirrored animations for either shape.
 - **Use same filters for both maps** is enabled by default. Turn it off for independent filters; turning it back on copies the main map's filters to the minimap.
 - Ordinary players are hidden by default; party members and friends are shown. Completed enemy mastery, collected companions, and completed activities are hidden by default.
 - Activities include subfilters for dungeons, rifts, and soulstones. NPCs include subfilters for obelisks, respawns, faction merchants, and stations. Your own marker stays visible.
 - The main map shows the next rift countdown beneath its marker, highlights the Heroic Bonus Dungeon with a green plus, and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
-- Click the Heroic Bonus Dungeon card to center the main map on its entrance, even when dungeon markers are filtered out.
+- Activity and faction merchant markers have dark silhouette outlines for readability, cached once per appearance on both maps.
+- Click the Heroic Bonus Dungeon card to smoothly center the main map on its entrance at half the native pan speed, even when dungeon markers are filtered out. Manual panning and zooming take over immediately.
 - The main map keeps native right-click pin placement and the player’s camera-direction cone.
 - Obelisk fast travel shows only unlocked destinations, with clickable yellow rings, your marker and camera-direction cone. Height arrows and the vertical-distance filter are disabled in this view.
 - Both maps hide markers in regions whose obelisk has not been activated; the minimap also retains the game’s fog of war.
-- The minimap supports circular or square shapes, mouse-wheel zoom, size, position, transparency, and marker scaling. Rotation and camera-following rotation are enabled by default.
-- On square minimaps, the gear sits inside the top-left corner. Filters emerge to its left, continue down the side, and wrap below the map when needed.
+- **Minimap shape** offers Circular (default) or Square and preserves your previous shape choice. The minimap also supports mouse-wheel zoom, size, position, transparency, and marker scaling. Rotation and camera-following rotation are enabled by default.
+- On square minimaps, the gear sits inside the selected top corner. Filters emerge outward, continue down that side, and wrap below the map when needed.
 - Optional rift alerts, sparkling-companion alerts, a rift timer or clock, and a vertical-distance filter that applies to both maps.
 
 Live markers depend on information received by your client. Dungeon maps retain the game's native view.
