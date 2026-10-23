@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # Only the Marketplace native cache/bootstrap needs this.
 
 concurrency:
   group: build-trade-and-marketplace-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source-ref }}
@@ -88,8 +89,105 @@ jobs:
             TZ="$timezone" ../.trade-oracle-hashlink/hl build/marketplace-time-test.hl
           done
 
+  native:
+    name: Native desktop plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source-ref || github.sha }}
+
+      # Only native/desktop.cpp, build.sh and their actual local includes
+      # can change the DLL. Haxe UI changes cannot invalidate this cache.
+      - name: Restore cached Windows desktop plugin
+        id: native_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: trade-and-marketplace/build/native/trade_marketplace_desktop.hdll
+          key: marketplace-native-win64-gcc13-v1-${{ hashFiles('trade-and-marketplace/native/desktop.cpp', 'trade-and-marketplace/native/build.sh', 'shared/native/fareverly_account.h', 'shared/native/fareverly_browser.h') }}
+
+      # Seed the FIRST build without MinGW using the exact verified DLL from
+      # completed run 39854536435. Reuse it only if ALL four input files match
+      # the versions from that successful build, byte-for-byte.
+      - name: Check verified native artifact compatibility
+        id: native_source
+        if: steps.native_cache.outputs.cache-hit != 'true'
+        run: |
+          if [[ "$(git hash-object trade-and-marketplace/native/desktop.cpp)" == "e7857d96d484d553f9cc4a24738b950630d80366" &&
+                "$(git hash-object trade-and-marketplace/native/build.sh)" == "a5245700c884f849f81a10036d7b42afb944f43b" &&
+                "$(git hash-object shared/native/fareverly_account.h)" == "b30cd5852b0883e29203cd59ea9124ad5d7a52cd" &&
+                "$(git hash-object shared/native/fareverly_browser.h)" == "dc2afd3984615cc6de4c7cabd967188f01439023" ]]; then
+            echo "compatible=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "compatible=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download verified native DLL
+        id: seed_download
+        if: steps.native_cache.outputs.cache-hit != 'true' && steps.native_source.outputs.compatible == 'true'
+        continue-on-error: true # An expired artifact falls back to compilation.
+        uses: actions/download-artifact@v4
+        with:
+          repository: ${{ github.repository }}
+          run-id: 39854536435
+          github-token: ${{ github.token }}
+          name: farever-trade-and-marketplace
+          path: trade-and-marketplace/build/native/verified
+
+      - name: Reuse verified native DLL
+        id: seed_reuse
+        if: steps.seed_download.outcome == 'success'
+        run: |
+          src=trade-and-marketplace/build/native/verified/hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll
+          dest=trade-and-marketplace/build/native/trade_marketplace_desktop.hdll
+          if [[ -s "$src" ]] && echo "7fb174b45feb20bf5627c7049d3213ac33f0cefd19cdf5aa35a7fa4578e92f2b  $src" | sha256sum --check --status; then
+            cp "$src" "$dest"
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo "Reused SHA-256 verified Windows DLL, without MinGW installation."
+          else
+            echo "::warning::Verified DLL unavailable or hash mismatch; building native source."
+          fi
+
+      - name: Build desktop plugin when native source changes
+        if: steps.native_cache.outputs.cache-hit != 'true' && steps.seed_reuse.outputs.reused != 'true'
+        working-directory: trade-and-marketplace
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          # No need to download both POSIX and Win32 compiler variants.
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends g++-mingw-w64-x86-64-win32 binutils-mingw-w64-x86-64
+          bash native/build.sh
+
+      - name: Verify Windows DLL and native exports
+        run: |
+          dll=trade-and-marketplace/build/native/trade_marketplace_desktop.hdll
+          test -s "$dll"
+          file "$dll" | grep -Eq 'PE32[+] executable.*x86-64'
+          for symbol in hlp_secure_random hlp_write_credential hlp_open_url; do
+            grep -aFq "$symbol" "$dll" || { echo "::error::Missing exported native primitive $symbol"; exit 1; }
+          done
+
+      - name: Save native DLL to source-keyed cache
+        if: steps.native_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: trade-and-marketplace/build/native/trade_marketplace_desktop.hdll
+          key: marketplace-native-win64-gcc13-v1-${{ hashFiles('trade-and-marketplace/native/desktop.cpp', 'trade-and-marketplace/native/build.sh', 'shared/native/fareverly_account.h', 'shared/native/fareverly_browser.h') }}
+
+      - name: Upload native DLL for this workflow's package job
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-native-dll
+          path: trade-and-marketplace/build/native/trade_marketplace_desktop.hdll
+          if-no-files-found: error
+          compression-level: 0
+
   build:
-    needs: test
+    needs: [test, native]
     uses: ./.github/workflows/_build-mod.yml
     with:
       source-ref: ${{ inputs.source-ref }}

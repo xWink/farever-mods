@@ -83,12 +83,14 @@ jobs:
       - name: Compile
         run: haxe compile.hxml
 
-      - name: Build marketplace desktop plugin
+      # The dedicated Marketplace native job already compiled or reused the
+      # verified DLL. Consume its artifact; do not reinstall MinGW here.
+      - name: Get Marketplace desktop plugin
         if: inputs.project == 'trade-and-marketplace'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++-mingw-w64-x86-64
-          bash native/build.sh
+        uses: actions/download-artifact@v4
+        with:
+          name: marketplace-native-dll
+          path: ${{ inputs.project }}/build/native
 
       - name: Package
         env:

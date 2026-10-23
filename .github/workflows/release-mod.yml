@@ -106,6 +106,7 @@ jobs:
     if: needs.prepare.outputs.project == 'trade-and-marketplace'
     permissions:
       contents: write
+      actions: read
     uses: ./.github/workflows/build-trade-and-marketplace.yml
     with:
       source-ref: ${{ needs.prepare.outputs.source }}
