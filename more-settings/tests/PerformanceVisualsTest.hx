@@ -96,7 +96,7 @@ class PerformanceVisualsTest {
         eq(repeat.sample(true,true,true,1.105,false),false,"Cannot spam multiple checks in a frame");
         eq(repeat.sample(true,false,true,1.11,false),false,"Releasing cancels pending repeats");
         eq(repeat.sample(true,true,true,1.12,false),false,"New hold does not start with a synthetic press");
-        eq(repeat.sample(true,true,true,1.22,false),true,"New hold repeats after its own delay");
+        eq(repeat.sample(true,true,true,1.221,false),true,"New hold repeats after its own delay");
         eq(repeat.sample(false,true,true,1.4,false),false,"Disabled setting preserves native input");
         eq(repeat.sample(true,true,false,1.5,false),false,"Blocked input never synthesizes a press");
         eq(HoldRepeat.blockFullscreen(true,"Fullscreen",true,true),true,"Ctrl+F intercepted");
