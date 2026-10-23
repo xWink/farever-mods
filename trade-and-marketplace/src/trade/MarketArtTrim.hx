@@ -78,9 +78,9 @@ class MarketArtTrim {
                     return (argb>>>24)&255;
                 });
                 bounds[key]=boundsForTile==null?false:boundsForTile;
-            } catch(_:Dynamic){return tile;}
+            } catch(e:Dynamic){trace("TRIM ERROR SCAN "+Std.string(e));return tile;}
         }
-        if(boundsForTile==false||boundsForTile==null)return tile;
+        if(boundsForTile==false||boundsForTile==null){trace("TRIM NO BOUNDS "+key);return tile;}
         if(boundsForTile.x==0&&boundsForTile.y==0&&boundsForTile.w==w
             &&boundsForTile.h==h&&G.number(G.field(tile,"dx"))==0
             &&G.number(G.field(tile,"dy"))==0)return tile;
@@ -92,6 +92,6 @@ class MarketArtTrim {
             var zero:Float=0;
             var trimmed=G.call("h2d.Tile","sub",tile,[cx,cy,cw,ch,zero,zero]);
             return trimmed==null?tile:trimmed;
-        } catch(_:Dynamic){return tile;}
+        } catch(e:Dynamic){trace("TRIM ERROR SUB "+Std.string(e));return tile;}
     }
 }
