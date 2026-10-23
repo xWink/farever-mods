@@ -84,7 +84,9 @@ class MarketplaceUiTest {
    &&trimmed.tile.dx==0&&trimmed.tile.dy==0);
   check(Math.abs(trimmed.width-49.8333333333)<0.01
    &&trimmed.height==52&&trimmed.x==1&&trimmed.y==0
-   &&testButton.visible==false);
+   &&testButton.visible==false,
+   "fit="+haxe.Json.stringify({w:trimmed.width,h:trimmed.height,
+     x:trimmed.x,y:trimmed.y,visible:testButton.visible}));
   check(padded.width==64&&padded.height==64&&padded.dx==2
    &&padded.dy==3&&tex.captureCalls==1);
   var second:Dynamic={innerTex:tex,x:64.0,y:0.0,width:64.0,
