@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.8",
+  "project": "trade-and-marketplace",
+  "version": "1.1.1",
   "commit": "8c6263114fd294e7e3ec83374ad2a02c8858642c",
-  "notes": "- Improved detection of casts of certain passive abilities\n",
+  "notes": "- Improved UI appearance and button performance in marketplace\n",
   "dry_run": false
 }
