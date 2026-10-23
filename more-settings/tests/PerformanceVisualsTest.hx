@@ -156,6 +156,23 @@ class PerformanceVisualsTest {
         moresettings.PerformanceDamageNumbers.configure(false,20);
         eq(moresettings.PerformanceDamageNumbers.suppress(),false,
             "No damage throttling when performance optimization is disabled");
+        // updateSkillInputs also polls non-skill controls. These must remain
+        // native, single-press actions even when hold-repeat is enabled.
+        for(action in ["Item", "Item1", "UseItem", "QuickItem1", "ConsumeItem",
+            "Potion", "Flask", "Dodge", "Dash", "DodgeRoll", "Mount",
+            "SummonMount", "Unmount", "Ride", "Glider"]) {
+            eq(HoldRepeat.repeatableSkillAction(action),false,
+                action+": item/dodge/mount buttons never repeat");
+        }
+        for(action in ["Skill1", "Skill2", "Skill3", "Attack",
+            "SecondarySkill", "WeaponSkill1", "UltimateSkill"]) {
+            eq(HoldRepeat.repeatableSkillAction(action),true,
+                action+": combat skill buttons remain repeatable");
+        }
+        for(action in ["Jump", "Roll", "Interact", "Block", "Inventory"]) {
+            eq(HoldRepeat.repeatableSkillAction(action),false,
+                action+": movement or UI commands remain native");
+        }
         var repeat=new HoldRepeat();
         eq(repeat.sample(true,true,true,1,true),true,"Native first press preserved");
         eq(repeat.sample(true,true,true,1.05,false),false,"Repeat never fires early");

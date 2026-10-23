@@ -54,7 +54,8 @@ class InputComfort {
     public static function pressed(action:String,original:Bool):Bool {
         // This postfix runs globally, but we only repeat the actions that
         // the game itself queries *inside* UnitController.updateSkillInputs.
-        if (!inSkillInputs || !holdSkills || action==null || action=="") return original;
+        if (!inSkillInputs || !holdSkills || !HoldRepeat.repeatableSkillAction(action))
+            return original;
         try {
             var held=G.staticCall("lib.Input","isDown",[action])==true;
             var pulse=pulses.get(action);
