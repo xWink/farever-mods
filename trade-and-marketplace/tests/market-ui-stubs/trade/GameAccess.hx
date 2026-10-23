@@ -46,20 +46,6 @@ class GameAccess {
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
    throw "Scrollbar Flow layout corrupted by Object.addChildAt";
   return switch(n){
-   case "capturePixels" if(t=="h3d.mat.Texture"):
-    o.captureCalls=integer(field(o,"captureCalls"))+1;o.pixels;
-   case "getPixel" if(t=="hxd.Pixels"):
-    var x=integer(a[0]),y=integer(a[1]);
-    var areas:Array<Dynamic>=cast o.areas;
-    var alpha=0;
-    for(r in areas)if(x>=r.x&&y>=r.y&&x<r.x+r.w&&y<r.y+r.h)alpha=integer(r.alpha);
-    (alpha<<24)|0x00808080;
-   case "sub" if(t=="h2d.Tile"):
-    var result=object();
-    result.nativeType="h2d.Tile";result.innerTex=o.innerTex;
-    result.x=number(o.x)+number(a[0]);result.y=number(o.y)+number(a[1]);
-    result.width=a[2];result.height=a[3];result.dx=a[4];result.dy=a[5];
-    result;
    case "addClass":
     if(field(o,"classes")==null)o.classes=[];
     if((cast o.classes:Array<String>).indexOf(a[0])<0)(cast o.classes:Array<String>).push(a[0]);null;
