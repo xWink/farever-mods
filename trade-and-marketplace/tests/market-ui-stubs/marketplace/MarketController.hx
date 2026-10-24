@@ -14,6 +14,7 @@ class MarketController {
  public function loadMore(retry=false):Void {if(tab!="Browse"||busy||moreLoading||moreFailed&&!retry)return;moreRequests++;moreLoading=true;moreFailed=false;if(view!=null)view.dirty=true;}
  public function loadingMore():Bool return moreLoading;
  public function loadMoreFailed():Bool return moreFailed;
+ public var buy=new MarketBuy();
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];

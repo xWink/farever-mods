@@ -15,6 +15,7 @@ class GameAccess {
  public static var slotIds:Array<Dynamic>=[];
  public static var slotReads=0;
  public static var ui:Dynamic={root:{}};
+ public static var dataFields:Map<String,Dynamic>=[];
  public static function object(?parent:Dynamic):Dynamic {
   var o:Dynamic={children:[],parent:parent,color:{x:1.,y:1.,z:1.}};o.dom={obj:o};
   if(parent!=null)(cast parent.children:Array<Dynamic>).push(o);return o;
@@ -27,7 +28,7 @@ class GameAccess {
  public static function set(o:Dynamic,k:String,v:Dynamic):Void {if(o!=null){if(k=="onAfterReflow"&&field(o,"text")!=null&&field(o,"testButton")!=true)throw "Text is not a Flow";Reflect.setField(o,k,v);}}
  public static function enumeration(t:String,n:String):Dynamic return n;
  public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t||(t=="st.item.Gear"&&field(o,"nativeType")=="st.item.Weapon");
- public static function current(t:String,n:String):Dynamic return t=="ui.BaseUI"?ui:n;
+ public static function current(t:String,n:String):Dynamic return dataFields.exists(t+"."+n)?dataFields[t+"."+n]:t=="ui.BaseUI"?ui:n;
  public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Mask"?a[2]:t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h2d.Mask"){o.width=a[0];o.height=a[1];}if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
  public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
   case "fromBytes": {resourceName:a[0]};
@@ -36,6 +37,9 @@ class GameAccess {
   case "weaponEffect":a[0].text;
   case "isPressed":false;
   case "getVersion":"test";
+  case "isType":a[1]=="Gear"&&field(a[0],"gear")==true;
+  case "canBeInfused":field(a[0],"infusable")==true;
+  case "getItemExpectedScalings":field(a[0],"scalings")==null?[]:field(a[0],"scalings");
   case "getGfx":field(a[0],"valid")==false?null:a[0];
   case "getRarity":{id:field(a[0],"nativeRarityId")==null?"Epic":field(a[0],"nativeRarityId")};
   default:{id:"Epic"};
@@ -50,6 +54,7 @@ class GameAccess {
   if(t=="h2d.Object"&&n=="addChildAt"&&field(o,"nativeScrollbar")==true)
    throw "Scrollbar Flow layout corrupted by Object.addChildAt";
   return switch(n){
+   case "get":o==null||!Std.isOfType(o,haxe.ds.StringMap)?null:(cast o:Map<String,Dynamic>).get(Std.string(a[0]));
    case "addClass":
     if(field(o,"classes")==null)o.classes=[];
     if((cast o.classes:Array<String>).indexOf(a[0])<0)(cast o.classes:Array<String>).push(a[0]);null;

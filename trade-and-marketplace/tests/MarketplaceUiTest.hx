@@ -36,7 +36,7 @@ class MarketplaceUiTest {
   check(searchUncovered(originalSearch));
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0)[0].parent.parent.y==388);
   var expandedViewport=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketListingViewport")==0)[0];
-  check(expandedViewport.overflow=="Scroll"&&expandedViewport.height>=6*68);
+  check(expandedViewport.overflow=="Scroll"&&expandedViewport.y+expandedViewport.height==794);
   check(GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketRow")==0).length==8);
   check(GameAccess.buttons.filter(b->b.text=="Previous"||b.text=="Next").length==0);
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
@@ -636,6 +636,7 @@ class MarketplaceUiTest {
   sellInput.input.text="new";sellInput.onChange();check(clearSearch.visible);view.close();
   MarketplaceDrawerTest.run(row);
   MarketplaceScrollTest.run(row);
+  MarketplaceBuyTest.run(row);
   view.open();c.tab="My listings";c.selected=row;c.rows=[row];row.item.quantity=5;row.price={mode:"fixed",silverTrays:7};
   GameAccess.buttons=[];GameAccess.nodes=[];view.dirty=true;view.update();
   GameAccess.buttons.filter(b->b.text=="Edit listing")[0].action();GameAccess.buttons=[];GameAccess.nodes=[];view.update();

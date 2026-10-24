@@ -41,6 +41,7 @@ Press **F7** to open or close the marketplace, or type `/market` or `/marketplac
 
 - Browse listings for your game server, filter items and inspect native tooltips. Scroll down to load more listings automatically. **My listings** also uses a continuous scrollable list.
 - Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.
+- **Buy** shows the game’s item catalog with search and category, subcategory, rarity, and class filters. Select an item to prepare a buy order with quantity, price, and applicable level, infusion bonus, and prismatic options. Order submission is not active yet.
 - Listing quantities combine identical tradable items across your inventory and unlocked bank tabs, whichever view you select from.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
 - Manage up to 20 active listings per region under **My listings**. Listings expire 3 days after posting. Remove and re-add a listing to change its price.

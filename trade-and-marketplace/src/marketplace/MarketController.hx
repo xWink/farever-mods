@@ -23,6 +23,7 @@ class MarketController {
     public var signingIn=false;
     public var view:MarketWindow;
     public var tab="Browse";
+    public var buy=new MarketBuy();
     public var rows:Array<Dynamic>=[];
     public var inventory:Array<TradeItem>=[];
     public var bankOnly=false;
@@ -180,7 +181,7 @@ class MarketController {
         cooldown.clear();retryOnOpen=false;
         rows=[];browseRows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
-        opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
+        buy=new MarketBuy();opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
         SessionLease.release(HlxRuntime.moduleName());
     }
     public function fail(error:Dynamic):Void {
@@ -227,7 +228,9 @@ class MarketController {
         // Show the destination immediately; an unfinished request remains owned
         // by its original operation until the response is processed.
         navigationPending=busy;navigationForce=false;
-        if(tab=="Sell") {
+        if(tab=="Buy") {
+            buy.load();message="";navigationPending=false;
+        } else if(tab=="Sell") {
             if(ownedKnown){loadInventory();message="";}
             else if(busy)loadInventory();
             else refreshSell();
@@ -446,6 +449,7 @@ class MarketController {
         return cache;
     }
     public function refresh():Void {
+        if(tab=="Buy"){buy.load(true);view.dirty=true;return;}
         if(busy) {
             // Preserve the latest query/desired tab; do not drop the click
             // while the current request or listing write is still in progress.
