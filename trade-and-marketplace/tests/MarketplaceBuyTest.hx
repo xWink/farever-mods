@@ -12,6 +12,7 @@ class MarketplaceBuyTest {
     static function slots():Array<Dynamic> return G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketBuySlot"));
     static function button(text:String):Dynamic return G.buttons.filter(b->b.text==text)[0];
     static function dropdown(y:Int):Dynamic return G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketSelect")&&n.x==754&&n.y==y)[0];
+    static function levelInput(y:Int):Dynamic return G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==754&&n.y==y)[0];
     static function reflow(view:MarketWindow):Dynamic {var viewport=node("marketBuyViewport");viewport.onAfterReflow();view.update();return viewport;}
     public static function run(example:Dynamic):Void {
         var oldDefinitions=TradeInventory.definitions,oldNames=TradeInventory.localizedNames;
@@ -35,16 +36,17 @@ class MarketplaceBuyTest {
         b.setFilter("classes","Rogue");check(b.visible.length==0);
         b.clearFilters();b.setFilter("search","ÉTOILÉE");check(b.visible.length==1&&b.visible[0].name=="Armure étoilée");
         b.clearFilters();b.setFilter("rarity","Epic (Prismatic)");check(b.visible.length==1);
-        b.select(b.visible[0]);check(b.bonuses.length==2&&b.bonuses[0].id=="Vitality"&&b.prismatic);
+        b.select(b.visible[0],17);check(b.bonuses.length==2&&b.bonuses[0].id=="Vitality"&&b.prismatic&&b.level==17);
         b.setBonus("Strength");check(b.bonus=="");b.setBonus("Vitality");b.setLevel("20");
         check(b.preview.preview.bonus=="Vitality"&&b.preview.preview.level==20&&b.preview.preview.flags==2);
-        b.setLevel("99");check(b.level==30);b.setLevel("-1");check(b.level==0);
+        b.setLevel("99");check(b.level==30);b.setLevel("-1");check(b.level==1);
         b.setPrismatic(false);check(b.preview.preview.flags==0&&b.metadata().prismatic==false);
         b.clearFilters();b.select(b.items.filter(i->i.kind==potion.id)[0]);b.setLevel("20");b.setBonus("Vitality");b.setPrismatic(true);
         check(b.level==0&&b.bonus==""&&!b.prismatic&&b.bonuses.length==0);
         check(Reflect.field(armor,"__host")==null&&Reflect.field(armor,"__uid")==null&&armor.level==30);
 
         var c=new MarketController();c.tab="Buy";c.buy.load();c.ready=false;c.connectionIssue=true;c.busy=true;
+        c.player={hero:{_level:17}};
         c.filters["search"]="sword";c.filters["online"]="true";c.hideMine=true;c.chosen=marketplace.MarketExport.offer(example);
         var chosen=c.chosen,dialogs=G.dialogs;
         var view=new MarketWindow(c);c.view=view;view.quantity="7";view.open();view.update();var viewport=reflow(view);
@@ -57,8 +59,11 @@ class MarketplaceBuyTest {
         var search=node("marketInput");search.input.text="Armure";search.onChange();view.update();viewport=reflow(view);
         check(c.buy.visible.length==1&&slots().length==1&&viewport.scrollPosY==0&&node("marketInput")==search);
         slots()[0].action();view.update();reflow(view);
-        check(c.buy.selected.kind==armor.id&&dropdown(438)!=null&&dropdown(508)!=null);
-        var level=dropdown(438);level.selectedIndex=20;level.onSelectOption(null);view.update();reflow(view);
+        check(c.buy.selected.kind==armor.id&&levelInput(438)!=null&&dropdown(438)==null&&dropdown(508)!=null);
+        var level=levelInput(438);check(level.input.text=="17"&&c.buy.preview.preview.level==17);
+        level.input.text="999";level.onChange();view.update();reflow(view);check(c.buy.level==30&&level.input.text=="30");
+        level.input.text="";level.onChange();view.update();check(level.input.text==""&&c.buy.level==30);
+        level.input.text="20";level.onChange();view.update();reflow(view);
         var bonus=dropdown(508);bonus.selectedIndex=1;bonus.onSelectOption(null);view.update();reflow(view);
         var prism=G.nodes.filter(n->n.fmtText.text=="Prismatic")[0];prism.onValueChange(true);view.update();reflow(view);
         check(c.buy.level==20&&c.buy.bonus=="Vitality"&&c.buy.prismatic&&c.buy.preview.preview.flags==2);

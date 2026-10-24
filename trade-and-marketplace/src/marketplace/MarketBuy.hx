@@ -86,9 +86,10 @@ class MarketBuy {
             &&(classes.length==0||classes.filter(c->item.classes.indexOf(c)>=0).length>0));
         scroll={offset:0.0};
     }
-    public function select(item:CatalogItem):Void {
+    public function select(item:CatalogItem,playerLevel=1):Void {
         if(selected==item)return;
-        selected=item;level=0;bonus="";prismatic=false;quantity="1";bonuses=[];
+        selected=item;level=item.gear?Std.int(Math.max(1,Math.min(maxLevel,playerLevel))):0;
+        bonus="";prismatic=false;quantity="1";bonuses=[];
         if(item.infusable) {
             var definition=TradeInventory.definition(item.kind);
             var excluded:Map<String,Bool>=[];
@@ -106,7 +107,7 @@ class MarketBuy {
     }
     public function setLevel(value:String):Void {
         var parsed=Std.parseInt(value);
-        level=selected!=null&&selected.gear&&parsed!=null?Std.int(Math.max(0,Math.min(maxLevel,parsed))):0;updatePreview();
+        level=selected!=null&&selected.gear?Std.int(Math.max(1,Math.min(maxLevel,parsed==null?level:parsed))):0;updatePreview();
     }
     public function setBonus(value:String):Void {bonus=bonuses.filter(b->b.id==value).length>0?value:"";updatePreview();}
     public function setPrismatic(value:Bool):Void {prismatic=value&&selected!=null&&selected.infusable&&bonuses.length>0;updatePreview();}

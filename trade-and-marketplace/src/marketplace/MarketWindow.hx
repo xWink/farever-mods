@@ -780,7 +780,9 @@ class MarketWindow {
             absolute(buyContent,slot);padding(slot,0);size(slot,58,58);position(slot,(i%10)*64,Std.int(i/10)*64);
             try {itemIcon(slot,entry.offer,0,0,58,entry.rarity);tooltip(slot,entry.offer);}catch(error:Dynamic){report("catalog item "+entry.kind,error);}
             if(c.buy.selected==entry)selectionBorder(graphic(slot),58,58);
-            G.call("ui.UIElement","set_onClick",slot,[()->{c.buy.select(entry);dirty=true;}]);
+            G.call("ui.UIElement","set_onClick",slot,[()->{
+                c.buy.select(entry,G.integer(G.field(G.field(c.player,"hero"),"_level"),1));dirty=true;
+            }]);
         }
     }
     function buyFormY():Int return c.buy.bonuses.length>0?438:534;
@@ -791,8 +793,10 @@ class MarketWindow {
         var y=buyFormY();
         line(frame.container,754,y-42,316);
         if(b.selected.gear) {
-            var levels=["0"].concat([for(i in 1...b.maxLevel+1)Std.string(i)]);
-            dropdown("Level requirement",levels,["Any level"].concat(levels.slice(1)),Std.string(b.level),754,y,152,s->{b.setLevel(s);dirty=true;});
+            labelAt(frame.container,"Level requirement",754,y-28,152,true);
+            counter(Std.string(b.level),754,y,152,b.maxLevel,s->{
+                if(s!=""&&int(s)!=b.level){b.setLevel(s);dirty=true;}
+            });
         }
         var quantityX=b.selected.gear?918:754;
         labelAt(frame.container,"Quantity to buy",quantityX,y-28,152,true);

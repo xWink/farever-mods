@@ -15,6 +15,7 @@ class MarketController {
  public function loadingMore():Bool return moreLoading;
  public function loadMoreFailed():Bool return moreFailed;
  public var buy=new MarketBuy();
+ public var player:Dynamic;
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];
