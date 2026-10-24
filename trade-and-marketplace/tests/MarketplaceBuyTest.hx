@@ -115,10 +115,10 @@ class MarketplaceBuyTest {
         check(node("marketDetailViewport").y+node("marketDetailViewport").height<rarity.y-28);
         view.close();check(TradeFrame.active==0);
         var amulet:Dynamic=haxe.Json.parse(haxe.Json.stringify(b.items.filter(i->i.kind==armor.id)[0]));
-        amulet.kind="Necklace_Z1_Mp";b.select(amulet,30);check(b.level==17&&b.levelLimit()==17);
-        b.setLevel("999999999999999999");check(b.level==17);
+        amulet.kind="Necklace_Z1_Mp";b.select(amulet,30);check(b.level==30&&b.maxLevel==30);
+        b.setLevel("999999999999999999");check(b.level==30);
         b.setLevel("1");check(b.level==1);b.setAnyLevel(true);check(b.anyLevel&&b.preview.preview.level==0);
-        b.select(b.items.filter(i->i.kind==bow.id)[0],30);check(!b.anyLevel&&b.level==30&&b.levelLimit()==30);
+        b.select(b.items.filter(i->i.kind==bow.id)[0],30);check(!b.anyLevel&&b.level==30&&b.maxLevel==30);
         b.setRarity("Legendary");check(b.rarity=="Legendary"&&b.preview.preview.rarity=="Legendary");
         b.setRarity("Invalid");check(b.rarity=="Legendary");
         b.setFilter("rarity","Legendary");check(b.visible.length==1&&b.visible[0].kind==bow.id);

@@ -22,9 +22,6 @@ typedef CatalogItem = {
 class MarketBuy {
     static var excludedKinds=["Hide_Gear","TPRiftStone","TPRiftStone_Perma","SparkCube","TeleportationStone","RefillableFlask"];
     static var excludedTypes=["Currency","Mastery","Prospecting","GearTool"];
-    // Confirmed item cap. The native database exposes base levels, not a
-    // universal roll range; do not infer maximums from those base levels.
-    static var knownLevelCaps:Map<String,Int>=["Necklace_Z1_Mp"=>17];
     static var weaponRarities=["Common","Uncommon","Rare","Epic","Legendary"];
     public var filters:Map<String,String>=["search"=>"","category"=>"","subcategory"=>"","rarity"=>"","classes"=>""];
     public var expanded=false;
@@ -51,7 +48,6 @@ class MarketBuy {
     public function clearSelection():Void {
         selected=null;preview=null;nativePreview=null;level=0;anyLevel=false;rarity="";bonus="";bonuses=[];prismatic=false;quantity="1";
     }
-    public function levelLimit():Int return selected!=null&&knownLevelCaps.exists(selected.kind)?Std.int(Math.min(maxLevel,knownLevelCaps[selected.kind])):maxLevel;
     public function rarityOptions():Array<String> return selected==null?[]:selected.weapon?weaponRarities.copy():[selected.rarity];
     public function setRarity(value:String):Void {if(rarityOptions().indexOf(value)<0)return;rarity=value;updatePreview();}
     public function setAnyLevel(value:Bool):Void {anyLevel=value&&selected!=null&&selected.gear;updatePreview();}
@@ -114,7 +110,7 @@ class MarketBuy {
     }
     public function select(item:CatalogItem,playerLevel=1):Void {
         if(selected==item)return;
-        selected=item;level=item.gear?Std.int(Math.max(1,Math.min(levelLimit(),playerLevel))):0;anyLevel=false;
+        selected=item;level=item.gear?Std.int(Math.max(1,Math.min(maxLevel,playerLevel))):0;anyLevel=false;
         rarity=item.weapon&&weaponRarities.indexOf(filters["rarity"])>=0?filters["rarity"]:item.rarity;
         if(item.weapon&&filters["rarity"]=="Epic (Prismatic)")rarity="Epic";
         bonus="";prismatic=false;quantity="1";bonuses=[];
@@ -136,13 +132,13 @@ class MarketBuy {
     public function setLevel(value:String):Void {
         if(value.toLowerCase()=="any"){setAnyLevel(true);return;}
         if(!~/^-?[0-9]+$/.match(value))return;
-        level=selected!=null&&selected.gear?Std.int(Math.max(1,Math.min(levelLimit(),Std.parseFloat(value)))):0;anyLevel=false;updatePreview();
+        level=selected!=null&&selected.gear?Std.int(Math.max(1,Math.min(maxLevel,Std.parseFloat(value)))):0;anyLevel=false;updatePreview();
     }
     public function setBonus(value:String):Void {bonus=bonuses.filter(b->b.id==value).length>0?value:"";updatePreview();}
     public function setPrismatic(value:Bool):Void {prismatic=value&&selected!=null&&selected.infusable&&bonuses.length>0;updatePreview();}
     public function updatePreview():Void {
         if(selected==null)return;
-        level=selected.gear?Std.int(Math.max(1,Math.min(levelLimit(),level))):0;
+        level=selected.gear?Std.int(Math.max(1,Math.min(maxLevel,level))):0;
         if(!selected.gear)anyLevel=false;
         if(rarityOptions().indexOf(rarity)<0)rarity=selected.rarity;
         var base=selected.offer;

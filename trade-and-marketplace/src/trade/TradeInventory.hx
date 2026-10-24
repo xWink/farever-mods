@@ -25,10 +25,23 @@ class TradeInventory {
     }
     public static function itemName(kind:String):String {
         var d = definition(kind); if(d==null)return kind;
-        var name=G.text(G.staticCall("HItem","getName",[d]));
+        return resolveItemName(d,G.text(G.staticCall("HItem","getName",[d])));
+    }
+    static function resolveItemName(d:Dynamic,name:String):String {
+        var refs=G.field(G.field(d,"props"),"ref");
         if(name.indexOf("::ref_skill::")>=0) {
-            var skill=G.text(G.field(G.field(G.field(d,"props"),"ref"),"skill"));
+            var skill=G.text(G.field(refs,"skill"));
             if(skill!="")name=StringTools.replace(name,"::ref_skill::",skillName(skill));
+        }
+        var unit=G.text(G.field(refs,"unit"));
+        if(unit!=""&&(name.indexOf("["+unit+"]")>=0||name.indexOf("::ref_unit::")>=0)) {
+            var table=G.field(G.current("Data","unit"),"byId");
+            var row=table==null?null:G.call("haxe.ds.StringMap","get",table,[unit]);
+            var display=G.text(G.field(G.field(row,"texts"),"name"));
+            if(display!=""&&display.indexOf("::")<0&&display!="["+unit+"]") {
+                name=StringTools.replace(name,"["+unit+"]",display);
+                name=StringTools.replace(name,"::ref_unit::",display);
+            }
         }
         return clean(name,160);
     }
@@ -66,8 +79,10 @@ class TradeInventory {
             var skill = G.text(G.field(e,"skill"));
             if (skill != "") detail.push("Effect: "+skill+" ("+G.text(G.field(e,"source"))+")");
         }
-        return {uid:G.uid(item),kind:G.text(G.field(item,"kind")),count:count,
-            name:clean(G.text(G.call("st.Item","getName",item)),160),detail:detail.join("\n").substr(0,1024),
+        var kind=G.text(G.field(item,"kind")),display=G.text(G.call("st.Item","getName",item));
+        if(display.indexOf("[")>=0||display.indexOf("::")>=0)display=resolveItemName(definition(kind),display);
+        return {uid:G.uid(item),kind:kind,count:count,
+            name:clean(display,160),detail:detail.join("\n").substr(0,1024),
             color:G.integer(G.field(rarity,"color"),7623481)&0xffffff,fingerprint:fingerprint(item),preview:preview(item)};
     }
     public static function preview(item:Dynamic):TradeItemPreview return {

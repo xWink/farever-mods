@@ -802,7 +802,7 @@ class MarketWindow {
             dropdown("Rarity",b.rarityOptions(),b.rarityOptions(),b.rarity,754,y-70,316,s->{b.setRarity(s);dirty=true;});
         if(b.selected.gear) {
             labelAt(frame.container,"Level requirement",754,y-28,152,true);
-            counter(b.anyLevel?"Any":Std.string(b.level),754,y,96,b.levelLimit(),s->{
+            counter(b.anyLevel?"Any":Std.string(b.level),754,y,96,b.maxLevel,s->{
                 if(s!=""&&(s=="Any"?!b.anyLevel:b.anyLevel||int(s)!=b.level)){b.setLevel(s);dirty=true;}
             },false,true);
             button("Any",856,y,50,()->{b.setAnyLevel(!b.anyLevel);dirty=true;},b.anyLevel?"unaccept":"");
