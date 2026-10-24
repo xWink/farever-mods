@@ -1,7 +1,7 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.2.0",
-  "commit": "467279da42eec5ce42b2df9d568cadb99a69724c",
-  "notes": "- Prismatic items now have a rainbow prismatic indicator in their item details.\n- Browse and My Listings now uses infinite scrolling instead of changing pages.\n- Added a Buy tab, enabling players to submit Buy orders. Players can have up to active 20 Buy orders at the same time.\n- Buy orders appear in the Browse page alongside Sell orders.\n- You can now filter the Browse page by order type.\n",
+  "project": "dps-meter",
+  "version": "1.11.9",
+  "commit": "a0c38a29adb15ffaf96f9a7fc4dfeb7e51fbda84",
+  "notes": "Performance improvements",
   "dry_run": false
 }
