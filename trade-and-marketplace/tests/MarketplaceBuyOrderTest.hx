@@ -67,7 +67,7 @@ class MarketplaceBuyOrderTest {
         c.submitBuy();check(last().body==body&&last().headers.get("Idempotency-Key")==key);
         reply(c,app,200,{id:"new-buy",revision:1,orderType:"buy",server:"europe",replayed:true});
         check(!c.busy&&c.buy.selected==null&&c.buyRequestId==""&&c.buyExpectedBody==""&&c.message=="Buy order posted.");
-        check(!c.ownedKnown&&c.ownedListingCount==1&&c.tab=="Buy");
+        check(!c.ownedKnown&&c.ownedBuyCount==1&&c.tab=="Buy");
         c.buy=draft();c.submitBuy();key=last().headers.get("Idempotency-Key");
         reply(c,app,0,null);c.buy.quantity="13";c.submitBuy();
         check(last().headers.get("Idempotency-Key")!=key&&haxe.Json.parse(last().body).item.quantity==13);
@@ -77,8 +77,8 @@ class MarketplaceBuyOrderTest {
         c.submitBuy();reply(c,app,200,{id:"bad-receipt",revision:1,orderType:"sell",server:"europe"});
         check(c.buy.selected!=null&&c.buyRequestId!=""&&c.message.indexOf("Unsupported marketplace response")>=0);
         var sent=MarketWorker.current.sent.length;c.ready=false;c.submitBuy();check(MarketWorker.current.sent.length==sent&&!c.busy);
-        c.ready=true;c.ownedListingCount=20;c.submitBuy();check(MarketWorker.current.sent.length==sent&&c.message==MarketController.error("listing_limit"));
-        c.ownedListingCount=0;c.submitBuy();reply(c,app,409,{error:{code:"duplicate_listing"}});
+        c.ready=true;c.ownedBuyCount=20;c.submitBuy();check(MarketWorker.current.sent.length==sent&&c.message==MarketController.error("listing_limit","buy"));
+        c.ownedBuyCount=0;c.submitBuy();reply(c,app,409,{error:{code:"duplicate_listing"}});
         check(c.buy.selected!=null&&!c.busy);
         c.submitBuy();c.chooseTab("My listings");check(c.navigationPending&&c.busy);
         reply(c,app,201,{id:"third-buy",revision:1,orderType:"buy",server:"europe"});
@@ -87,7 +87,7 @@ class MarketplaceBuyOrderTest {
         value=MarketExport.buySnapshot(draft(),"europe",app,player);
         var buyRow:Dynamic={id:"owned-buy",revision:1,orderType:"buy",server:"europe",item:value.item,price:value.price,export:value};
         reply(c,app,200,{listings:[buyRow],nextCursor:null});
-        check(c.rows.length==1&&c.rows[0].id=="owned-buy"&&c.ownedListingCount==1&&c.ownedKnown);
+        check(c.rows.length==1&&c.rows[0].id=="owned-buy"&&c.ownedBuyCount==1&&c.ownedKnown);
         check(!c.ownedKinds.exists(value.item.baseId)&&!c.ownedItems.keys().hasNext());
         c.selected=c.rows[0];check(c.beginEdit()&&c.editQuantityLimit==10000);
         c.edit(10000,9,false);var edit=haxe.Json.parse(last().body);
@@ -95,10 +95,10 @@ class MarketplaceBuyOrderTest {
         check(edit.character.id=="buy-character"&&last().headers.get("If-Match")=='"1"');
         reply(c,app,200,{id:"owned-buy",revision:2});
         check(c.selected.item.quantity==10000&&c.selected.export.orderType=="buy"&&c.editingListingId=="");
-        c.remove();reply(c,app,204,null);check(c.rows.length==0&&c.ownedListingCount==0);
+        c.remove();reply(c,app,204,null);check(c.rows.length==0&&c.ownedBuyCount==0);
         var sellRow:Dynamic=haxe.Json.parse(haxe.Json.stringify(buyRow));sellRow.id="owned-sell";sellRow.orderType="sell";sellRow.export.orderType="sell";
         c.ownedRows=[buyRow,sellRow];c.indexOwned();
-        check(c.ownedListingCount==2&&c.ownedKinds.exists(value.item.baseId));
+        check(c.ownedBuyCount==1&&c.ownedSellCount==1&&c.ownedKinds.exists(value.item.baseId));
 
         c.chooseTab("Browse");check(Std.string(last().path).indexOf("orderType=any")>=0&&Std.string(last().path).indexOf("pricing=")<0);
         reply(c,app,200,{listings:[buyRow],nextCursor:"old-cursor"});

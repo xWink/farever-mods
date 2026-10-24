@@ -92,11 +92,11 @@ class MarketplaceBuyTest {
         level.input.text="20";level.onChange();view.update();reflow(view);check(!c.buy.anyLevel&&c.buy.level==20);
         var count=c.refreshes;button("Place buy order").action();
         check(c.refreshes==count&&c.buySubmissions==0&&c.buy.selected.kind==armor.id&&c.buy.quantity=="12"&&c.message=="");
-        c.ready=true;c.busy=false;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
+        c.ready=true;c.busy=false;c.atSellLimit=true;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
         check(c.buySubmissions==1);
-        c.atLimit=true;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
-        check(c.buySubmissions==1&&G.labels.filter(l->l.text==MarketController.error("listing_limit")).length==1);
-        c.atLimit=false;view.dirty=true;view.update();reflow(view);
+        c.atBuyLimit=true;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
+        check(c.buySubmissions==1&&G.labels.filter(l->l.text==MarketController.error("listing_limit","buy")).length==1);
+        c.atBuyLimit=false;c.atSellLimit=false;view.dirty=true;view.update();reflow(view);
         check(c.chosen==chosen&&view.quantity=="7"&&c.filters["search"]=="sword"&&c.filters["online"]=="true"&&c.hideMine);
         button("Clear filters").action();view.update();reflow(view);
         check(c.buy.visible.length==253&&c.buy.selected.kind==armor.id&&c.filters["search"]=="sword");

@@ -176,11 +176,11 @@ class MarketplaceStateTest {
         c.disconnect();c.account="self";check(!c.listingOnline(own));
         var capped=new MarketController();capped.player=player;capped.inv=new TradeInventory(player);capped.ready=true;capped.server="europe";capped.tab="Sell";
         capped.refresh();ownReply(capped,app,[for(i in 0...40){id:Std.string(i),revision:1,server:i<20?"europe":"north-america"}]);
-        check(capped.listingLimitReached());
+        check(capped.listingLimitReached("sell"));
         capped.chosen=capped.inventory[0];var limitCalls=MarketWorker.current.sent.length;capped.list(1,1,false);
         check(MarketWorker.current.sent.length==limitCalls);
         capped.chooseTab("My listings");capped.selected=capped.rows[0];capped.remove();
-        ownReply(capped,app,[]);check(!capped.listingLimitReached());
+        ownReply(capped,app,[]);check(!capped.listingLimitReached("sell"));
         var editor=new MarketController();editor.player=player;editor.inv=new TradeInventory(player);editor.server="europe";editor.ready=true;editor.tab="My listings";
         editor.inv.hero.loadout.banks=[];
         var held:Dynamic={uid:"edit-item",kind:"Shoulders_EManfish_WizCle",inf:{}};
@@ -189,7 +189,7 @@ class MarketplaceStateTest {
             item:marketplace.MarketExport.itemData(held,TradeInventory.describe(held,12),5),price:{mode:"fixed",silverTrays:4}};
         var listing:Dynamic={id:"edit-me",revision:3,server:"europe",expiresAt:"2099-01-01T00:00:00.000Z",item:haxe.Json.parse(haxe.Json.stringify(export.item)),price:export.price};
         Reflect.setField(listing,"export",export);
-        editor.ownedRows=[listing];editor.ownedKnown=true;editor.ownedListingCount=20;editor.rows=[listing];editor.selected=listing;
+        editor.ownedRows=[listing];editor.ownedKnown=true;editor.ownedSellCount=20;editor.ownedBuyCount=20;editor.rows=[listing];editor.selected=listing;
         check(editor.beginEdit()&&editor.editQuantityLimit==12);
         var edits=MarketWorker.current.sent.length;editor.edit(13,4,false);check(MarketWorker.current.sent.length==edits&&editor.message.indexOf("Not enough")>=0);
         held.locked=true;editor.edit(10,4,false);check(MarketWorker.current.sent.length==edits);held.locked=false;
@@ -210,6 +210,7 @@ class MarketplaceStateTest {
         MarketplaceCacheTest.run();
         MarketplaceRecoveryTest.run();
         MarketplaceBuyOrderTest.run();
+        MarketplaceLimitsTest.run();
     }
 
     static function navigationDuringRequests():Void {

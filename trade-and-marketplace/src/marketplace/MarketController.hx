@@ -41,8 +41,9 @@ class MarketController {
     var ownOnlineUntil=0.0;
     var ownOnlineServer="";
     var ownedKnown=false;
-    var ownedListingCount=0;
-    public function listingLimitReached():Bool return ownedListingCount>=LISTING_LIMIT;
+    var ownedSellCount=0;
+    var ownedBuyCount=0;
+    public function listingLimitReached(orderType:String):Bool return (orderType=="buy"?ownedBuyCount:ownedSellCount)>=LISTING_LIMIT;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
     var ownedExpiry:Map<String,Float>=[];
@@ -70,6 +71,7 @@ class MarketController {
     var pendingFailure:Void->Void;
     var pendingMethod="";
     var pendingPath="";
+    var pendingOrderType="";
     // Requests and writes must finish, but navigation and filter changes should
     // take effect immediately. Replay only the latest desired view afterwards.
     var navigationPending=false;
@@ -114,7 +116,7 @@ class MarketController {
             if(event.generation==generation) switch(event.op){
                 case "prefetch":receivePrefetch(event,now);
                 case "request":
-                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,failed=pendingFailure;pendingFailure=null;
+                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,orderType=pendingOrderType,failed=pendingFailure;pendingFailure=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
                         if(ready)connectionIssue=false;
@@ -126,12 +128,15 @@ class MarketController {
                         }
                     } else {pending=null;if(failed!=null)failed();
                         var code=data==null?"":G.text(G.field(data.error,"code"),G.text(data.error));
-                        if(code=="listing_limit")ownedListingCount=LISTING_LIMIT;
+                        if(code=="listing_limit") {
+                            if(orderType=="buy")ownedBuyCount=LISTING_LIMIT;
+                            else if(orderType=="sell")ownedSellCount=LISTING_LIMIT;
+                        }
                         if(method=="PUT"&&code=="stale_revision"){ownedKnown=false;editingListingId="";}
                         cooldown.record(method,path,response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
                         message=response.status==0||response.status>=500?MarketText.TEMPORARY_ERROR:
                             response.status==429?cooldown.message(method,path,haxe.Timer.stamp()):
-                            method=="PUT"&&code=="stale_revision"?"This listing changed. Refresh before editing it again.":error(code);
+                            method=="PUT"&&code=="stale_revision"?"This listing changed. Refresh before editing it again.":error(code,orderType);
                         if(method=="GET")retryOnOpen=true;
                         if(response.status>=200&&response.status<300&&response.error=="")
                             MarketApiLog.unexpected(method,path,response.status,"Expected a JSON response",key);
@@ -218,9 +223,10 @@ class MarketController {
             filledBrowse.selectedId=G.text(G.field(selected,"id"));
     }
     function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
-    function invalidateListings():Void {
+    function invalidateListings(resetCounts=true):Void {
         cancelPrefetch();listingCaches=[];filledBrowse=null;mineScroll={offset:0.0};
-        ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
+        if(resetCounts){ownedSellCount=0;ownedBuyCount=0;}
+        ownedKnown=false;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function listingScrollState():{offset:Float} return tab=="Browse"&&filledBrowse!=null?filledBrowse.scroll:mineScroll;
     public function loadingMore():Bool return tab=="Browse"&&prefetch!=null&&prefetch.feed==filledBrowse;
@@ -351,10 +357,12 @@ class MarketController {
     }
     function indexOwned():Void {
         var now=Date.now().getTime()/1000;
-        ownedListingCount=ownedRows.filter(row->{
+        ownedSellCount=0;ownedBuyCount=0;
+        for(row in ownedRows) {
             var expires=G.text(G.field(row,"expiresAt"));
-            return G.text(G.field(row,"server"))==server&&(expires==""||Protocol.expiry(expires)>now);
-        }).length;
+            if(G.text(G.field(row,"server"))!=server||(expires!=""&&Protocol.expiry(expires)<=now))continue;
+            if(MarketOrder.isBuy(row))ownedBuyCount++;else ownedSellCount++;
+        }
         var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
         for(row in ownedRows) {
             // Buy orders consume listing slots but do not mark inventory for sale.
@@ -549,6 +557,8 @@ class MarketController {
         if(cooldown.remaining(method,path,haxe.Timer.stamp())>0){message=cooldown.message(method,path,haxe.Timer.stamp());view.dirty=true;return false;}
         if((method!="GET"||path.indexOf("mine=true")>=0)&&!ready){message=connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";view.dirty=true;return false;}
         busy=true;pending=done;pendingFailure=failed;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
+        // A response belongs to the submitted order, even after navigating to another tab.
+        pendingOrderType=method=="POST"&&path=="/api/v1/marketplace/listings"?(MarketOrder.isBuy(body)?"buy":"sell"):"";
         try worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers})catch(e:Dynamic) {
             busy=false;pending=null;pendingFailure=null;
             MarketApiLog.unexpected(method,path,0,"Could not queue request: "+Std.string(e),key);
@@ -558,18 +568,19 @@ class MarketController {
         return true;
     }
     public function list(quantity:Int,trays:Int,offers:Bool):Void {
-        if(chosen==null||busy||listingLimitReached())return;
+        if(chosen==null||busy)return;
+        if(listingLimitReached("sell")){message=error("listing_limit","sell");view.dirty=true;return;}
         if(isBound(chosen)){message="This item is bound and cannot be traded.";view.dirty=true;return;}
         if(isLocked(chosen)){message="This item is locked.";view.dirty=true;return;}
         if(!ownedKnown){refreshSell();return;}
         try {
-            var submittedUid=chosen.uid,submittedCount=ownedListingCount;
+            var submittedUid=chosen.uid;
             var value=MarketExport.snapshot(inv,chosen,quantity,trays,offers,server,app,bankOnly),body=haxe.Json.stringify(value);
             if(ownedItems.exists(MarketItemIdentity.key(value.item)))throw "You already have an active listing for this item.";
             // A timed-out submission reuses its UUID and exact body; a second click cannot duplicate it.
             if(body!=expectedBody){requestId=MarketExport.uuid();expectedBody=body;}
             request("POST","/api/v1/marketplace/listings",value,["Idempotency-Key"=>requestId],data->{
-                invalidateListings();ownedListingCount=submittedCount+1;
+                invalidateListings(false);ownedSellCount++;
                 // Keep known markers while reconciling, including the item just accepted by the server.
                 ownedItems[MarketItemIdentity.key(value.item)]=true;
                 ownedKinds[G.text(G.field(value.item,"baseId"))]=true;
@@ -587,9 +598,9 @@ class MarketController {
     public function submitBuy():Void {
         if(tab!="Buy"||busy||buy.selected==null)return;
         if(!ready){message=connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";view.dirty=true;return;}
-        if(listingLimitReached()){message=error("listing_limit");view.dirty=true;return;}
+        if(listingLimitReached("buy")){message=error("listing_limit","buy");view.dirty=true;return;}
         try {
-            var submittedBuy=buy,draft=buy.draftKey(),submittedCount=ownedListingCount;
+            var submittedBuy=buy,draft=buy.draftKey();
             var value=MarketExport.buySnapshot(buy,server,app,player),body=haxe.Json.stringify(value);
             // Keep a separate retry token so using Sell after a timeout cannot
             // change this draft's idempotency key. The server checks duplicates.
@@ -597,7 +608,7 @@ class MarketController {
             request("POST","/api/v1/marketplace/listings",haxe.Json.parse(buyExpectedBody),["Idempotency-Key"=>buyRequestId],data->{
                 if(G.text(data.id)==""||G.integer(data.revision)!=1||!MarketOrder.isBuy(data)||G.text(data.server)!=G.text(value.server))
                     throw "Invalid buy order receipt";
-                invalidateListings();ownedListingCount=submittedCount+1;
+                invalidateListings(false);ownedBuyCount++;
                 buyExpectedBody="";buyRequestId="";
                 if(buy==submittedBuy&&buy.draftKey()==draft)buy.clearSelection();
                 message="Buy order posted.";
@@ -695,9 +706,11 @@ class MarketController {
         },()->{contactingSeller="";});
         if(!queued)contactingSeller="";
     }
-    public static function error(code:String):String return switch(code){
+    public static function error(code:String,orderType=""):String return switch(code){
         case "duplicate_item":"You already have an active listing for this item.";
-        case "listing_limit":"You can have up to 20 active listings per region. Remove a listing first.";
+        case "listing_limit":orderType=="buy"||orderType=="sell"
+            ?"You can have up to 20 active "+orderType+" orders per region. Remove a "+orderType+" order first."
+            :"You can have up to 20 buy orders and 20 sell orders per region. Remove an order of the same type first.";
         case "listing_unavailable","listing_not_found":"This listing expired or was removed. Refresh the marketplace.";
         case "stale_revision":"This listing changed. Refresh before removing it.";
         case "unauthorized","insufficient_scope","sign_in_required":"Sign in with Steam to manage your listings.";

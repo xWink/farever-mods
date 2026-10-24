@@ -218,7 +218,7 @@ class MarketWindow {
         afterReflow(regionBox,()->{
             centerDropdownCaption(region,36,0);position(region,0,G.number(G.field(region,"y")));
         });
-        if(c.tab=="My listings")labelAt(root,"You can have up to 20 active listings per region. Listings expire 3 days after posting.",20,76,1064,false,MUTED);
+        if(c.tab=="My listings")labelAt(root,"Up to 20 sell orders and 20 buy orders per region, shared across characters. Orders expire after 3 days.",20,76,1064,false,MUTED);
         if(c.tab=="Sell") {
             tabButton("Inventory",20,68,150,()->c.setBankOnly(false),!c.bankOnly);
             tabButton("Bank",182,68,150,()->c.setBankOnly(true),c.bankOnly);
@@ -306,7 +306,7 @@ class MarketWindow {
         button("Refresh",970,820,118,c.refresh,"",true,true);
         var message = c.message;
         if(c.tab=="Buy"&&c.buy.selected!=null) {
-            if(c.listingLimitReached())message=MarketController.error("listing_limit");
+            if(c.listingLimitReached("buy"))message=MarketController.error("listing_limit","buy");
             else if(!c.ready&&message=="")message=c.connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";
         }
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
@@ -822,7 +822,7 @@ class MarketWindow {
             var conversion=currencyLine(frame.container,int(b.trays),754,720,316,true);
             counter(b.trays,754,668,190,200000,s->{b.trays=s;conversion(int(s));},true);
         }
-        button("Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!c.listingLimitReached());
+        button("Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!c.listingLimitReached("buy"));
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
@@ -1225,8 +1225,8 @@ class MarketWindow {
         counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.max(1,available)),s->quantity=s);
         labelAt(frame.container,"of "+available+" available",900,SELL_FORM_Y+44,170,false,MUTED);
         priceFields(SELL_FORM_Y+92);
-        var limited=c.listingLimitReached();
-        button(limited?"Too many listings":"List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept",!limited);
+        var limited=c.listingLimitReached("sell");
+        button(limited?"Too many sell orders":"List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept",!limited);
     }
     function listingPanel(row:Dynamic):Void {
         try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}

@@ -52,10 +52,11 @@ class MarketController {
  public function list(q:Int,t:Int,o:Bool):Void{}
  public var buySubmissions=0;
  public function submitBuy():Void {buySubmissions++;}
- public static function error(code:String):String return code=="listing_limit"?"You can have up to 20 active listings per region. Remove a listing first.":code;
+ public static function error(code:String,orderType=""):String return code=="listing_limit"?"You can have up to 20 active "+orderType+" orders per region. Remove a "+orderType+" order first.":code;
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
- public var atLimit=false;
- public function listingLimitReached():Bool return atLimit;
+ public var atSellLimit=false;
+ public var atBuyLimit=false;
+ public function listingLimitReached(orderType:String):Bool return orderType=="buy"?atBuyLimit:atSellLimit;
  public var listed=false;
  public var bound=false;
  public function isBound(item:trade.TradeTypes.TradeItem):Bool return bound;

@@ -46,12 +46,12 @@ class MarketplaceRecoveryTest {
         reply(c,app,200,{listings:first,nextCursor:"second"});
         check(c.busy&&MarketWorker.current.sent[MarketWorker.current.sent.length-1].path==own+"&cursor=second");
         reply(c,app,200,{listings:[{id:"50",revision:1,server:"europe"}],nextCursor:null});
-        check(!c.busy&&c.listingLimitReached());
+        check(!c.busy&&c.listingLimitReached("sell"));
         c.chooseTab("My listings");check(c.pages==1&&c.total==20);
         c.selected=c.rows[0];c.remove();reply(c,app,204,null);
-        check(!c.listingLimitReached());check(c.total==19);
+        check(!c.listingLimitReached("sell"));check(c.total==19);
         c.refresh();reply(c,app,200,{listings:[for(i in 0...20){id:Std.string(i),server:"north-america"}],nextCursor:null});
-        check(!c.listingLimitReached()&&c.total==0);
+        check(!c.listingLimitReached("sell")&&c.total==0);
         c.request("GET",own,null,null,_ -> {});reply(c,app,401,{error:{code:"unauthorized"}});
         check(!c.ready&&c.connectionIssue&&!c.busy);
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"ready",message:"Connected"});c.update(app,0);
