@@ -96,12 +96,12 @@ class MarketplaceBuyOrderTest {
         c.ownedRows=[buyRow,sellRow];c.indexOwned();
         check(c.ownedListingCount==2&&c.ownedKinds.exists(value.item.baseId));
 
-        c.chooseTab("Browse");check(last().path.indexOf("orderType=any")>=0&&last().path.indexOf("pricing=")<0);
+        c.chooseTab("Browse");check(Std.string(last().path).indexOf("orderType=any")>=0&&Std.string(last().path).indexOf("pricing=")<0);
         reply(c,app,200,{listings:[buyRow],nextCursor:"old-cursor"});
         c.filters["orderType"]="buy";c.refresh();
-        check(last().path.indexOf("orderType=buy")>=0&&last().path.indexOf("cursor=")<0);
+        check(Std.string(last().path).indexOf("orderType=buy")>=0&&Std.string(last().path).indexOf("cursor=")<0);
         reply(c,app,200,{listings:[buyRow],nextCursor:null});
-        c.filters["orderType"]="sell";c.refresh();check(last().path.indexOf("orderType=sell")>=0&&last().path.indexOf("cursor=")<0);
+        c.filters["orderType"]="sell";c.refresh();check(Std.string(last().path).indexOf("orderType=sell")>=0&&Std.string(last().path).indexOf("cursor=")<0);
         reply(c,app,200,{listings:[sellRow],nextCursor:null});check(c.rows[0].orderType=="sell");
         c.disconnect();check(c.buyRequestId==""&&c.buyExpectedBody=="");
         Sys.println("Marketplace buy order checks passed: "+checks);
