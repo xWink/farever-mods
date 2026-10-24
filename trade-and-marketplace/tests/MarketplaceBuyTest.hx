@@ -21,6 +21,8 @@ class MarketplaceBuyTest {
         var potion:Dynamic={id:"CatalogPotion",type:"Potion",nativeRarityId:"Common",gear:false,infusable:false};
         var definitions:Array<Dynamic>=[armor,bow,potion];
         for(i in 0...250)definitions.push({id:"CatalogMaterial"+i,type:"CraftingComponent",nativeRarityId:"Common",gear:false,infusable:false});
+        for(id in ["ActivityLoot","RecipeGenerator","Soulstone","SoulstoneLegendary","WorldLoot"])
+            definitions.push({id:id,type:"Misc",nativeRarityId:"Common",valid:false});
         for(d in definitions){TradeInventory.definitions[d.id]=d;TradeInventory.localizedNames[d.id]=d.id;}
         TradeInventory.localizedNames[armor.id]="Armure étoilée";TradeInventory.localizedNames[bow.id]="Arc";TradeInventory.localizedNames[potion.id]="Potion";
         var types:Map<String,Dynamic>=["Chest"=>{inherit:"Armor"},"Armor"=>{inherit:"Gear"},"Bow"=>{inherit:"Weapon"},"Weapon"=>{inherit:"Gear"},"Potion"=>{inherit:"Consumable"}];
@@ -60,6 +62,7 @@ class MarketplaceBuyTest {
         var bonus=dropdown(508);bonus.selectedIndex=1;bonus.onSelectOption(null);view.update();reflow(view);
         var prism=G.nodes.filter(n->n.fmtText.text=="Prismatic")[0];prism.onValueChange(true);view.update();reflow(view);
         check(c.buy.level==20&&c.buy.bonus=="Vitality"&&c.buy.prismatic&&c.buy.preview.preview.flags==2);
+        check(G.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic").length==1);
         var quantity=G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==918&&n.y==438)[0];
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");
         button("Open to offers").action();view.update();reflow(view);check(c.buy.offers);

@@ -1127,6 +1127,12 @@ class MarketWindow {
             absolute(details,icon);padding(icon,0);size(icon,20,20);stars.push(icon);
         }
         var quantityLabel=c.tab=="Buy"?null:labelAt(details,"Quantity: "+item.count,72,0,212,false,0xC9BEB5);
+        var prismaticLabel=prismatic?labelAt(details,"Prismatic",72,0,212,false,0xFFFFFF):null;
+        if(prismaticLabel!=null) {
+            var colors=["FF7B7B","FFA96B","FFD76B","BFE870","7DDF93","76DDCF","7FBEFF","A99AFF","DA94F0"];
+            var rainbow=[for(i in 0...colors.length)"<font color='#"+colors[i]+"'>"+"Prismatic".charAt(i)+"</font>"].join("");
+            G.call("ui.comp.FmtText","set_text",prismaticLabel,[rainbow]);
+        }
         var lines=[];
         var category=G.text(G.field(metadata,"category")),subcategory=G.text(G.field(metadata,"subcategory"));
         if(category!="")lines.push("Category: "+MarketCategory.label(category));
@@ -1159,9 +1165,9 @@ class MarketWindow {
                 for(i in 0...stars.length)position(stars[i],starX+i*24,below-1);
                 below+=24;
             }
-            var quantityY=below;
-            if(quantityLabel!=null)position(quantityLabel,72,quantityY);
-            var statsY=Std.int(Math.max(72,quantityY+(quantityLabel==null?8:32)));
+            if(quantityLabel!=null){position(quantityLabel,72,below);below+=24;}
+            if(prismaticLabel!=null){position(prismaticLabel,72,below);below+=24;}
+            var statsY=Std.int(Math.max(72,below+8));
             position(meta,0,statsY);
             if(category!=""||subcategory!=""||restrictions!="") {
                 var metaBounds=G.call("h2d.Object","getSize",meta,[null]);

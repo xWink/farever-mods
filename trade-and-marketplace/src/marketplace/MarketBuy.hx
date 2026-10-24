@@ -48,6 +48,9 @@ class MarketBuy {
             var kind=G.text(G.field(definition,"id"));
             if(kind==""||seen.exists(kind))continue;
             seen[kind]=true;
+            // Resolve native type/rarity fallback icons too; a missing item-level
+            // gfx field alone does not mean the item has no usable artwork.
+            if(G.staticCall("HItem","getGfx",[definition])==null)continue;
             var meta=MarketCategory.item(kind),rarity=G.text(G.field(G.staticCall("HItem","getRarity",[definition]),"id"));
             var name=MarketText.itemName(kind,TradeInventory.itemName(kind),TradeInventory.itemName),level=G.integer(G.field(definition,"level"),1);
             if(StringTools.trim(name)=="")name=kind;

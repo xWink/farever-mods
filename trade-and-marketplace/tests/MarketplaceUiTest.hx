@@ -559,8 +559,15 @@ class MarketplaceUiTest {
    GameAccess.labels=[];view.dirty=true;view.update();
    check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
    check(GameAccess.labels.filter(l->l.text=="Epic"||l.text=="Epic (Prismatic)").length==0);
+   var prism=GameAccess.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic")[0];
+   check(prism!=null&&Std.string(prism.text).split("<font color=").length==10);
+   var detailTitle=GameAccess.labels.filter(l->l.parent==prism.parent&&l.text==row.item.name)[0];
+   detailTitle.bounds={xMin:0.,yMin:4.,xMax:200.,yMax:70.};prism.parent.onAfterReflow();
+   var quantity=GameAccess.labels.filter(l->l.parent==prism.parent&&l.text=="Quantity: 1")[0];
+   check(prism.x==quantity.x&&prism.y==quantity.y+24&&quantity.y>70);
    row.item.native.flags=0;GameAccess.labels=[];view.dirty=true;view.update();
    check(detailNativeFrame().innerSlot.nativeRarity=="Epic");
+   check(GameAccess.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic").length==0);
   }
   var originalRarity=row.item.rarity,originalDescription=row.item.detail;
   row.item.rarity="Legendary";row.item.native.rarity="Legendary";row.item.detail="+63 Vitality\n+27 Strength";
