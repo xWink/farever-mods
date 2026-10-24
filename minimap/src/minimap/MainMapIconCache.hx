@@ -57,7 +57,7 @@ class MainMapIconCache {
                 var source = G.staticCall("h2d.Tile", "fromTexture", [texture]);
                 holder = G.create("h2d.Object", [null]);
                 geometryReleased = false;
-                MarkerOutline.compose(holder, source, SAMPLES, blend);
+                MarkerOutline.compose(holder, source, SAMPLES * MarkerOutline.THICKNESS, blend);
                 texture = G.create("h3d.mat.Texture", [size * SAMPLES, size * SAMPLES, flags, format]);
                 allocated.push(texture);
                 G.call("h3d.mat.Texture", "clear", texture, [0, 0.0, null]);

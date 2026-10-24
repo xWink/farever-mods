@@ -1011,6 +1011,14 @@ class MinimapMarkers {
         };
         var sparkling = point.sparkling == true;
         var radius = markerRadius(kind);
+        if (kind == "bank") {
+            // Outline the dollar sign's combined silhouette in the icon cache.
+            // Enlarging the S and stem shifts their inner edges independently.
+            G.call("h2d.Graphics", "beginFill", graphics, [color, 1.]);
+            shape(point, radius);
+            G.call("h2d.Graphics", "endFill", graphics);
+            return;
+        }
         if (kind == "companion") {
             if (sparkling) LandmarkIcons.sparklingRing(graphics, radius + 3.5);
             // Stroke each toe and the pad at their original positions. Scaling

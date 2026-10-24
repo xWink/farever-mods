@@ -2,11 +2,12 @@ package minimap;
 
 import minimap.GameAccess as G;
 
-/** A one-pixel dark silhouette, baked into the shared marker texture. */
+/** A half-pixel dark silhouette, baked into the shared marker texture. */
 class MarkerOutline {
+    public static inline var THICKNESS = 0.5;
     public static function needed(kind:String):Bool return switch kind {
         case "activity", "quest", "dungeon", "soulstone", "riftPortal", "upcomingRift", "inactiveRift", "nextRift",
-             "pilgrim", "demon", "glory": true;
+             "pilgrim", "demon", "glory", "bank": true;
         default: false; // Other markers already include an outline in their geometry.
     };
 
@@ -21,7 +22,7 @@ class MarkerOutline {
             G.call("h2d.Object", "setPosition", shadow, [Math.cos(angle) * pixels, Math.sin(angle) * pixels]);
         }
         // Original artwork covers the inside of the silhouette, at its original
-        // position and size. Only the one-pixel outer edge remains visible.
+        // position and size. Only the thin outer edge remains visible.
         bitmap(parent, tile, blend);
     }
 

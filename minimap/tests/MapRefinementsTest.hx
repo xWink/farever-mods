@@ -109,6 +109,18 @@ class MapRefinementsTest {
         near(faction.height,248,'Full Riftstalkers banner height sampled');
 
         G.recordShapes = true; G.shapes = [];
+        art.drawIcon({kind:'bank',x:0,y:0,z:0});
+        G.recordShapes = false;
+        var fills = G.shapes.filter(c -> c.name == 'beginFill');
+        eq(fills.length, 1, 'Dollar sign contains only its original gold silhouette');
+        eq(fills[0].args[0], 0xffdc42, 'Guild merchant keeps its gold color');
+        eq(G.shapes.filter(c -> c.name == 'moveTo').length, 1, 'Dollar S is not duplicated at an enlarged radius');
+        var stems = G.shapes.filter(c -> c.name == 'drawRect');
+        eq(stems.length, 1, 'Dollar stem is not duplicated at an enlarged radius');
+        near(G.number(stems[0].args[2]), 0.26 * 7, 'Original stem width is retained');
+        eq(minimap.MarkerOutline.needed('bank'), true, 'Uniform cached outline follows the complete dollar sign');
+
+        G.recordShapes = true; G.shapes = [];
         art.drawIcon({kind:'companion',x:0,y:0,z:0});
         G.recordShapes = false;
         var stroke = 0., toes = 0, pads = 0;

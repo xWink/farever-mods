@@ -15,7 +15,7 @@ class MainMapPerformanceTest {
         var root = G.create('h2d.Object', [null]);
         var source:Dynamic = {width:32., height:32.};
         var start = G.created.length;
-        minimap.MarkerOutline.compose(root, source, 1., 'AlphaAdd');
+        minimap.MarkerOutline.compose(root, source, minimap.MarkerOutline.THICKNESS, 'AlphaAdd');
         var layers = G.created.slice(start);
         eq(layers.length, 9, 'Outline consists of eight alpha-preserving silhouettes and original art');
         for (i in 0...layers.length) {
@@ -25,7 +25,7 @@ class MainMapPerformanceTest {
             eq(layer.blendMode, 'AlphaAdd', 'Premultiplied source alpha survives composition');
             eq(layer.scale, 1., 'Outline does not enlarge or distort artwork');
             var x = G.number(layer.x), y = G.number(layer.y);
-            eq(Math.abs(x*x + y*y - (i == 8 ? 0 : 1)) < 0.000001, true, 'Silhouettes extend only one pixel');
+            eq(Math.abs(x*x + y*y - (i == 8 ? 0 : 0.25)) < 0.000001, true, 'Silhouettes extend only half a pixel');
             eq(layer.color.argb, i == 8 ? 0xffffffff : 0xff000000, 'Tint changes RGB while keeping source alpha');
         }
         // Sample the actual configured bitmap transforms over a diamond alpha
@@ -41,8 +41,9 @@ class MainMapPerformanceTest {
             return result;
         }
         eq(pixel(16,16), 0xff79ef93, 'Original icon color remains intact');
-        eq(pixel(21.75,16), 0xff000000, 'A thin black edge appears just beyond the icon');
-        eq(pixel(22.01,16), 0, 'Pixels beyond the one-pixel border stay transparent');
+        eq(pixel(21.25,16), 0xff000000, 'A thin black edge appears just beyond the icon');
+        eq(pixel(21.51,16), 0, 'Pixels beyond the half-pixel border stay transparent');
+        eq(pixel(21.75,16), 0, 'The previous thicker border is removed');
         for (x in [0.5,31.5]) for (y in [0.5,31.5]) eq(pixel(x,y), 0, 'Texture corners stay transparent');
         hole = true;
         eq(pixel(16,16), 0, 'Transparent internal space is preserved');
@@ -120,7 +121,7 @@ class MainMapPerformanceTest {
         eq(markers.mapIconMarkers[0].icon.tile == markers.mapIconMarkers[1].icon.tile, false, "Boss and chest artwork cannot collide");
         markers.draw(activityPoints, 1);
         eq(G.bakes, beforeActivities + 10, "Refreshing activities never rebakes unchanged artwork");
-        var outlinedKinds = ['activity','quest','dungeon','soulstone','riftPortal','upcomingRift','inactiveRift','nextRift','pilgrim','demon','glory'];
+        var outlinedKinds = ['activity','quest','dungeon','soulstone','riftPortal','upcomingRift','inactiveRift','nextRift','pilgrim','demon','glory','bank'];
         var firstOutline = G.created.length;
         var outlined:Array<MapPoint> = [for (i in 0...outlinedKinds.length)
             {kind:outlinedKinds[i], x:50.+i*25, y:100., z:0., bonusDungeon:outlinedKinds[i] == 'dungeon'}];
@@ -137,7 +138,7 @@ class MainMapPerformanceTest {
         eq(silhouettes.length, outlinedKinds.length * 8, 'Every activity and faction style receives its alpha silhouette');
         for (shadow in silhouettes) {
             var x = G.number(shadow.x), y = G.number(shadow.y);
-            eq(Math.abs(x*x + y*y - 64) < 0.000001, true, 'One local pixel becomes eight supersampled pixels');
+            eq(Math.abs(x*x + y*y - 16) < 0.000001, true, 'Half a local pixel becomes four supersampled pixels');
             eq(shadow.tile.texture.bakedBackground, 0, 'Silhouettes sample a transparent source texture');
         }
         var outlinedBakes = G.bakes, outlinedObjects = G.created.length;

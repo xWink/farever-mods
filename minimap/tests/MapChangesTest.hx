@@ -76,6 +76,32 @@ class MapChangesTest {
         var ordinary:Dynamic = {panning:{x:0.,y:0.},targetPanning:{x:50.,y:60.}};
         pan.beginUpdate(ordinary); nativeStep(ordinary, 1./60); pan.beforeScroll(ordinary);
         near(G.number(ordinary.panning.x), 15., 'Ordinary map panning is unaffected');
+
+        // Compare with the previous exponential motion through the initial
+        // travel, then measure the shortened settling time at several scales.
+        for (fps in [30,60,144]) for (distance in [10.,500.,5000.]) {
+            var w:Dynamic = {panning:{x:0.,y:0.},tileScale:1.,zoom:1.,targetZoom:1.};
+            pan.scrollTo(w, distance, 0.);
+            var rate = -Math.log(0.7) * 60 * 0.125;
+            var approachTime = Math.log(4.) / rate;
+            var oldTailTime = Math.log(distance * 0.25 / 0.01) / rate;
+            var expectedTime = approachTime + oldTailTime / 1.5;
+            var frame = 0, previousX = 0., previousStep = Math.POSITIVE_INFINITY;
+            var keptInitialSpeed = true, decelerates = true;
+            while (frame < fps * 20 && G.number(w.panning.x) < distance) {
+                pan.beginUpdate(w); nativeStep(w, 1. / fps); pan.beforeScroll(w); frame++;
+                var x = G.number(w.panning.x), time = frame / fps, step = x - previousX;
+                if (time <= approachTime && Math.abs(x - distance * (1 - Math.exp(-rate * time))) > 0.000001)
+                    keptInitialSpeed = false;
+                if (step < 0 || x < distance && step > previousStep + 0.000001) decelerates = false;
+                previousX = x; previousStep = step;
+            }
+            eq(keptInitialSpeed, true, 'Initial travel matches current speed at '+fps+'fps, distance '+distance);
+            eq(decelerates, true, 'Settling transition decelerates smoothly without reversing');
+            eq(frame / fps >= expectedTime - 0.000001 && frame / fps <= expectedTime + 1. / fps + 0.000001,
+                true, 'Final approach completes 50% faster, within one frame');
+            near(G.number(w.panning.x), distance, 'Pan settles exactly on its destination');
+        }
     }
     static function main():Void {
         layoutMigration();
