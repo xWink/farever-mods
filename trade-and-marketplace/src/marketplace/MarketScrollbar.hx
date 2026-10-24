@@ -4,7 +4,7 @@ import trade.GameAccess as G;
 import trade.TradeUi.*;
 
 /**
- * Rounded native-colour skin for Sell's existing scrollbar.
+ * Rounded native-colour skin for a native scrolling viewport.
  *
  * The older, visible scrollbar used h2d.Graphics too, but inserted drawings
  * into native scrollBar/scrollBarCursor Flow children and changed their reflow

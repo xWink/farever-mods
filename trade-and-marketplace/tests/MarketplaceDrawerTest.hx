@@ -23,7 +23,7 @@ class MarketplaceDrawerTest {
         for(tab in ["Browse","My listings"]) {
             c.tab=tab;c.selected=null;view.open();view.update();
             check(node("marketDetailsDrawer")==null&&G.labels.filter(l->l.text=="ITEM DETAILS").length==0);
-            check(node("marketListingViewport").width==1060&&rows()[0].width==1048);
+            check(node("marketListingViewport").width==1060&&rows()[0].width==1032);
             check(node("marketSortrequired-level").x==788&&node("marketSortprice").x==880);
             rows()[0].action();view.update();
             var panel=node("marketDetailsDrawer"),table=node("marketListingViewport"),originalRows=rows();
@@ -37,7 +37,7 @@ class MarketplaceDrawerTest {
             check(panel.parent==clip&&clip.x==0&&clip.y==0&&panel.x+1088>clip.width);
             check(table.width>692&&table.width<1060&&panel.x>0&&panel.x<368);
             check(rows()[0]==originalRows[0]&&!view.dirty&&c.refreshes==0);
-            finish(view);check(table.width==692&&panel.x==0&&rows()[0].width==680);
+            finish(view);check(table.width==692&&panel.x==0&&rows()[0].width==664);
             var detail=node("marketDetailViewport"),back:Dynamic=null;
             for(child in (cast panel.children:Array<Dynamic>))if(child.shapes!=null)
                 for(shape in (cast child.shapes:Array<Dynamic>))if(shape.color==0x4A423C&&shape.alpha==1)back=shape;
@@ -47,15 +47,15 @@ class MarketplaceDrawerTest {
                 var action=G.buttons.filter(b->b.text=="Whisper seller"||b.text=="Your listing")[0];
                 check(action.y-(back.y+back.height)==806-(action.y+36));
             }
-            check(table.overflow=="Hidden");
+            check(table.overflow=="Scroll");
             rows()[1].action();view.update();
             table=node("marketListingViewport");
-            check(c.selected==other&&node("marketDetailsDrawer").x==0&&table.overflow=="Hidden");
+            check(c.selected==other&&node("marketDetailsDrawer").x==0&&table.overflow=="Scroll");
             rows()[1].action();view.update();check(c.selected==null&&node("marketDetailsDrawer")!=null);
             var closing=node("marketDetailsDrawer"),closingMask=closing.parent;
             finish(view);check(node("marketDetailsDrawer")==null&&G.removed.indexOf(closing)>=0);
             check(G.removed.indexOf(closingMask)>=0);
-            check(node("marketListingViewport").width==1060&&rows()[0].width==1048&&c.refreshes==0);
+            check(node("marketListingViewport").width==1060&&rows()[0].width==1032&&c.refreshes==0);
             view.close();
         }
         c.tab="Sell";c.chosen=marketplace.MarketExport.offer(example);view.open();view.update();

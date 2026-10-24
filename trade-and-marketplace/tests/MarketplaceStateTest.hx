@@ -20,12 +20,14 @@ class MarketplaceStateTest {
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
         c.toggle();check(c.view.shown&&MarketWorker.current.sent.length==1);
         reply(c,app,{id:"first"},"next-page");
-        c.page=2;c.refresh();check(Std.string(MarketWorker.current.sent[1].path).indexOf("cursor=next-page")>=0);
-        reply(c,app,{id:"second"},null);c.selected=c.rows[0];
-        var selected=c.selected;
+        c.loadMore();var batch=MarketWorker.current.sent[1];
+        check(batch.op=="prefetch"&&Std.string(batch.path).indexOf("cursor=next-page")>=0&&!c.busy);
+        MarketWorker.current.incoming.push({generation:batch.generation,op:batch.op,ticket:batch.ticket,
+            response:{status:200,error:"",retryAfter:"",body:'{"listings":[{"id":"second"}],"nextCursor":null}'}});
+        c.update(app,0);c.selected=c.rows[1];var selected=c.selected;
         c.toggle();check(!c.view.shown);c.toggle();
-        check(MarketWorker.current.sent.length==3&&!c.busy);
-        check(c.page==2&&c.selected==selected&&c.rows[0]==selected&&c.view.shown);
+        check(MarketWorker.current.sent.length==2&&!c.busy);
+        check(c.selected==selected&&c.rows[1]==selected&&c.rows.length==2&&c.view.shown);
         c.chooseTab("Sell");check(c.busy&&c.inventory.length==1);ownReply(c,app,[]);c.chosen=c.inventory[0];var chosen=c.chosen;
         c.sellSearch="should";c.searchInventory();c.toggle();check(!c.view.shown);c.toggle();
         check(c.tab=="Sell"&&c.chosen==chosen&&c.sellSearch=="should"&&c.inventory[0]==chosen);
@@ -34,7 +36,7 @@ class MarketplaceStateTest {
         c.inv.inventory={content:[for(i in 0...21){item:{uid:Std.string(i),inf:{}},count:1}]};
         c.loadInventory();check(c.total==21&&c.pages==1&&c.inventorySlots.length==21);
         c.page=3;c.refresh();ownReply(c,app,[]);check(c.page==1&&c.pages==1&&c.total==21);
-        c.chooseTab("Browse");reply(c,app,{id:"third"},null);c.selected=c.rows[0];c.page=2;
+        c.chooseTab("Browse");c.refresh();reply(c,app,{id:"third"},null);c.selected=c.rows[0];c.page=2;
         c.disconnect();check(c.selected==null&&c.rows.length==0&&c.page==1&&!c.view.shown);
         c.player=player;c.inv=new TradeInventory(player);c.server="europe";
         // Browse requires a valid API key even while verification is pending.
@@ -69,19 +71,10 @@ class MarketplaceStateTest {
         c.ready=true;c.connectionIssue=false;
         c.filters["search"]="shield";c.filters["rarity"]="Epic";c.filters["online"]="false";c.tab="Browse";
         var noFetch=MarketWorker.current.sent.length,previous=c.selected,previousPage=c.page;
-        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&c.page==1&&c.busy);
-        check(MarketWorker.current.sent.length==noFetch+1
-            &&Std.string(MarketWorker.current.sent[noFetch].path).indexOf("limit=6")>=0
-            &&c.selected==null);
-        // Rapidly hiding filters during the six-item request must use the
-        // new eight-item limit after the old response is processed.
-        c.toggleFilters();check(!c.filtersExpanded&&c.pageSize()==8&&c.navigationPending);
-        ownReply(c,app,[{id:"old-layout"}]);
-        check(c.busy&&Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path).indexOf("limit=8")>=0);
-        ownReply(c,app,[{id:"remaining",revision:4}]);
-        check(!c.busy&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
-        // The layout switch clears the previous page's selection; select an
-        // item again to test ID-preserving refresh and error behavior.
+        c.toggleFilters();check(c.filtersExpanded&&!c.busy&&c.selected==previous);
+        check(MarketWorker.current.sent.length==noFetch);
+        c.toggleFilters();check(!c.filtersExpanded&&!c.navigationPending);
+        check(MarketWorker.current.sent.length==noFetch&&c.filters["rarity"]=="Epic"&&c.filters["online"]=="false");
         c.selected=c.rows[0];
         c.filters["search"]="new search";c.refresh();ownReply(c,app,[{id:"remaining",revision:4}]);
         check(c.selected==c.rows[0]&&c.selected.revision==4);
@@ -257,11 +250,11 @@ class MarketplaceStateTest {
         c.filters["search"]="second";c.refresh();check(c.navigationPending);
         c.toggleFilters();check(c.filtersExpanded&&c.busy);
         reply(c,app,{id:"stale-filter"},null);
-        check(c.tab=="Browse"&&c.busy&&c.rows.length==0
+        check(c.tab=="Browse"&&c.busy&&c.rows[0].id=="shopping"
             &&MarketWorker.current.sent.length==first+1);
         var latest=MarketWorker.current.sent[first];
         check(Std.string(latest.path).indexOf("search=second")>=0
-            &&Std.string(latest.path).indexOf("limit=6")>=0);
+            &&Std.string(latest.path).indexOf("limit=24")>=0);
         reply(c,app,{id:"latest-filter"},null);
         check(!c.busy&&c.rows[0].id=="latest-filter"&&!c.navigationPending);
 
@@ -273,12 +266,10 @@ class MarketplaceStateTest {
         ownReply(c,app,[]);
         check(!c.busy&&c.tab=="My listings"&&c.rows.length==0);
 
-        // Waiting for an in-flight prefetch is cancellable and must not
-        // keep the entire UI busy after changing tabs.
+        // An in-flight append is cancellable and does not block navigation.
         var p=new MarketController();p.player=player;p.inv=new TradeInventory(player);p.server="europe";p.ready=true;
         p.refresh();reply(p,app,{id:"paged"},"second-page");
-        var prefetch=p.prefetch;check(prefetch!=null);
-        p.goPage(2);check(p.busy&&p.prefetch.waiting);
+        p.loadMore();var prefetch=p.prefetch;check(prefetch!=null&&!p.busy&&p.rows[0].id=="paged");
         p.chooseTab("Sell");check(p.tab=="Sell"&&!p.navigationPending&&p.busy);
         ownReply(p,app,[]);check(!p.busy&&p.tab=="Sell");
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"prefetch",

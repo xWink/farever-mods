@@ -37,9 +37,9 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 
 ## Marketplace
 
-Press **F7** to open or close the marketplace, or type `/market` or `/marketplace` to open it. The hotkey can be rebound in Better Mod Settings. Closing and reopening preserves your page and selection.
+Press **F7** to open or close the marketplace, or type `/market` or `/marketplace` to open it. The hotkey can be rebound in Better Mod Settings. Closing and reopening preserves your scroll position and selection.
 
-- Browse listings for your game server, filter items and inspect native tooltips.
+- Browse listings for your game server, filter items and inspect native tooltips. Scroll down to load more listings automatically. **My listings** also uses a continuous scrollable list.
 - Sign in with Steam to list unlocked, tradable items. Choose **Inventory** or **Bank** on **Sell** to browse a scrollable item grid and select bank tabs. Locked, untradeable and already-listed items cannot be listed. The API key is shared with DPS Meter and other Fareverly mods.
 - Listing quantities combine identical tradable items across your inventory and unlocked bank tabs, whichever view you select from.
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.

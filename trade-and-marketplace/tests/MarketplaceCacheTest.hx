@@ -1,5 +1,4 @@
 import marketplace.MarketController;
-import marketplace.MarketPages;
 import marketplace.MarketBrowseFeed;
 import marketplace.MarketText;
 import marketplace.MarketWorker;
@@ -15,36 +14,36 @@ class MarketplaceCacheTest {
         c.update(app,0);
     }
     public static function run():Void {
-        var cache=new MarketPages("/listings?limit=1",1);
-        cache.put(1,{listings:[{id:"1"}],nextCursor:"two"},10);
-        cache.put(2,{listings:[{id:"2"}],nextCursor:"three"},10);
-        check(cache.get(1,69)!=null&&cache.get(1,70)==null);
-        cache.current=3;cache.put(3,{listings:[{id:"3"}],nextCursor:"four"},10);
-        cache.put(4,{listings:[{id:"4"}],nextCursor:null},10);
-        check(cache.get(1,10)==null&&cache.get(2,10)!=null&&cache.get(3,10)!=null&&cache.get(4,10)!=null);
-        check(cache.url(3)=="/listings?limit=1&cursor=three");
-        cache.put(2,{listings:[{id:"changed"}],nextCursor:"new-three"},11);
-        check(cache.get(3,11)==null&&cache.get(4,11)==null&&cache.cursors[3]==null);
-        var invalid=false;try cache.put(2,{listings:[],nextCursor:42},11)catch(_:Dynamic)invalid=true;check(invalid);
+        var feed=new MarketBrowseFeed("/listings?limit=24");
+        feed.append({listings:[{id:"1"}],nextCursor:"two / +"},10);
+        check(!feed.stale(69)&&feed.stale(70));
+        check(feed.url()=="/listings?limit=24&cursor=two%20%2F%20%2B");
+        var invalid=false;
+        try feed.append({listings:[{id:"partial"}],nextCursor:"two / +"},11)catch(_:Dynamic)invalid=true;
+        check(invalid&&feed.rows.length==1&&feed.next=="two / +"&&feed.fetchedAt==10);
+        invalid=false;try feed.append({listings:[{id:"partial"},{}],nextCursor:null},11)catch(_:Dynamic)invalid=true;
+        check(invalid&&feed.rows.length==1);
+        feed.append({listings:[{id:"1"},{id:"2"}],nextCursor:null},11);
+        check(feed.rows.length==2&&feed.complete);
+        var longFeed=new MarketBrowseFeed("/listings");
+        for(i in 0...60)longFeed.append({listings:[{id:Std.string(i)}],nextCursor:Std.string(i)},i);
+        check(longFeed.rows.length==60&&!longFeed.complete); // No arbitrary page cap.
 
         var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player};
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.ready=true;
         c.open();respond(c,app,last(),[{id:"1"}],"two");
-        check(last().op=="prefetch"&&Std.string(last().path).indexOf("cursor=two")>=0&&!c.busy);
-        c.view.dirty=false;respond(c,app,last(),[{id:"2"}],"three");
-        check(c.page==1&&c.rows[0].id=="1"&&!c.view.dirty&&!c.busy);
-        c.goPage(2);check(c.page==2&&c.rows[0].id=="2"&&!c.busy&&Std.string(last().path).indexOf("cursor=three")>=0);
-        var third=last(),sent=MarketWorker.current.sent.length;
-        c.goPage(3);check(c.busy&&MarketWorker.current.sent.length==sent&&c.rows.length==0);
-        respond(c,app,third,[{id:"3"}],"four");
-        check(!c.busy&&c.rows[0].id=="3"&&Std.string(last().path).indexOf("cursor=four")>=0);
-        respond(c,app,last(),[{id:"4"}],null);
-        c.goPage(2);check(c.rows[0].id=="2"&&!c.busy&&Std.string(last().path).indexOf("cursor=")<0);
-        respond(c,app,last(),[{id:"1"}],"two");
-        sent=MarketWorker.current.sent.length;c.goPage(1);
-        check(c.rows[0].id=="1"&&!c.busy&&MarketWorker.current.sent.length==sent);
+        check(last().op=="request"&&MarketWorker.current.sent.length==1&&!c.busy);
+        c.loadMore();var batch=last();
+        check(batch.op=="prefetch"&&Std.string(batch.path).indexOf("cursor=two")>=0&&!c.busy&&c.rows[0].id=="1");
+        c.toggleListing(c.rows[0]);c.listingScrollState().offset=240;
+        var sent=MarketWorker.current.sent.length;c.loadMore();check(MarketWorker.current.sent.length==sent);
+        respond(c,app,batch,[{id:"1"},{id:"2"}],"three");
+        check(c.rows.length==2&&c.rows[1].id=="2"&&c.selected.id=="1"&&c.listingScrollState().offset==240);
+        c.loadMore();respond(c,app,last(),[{id:"3"}],null);
+        check(c.rows.length==3&&!c.busy&&!c.loadingMore());
+        sent=MarketWorker.current.sent.length;c.loadMore();check(MarketWorker.current.sent.length==sent);
 
-        // Fresh tab caches restore the page/selection, while Sell rereads native stacks.
+        // Fresh tab caches restore all accumulated rows, selection and scrolling.
         c.selected=c.rows[0];c.chooseTab("Sell");
         check(c.busy&&c.inventory.length>0); // Local stacks render before the API reply.
         respond(c,app,last(),[
@@ -54,7 +53,7 @@ class MarketplaceCacheTest {
             {id:"na-mine",server:"north-america"}
         ],null);
         c.chosen=c.inventory[0];var chosen=c.chosen;
-        c.chooseTab("Browse");check(c.selected!=null&&c.selected.id=="1"&&!c.busy);
+        c.chooseTab("Browse");check(c.selected!=null&&c.selected.id=="1"&&!c.busy&&c.rows.length==3&&c.listingScrollState().offset==240);
         sent=MarketWorker.current.sent.length;c.inv.inventory={content:[{item:{uid:"fresh",inf:{}},count:3}]};
         c.chooseTab("Sell");check(!c.busy&&MarketWorker.current.sent.length==sent&&c.inventory[0].uid=="fresh"&&c.chosen==null);
         c.chooseTab("My listings");
@@ -77,7 +76,7 @@ class MarketplaceCacheTest {
 
         c.chooseTab("Browse");c.filters["rarity"]="Epic";c.filters["prismatic"]="true";c.page=1;c.refresh();
         check(Std.string(last().path).indexOf("prismatic=true")>=0&&Std.string(last().path).indexOf("rarity=Epic")>=0);
-        respond(c,app,last(),[{id:"prism"}],"prism-two");var stale=last();
+        respond(c,app,last(),[{id:"prism"}],"prism-two");c.loadMore();var stale=last();
         c.filters["prismatic"]="";c.refresh();var ordinary=last();
         check(Std.string(ordinary.path).indexOf("prismatic=")<0&&Std.string(ordinary.path).indexOf("cursor=")<0);
         respond(c,app,stale,[{id:"stale"}],null);check(c.busy&&c.rows[0].id=="prism");
@@ -86,11 +85,15 @@ class MarketplaceCacheTest {
         c.chooseTab("Sell");c.chosen=c.inventory[0];c.chosen.name="Corrupted Gift (+Fervor/-Crit)";c.searchSelectedItem();
         check(c.tab=="Browse"&&c.page==1&&Std.string(last().path).indexOf("search=Corrupted%20Gift")>=0
             &&Std.string(last().path).indexOf("category=")<0&&Std.string(last().path).indexOf("rarity=")<0&&Std.string(last().path).indexOf("classes=")<0);
-        respond(c,app,last(),[{id:"search"}],"next");var failed=last();
-        c.view.dirty=false;respond(c,app,failed,[],null,400);
-        check(!c.busy&&c.rows[0].id=="search"&&!c.view.dirty&&last()==failed);
-        c.goPage(2);check(c.busy&&last().op=="request"&&Std.string(last().path).indexOf("cursor=next")>=0);
+        respond(c,app,last(),[{id:"search"}],"next");c.loadMore();var failed=last();
+        respond(c,app,failed,[],null,500);
+        check(!c.busy&&c.rows[0].id=="search"&&c.loadMoreFailed()&&!c.loadingMore());
+        sent=MarketWorker.current.sent.length;c.loadMore();c.loadMore();check(MarketWorker.current.sent.length==sent);
+        c.loadMore(true);check(MarketWorker.current.sent.length==sent&&c.loadMoreFailed()&&c.message.indexOf("Please wait")>=0);
+        @:privateAccess c.cooldown.clear();
+        c.loadMore(true);check(!c.busy&&c.loadingMore()&&last().op=="prefetch"&&Std.string(last().path).indexOf("cursor=next")>=0);
         respond(c,app,last(),[{id:"retry"}],null);
+        check(c.rows.length==2&&c.rows[0].id=="search"&&c.rows[1].id=="retry"&&!c.loadMoreFailed());
 
         // Expired listings and sellers whose presence expired are never revived by cache hits.
         c.page=1;c.filters["online"]="true";c.refresh();respond(c,app,last(),[
@@ -123,7 +126,7 @@ class MarketplaceCacheTest {
         c.open();
         var first=last();
         check(Std.string(first.path).indexOf("excludeAccountId=")<0);
-        check(Std.string(first.path).indexOf("limit=8")>=0);
+        check(Std.string(first.path).indexOf("limit=24")>=0);
         respond(c,app,first,[own,other],null);
         check(!c.hideMine&&c.rows.length==2&&c.rows[0].id=="mine");
         var sent=MarketWorker.current.sent.length;
@@ -134,54 +137,27 @@ class MarketplaceCacheTest {
         check(StringTools.startsWith(path,"/api/v1/marketplace/listings?server=north-america&excludeAccountId=self&limit=24"));
         check(path.indexOf("cursor=")<0&&path.indexOf("hideMine")<0);
 
-        // All 24 items were already filtered by the server. Only one fetch is
-        // needed for the first three UI pages, with no owner-based client refill.
+        // Both Browse modes append server-filtered batches without local pagination.
         var listings:Array<Dynamic>=[for(i in 0...24){id:"public-"+i,seller:{accountId:"other"}}];
         respond(c,app,request,listings,"next-batch");
-        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-0");
-        sent=MarketWorker.current.sent.length;
-        c.goPage(2);
-        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-8"&&MarketWorker.current.sent.length==sent);
-        c.goPage(3);
-        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-16"&&MarketWorker.current.sent.length==sent);
-        c.goPage(4);
-        check(c.busy&&MarketWorker.current.sent.length==sent+1);
-        check(Std.string(last().path).indexOf("excludeAccountId=self&limit=24")>=0
+        check(!c.busy&&c.rows.length==24&&c.rows[0].id=="public-0");
+        c.loadMore();
+        check(!c.busy&&c.loadingMore()&&Std.string(last().path).indexOf("excludeAccountId=self&limit=24")>=0
             &&Std.string(last().path).indexOf("cursor=next-batch")>=0);
         respond(c,app,last(),[for(i in 0...3){id:"tail-"+i,seller:{accountId:"other"}}],null);
-        check(!c.busy&&c.rows.length==3&&c.rows[0].id=="tail-0"&&c.pages==4);
-        c.goPage(1);check(c.rows.length==8&&!c.busy);
-        // The same 27 buffered items become five non-scrolling six-row
-        // pages when filters open; no new cursor requests or gaps.
+        check(!c.busy&&c.rows.length==27&&c.rows[24].id=="tail-0");
         var buffered=MarketWorker.current.sent.length;
-        c.toggleFilters();check(c.filtersExpanded&&c.pageSize()==6&&!c.busy
-            &&c.rows.length==6&&c.rows[0].id=="public-0"&&c.pages==2
-            &&MarketWorker.current.sent.length==buffered);
-        c.goPage(2);check(c.rows.length==6&&c.rows[0].id=="public-6");
-        c.goPage(3);check(c.rows.length==6&&c.rows[0].id=="public-12");
-        c.goPage(4);check(c.rows.length==6&&c.rows[0].id=="public-18");
-        c.goPage(5);check(c.rows.length==3&&c.rows[0].id=="tail-0");
-        c.goPage(1);c.toggleFilters();
-        check(!c.filtersExpanded&&c.pageSize()==8&&c.rows.length==8
-            &&c.rows[0].id=="public-0"&&!c.busy&&MarketWorker.current.sent.length==buffered);
-
-        // Turning off Hide mine uses the normal eight-item query without the
-        // exclusion parameter. The previous single-slot cache has a new key,
-        // so it can make one ordinary request, not a refill loop.
-        sent=MarketWorker.current.sent.length;
+        c.toggleFilters();check(c.filtersExpanded&&!c.busy&&c.rows.length==27&&MarketWorker.current.sent.length==buffered);
+        c.toggleFilters();check(!c.filtersExpanded&&c.rows.length==27&&MarketWorker.current.sent.length==buffered);
+        c.listingScrollState().offset=800;
         c.setHideMine(false);
-        check(!c.hideMine&&c.busy&&MarketWorker.current.sent.length==sent+1);
-        check(Std.string(last().path).indexOf("excludeAccountId=")<0
-            &&Std.string(last().path).indexOf("limit=8")>=0);
-        respond(c,app,last(),[own,other],null);
-        check(!c.busy&&c.rows.length==2&&c.rows[0].id=="mine");
-        sent=MarketWorker.current.sent.length;
+        check(!c.hideMine&&!c.busy&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==buffered);
         c.setHideMine(true);
-        check(c.rows.length==8&&!c.busy&&MarketWorker.current.sent.length==sent);
+        check(c.rows.length==27&&!c.busy&&MarketWorker.current.sent.length==buffered&&c.listingScrollState().offset==800);
         c.chooseTab("My listings");respond(c,app,last(),[own],null);
         check(c.hideMine&&c.rows.length==1&&c.rows[0].id=="mine");
         c.chooseTab("Browse");
-        check(!c.busy&&c.rows.length==8&&c.rows[0].id=="public-0");
+        check(!c.busy&&c.rows.length==27&&c.rows[0].id=="public-0");
 
         // Search/filter changes make new API requests with server exclusion.
         c.filters["rarity"]="Epic";c.refresh();request=last();path=Std.string(request.path);

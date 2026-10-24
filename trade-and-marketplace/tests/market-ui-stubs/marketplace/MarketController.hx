@@ -1,25 +1,19 @@
 package marketplace;
 class MarketController {
- public static inline var PAGE_SIZE=8;
  public var filtersExpanded=false;public var view:MarketWindow;
  public var hideMine=false;
  public function setHideMine(value:Bool):Void {hideMine=value;if(view!=null)view.dirty=true;}
  public function saveFilterPreferences():Void {}
  public function canBrowse():Bool return true;
- public function pageSize():Int return tab=="Browse"?(filtersExpanded?6:8):9;
- var collapsedRows:Array<Dynamic>;
- public function toggleFilters():Void {
-  filtersExpanded=!filtersExpanded;
-  if(tab=="Browse") {
-   if(filtersExpanded) {
-    collapsedRows=rows.copy();rows=rows.slice(0,6);
-    if(collapsedRows.length>6)pages=2;
-   } else if(collapsedRows!=null) {
-    rows=collapsedRows;collapsedRows=null;pages=1;
-   }
-  }
-  if(view!=null)view.dirty=true;
- }
+ public function toggleFilters():Void {filtersExpanded=!filtersExpanded;if(view!=null)view.dirty=true;}
+ public var scroll={offset:0.0};
+ public function listingScrollState():{offset:Float} return scroll;
+ public var moreRequests=0;
+ public var moreLoading=false;
+ public var moreFailed=false;
+ public function loadMore(retry=false):Void {if(tab!="Browse"||busy||moreLoading||moreFailed&&!retry)return;moreRequests++;moreLoading=true;moreFailed=false;if(view!=null)view.dirty=true;}
+ public function loadingMore():Bool return moreLoading;
+ public function loadMoreFailed():Bool return moreFailed;
  public var bankOnly=false;
  public var sellSearch="";
  public var inventorySlots:Array<trade.TradeTypes.TradeItem>=[];
@@ -47,7 +41,6 @@ class MarketController {
  public function sortByLevel():Void cycleSort("required-level");
  public function sortByPrice():Void cycleSort("price");
  function cycleSort(column:String):Void {var s=listingSort();filters["sort"]=s==column+"-asc"?column+"-desc":s==column+"-desc"?"":column+"-asc";if(view!=null)view.dirty=true;}
- public function goPage(value:Int):Void {page=value;refresh();}
  public function refresh():Void {refreshes++;}
  public function searchInventory():Void {inventorySearches++;if(view!=null)view.dirty=true;}
  public function cancelSignIn():Void{}

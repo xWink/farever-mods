@@ -7,13 +7,10 @@ import fareverly.SessionLease;
 import modconfig.CommonSettings;
 import hlx.runtime.Bus;
 class MarketController {
-    public static inline var PAGE_SIZE = 8;
-    public static inline var EXPANDED_PAGE_SIZE = 6;
     public static inline var LISTING_LIMIT = 20;
     public var filtersExpanded=false;
     public var hideMine=false;
     var browseRows:Array<Dynamic>=[];
-    public function pageSize():Int return tab=="Browse"?(filtersExpanded?EXPANDED_PAGE_SIZE:PAGE_SIZE):9;
     public var player:Dynamic;
     public var inv:TradeInventory;
     public var app:Dynamic;
@@ -58,10 +55,10 @@ class MarketController {
     public var page=1;
     public var pages=1;
     public var total=0;
-    var listingCaches:Map<String,MarketPages>=[];
-    var activePages:MarketPages;
+    var listingCaches:Map<String,MarketBrowseFeed>=[];
+    var mineScroll={offset:0.0};
     var filledBrowse:MarketBrowseFeed;
-    var prefetch:Null<{cache:MarketPages,page:Int,ticket:Int,waiting:Bool}>;
+    var prefetch:Null<{feed:MarketBrowseFeed,path:String,ticket:Int}>;
     var nextTicket=0;
     var mineSort="";
     public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>""];
@@ -196,7 +193,7 @@ class MarketController {
     public function open():Void {
         if(!trade.TradeMod.enabled()||player==null||inv==null)return;
         view.open();
-        // Closing a window is not navigation: retain the page, selection and sell draft.
+        // Closing a window is not navigation: retain scrolling, selection and the sell draft.
         // Mutations still validate fresh inventory/listing data before acting.
         if(!opened||retryOnOpen&&!busy){opened=true;refresh();}
     }
@@ -212,22 +209,18 @@ class MarketController {
     }
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
     function rememberTab():Void {
-        if(tab=="My listings"){minePage=page;mineSelectedId=G.text(G.field(selected,"id"));}
-        else if(tab=="Browse"&&hideMine&&filledBrowse!=null) {
-            filledBrowse.current=page;filledBrowse.selectedId=G.text(G.field(selected,"id"));
-        } else if(activePages!=null&&tab=="Browse") {
-            activePages.current=page;activePages.selectedId=G.text(G.field(selected,"id"));
-        }
+        if(tab=="My listings")mineSelectedId=G.text(G.field(selected,"id"));
+        else if(tab=="Browse"&&filledBrowse!=null)
+            filledBrowse.selectedId=G.text(G.field(selected,"id"));
     }
-    function cancelPrefetch():Void {
-        // Waiting for a speculative page blocks the UI without an active
-        // foreground request. Cancel that wait when navigation supersedes it.
-        if(prefetch!=null&&prefetch.waiting)busy=false;
-        prefetch=null;worker.cancelPrefetch();
-    }
+    function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
     function invalidateListings():Void {
-        cancelPrefetch();listingCaches=[];activePages=null;filledBrowse=null;ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
+        cancelPrefetch();listingCaches=[];filledBrowse=null;mineScroll={offset:0.0};
+        ownedKnown=false;ownedListingCount=0;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
+    public function listingScrollState():{offset:Float} return tab=="Browse"&&filledBrowse!=null?filledBrowse.scroll:mineScroll;
+    public function loadingMore():Bool return tab=="Browse"&&prefetch!=null&&prefetch.feed==filledBrowse;
+    public function loadMoreFailed():Bool return tab=="Browse"&&filledBrowse!=null&&filledBrowse.failed;
     public function chooseTab(value:String):Void {
         editingListingId="";rememberTab();cancelPrefetch();opened=true;
         tab=value;rows=[];browseRows=[];selected=null;total=0;page=pages=1;
@@ -235,30 +228,17 @@ class MarketController {
         // by its original operation until the response is processed.
         navigationPending=busy;navigationForce=false;
         if(tab=="Sell") {
-            activePages=null;
             if(ownedKnown){loadInventory();message="";}
             else if(busy)loadInventory();
             else refreshSell();
         } else if(tab=="My listings") {
-            activePages=null;page=minePage;
             if(ownedKnown)displayOwned();
             else if(!busy)refreshSell();
         } else {
-            activePages=cacheForTab();
-            page=hideMine&&filledBrowse!=null&&filledBrowse.path==activePages.path
-                ?filledBrowse.current:activePages.current;
-            if(!canBrowse()) {
-                rows=[];browseRows=[];selected=null;page=pages=1;total=0;
-                message=MarketText.SIGN_IN_TO_BROWSE;
-            } else if(busy) {
-                if(hideMine&&filledBrowse!=null&&filledBrowse.path==activePages.path)
-                    displayFilledBrowse(filledBrowse);
-                else if(!hideMine) {
-                    var cached=activePages.get(page,haxe.Timer.stamp());
-                    if(cached!=null)displayPage(activePages,page,cached);
-                }
-                message="Loading...";
-            } else showListings(false);
+            filledBrowse=cacheForTab();
+            if(!canBrowse())message=MarketText.SIGN_IN_TO_BROWSE;
+            else if(busy) {displayFilledBrowse(filledBrowse);message="Loading...";}
+            else showListings(false);
         }
         view.dirty=true;
     }
@@ -280,38 +260,15 @@ class MarketController {
         selected=selected!=null&&G.text(G.field(selected,"id"))==G.text(G.field(row,"id"))?null:row;
         rememberTab();view.dirty=true;
     }
-    public function toggleFilters():Void {
-        var firstIndex=(page-1)*pageSize();
-        filtersExpanded=!filtersExpanded;
-        if(tab!="Browse"){view.dirty=true;return;}
-        // Normal API cursors must match the six- or eight-item page size:
-        // otherwise switching layouts would skip results that no longer fit.
-        // Hide mine already has 24-item server-filtered batches to re-slice.
-        cancelPrefetch();
-        if(hideMine) {
-            page=Std.int(firstIndex/pageSize())+1;
-            if(filledBrowse!=null&&filledBrowse.path==cacheForTab().path) {
-                displayFilledBrowse(filledBrowse);
-                if(busy)navigationPending=true;
-                else showFilledBrowse(false);
-            } else if(busy){rows=[];selected=null;navigationPending=true;}
-            else showListings(false);
-        } else {
-            page=1;selected=null;rows=[];browseRows=[];total=0;pages=1;
-            if(busy){navigationPending=true;navigationForce=false;}
-            else showListings(false);
-        }
-        view.dirty=true;
-    }
+    public function toggleFilters():Void {filtersExpanded=!filtersExpanded;view.dirty=true;}
     public function setHideMine(value:Bool):Void {
         if(hideMine==value)return;
         hideMine=value;saveFilterPreferences();
         if(tab=="Browse") {
-            cancelPrefetch();
+            rememberTab();cancelPrefetch();filledBrowse=null;
             page=pages=1;selected=null;rows=[];browseRows=[];total=0;
             // The unfiltered cache remains available when Hide mine is off.
-            // When enabled, the server excludes this account and returns
-            // batches of up to 24 for the existing eight-row UI pages.
+            // When enabled, the server excludes this account from each batch.
             if(busy){navigationPending=true;navigationForce=false;}
             else showListings(false);
         }
@@ -338,7 +295,7 @@ class MarketController {
         if(tab=="Sell")return;
         var current=listingSort();
         var value=current==column+"-asc"?column+"-desc":current==column+"-desc"?"":column+"-asc";
-        if(tab=="My listings")mineSort=value;else filters["sort"]=value;
+        if(tab=="My listings"){mineSort=value;mineScroll={offset:0.0};}else filters["sort"]=value;
         page=1;
         if(tab=="My listings"&&ownedKnown)displayOwned();else refresh();
     }
@@ -349,7 +306,7 @@ class MarketController {
         // The shortcut searches the item, not the old category/rarity/class restrictions.
         for(k in filters.keys())if(k!="online"&&k!="sort")filters[k]="";
         filters["search"]=name.substr(0,100);
-        listingCaches.remove("Browse");
+        listingCaches=[];
         chooseTab("Browse");
     }
     function refreshSell():Void {
@@ -422,9 +379,8 @@ class MarketController {
             if(av==null||bv==null)return av==bv?0:av==null?1:-1;
             return Reflect.compare(G.integer(av),G.integer(bv))*(StringTools.endsWith(mineSort,"-desc")?-1:1);
         });
-        pages=Std.int(Math.max(1,Math.ceil(available.length/pageSize())));
-        page=Std.int(Math.max(1,Math.min(page,pages)));minePage=page;
-        rows=available.slice((page-1)*pageSize(),page*pageSize());total=rows.length;
+        page=pages=minePage=1;
+        rows=available;total=rows.length;
         selected=null;
         for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
         mineSelectedId=G.text(G.field(selected,"id"));view.dirty=true;message="";
@@ -479,17 +435,14 @@ class MarketController {
     public function isBound(item:TradeItem):Bool return item!=null&&boundInventory.exists(item.uid);
     public function isLocked(item:TradeItem):Bool return item!=null&&lockedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
-    function cacheForTab():MarketPages {
-        // Ordinary Browse requests the UI page size directly (6 or 8).
-        // Hide mine always buffers 24 server-filtered listings.
-        var limit=hideMine?MarketBrowseFeed.LIMIT:pageSize();
+    function cacheForTab():MarketBrowseFeed {
         var params=["server="+StringTools.urlEncode(server)];
         if(hideMine)params.push("excludeAccountId="+StringTools.urlEncode(account));
-        params.push("limit="+limit);
+        params.push("limit="+MarketBrowseFeed.LIMIT);
         var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
         for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
-        var path="/api/v1/marketplace/listings?"+params.join("&"),cache=listingCaches[tab];
-        if(cache==null||cache.path!=path) {cache=new MarketPages(path,limit);listingCaches[tab]=cache;}
+        var path="/api/v1/marketplace/listings?"+params.join("&"),slot=hideMine?"hidden":"all",cache=listingCaches[slot];
+        if(cache==null||cache.path!=path){cache=new MarketBrowseFeed(path);listingCaches[slot]=cache;}
         return cache;
     }
     public function refresh():Void {
@@ -498,19 +451,8 @@ class MarketController {
             // while the current request or listing write is still in progress.
             navigationPending=true;navigationForce=true;view.dirty=true;return;
         }
-        if(tab=="Sell"||tab=="My listings"){refreshSell();return;}
+        if(tab=="Sell"||tab=="My listings"){mineScroll={offset:0.0};refreshSell();return;}
         showListings(true);
-    }
-    public function goPage(value:Int):Void {
-        if(value<1||value>pages||value==page)return;
-        rememberTab();page=value;
-        if(tab=="My listings"&&ownedKnown)displayOwned();
-        else if(busy) {
-            navigationPending=true;navigationForce=false;
-            rows=[];browseRows=[];selected=null;total=0;
-            message="Loading...";view.dirty=true;
-        } else if(tab=="My listings")refreshSell();
-        else showListings(false);
     }
     function showListings(force:Bool):Void {
         if(!canBrowse()) {
@@ -525,102 +467,70 @@ class MarketController {
             message="Your Farever account could not be identified. Reconnect before browsing with Hide mine.";
             view.dirty=true;return;
         }
-        if(hideMine){showFilledBrowse(force);return;}
-        var cache=cacheForTab();activePages=cache;
-        if(page>1&&cache.cursors[page-1]==null)page=1;
-        cache.current=page;cache.trim();
-        var target=page,cached=force?null:cache.get(target,haxe.Timer.stamp());
-        if(cached!=null){displayPage(cache,target,cached);prefetchNext();return;}
-        if(!force){rows=[];browseRows=[];selected=null;total=0;}
-        if(!force&&prefetch!=null&&prefetch.cache==cache&&prefetch.page==target) {
-            prefetch.waiting=true;busy=true;message="Loading...";view.dirty=true;return;
+        var stream=cacheForTab();
+        if(force||stream.stale(haxe.Timer.stamp())) {
+            var replacement=new MarketBrowseFeed(stream.path);
+            replacement.selectedId=G.text(G.field(selected,"id"),stream.selectedId);
+            stream=replacement;listingCaches[hideMine?"hidden":"all"]=stream;
         }
-        cancelPrefetch();
-        if(force)cache.forget(target);
-        request("GET",cache.url(target),null,null,data->{
-            var result=cache.put(target,data,haxe.Timer.stamp());
-            // A response for the page/query we left still fills its cache,
-            // but cannot replace the new tab's rows or selected listing.
-            if(tab=="Browse"&&!navigationPending&&activePages==cache
-                &&page==target&&cacheForTab()==cache) {
-                displayPage(cache,target,result);prefetchNext();
-            }
-        });
-    }
-    // One 24-item batch supplies multiple pages of six or eight rows, so
-    // opening filters re-slices the same results without an extra fetch.
-    function showFilledBrowse(force:Bool):Void {
-        var cache=cacheForTab();
-        if(filledBrowse==null||filledBrowse.path!=cache.path||force
-            ||filledBrowse.stale(haxe.Timer.stamp()))
-            filledBrowse=new MarketBrowseFeed(cache.path);
-        var stream=filledBrowse;
-        activePages=cache;
-        displayFilledBrowse(stream);
-        var visibleCount=visibleBrowseRows(stream.rows).length;
-        if(stream.complete||visibleCount>=page*pageSize())return;
-        if(busy){navigationPending=true;return;}
-        var requested=stream.url();
-        request("GET",requested,null,null,data->{
+        cancelPrefetch();filledBrowse=stream;
+        if(stream.loaded){displayFilledBrowse(stream);return;}
+        // Keep the previous snapshot visible during an explicit refresh. The
+        // new feed owns a fresh scroll position and only replaces rows on success.
+        if(!force)displayFilledBrowse(stream);
+        request("GET",stream.url(),null,null,data->{
             stream.append(data,haxe.Timer.stamp());
-            if(tab=="Browse"&&hideMine&&filledBrowse==stream&&!navigationPending)
-                showFilledBrowse(false);
+            if(tab=="Browse"&&!navigationPending&&filledBrowse==stream&&cacheForTab()==stream)
+                displayFilledBrowse(stream);
         });
     }
     function displayFilledBrowse(stream:MarketBrowseFeed):Void {
-        var visible=visibleBrowseRows(stream.rows);
-        var start=(page-1)*pageSize(),end=page*pageSize();
         var id=G.text(G.field(selected,"id"),stream.selectedId);
-        browseRows=stream.rows;
-        rows=visible.slice(start,end);total=rows.length;
-        pages=page+(visible.length>end||!stream.complete?1:0);
+        browseRows=stream.rows;rows=visibleBrowseRows(stream.rows);total=rows.length;page=pages=1;
         selected=null;
         for(row in rows)if(G.text(G.field(row,"id"))==id){selected=row;break;}
-        stream.current=page;stream.selectedId=G.text(G.field(selected,"id"));
+        stream.selectedId=G.text(G.field(selected,"id"));
         message=rows.length==0&&stream.complete?"No matching listings.":"Listings updated.";
         view.dirty=true;
     }
-    function displayPage(cache:MarketPages,target:Int,result:MarketPages.MarketPage):Void {
-        var selectedId=G.text(G.field(selected,"id"),cache.selectedId);
-        browseRows=result.rows;
-        rows=visibleBrowseRows();
-        page=target;cache.current=target;cache.trim();total=rows.length;pages=page+(result.next==null?0:1);
-        selected=null;
-        for(row in rows)if(G.text(G.field(row,"id"))==selectedId){selected=row;break;}
-        cache.selectedId=G.text(G.field(selected,"id"));
-        message=total==0?"No matching listings.":"Listings updated.";view.dirty=true;
-    }
-    function prefetchNext():Void {
-        if(!canBrowse()||hideMine)return;
-        var cache=activePages,now=haxe.Timer.stamp();
-        if(busy||prefetch!=null||cache==null||tab=="Sell"||cooldown.remaining("GET",cache.path,now)>0
-            ||(tab=="My listings"&&!ready))return;
-        var next=page+1;
-        if(cache.cursors[next-1]==null||cache.get(next,now)!=null)next=page-1;
-        if(next<1||(next>1&&cache.cursors[next-1]==null)||cache.get(next,now)!=null)return;
-        prefetch={cache:cache,page:next,ticket:++nextTicket,waiting:false};
-        worker.send({generation:generation,op:"prefetch",ticket:prefetch.ticket,method:"GET",path:cache.url(next)});
+    /** Called near the bottom of the viewport; a failure requires an explicit retry. */
+    public function loadMore(retry=false):Void {
+        var stream=filledBrowse,now=haxe.Timer.stamp();
+        if(tab!="Browse"||!canBrowse()||busy||navigationPending||prefetch!=null||stream==null
+            ||!stream.loaded||stream.complete||stream.failed&&!retry||cacheForTab()!=stream)return;
+        var path=stream.url();
+        if(cooldown.remaining("GET",path,now)>0) {
+            if(retry){message=cooldown.message("GET",path,now);view.dirty=true;}
+            return;
+        }
+        stream.failed=false;
+        prefetch={feed:stream,path:path,ticket:++nextTicket};
+        try worker.send({generation:generation,op:"prefetch",ticket:prefetch.ticket,method:"GET",path:path})
+        catch(e:Dynamic) {
+            prefetch=null;stream.failed=true;
+            MarketApiLog.unexpected("GET",path,0,"Could not queue request: "+Std.string(e),key);
+        }
+        view.dirty=true;
     }
     function receivePrefetch(event:MarketWorker.MarketEvent,now:Float):Void {
         if(prefetch==null||event.ticket!=prefetch.ticket)return;
         var work=prefetch;prefetch=null;
-        if(work.waiting)busy=false;
         var response=event.response,data:Dynamic=null,ok=false;
         try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
         if(response.status==200&&response.error==""&&data==null)
-            MarketApiLog.unexpected("GET",work.cache.url(work.page),200,"Expected a JSON response",key);
+            MarketApiLog.unexpected("GET",work.path,200,"Expected a JSON response",key);
         if(response.status==200&&response.error==""&&data!=null)try {
-            var result=work.cache.put(work.page,data,haxe.Timer.stamp());ok=true;
-            if(work.waiting&&activePages==work.cache)displayPage(work.cache,work.page,result);
-        }catch(e:Dynamic)MarketApiLog.unexpected("GET",work.cache.url(work.page),response.status,"Could not process response: "+Std.string(e),key);
+            work.feed.append(data,haxe.Timer.stamp());ok=true;
+        }catch(e:Dynamic)MarketApiLog.unexpected("GET",work.path,response.status,"Could not process response: "+Std.string(e),key);
         if(!ok) {
-            cooldown.record("GET",work.cache.url(work.page),response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
-            if(work.waiting){retryOnOpen=true;message=response.status==429?cooldown.message("GET",work.cache.url(work.page),haxe.Timer.stamp()):"Could not load this page. Press Refresh to retry.";view.dirty=true;}
-        } else if(!busy&&activePages==work.cache&&work.page<page&&work.cache.get(page,haxe.Timer.stamp())==null) {
-            // A refreshed previous page can move its boundary. Reload from the new
-            // cursor rather than pair stale current rows with a different next page.
-            showListings(false);
-        } else prefetchNext();
+            work.feed.failed=true;
+            cooldown.record("GET",work.path,response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
+        }
+        if(tab=="Browse"&&filledBrowse==work.feed&&!navigationPending&&cacheForTab()==work.feed) {
+            if(ok)displayFilledBrowse(work.feed);
+            else if(response.status==429)message=cooldown.message("GET",work.path,haxe.Timer.stamp());
+            view.dirty=true;
+        }
     }
     public function request(method:String,path:String,body:Dynamic,headers:Map<String,String>,done:Dynamic->Void,?failed:Void->Void):Bool {
         if(busy)return false;
@@ -691,7 +601,7 @@ class MarketController {
                 var updated:Dynamic=haxe.Json.parse(haxe.Json.stringify(row));
                 updated.revision=data.revision;updated.export=value;updated.item.quantity=quantity;updated.price=value.price;
                 ownedRows=[for(existing in ownedRows)G.text(existing.id)==id?updated:existing];
-                editingListingId="";indexOwned();cancelPrefetch();listingCaches=[];activePages=null;
+                editingListingId="";indexOwned();cancelPrefetch();listingCaches=[];filledBrowse=null;
                 mineSelectedId=id;
                 if(tab=="My listings"){selected=updated;displayOwned();}
                 message="Listing updated.";
@@ -705,7 +615,7 @@ class MarketController {
         var previousRows=ownedRows,previousPage=page,previousSelection=selected;
         // Update the local snapshot immediately, but retain it for a rejected DELETE.
         var sent=request("DELETE","/api/v1/marketplace/listings/"+id,null,["If-Match"=>'"'+Std.string(revision)+'"'],data->{
-            indexOwned();cancelPrefetch();listingCaches=[];activePages=null;message="";
+            indexOwned();cancelPrefetch();listingCaches=[];filledBrowse=null;message="";
         },()->{
             ownedRows=previousRows;indexOwned();minePage=previousPage;mineSelectedId=id;
             if(tab=="My listings"){page=previousPage;selected=previousSelection;displayOwned();}

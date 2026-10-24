@@ -47,9 +47,9 @@ class MarketplaceRecoveryTest {
         check(c.busy&&MarketWorker.current.sent[MarketWorker.current.sent.length-1].path==own+"&cursor=second");
         reply(c,app,200,{listings:[{id:"50",revision:1,server:"europe"}],nextCursor:null});
         check(!c.busy&&c.listingLimitReached());
-        c.chooseTab("My listings");check(c.pages==3&&c.total==9);
+        c.chooseTab("My listings");check(c.pages==1&&c.total==20);
         c.selected=c.rows[0];c.remove();reply(c,app,204,null);
-        check(!c.listingLimitReached());c.goPage(3);check(c.total==1);
+        check(!c.listingLimitReached());check(c.total==19);
         c.refresh();reply(c,app,200,{listings:[for(i in 0...20){id:Std.string(i),server:"north-america"}],nextCursor:null});
         check(!c.listingLimitReached()&&c.total==0);
         c.request("GET",own,null,null,_ -> {});reply(c,app,401,{error:{code:"unauthorized"}});

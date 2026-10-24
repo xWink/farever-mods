@@ -29,8 +29,16 @@ class MarketWindow {
     var tableLayouts:Array<Int->Void>=[];
     var tableExtra=0;
     var listingViewport:Dynamic;
-    var listingScroll=0.0;
-    var listingScrollKey="";
+    var listingContent:Dynamic;
+    var listingScrollbar:MarketScrollbar;
+    var listingScrollState:{offset:Float};
+    var listingScrollRestored=false;
+    var listingData:Array<Dynamic>=[];
+    var listingStart=-1;
+    var listingEnd=-1;
+    var rowLayouts:Array<Int->Void>=[];
+    var rowPresence:Array<Void->Void>=[];
+    static inline var ROW_HEIGHT=68;
     var presenceLabels:Array<Void->Void>=[];
     var presenceCheckAt=0.0;
     var controls:Array<Dynamic> = [];
@@ -62,7 +70,7 @@ class MarketWindow {
     public function open():Void { shown = true; connectionNoticeShown=false; recovery = false; dirty = true; }
     public function close():Void {
         rememberInventoryScroll();rememberListingScroll();
-        sellScrollbar=null;
+        sellScrollbar=null;listingScrollbar=null;
         shown = false; closeDropdowns();
         filterControls.clear();searchClearButtons=[];
         if(cart!=null){cart.dispose();cart=null;}
@@ -109,7 +117,17 @@ class MarketWindow {
         advanceDetails(haxe.Timer.stamp());
         var now=Date.now().getTime()/1000;
         if(now>=presenceCheckAt){presenceCheckAt=now+1;for(refresh in presenceLabels)refresh();}
+        stage="listing scroll";
+        updateListingRows();
         stage="window layout";frame.layout();
+        if(listingViewport!=null&&listingScrollRestored) {
+            var offset=G.number(G.field(listingViewport,"scrollPosY"));
+            var height=G.number(G.call("h2d.Flow","get_outerHeight",listingViewport));
+            if(height>0&&offset+height+ROW_HEIGHT*2>=listingData.length*ROW_HEIGHT)c.loadMore();
+        }
+        if(listingScrollbar!=null)try listingScrollbar.update() catch(error:Dynamic) {
+            report("Listing scrollbar skin",error);listingScrollbar=null;
+        }
         // Skin only. If it fails, do not take down the marketplace or native
         // scrollbar input; the existing viewport remains intact.
         if(sellScrollbar!=null)try sellScrollbar.update() catch(error:Dynamic) {
@@ -149,12 +167,14 @@ class MarketWindow {
         rememberInventoryScroll();rememberListingScroll();
         closeDropdowns();
         filterControls.begin();
-        var keepScrollbar=c.tab=="Sell"&&!recovery;
+        var keepScrollbar=c.tab=="Sell"&&!recovery,keepListingScrollbar=c.tab!="Sell"&&!recovery;
         for (child in children(frame.container))
             if(child!=backdrop&&!filterControls.contains(child)
-                &&!(keepScrollbar&&sellScrollbar!=null&&sellScrollbar.owns(child)))
+                &&!(keepScrollbar&&sellScrollbar!=null&&sellScrollbar.owns(child))
+                &&!(keepListingScrollbar&&listingScrollbar!=null&&listingScrollbar.owns(child)))
                 G.call("h2d.Object", "remove", child);
         if(!keepScrollbar)sellScrollbar=null;
+        if(!keepListingScrollbar)listingScrollbar=null;
         var root = frame.container;
         // Keep one background below the retained inputs. Inserting new cards into
         // a native Flow during refresh can put them over its first controls.
@@ -220,8 +240,8 @@ class MarketWindow {
             });
             labelAt(root,"ITEM",32,contentY+16,420,true);
             sortHeader("LEVEL","required-level",LEVEL_X,LEVEL_WIDTH,c.sortByLevel);
-            sortHeader("TOTAL PRICE","price",512,184,c.sortByPrice,true);
-            listingRows(68);
+            sortHeader("TOTAL PRICE","price",512,168,c.sortByPrice,true);
+            listingRows();
             if(closingListing!=null) {
                 // Native UIElement ancestry supplies the window's fonts and button
                 // styles. Hidden overflow clips drawing without breaking that chain.
@@ -253,37 +273,59 @@ class MarketWindow {
                     tabButton(c.bankNames[i],16+i*176,820,166,()->c.setBankTab(i),c.bankTab==i);
             }
         } else {
-            button("Previous",16,820,118,()->c.goPage(c.page-1),"",c.page>1,true);
-            var pageLabel=labelAt(root,"Page "+c.page,152,830,172,true);
-            var next=button("Next",342,820,104,()->c.goPage(c.page+1),"",c.page<c.pages,true);
-            var footer=G.field(node("element",G.field(root,"dom"),[],"marketPagination"+(sequence++)),"obj");
-            absolute(root,footer);padding(footer,0);size(footer,430,36);position(footer,152,820);
-            G.call("h2d.Object","addChild",footer,[pageLabel]);absolute(footer,pageLabel);position(pageLabel,0,10);
-            G.call("h2d.Object","addChild",footer,[next]);absolute(footer,next);
-            // Observe an actual Flow's reflow; FmtText does not have this callback.
-            afterReflow(footer,()->{
-                var bounds=G.call("h2d.Object","getSize",pageLabel,[null]);
-                position(next,G.number(G.field(bounds,"xMax"))*G.number(G.field(pageLabel,"scaleX"),1)+18,0);
-            });
+            if(c.loadMoreFailed()) {
+                button("Retry",16,820,118,()->c.loadMore(true),"");
+                labelAt(root,"Could not load more listings.",152,830,700,false,MUTED);
+            } else labelAt(root,c.loadingMore()?"Loading more listings…":c.total+" listing"+(c.total==1?"":"s"),20,830,850,false,MUTED);
         }
         button("Refresh",970,820,118,c.refresh,"",true,true);
         var message = c.message;
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
     }
-    function listingRows(rowHeight:Int):Void {
-        // Browse is paginated rather than scrollable: six rows fit when the
-        // filters are shown, and eight fit when they are hidden. Extra items
-        // appear via Next, not an embedded scrollbar.
-        var viewport=G.field(node("element",G.field(frame.container,"dom"),[],"marketListingViewport"+(sequence++)),"obj");
-        absolute(frame.container,viewport);padding(viewport,0);size(viewport,692,806-contentY-48);position(viewport,22,contentY+48);
-        var hidden=G.enumeration("h2d.FlowOverflow","Hidden");
-        G.call("h2d.Flow","set_overflow",viewport,[hidden]);style(viewport,"overflow",hidden);
+    function listingRows():Void {
+        var root=frame.container;
+        var viewport=G.field(node("flow",G.field(root,"dom"),[],"marketListingViewport"+(sequence++),"vertical"),"obj");
+        absolute(root,viewport);padding(viewport,0);size(viewport,692,806-contentY-48);position(viewport,22,contentY+48);
+        var vertical=G.enumeration("h2d.FlowLayout","Vertical"),scroll=G.enumeration("h2d.FlowOverflow","Scroll");
+        G.call("h2d.Flow","set_layout",viewport,[vertical]);style(viewport,"layout",vertical);
+        G.call("h2d.Flow","set_multiline",viewport,[false]);style(viewport,"multiline",false);
+        G.call("h2d.Flow","set_overflow",viewport,[scroll]);style(viewport,"overflow",scroll);
         var content=G.field(node("element",G.field(viewport,"dom"),[],"marketListingRows"+(sequence++)),"obj");
-        padding(content,0);size(content,686,c.rows.length*rowHeight);alignScrollContent(viewport,content);
-        listingViewport=viewport;
-        tableLayouts.push(extra->{size(viewport,692+extra,806-contentY-48);size(content,686+extra,c.rows.length*rowHeight);});
-        for(i in 0...c.rows.length)savedRow(c.rows[i],i*rowHeight,rowHeight,i,content);
+        listingData=c.rows.copy();
+        padding(content,0);size(content,674,listingData.length*ROW_HEIGHT);alignScrollContent(viewport,content);
+        listingViewport=viewport;listingContent=content;listingScrollState=c.listingScrollState();
+        listingScrollRestored=false;listingStart=listingEnd=-1;rowLayouts=[];rowPresence=[];
+        tableLayouts.push(extra->{
+            size(viewport,692+extra,806-contentY-48);size(content,674+extra,listingData.length*ROW_HEIGHT);
+            inventoryScrollbar(viewport,692+extra);
+        });
+        inventoryScrollbar(viewport,692+tableExtra);
+        if(listingScrollbar==null||!listingScrollbar.attachedTo(root))listingScrollbar=new MarketScrollbar(root);
+        listingScrollbar.bind(viewport,content);
+        var saved=listingScrollState.offset,previous=G.field(viewport,"onAfterReflow");
+        G.set(viewport,"onAfterReflow",()->{
+            if(previous!=null)Reflect.callMethod(viewport,previous,[]);
+            if(!listingScrollRestored){listingScrollRestored=true;G.call("h2d.Flow","set_scrollPosY",viewport,[saved]);}
+        });
+        updateListingRows();
+    }
+    function updateListingRows():Void {
+        if(listingViewport==null||listingContent==null)return;
+        var height=806-contentY-48;
+        var offset=listingScrollRestored?G.number(G.field(listingViewport,"scrollPosY")):listingScrollState.offset;
+        offset=Math.max(0,Math.min(offset,Math.max(0,listingData.length*ROW_HEIGHT-height)));
+        var start=Std.int(Math.max(0,Math.floor(offset/ROW_HEIGHT)-2));
+        var end=Std.int(Math.min(listingData.length,Math.ceil((offset+height)/ROW_HEIGHT)+2));
+        if(start==listingStart&&end==listingEnd)return;
+        listingStart=start;listingEnd=end;
+        for(layout in rowLayouts)tableLayouts.remove(layout);
+        for(refresh in rowPresence)presenceLabels.remove(refresh);
+        for(child in children(listingContent))G.call("h2d.Object","remove",child);
+        var layouts=tableLayouts.length,presence=presenceLabels.length;
+        for(i in start...end)savedRow(listingData[i],i*ROW_HEIGHT,ROW_HEIGHT,i,listingContent);
+        rowLayouts=tableLayouts.slice(layouts);rowPresence=presenceLabels.slice(presence);
+        for(layout in rowLayouts)layout(tableExtra);
     }
     function savedRow(listing:Dynamic,y:Int,height:Int,index:Int,parent:Dynamic):Void {
         stage="listing "+(index+1)+" data";
@@ -298,9 +340,9 @@ class MarketWindow {
             if(partialRow!=null) {try G.call("h2d.Object","remove",partialRow)catch(_:Dynamic){}partialRow=null;}
             // Keep the listing selectable/removable even if its icon or tooltip cannot be drawn.
             var name=G.text(G.field(G.field(listing,"item"),"name"),"Listing");
-            var fallback=button(name.substr(0,55)+" — details unavailable",6,y,680,select,"");
+            var fallback=button(name.substr(0,55)+" — details unavailable",6,y,664,select,"");
             G.call("h2d.Object","addChild",parent,[fallback]);absolute(parent,fallback);
-            tableLayouts.push(extra->size(fallback,680+extra,36));
+            tableLayouts.push(extra->size(fallback,664+extra,36));
         }
     }
 
@@ -553,8 +595,9 @@ class MarketWindow {
         stage="item row container";
         var root=parent==null?frame.container:parent, row=G.field(node("element",G.field(root,"dom"),[],"marketRow"+(sequence++)),"obj");
         partialRow=row;
-        absolute(root,row);padding(row,0);size(row,680,height-4);position(row,parent==null?28:6,y);
-        var bg=graphic(row),rowWidth=680,hovered=false;
+        var baseWidth=c.tab=="Sell"?680:664;
+        absolute(root,row);padding(row,0);size(row,baseWidth,height-4);position(row,parent==null?28:6,y);
+        var bg=graphic(row),rowWidth=baseWidth,hovered=false;
         function draw(over:Bool):Void {
             hovered=over;
             G.call("h2d.Graphics","clear",bg);
@@ -605,14 +648,14 @@ class MarketWindow {
         else {
             var beforePrice=children(row);
             var unitPrice=MarketText.unitPrice(listingPrice,item.count);
-            priceDisplay(row,listingPrice,484,unitPrice==""?Std.int((height-4-28)/2):5,184,true);
+            priceDisplay(row,listingPrice,484,unitPrice==""?Std.int((height-4-28)/2):5,168,true);
             if(unitPrice!="") {
-                var unit=labelAt(row,unitPrice,484,34,184,false,MUTED,true);
-                rightText(unit,184);
+                var unit=labelAt(row,unitPrice,484,34,168,false,MUTED,true);
+                rightText(unit,168);
             }
             var priceParts=[for(child in children(row))if(beforePrice.indexOf(child)<0){obj:child,x:G.number(G.field(child,"x")),y:G.number(G.field(child,"y"))}];
             tableLayouts.push(extra->{
-                extraWidth=extra;nameRight=392+extra;rowWidth=680+extra;
+                extraWidth=extra;nameRight=392+extra;rowWidth=baseWidth+extra;
                 size(row,rowWidth,height-4);draw(hovered);layoutLabels();
                 for(part in priceParts)position(part.obj,part.x+extra,part.y);
             });
@@ -622,8 +665,9 @@ class MarketWindow {
         partialRow=null;
     }
     function rememberListingScroll():Void {
-        if(listingViewport!=null)listingScroll=G.number(G.field(listingViewport,"scrollPosY"));
-        listingViewport=null;
+        if(listingViewport!=null&&listingScrollRestored&&listingScrollState!=null)
+            listingScrollState.offset=G.number(G.field(listingViewport,"scrollPosY"));
+        listingViewport=listingContent=null;listingScrollState=null;listingData=[];rowLayouts=[];rowPresence=[];
     }
     function applyDetailsLayout():Void {
         if(detailLayer!=null)position(detailLayer,tableExtra,0);

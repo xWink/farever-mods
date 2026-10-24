@@ -6,7 +6,7 @@ import sys.thread.Mutex;
 import sys.thread.Thread;
 typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?server:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
 typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float,?server:String};
-/** Foreground work takes priority over one speculative page request; presence/auth share the worker. Native objects never leave the game thread. */
+/** Foreground work takes priority over one background listing batch; presence/auth share the worker. Native objects never leave the game thread. */
 class MarketWorker {
     final jobs=new Deque<MarketJob>();
     final events=new Deque<MarketEvent>();
