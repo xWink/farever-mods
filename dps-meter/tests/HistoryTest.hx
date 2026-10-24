@@ -1104,7 +1104,7 @@ class HistoryTest {
         var root = temp("victory-uploads");
         var uploader = new LogUploader(root);
         for (outcome in ["Defeat", "", "Victory"]) {
-            var fight = sample(); fight.gameBranch = "MAIN";
+            var fight = sample(); fight.gameBranch = "MAIN"; fight.recordingComplete = true;
             fight.outcome = outcome; fight.bossKind = "BossKind";
             var id = outcome == "" ? "unknown" : outcome;
             uploader.archive(FightHistory.encode(fight, id), true);
@@ -1120,7 +1120,7 @@ class HistoryTest {
             "Local and submitted records have the same format");
         // Other branches and old aliases are archived normally, never enqueued.
         for(branch in ["public-test-branch","PTR","unknown","experimental","live","stable","production",""]) {
-            var ptr = sample(); ptr.gameBranch=branch;ptr.outcome="Victory";ptr.bossKind="BossKind";
+            var ptr = sample(); ptr.gameBranch=branch;ptr.outcome="Victory";ptr.bossKind="BossKind";ptr.recordingComplete=true;
             uploader.archive(FightHistory.encode(ptr,"branch_"+branch),true);
         }
         uploader.flush();

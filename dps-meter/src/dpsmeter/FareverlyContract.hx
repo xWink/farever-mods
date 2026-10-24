@@ -8,13 +8,18 @@ class FareverlyContract {
         case "world-bosses": "World Bosses";
         default: "";
     };
-    public static function candidate(record:Dynamic):Bool return record != null && GameBranch.recordMayUpload(record) && record.outcome == "Victory"
+    public static function completeRecording(record:Dynamic):Bool return record != null
+        && Std.isOfType(record.recordingComplete, Bool) && record.recordingComplete == true;
+    public static function candidate(record:Dynamic):Bool return completeRecording(record)
+        && GameBranch.recordMayUpload(record) && record.outcome == "Victory"
         && record.targetDummy != true && record.kind != "rift-recap" && Std.isOfType(record.id, String) && record.id != ""
         && Std.isOfType(record.bossKind, String) && StringTools.trim(record.bossKind) != ""
         && ["Classic Dungeons", "Boss Dungeons", "World Bosses"].indexOf(record.category) >= 0;
 
     public static function validate(record:Dynamic, now:Float):String {
         try {
+            if (!completeRecording(record))
+                throw "The encounter was not recorded from an observed start; kept locally only.";
             if (!candidate(record)) throw "Only completed boss victories qualify.";
             if (record.version != 1 || record.categoryVersion != 2) throw "Unsupported fight/category version.";
             text(record.id, "id", 128);

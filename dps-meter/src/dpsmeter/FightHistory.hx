@@ -42,7 +42,7 @@ class FightHistory {
             row;
         }];
         return {version: 1, gameVersion: fight.gameVersion, gameBranch: fight.gameBranch, dpsMeterVersion: fight.dpsMeterVersion, id: id, name: name(fight), startedAt: fight.startedAt, duration: fight.duration(),
-            healingReceived: fight.healingReceived.json(),
+            healingReceived: fight.healingReceived.json(), recordingComplete: fight.recordingComplete,
             me: fight.me, meName: fight.meName, meClass: fight.meClass, players: players, category: fight.category, categoryVersion: fight.categoryVersion,
             activityId: fight.activityId, bossKind: fight.bossKind, phase: fight.phase, gatesClosed: fight.gatesClosed,
             difficulty: fight.difficulty, partySize: fight.partySize, outcome: outcome(fight.outcome), targetDummy: fight.targetDummy};
@@ -79,6 +79,8 @@ class FightHistory {
         fight.healingReceived = HealingReceived.read(record.healingReceived);
         fight.gameVersion = text(record.gameVersion);
         fight.gameBranch = text(record.gameBranch);
+        fight.interruptRecording();
+        fight.recordingComplete = FareverlyContract.completeRecording(record);
         fight.dpsMeterVersion = text(record.dpsMeterVersion);
         fight.startedAt = record.startedAt;
         fight.last = 1 + number(record.duration);

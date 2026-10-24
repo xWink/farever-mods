@@ -18,6 +18,8 @@ Reports reflect events observed by your client, so totals can differ between pla
 
 Generate an API key through the mod's settings and sign in with Steam to enable uploads to [fareverly.com](https://fareverly.com). Eligible boss victories upload in the background.
 
+Ranked uploads require an observed encounter start and uninterrupted recording. Joining or reconnecting during a fight keeps that recording local, including its later phases. A confirmed reset permits a fresh attempt. Older queued logs without start evidence also stay local; their history and analyzer access remain available.
+
 **Open in Fareverly** opens a compatible saved fight in the analyzer; it does not submit it to ranked uploads. Combined recaps and other unsupported reports cannot use this button.
 
 ## Saved logs

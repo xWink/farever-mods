@@ -29,7 +29,7 @@ class RecoveryTest {
     }
     static function fixture(id:String = "offline-test"):Dynamic {
         // These synthetic values are used only by injected transports in this test.
-        return {version:1, categoryVersion:2, id:id, name:"Test Encounter", gameVersion:"test", gameBranch:"MAIN",
+        return {version:1, categoryVersion:2, recordingComplete:true, id:id, name:"Test Encounter", gameVersion:"test", gameBranch:"MAIN",
             activityId:"test-activity", bossKind:"TestBoss", category:"Boss Dungeons", difficulty:0,
             startedAt:Date.fromString("2026-01-01 00:00:00").getTime(), duration:10, partySize:1, outcome:"Victory", me:"test-player",
             players:[{uid:"test-player", name:"Test Player", isMe:true, accountId:"test-account", characterId:"test-character",
@@ -39,7 +39,7 @@ class RecoveryTest {
     static function response(status:Int, body:Dynamic = null, retryAfter:String = ""):FareverlyResponse
         return {status:status, body:body == null ? "" : Json.stringify(body), retryAfter:retryAfter, error:""};
     static function main():Void {
-        cleanup(); retention(); uploads(); branchSafety(); filters(); openButton();
+        cleanup(); retention(); uploads(); branchSafety(); coverageSafety(); filters(); openButton();
         Sys.println('Recovery and startup cleanup: $checks checks passed');
     }
     static function cleanup():Void {
@@ -212,6 +212,39 @@ class RecoveryTest {
         queue.step();
         check(posts==1&&gets==1&&queue.state(queue.reportPath(main.id)).status=="accepted",
             "A verified MAIN log uploads normally, without blocked-queue interference");
+        remove(root);
+    }
+    static function coverageSafety():Void {
+        var root = "build/recovery-coverage-" + Std.random(0x3fffffff), calls = 0;
+        var now = Date.fromString("2026-10-15 12:00:00").getTime() / 1000;
+        var transport = (method, url, body, token) -> { calls++; return response(500); };
+        var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testApiKey);
+        var worker = new LogUploader(root);
+        FileSystem.createDirectory(root + "/fareverly");
+        for (variant in ["partial", "legacy"]) {
+            var record = fixture(variant);
+            if (variant == "partial") record.recordingComplete = false;
+            else Reflect.deleteField(record, "recordingComplete");
+            check(!FareverlyContract.candidate(record), "Unverified coverage is not an upload candidate");
+            check(FareverlyContract.validate(record, now).indexOf("observed start") >= 0, "Coverage validation explains why the log stays local");
+            worker.archive(record, true); worker.flush();
+            check(worker.history.query({id:1, action:"chart", group:"", page:0, fightId:record.id}).record.id == record.id,
+                "Partial/legacy victories still appear in local history");
+            var path = queue.reportPath(record.id);
+            check(!FileSystem.exists(path), "Partial/legacy logs never enter a new queue");
+            File.saveContent(path, Json.stringify(record)); // A queue left by an older mod / interrupted write.
+        }
+        queue.step();
+        check(calls == 0, "Existing partial/legacy queued logs are rejected before any HTTP request");
+        for (id in ["partial", "legacy"]) {
+            var state = queue.state(queue.reportPath(id));
+            check(state.status == "failed" && !state.retryable && state.reason.indexOf("observed start") >= 0,
+                "Existing unverified payloads are preserved locally and cannot retry");
+        }
+        queue.retryFailed();
+        queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, testApiKey);
+        queue.step();
+        check(calls == 0, "Neither a manual retry nor restarting the uploader clears the coverage restriction");
         remove(root);
     }
     static function filters():Void {

@@ -14,6 +14,7 @@ typedef DamageEvent = {
     time:Float, source:String, amount:Float, critical:Bool, kill:Bool, effect:Int, skill:String,
     target:String, bossKind:String, bossFlags:Int, bossLevel:Int, bossFoeId:Int, ?bossName:String, ?summoned:Bool,
     ?damageType:String, ?affinity:String, ?targetDummy:Bool,
+    ?coverage:EncounterCoverage.CoverageEvidence,
     ?activation:Int,
     ?estimatedHealing:Bool, ?unknownHealing:Bool, ?unknownHealingCrit:Bool, ?unattributedHealing:Bool,
     ?timeline:CombatTimeline.TimelineEvent
@@ -166,6 +167,9 @@ class Fight {
     public var dpsMeterVersion:String = BuildVersion.value();
     public var last:Float;
     public var closed:Float = 0;
+    /** Positive capture evidence; absent/legacy recordings never qualify. */
+    public var recordingComplete:Bool = false;
+    var recordingChecked:Bool = false;
     /** Transient reconciliation holds; never written into a history file. */
     public var pendingHealing:Int = 0;
     public var defeated:Bool = false;
@@ -196,6 +200,11 @@ class Fight {
         this.gameVersion = gameVersion; this.gameBranch = gameBranch;
     }
     public function add(e:DamageEvent, info:PlayerInfo):Void {
+        if (e.effect != 1 && e.coverage != null) {
+            var complete = e.coverage.complete && start <= e.coverage.start;
+            recordingComplete = recordingChecked ? recordingComplete && complete : complete;
+            recordingChecked = true;
+        }
         if (info.isMe || info.uid == me) {
             meName = info.name;
             if (info.className != "") meClass = info.className;
@@ -212,6 +221,10 @@ class Fight {
         if (!players.exists(info.uid)) players[info.uid] = new PlayerStats(info);
         else players[info.uid].updateProfile(info);
         players[info.uid].recordCast(skill, serial);
+    }
+    public function interruptRecording(?target:String):Void {
+        if (target != null && !targets.exists(target) && bossUid != target) return;
+        recordingComplete = false; recordingChecked = true;
     }
     public function finishOutcome():Void {
         // Boss attempts require that boss's death. Killing its adds is not a
@@ -244,6 +257,7 @@ class Fight {
         var result = new Fight(start, gameVersion, gameBranch);
         result.dpsMeterVersion = dpsMeterVersion;
         result.startedAt = startedAt;
+        result.recordingComplete = recordingComplete; result.recordingChecked = recordingChecked;
         result.last = last; result.closed = closed; result.defeated = defeated;
         result.outcome = outcome; result.killedTargets = killedTargets.copy();
         result.isBoss = isBoss; result.phase = phase;
@@ -359,6 +373,11 @@ class CombatModel {
     public function new(now:Float, gameVersion:String = "", gameBranch:String = "") {
         this.gameVersion = gameVersion; this.gameBranch = gameBranch;
         session = new Fight(now, gameVersion, gameBranch);
+    }
+    public function interruptRecording(?target:String):Void {
+        for (fight in [current, pendingFight, boss, phrixesIntro])
+            if (fight != null) fight.interruptRecording(target);
+        if (rift != null) rift.interruptRecording(target);
     }
     public function reset(now:Float):Void {
         if (rift != null) rift.drain(now, completed, recaps, true, history, recapHistory);

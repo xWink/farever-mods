@@ -31,6 +31,10 @@ class RiftTracker {
         if (fights[0] != null) fights[0].gatesClosed = gatesClosed;
         if (fights[1] != null) fights[1].gatesClosed = gatesClosed;
     }
+    public function interruptRecording(?target:String):Void {
+        for (index in 0...2) if (!exported[index] && fights[index] != null)
+            fights[index].interruptRecording(target);
+    }
     public function startGates():Void { gatesStarted = true; warmup = null; }
     public function waitingForGates():Bool return phase == 0 && !gatesStarted;
     public function updateWarmup(now:Float, active:Bool):Void {

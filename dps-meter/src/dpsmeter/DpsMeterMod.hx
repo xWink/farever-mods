@@ -162,7 +162,7 @@ class DpsMeterMod {
         if (G.integer(G.field(damage, "effect")) != 1) {
             var now = haxe.Timer.stamp();
             if (timeline != null) try timeline.damage(instance, damage, now) catch (error:Dynamic) timeline.report(error);
-            if (collector != null) try collector.damage(instance, damage, now) catch (_:Dynamic) {}
+            if (collector != null) try collector.damage(instance, damage, now) catch (_:Dynamic) collector.interruptRecording();
         }
         return Continue;
     }
@@ -335,7 +335,10 @@ class DpsMeterMod {
                 }
             }
             if (config.enabled) collector.update(instance, now);
-            else { collector.healingCapture.flush(now, true); timeline.update(G.field(instance, "hero"), now); }
+            else {
+                collector.interruptRecording(); collector.healingCapture.flush(now, true);
+                timeline.update(G.field(instance, "hero"), now);
+            }
             flushFights();
             writer.update(now);
         } catch (_:Dynamic) {}

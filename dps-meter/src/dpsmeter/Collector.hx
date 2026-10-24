@@ -20,6 +20,7 @@ class Collector {
     var queenslayer:Dynamic;
     var honeyzabethTransition:Bool = false;
     var riftWait:Dynamic;
+    var coverage = new NativeEncounterCoverage();
     var appliedStatuses:Map<String, Bool> = [];
     var countedSummons:Map<String, Bool> = [];
     var countedBombletAreas:Map<String, Bool> = [];
@@ -54,6 +55,7 @@ class Collector {
             cleodora = null;
             queenslayer = null; honeyzabethTransition = false;
             riftWait = null;
+            coverage = new NativeEncounterCoverage();
             appliedStatuses = [];
             countedSummons = [];
             countedBombletAreas = []; goldenBombletUntil = [];
@@ -98,6 +100,10 @@ class Collector {
         // Objectives can arrive after entering the map; keep checking at the
         // roster's 4 Hz cadence. Completion does not remove the clearing goal.
         model.activityCategory = NativeCombatMetadata.activityCategory(model.activityId, inRift, player, G.field(layer, "mainActivity"));
+        try {
+            coverage.poll(hero, layer, model.activityCategory);
+            for (uid in coverage.interrupted) model.interruptRecording(uid);
+        } catch (_:Dynamic) interruptRecording();
         refreshDungeonBoss(inRift);
         if (inRift) updateRiftState(player, now);
         refreshPhrixes(now);
@@ -127,6 +133,11 @@ class Collector {
         var owner = G.field(skill, "owner");
         if (profile(owner) == null) return;
         model.recordCast(G.uid(owner), NativeCasts.id(skill));
+    }
+    /** Disabling collection or losing a damage callback leaves a real gap. */
+    public function interruptRecording():Void {
+        model.interruptRecording();
+        coverage = new NativeEncounterCoverage();
     }
     /** Count the server-replicated execution of a passive infusion/enchant.
         One proc may hit several targets or play multiple client steps. Do not
@@ -439,6 +450,8 @@ class Collector {
         // Blocked hits retain their calculated amount even though no damage is dealt.
         var blocker = G.text(G.field(damage, "blocker"));
         if (blocker == "InvulnerableHit" || blocker == "DamageDodge") return;
+        var coverageHit = G.integer(G.field(damage, "effect")) != 1 && G.number(G.field(damage, "_amount")) > 0
+            ? coverage.damage(target, now) : null;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
         var skill = NativeCasts.origin(gamecompat.HitSkill.read(damage, G.field));
         var uid = G.text(G.field(damage, "weakSource"));
@@ -508,6 +521,7 @@ class Collector {
             critical: G.field(damage, "_critical") == true, kill: G.field(damage, "_kill") == true,
             effect: effect, skill: skillId, damageType: damageType, affinity: affinity,
             activation: model.activation(uid, skillId),
+            coverage: coverageHit != null && (uid == model.me || model.party.exists(uid)) ? coverageHit.attempt.record(coverageHit) : null,
             target: G.uid(target), bossKind: kind, bossName: bossName, bossFlags: bossFlags,
             targetDummy: NativeCombatMetadata.isTargetDummy(inf),
             summoned: G.field(target, "summonOwner") != null,

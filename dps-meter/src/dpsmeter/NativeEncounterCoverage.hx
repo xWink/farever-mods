@@ -1,0 +1,153 @@
+package dpsmeter;
+
+import dpsmeter.GameAccess as G;
+import dpsmeter.EncounterCoverage;
+
+private typedef ObservedBoss = {
+    unit:Dynamic, attempt:EncounterCoverage, phase:Int, engaged:Bool, ready:Bool
+};
+
+/** Client-replicated evidence only. combatStartTime is a local clock and
+    full health alone cannot distinguish a fresh pull from a new boss phase. */
+class NativeEncounterCoverage {
+    public var interrupted(default, null):Array<String> = [];
+    var dungeon = new EncounterCoverage();
+    var dungeonState = "";
+    var dungeonMode = false;
+    var riftMode = false;
+    var rift = new EncounterCoverage();
+    var riftBoss:Null<EncounterCoverage>;
+    var riftBossKind = "";
+    var riftWait:Dynamic;
+    var dungeonContext:Dynamic;
+    var dungeonGlobal:Dynamic;
+    var bosses:Map<String, ObservedBoss> = [];
+
+    public function new() {}
+
+    public function poll(hero:Dynamic, layer:Dynamic, category:String):Void {
+        interrupted = [];
+        riftMode = G.field(layer, "isRift") == true;
+        dungeonMode = !riftMode && (category == "Boss Dungeons" || category == "Classic Dungeons");
+        var activity = G.field(layer, "mainActivity");
+        var context = activity == null ? null : G.call("st.Player", "getActivityContext", G.field(hero, "player"), [activity]);
+        var global = G.field(activity, "globalCtx");
+        if (context == null) context = global;
+        if (riftMode) {
+            // An incomplete EventWait is the pre-gates countdown. A completed
+            // countdown on first observation is not proof of the rift's start.
+            for (objective in G.array(G.field(context, "objectives"), true)) {
+                var kind = G.text(G.field(objective, "kind"));
+                if (kind == "EventWait") {
+                    riftWait = objective;
+                    if (G.call("st.Objective", "isCompleted", objective) == true) rift.begin();
+                    else rift.ready();
+                }
+                if (kind == "KillBoss") {
+                    var target = G.field(objective, "target");
+                    if (target != null && Type.enumConstructor(target) == "Unit")
+                        riftBossKind = G.text(Type.enumParameters(target)[0]);
+                }
+            }
+            return;
+        }
+        if (dungeonMode) {
+            dungeonContext = context; dungeonGlobal = global;
+            observeDungeon();
+        }
+        var seen:Map<String, Bool> = [];
+        for (unit in G.array(G.field(layer, "units"))) {
+            if (!bossUnit(unit)) continue;
+            if (dungeonMode && G.text(G.field(unit, "kind")) != "Phrixes") continue;
+            var uid = G.uid(unit);
+            if (uid == "" || uid == "0") continue;
+            seen[uid] = true;
+            observeBoss(unit);
+        }
+        // Leaving replication range during an attempt loses coverage too.
+        for (uid => entry in bosses) if (!seen.exists(uid)) {
+            if (entry.attempt.complete()) interrupted.push(uid);
+            entry.attempt.interrupt();
+            // A phase first seen after returning to range is not an observed
+            // transition from the last phase seen before the gap.
+            entry.phase = -1; entry.engaged = false; entry.ready = false;
+        }
+    }
+
+    static function bossUnit(unit:Dynamic):Bool return unit != null && G.field(unit, "summonOwner") == null
+        && G.field(unit, "player") == null && (G.integer(G.field(G.field(unit, "inf"), "flags")) & 0x38) != 0;
+
+    function observeDungeon():Void {
+        var state = G.text(G.field(dungeonContext, "dungeonState"));
+        var shared = G.text(G.field(dungeonGlobal, "dungeonState"));
+        // A lagging personal Explo state cannot override an active shared one.
+        // These are the shipped DungeonState string constants.
+        if (shared == "BossStart" || shared == "BossPhase") state = shared;
+        if (state == "BossLoose" || state == "Explo") {
+            if (state != dungeonState && dungeonState != "") dungeon = new EncounterCoverage();
+            dungeon.ready();
+        } else if (state == "BossStart" || state == "BossPhase" || state == "BossWin") dungeon.begin();
+        if (state != "") dungeonState = state;
+    }
+
+    function observeBoss(unit:Dynamic, allowReset:Bool = true):ObservedBoss {
+        var uid = G.uid(unit), phase = G.integer(G.field(unit, "phase"), -1);
+        var active = G.field(unit, "isInCombat") == true;
+        var alive = G.field(unit, "removed") != true && G.call("ent.GameObject", "isDead", unit) != true;
+        var hp = G.number(G.call("ent.Unit", "get_health", unit), -1);
+        var max = G.number(G.call("ent.Unit", "get_maxHealth", unit), -1);
+        var ready = alive && G.field(unit, "isInCombat") == false && phase >= 0 && phase <= 1
+            && max > 0 && hp >= max;
+        var entry = bosses[uid];
+        if (entry == null) {
+            entry = {unit:unit, attempt:new EncounterCoverage(), phase:phase,
+                engaged:active || (max > 0 && hp < max), ready:ready};
+            bosses[uid] = entry;
+            if (ready) entry.attempt.ready(); else entry.attempt.begin();
+        } else {
+            // Phrixes' first bar is deliberately local-only. The ranked fight
+            // starts at phase 2; phases 3 and 4 must retain the same evidence.
+            if (G.text(G.field(unit, "kind")) == "Phrixes" && entry.unit == unit && entry.phase == 1 && phase == 2) {
+                entry.attempt = new EncounterCoverage(); entry.attempt.ready();
+            } else if (allowReset && ready && !entry.ready && (entry.engaged || entry.phase > phase)) {
+                entry.attempt = new EncounterCoverage(); entry.attempt.ready();
+                entry.engaged = false;
+            }
+            if (active || !alive || (max > 0 && hp < max)) entry.attempt.begin();
+            if (active || (max > 0 && hp < max)) entry.engaged = true;
+            entry.unit = unit; entry.phase = phase; entry.ready = ready;
+        }
+        return entry;
+    }
+
+    /** Called before source/party filtering, including damage we cannot record. */
+    public function damage(target:Dynamic, now:Float):Null<CoverageHit> {
+        if (target == null || G.field(target, "player") != null || G.field(target, "summonOwner") != null) return null;
+        // Opening hits can precede the next roster poll. Read the cached
+        // replicated context, without scanning all units for every damage RPC.
+        if (dungeonMode) observeDungeon();
+        if (riftMode) {
+            if (riftWait != null && G.call("st.Objective", "isCompleted", riftWait) != true) return null;
+            if (riftBossKind != "" && G.text(G.field(target, "kind")) == riftBossKind) {
+                if (riftBoss == null) {
+                    riftBoss = new EncounterCoverage();
+                    if (rift.complete()) riftBoss.ready();
+                }
+                return riftBoss.damage(now);
+            }
+            return riftBoss == null ? rift.damage(now) : riftBoss.damage(now);
+        }
+        if (G.text(G.field(target, "kind")) != "Phrixes" && dungeonMode && (dungeonState == "BossStart" || dungeonState == "BossPhase"
+            || dungeonState == "BossWin" || bossUnit(target))) return dungeon.damage(now);
+        if (!bossUnit(target)) return null;
+        // Never establish an idle baseline from the opening hit itself: this
+        // RPC may be a replay on login or a new full-health phase.
+        var entry = bosses[G.uid(target)];
+        if (entry == null) {
+            entry = {unit:target, attempt:new EncounterCoverage(), phase:G.integer(G.field(target, "phase"), -1),
+                engaged:true, ready:false};
+            bosses[G.uid(target)] = entry;
+        } else entry = observeBoss(target, false);
+        return entry.attempt.damage(now);
+    }
+}
