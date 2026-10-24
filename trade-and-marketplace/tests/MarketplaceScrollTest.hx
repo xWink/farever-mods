@@ -10,7 +10,18 @@ class MarketplaceScrollTest {
     static function rows():Array<Dynamic> return G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketRow"));
     static function reflow(view:MarketWindow):Dynamic {
         var viewport=node("marketListingViewport");
-        viewport.onAfterReflow();view.update();return viewport;
+        viewport.onAfterReflow();view.update();
+        var paint=view.listingScrollbar.paint,root=TradeFrame.latest.container;
+        var siblings:Array<Dynamic>=root.children;
+        // Every rebuild must keep the visible skin above the list card and
+        // viewport, while native scroll controls still handle wheel/drag input.
+        check(paint.parent==root&&siblings.indexOf(paint)>siblings.indexOf(viewport));
+        check(paint.visible==(viewport.contentHeight>viewport.height));
+        if(paint.visible) {
+            check(paint.x==viewport.x+viewport.scrollBar.x&&paint.y==viewport.y+viewport.scrollBar.y);
+            check(paint.shapes[1].radius==5&&paint.shapes[2].height<viewport.height);
+        }
+        return viewport;
     }
     public static function run(example:Dynamic):Void {
         for(tab in ["Browse","My listings"]) {

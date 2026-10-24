@@ -486,6 +486,10 @@ class MarketplaceUiTest {
   check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="true"&&rarityFilter.selectedIndex==5);
   rarityFilter.selectedIndex=4;rarityFilter.onSelectOption(null);view.update();
   check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="");
+  c.setHideMine(true);c.filters["online"]="true";var beforeClear=c.refreshes;
+  GameAccess.buttons.filter(b->b.text=="Clear filters")[0].action();view.update();
+  check(c.hideMine&&c.filters["online"]=="true"&&c.filters["category"]==""&&c.filters["rarity"]==""&&c.refreshes==beforeClear+1);
+  check(GameAccess.nodes.filter(n->n.fmtText.text=="Hide mine"||n.fmtText.text=="Online only").filter(n->n.selected==true).length==2);
   toggle.action();view.update();
   check(!c.filtersExpanded&&GameAccess.removed.indexOf(category)>=0&&GameAccess.removed.indexOf(toggle)<0);
   row.item.itemLevel=35;row.item.requiredLevel=15;row.item.category="Collections";c.rows=[row];c.selected=row;

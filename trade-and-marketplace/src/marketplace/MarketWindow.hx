@@ -558,8 +558,7 @@ class MarketWindow {
         c.refresh(); dirty=true;
     }
     function resetFilters():Void {
-        for(key in c.filters.keys())c.filters[key]=key=="online"?"false":"";
-        c.setHideMine(false);c.saveFilterPreferences();
+        for(key in c.filters.keys())if(key!="online")c.filters[key]="";
         c.page=1;c.refresh();dirty=true;
     }
     function filters():Void {

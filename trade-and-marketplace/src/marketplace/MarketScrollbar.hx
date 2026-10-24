@@ -35,6 +35,12 @@ class MarketScrollbar {
     public function bind(viewport:Dynamic,content:Dynamic):Void {
         this.viewport=viewport;
         this.content=content;
+        // The skin survives refreshes, but the list card and viewport are new
+        // siblings. Put it above them again so their backgrounds cannot hide it.
+        // Object.addChild dispatches through Flow.addChildAt, preserving its
+        // layout properties; leave the native scrollbar's children untouched.
+        var root=G.field(viewport,"parent");
+        if(root!=null){G.call("h2d.Object","addChild",root,[paint]);absolute(root,paint);}
         // A rebuilt Flow can report a different thumb size at the same scroll
         // position. Invalidate the skin, not the game's scrollbar.
         lastHeight=-1;
