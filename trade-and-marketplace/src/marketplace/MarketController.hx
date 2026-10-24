@@ -62,7 +62,7 @@ class MarketController {
     var prefetch:Null<{feed:MarketBrowseFeed,path:String,ticket:Int}>;
     var nextTicket=0;
     var mineSort="";
-    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>""];
+    public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","orderType"=>"any","classes"=>"","search"=>"","online"=>"false","sort"=>""];
     final worker=new MarketWorker();
     var generation=0;
     var key="";
@@ -78,6 +78,8 @@ class MarketController {
     var retryOnOpen=false;
     var expectedBody="";
     var requestId="";
+    var buyExpectedBody="";
+    var buyRequestId="";
     var sellerWhisperAfter:Map<String,Float>=[];
     var contactingSeller="";
     var opened=false;
@@ -180,6 +182,7 @@ class MarketController {
         player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;navigationPending=false;navigationForce=false;
         cooldown.clear();retryOnOpen=false;
         rows=[];browseRows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
+        buyExpectedBody="";buyRequestId="";
         inventorySlots=[];inventoryIndexes=[];inventorySource=null;bankNames=[];bankTab=0;
         buy=new MarketBuy();opened=false;page=pages=1;total=0;invalidateListings();ownedItems=[];ownedKinds=[];
         SessionLease.release(HlxRuntime.moduleName());
@@ -308,6 +311,7 @@ class MarketController {
         if(name=="")return;
         // The shortcut searches the item, not the old category/rarity/class restrictions.
         for(k in filters.keys())if(k!="online"&&k!="sort")filters[k]="";
+        filters["orderType"]="any";
         filters["search"]=name.substr(0,100);
         listingCaches=[];
         chooseTab("Browse");
@@ -320,7 +324,7 @@ class MarketController {
         // Duplicate-item checks span regions, so collect all pages before replacing the snapshot.
         var collected:Array<Dynamic>=[],seen:Map<String,Bool>=[],cursors:Map<String,Bool>=[];
         function fetchPage(cursor:Null<String>):Void {
-            var path="/api/v1/marketplace/listings?mine=true&limit=50"+(cursor==null?"":"&cursor="+StringTools.urlEncode(cursor));
+            var path="/api/v1/marketplace/listings?mine=true&orderType=any&limit=50"+(cursor==null?"":"&cursor="+StringTools.urlEncode(cursor));
             request("GET",path,null,null,data->{
                 if(!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>50
                     ||(data.nextCursor!=null&&!Std.isOfType(data.nextCursor,String)))throw "Incomplete owned listings";
@@ -353,6 +357,8 @@ class MarketController {
         }).length;
         var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
         for(row in ownedRows) {
+            // Buy orders consume listing slots but do not mark inventory for sale.
+            if(MarketOrder.isBuy(row))continue;
             var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
             if(item==null)continue;
             var id=MarketItemIdentity.key(item),expires=G.text(G.field(row,"expiresAt"));
@@ -439,11 +445,13 @@ class MarketController {
     public function isLocked(item:TradeItem):Bool return item!=null&&lockedInventory.exists(item.uid);
     public function inventoryLocation(item:TradeItem):String return locations.exists(item.uid)?locations[item.uid]:"In backpack";
     function cacheForTab():MarketBrowseFeed {
-        var params=["server="+StringTools.urlEncode(server)];
+        var order=filters["orderType"];
+        if(order==null||order=="")order="any";
+        var params=["server="+StringTools.urlEncode(server),"orderType="+StringTools.urlEncode(order)];
         if(hideMine)params.push("excludeAccountId="+StringTools.urlEncode(account));
         params.push("limit="+MarketBrowseFeed.LIMIT);
         var keys=[for(k in filters.keys())k];keys.sort(Reflect.compare);
-        for(k in keys)if(filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
+        for(k in keys)if(k!="orderType"&&filters[k]!="")params.push(k+"="+StringTools.urlEncode(filters[k]));
         var path="/api/v1/marketplace/listings?"+params.join("&"),slot=hideMine?"hidden":"all",cache=listingCaches[slot];
         if(cache==null||cache.path!=path){cache=new MarketBrowseFeed(path);listingCaches[slot]=cache;}
         return cache;
@@ -576,8 +584,30 @@ class MarketController {
     public function availableToList(item:TradeItem):Int {
         try return MarketExport.available(inv,item,bankOnly)catch(_:Dynamic)return 0;
     }
+    public function submitBuy():Void {
+        if(tab!="Buy"||busy||buy.selected==null)return;
+        if(!ready){message=connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";view.dirty=true;return;}
+        if(listingLimitReached()){message=error("listing_limit");view.dirty=true;return;}
+        try {
+            var submittedBuy=buy,draft=buy.draftKey(),submittedCount=ownedListingCount;
+            var value=MarketExport.buySnapshot(buy,server,app,player),body=haxe.Json.stringify(value);
+            // Keep a separate retry token so using Sell after a timeout cannot
+            // change this draft's idempotency key. The server checks duplicates.
+            if(body!=buyExpectedBody){buyRequestId=MarketExport.uuid();buyExpectedBody=body;}
+            request("POST","/api/v1/marketplace/listings",haxe.Json.parse(buyExpectedBody),["Idempotency-Key"=>buyRequestId],data->{
+                if(G.text(data.id)==""||G.integer(data.revision)!=1||!MarketOrder.isBuy(data)||G.text(data.server)!=G.text(value.server))
+                    throw "Invalid buy order receipt";
+                invalidateListings();ownedListingCount=submittedCount+1;
+                buyExpectedBody="";buyRequestId="";
+                if(buy==submittedBuy&&buy.draftKey()==draft)buy.clearSelection();
+                message="Buy order posted.";
+                // Navigation queued during submission resumes after this callback.
+                // The catalog remains open if the player stayed on Buy.
+            });
+        }catch(e:Dynamic){message=Std.string(e);view.dirty=true;}
+    }
     /** Quantity changes retain the original item identity and character snapshot. */
-    function editAvailable(row:Dynamic):Int return MarketInventory.available(inv,G.field(G.field(row,"export"),"item"));
+    function editAvailable(row:Dynamic):Int return MarketOrder.isBuy(row)?10000:MarketInventory.available(inv,G.field(G.field(row,"export"),"item"));
     public function beginEdit():Bool {
         if(busy||selected==null||tab!="My listings")return false;
         if(!ownedKnown){refreshSell();return false;}
@@ -636,7 +666,7 @@ class MarketController {
         var sellerId=G.text(row.seller.accountId);
         var deadline=sellerWhisperAfter.get(sellerId);
         if(contactingSeller==sellerId||(deadline!=null&&haxe.Timer.stamp()<deadline)) {
-            message="Please wait "+(contactingSeller==sellerId?10:Math.ceil(deadline-haxe.Timer.stamp()))+" seconds before whispering this seller again.";
+            message="Please wait "+(contactingSeller==sellerId?10:Math.ceil(deadline-haxe.Timer.stamp()))+" seconds before whispering this "+MarketOrder.ownerLabel(row).toLowerCase()+" again.";
             view.dirty=true;trade.TradeMod.chatError(message);return;
         }
         if(busy)return;
@@ -654,7 +684,7 @@ class MarketController {
                     if(ok)sellerWhisperAfter.set(sellerId,haxe.Timer.stamp()+10);
                     else sellerWhisperAfter.remove(sellerId);
                     message=ok?"Whisper sent to "+seller+". Arrange a party and meet nearby to trade."
-                        :"Could not send the whisper. The seller may be unavailable.";
+                        :"Could not send the whisper. The "+MarketOrder.ownerLabel(current).toLowerCase()+" may be unavailable.";
                     view.dirty=true;
                 },true);
             }catch(error:Dynamic){

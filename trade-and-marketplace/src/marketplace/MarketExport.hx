@@ -39,9 +39,30 @@ class MarketExport {
         if(quantity<1||quantity>10000||(!offers&&(trays<1||trays>200000)))throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
         var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
         if(character==""||character=="0")throw "Your character is still loading. Try again shortly.";
-        var data:Dynamic={schemaVersion:2,server:server,gameVersion:G.text(G.staticCall("Config","getVersion",[])),
+        var data:Dynamic={schemaVersion:2,orderType:"sell",server:server,gameVersion:G.text(G.staticCall("Config","getVersion",[])),
             character:{id:character,name:G.text(G.call("st.Player","getName",inv.player))},
             item:itemData(stack.item,offer,quantity),price:offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays}};
+        if(haxe.io.Bytes.ofString(haxe.Json.stringify(data)).length>16384)throw "This item contains too much data to list.";
+        return data;
+    }
+    /** A requested item is detached native state, never an inventory claim. */
+    public static function buySnapshot(buy:MarketBuy,server:String,app:Dynamic,player:Dynamic):Dynamic {
+        if(server=="")throw "The connected server could not be identified. Reconnect before posting a buy order.";
+        var quantityValue=Std.parseFloat(buy.quantity),trayValue=Std.parseFloat(buy.trays);
+        if(!~/^[0-9]+$/.match(buy.quantity)||quantityValue<1||quantityValue>10000
+            ||(!buy.offers&&(!~/^[0-9]+$/.match(buy.trays)||trayValue<1||trayValue>200000)))
+            throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
+        var quantity=Std.int(quantityValue),trays=buy.offers?0:Std.int(trayValue);
+        var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
+        if(player==null||character==""||character=="0")throw "Your character is still loading. Try again shortly.";
+        if(buy.selected==null)throw "Select an item to buy first.";
+        buy.updatePreview();
+        if(buy.nativePreview==null||buy.preview==null)throw "This item's requested details could not be prepared. Refresh and choose it again.";
+        var item=itemData(buy.nativePreview,buy.preview,quantity);
+        if(!buy.selected.gear){Reflect.deleteField(item,"requiredLevel");Reflect.deleteField(item,"itemLevel");}
+        var data:Dynamic={schemaVersion:2,orderType:"buy",server:server,gameVersion:G.text(G.staticCall("Config","getVersion",[])),
+            character:{id:character,name:G.text(G.call("st.Player","getName",player))},item:item,
+            price:buy.offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays}};
         if(haxe.io.Bytes.ofString(haxe.Json.stringify(data)).length>16384)throw "This item contains too much data to list.";
         return data;
     }

@@ -87,7 +87,7 @@ class MarketplaceStateTest {
         var listed=marketplace.MarketExport.itemData(stack.item,offer,1);
         c.chooseTab("Sell");c.refresh();
         var path=Std.string(MarketWorker.current.sent[MarketWorker.current.sent.length-1].path);
-        check(path=="/api/v1/marketplace/listings?mine=true&limit=50");
+        check(path=="/api/v1/marketplace/listings?mine=true&orderType=any&limit=50");
         ownReply(c,app,[{item:listed}]);check(c.inventory.length==1&&c.isListed(c.inventory[0]));
         c.inv.hero.loadout.banks=[{content:[{item:{uid:"bank-item",inf:{}},count:20}]}];
         c.setBankOnly(true);check(c.inventory.length==1&&c.isListed(c.inventory[0]));
@@ -209,6 +209,7 @@ class MarketplaceStateTest {
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
         MarketplaceRecoveryTest.run();
+        MarketplaceBuyOrderTest.run();
     }
 
     static function navigationDuringRequests():Void {

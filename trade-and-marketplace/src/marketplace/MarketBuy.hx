@@ -17,7 +17,7 @@ typedef CatalogItem = {
     var offer:TradeItem;
 };
 
-/** Local catalog and order draft. This model has no marketplace/network operations. */
+/** Local catalog and order draft; the controller owns submission. */
 class MarketBuy {
     static var excludedKinds=["Hide_Gear","TPRiftStone","TPRiftStone_Perma","SparkCube","TeleportationStone"];
     static var excludedTypes=["Currency","Mastery","Prospecting","GearTool"];
@@ -40,6 +40,10 @@ class MarketBuy {
     var loaded=false;
 
     public function new() {}
+    public function draftKey():String return haxe.Json.stringify([selected==null?"":selected.kind,level,bonus,prismatic,quantity,trays,offers]);
+    public function clearSelection():Void {
+        selected=null;preview=null;nativePreview=null;level=0;bonus="";bonuses=[];prismatic=false;quantity="1";
+    }
     static function allowed(definition:Dynamic,kind:String):Bool {
         if(excludedKinds.indexOf(kind)>=0)return false;
         // Native inheritance includes every crafting/gathering tool and keeps

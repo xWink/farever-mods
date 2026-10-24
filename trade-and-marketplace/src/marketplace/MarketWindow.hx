@@ -304,7 +304,11 @@ class MarketWindow {
             } else labelAt(root,c.loadingMore()?"Loading more listings…":c.total+" listing"+(c.total==1?"":"s"),20,830,850,false,MUTED);
         }
         button("Refresh",970,820,118,c.refresh,"",true,true);
-        var message = c.tab=="Buy"?"":c.message;
+        var message = c.message;
+        if(c.tab=="Buy"&&c.buy.selected!=null) {
+            if(c.listingLimitReached())message=MarketController.error("listing_limit");
+            else if(!c.ready&&message=="")message=c.connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";
+        }
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
         if (message != "") labelAt(root,message.split("\n").join(" "),20,862,1064,false,INK,true);
     }
@@ -584,6 +588,7 @@ class MarketWindow {
     }
     function resetFilters():Void {
         for(key in c.filters.keys())if(key!="online")c.filters[key]="";
+        c.filters["orderType"]="any";
         c.page=1;c.refresh();dirty=true;
     }
     function filters():Void {
@@ -600,7 +605,7 @@ class MarketWindow {
         dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],300,190,312,s->filter("subcategory",s));
         var rarities=["","Common","Uncommon","Rare","Epic","Epic (Prismatic)","Legendary"];
         dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"]=="Epic"&&f["prismatic"]=="true"?"Epic (Prismatic)":f["rarity"],628,190,210,s->filter("rarity",s));
-        dropdown("Pricing",["","fixed","offers"],["Any price","Buyout","Open to offers"],f["pricing"],854,190,222,s->filter("pricing",s));
+        dropdown("Order type",["any","buy","sell"],["Any","Buy","Sell"],f["orderType"],854,190,222,s->filter("orderType",s));
         checkbox("Hide mine",c.hideMine,600,272,140,c.setHideMine,true);
         checkbox("Online only",f["online"]=="true",756,272,156,value->filter("online",value?"true":"false"),true);
         button("Clear filters",928,272,148,resetFilters,"",true,true);
@@ -640,7 +645,7 @@ class MarketWindow {
         stage="item row labels";
         var nameX=64;
         var nameRight=c.tab=="Sell"?484:392,extraWidth=0;
-        var fullName=item.name+(item.count>1?" ×"+item.count:"");
+        var fullName=(listing==null?"":MarketOrder.prefix(listing))+item.name+(item.count>1?" ×"+item.count:"");
         var nameLabel=labelAt(row,fullName,nameX,0,nameRight-nameX,true,INK,true);
         // FmtText's native ellipsis overwrites its source text; fit from the original
         // name after the font, rarity and price columns have their final bounds.
@@ -813,9 +818,7 @@ class MarketWindow {
             var conversion=currencyLine(frame.container,int(b.trays),754,720,316,true);
             counter(b.trays,754,668,190,200000,s->{b.trays=s;conversion(int(s));},true);
         }
-        // The order API is not defined yet. This prototype deliberately sends
-        // nothing, spends nothing, and does not claim an order was created.
-        button("Place buy order",754,752,316,()->{},"accept");
+        button("Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!c.listingLimitReached());
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
@@ -1189,7 +1192,7 @@ class MarketWindow {
         labelAt(root,signIn?MarketText.SIGN_IN_TO_BROWSE:c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
         if(c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"",true,true);
     }
-    function priceFields(y:Int):Void {
+    function priceFields(y:Int,buyOrder=false):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);
         tabButton("Buyout",754,y+28,152,()->{if(offers){offers=false;dirty=true;}},!offers);
         tabButton("Open to offers",918,y+28,152,()->{if(!offers){offers=true;dirty=true;}},offers);
@@ -1198,7 +1201,7 @@ class MarketWindow {
             var box=counter(trays,754,y+76,190,200000,s->{
                 trays=s.substr(0,6);conversion(int(trays));
             },true);
-        } else labelAt(frame.container,"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
+        } else labelAt(frame.container,buyOrder?"Sellers can contact you to agree on a price.":"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
     }
     function sellPanel():Void {
         if(c.chosen==null)return;
@@ -1225,9 +1228,9 @@ class MarketWindow {
         if(c.tab=="My listings") {
             if(c.editingListingId==G.text(row.id)) {
                 line(frame.container,754,SELL_FORM_Y-8,316);
-                labelAt(frame.container,"Quantity to sell",754,SELL_FORM_Y+8,316,true);
+                labelAt(frame.container,MarketOrder.isBuy(row)?"Quantity to buy":"Quantity to sell",754,SELL_FORM_Y+8,316,true);
                 counter(quantity,754,SELL_FORM_Y+36,132,c.editQuantityLimit,s->quantity=s);
-                priceFields(SELL_FORM_Y+92);
+                priceFields(SELL_FORM_Y+92,MarketOrder.isBuy(row));
                 button("Save changes",754,752,152,()->c.edit(int(quantity),int(trays),offers),"accept",!c.busy);
                 button("Cancel",918,752,152,c.cancelEdit,"",!c.busy);
             } else {
@@ -1241,7 +1244,7 @@ class MarketWindow {
                 button("Remove listing",918,752,152,c.remove,"cancel",c.selected!=null&&!c.busy);
             }
         } else {
-            button(row.seller.accountId==c.account?"Your listing":"Whisper seller",754,752,316,c.contact,"accept",c.selected!=null&&row.seller.accountId!=c.account);
+            button(row.seller.accountId==c.account?"Your listing":"Whisper "+MarketOrder.ownerLabel(row).toLowerCase(),754,752,316,c.contact,"accept",c.selected!=null&&row.seller.accountId!=c.account);
         }
     }
     function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false,?listing:Dynamic):Void {
@@ -1251,7 +1254,7 @@ class MarketWindow {
         try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")),G.field(frame.ui,"windows"))
         catch(error:Dynamic)report("seller badge",error);
         var badgeSpace=badge==null?0:MarketBadges.SIZE+MarketBadges.GAP;
-        var caption=labelAt(box,"Seller: "+name,0,0,width-90-badgeSpace,bold,bold?INK:MUTED,true);
+        var caption=labelAt(box,MarketOrder.ownerLabel(listing)+": "+name,0,0,width-90-badgeSpace,bold,bold?INK:MUTED,true);
         var status=labelAt(box,online?"Online":"Offline",0,0,70,false,MUTED,true);
         var dot=graphic(box);
         rounded(dot,0,0,10,10,5,online?0x426138:0x888888);

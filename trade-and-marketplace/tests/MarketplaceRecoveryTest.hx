@@ -12,7 +12,7 @@ class MarketplaceRecoveryTest {
         c.update(app,haxe.Timer.stamp());
     }
     public static function run():Void {
-        var url="/api/v1/marketplace/listings",own=url+"?mine=true&limit=50";
+        var url="/api/v1/marketplace/listings",own=url+"?mine=true&orderType=any&limit=50";
         var cooldown=new MarketCooldown();
         cooldown.record("DELETE",url+"/one",429,"10",100,1000);
         check(cooldown.remaining("DELETE",url+"/two",100)==10);

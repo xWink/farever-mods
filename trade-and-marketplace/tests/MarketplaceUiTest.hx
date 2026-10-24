@@ -42,7 +42,7 @@ class MarketplaceUiTest {
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
-  var name=GameAccess.labels.filter(l->l.text==row.item.name)[0];
+  var name=GameAccess.labels.filter(l->l.text=="S> "+row.item.name)[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
   // A real DOMKit ItemSlot supplies one masked, non-interactive item image.
   // Its rarity frame remains native and no extra gradient is drawn underneath.
@@ -486,9 +486,14 @@ class MarketplaceUiTest {
   check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="true"&&rarityFilter.selectedIndex==5);
   rarityFilter.selectedIndex=4;rarityFilter.onSelectOption(null);view.update();
   check(c.filters["rarity"]=="Epic"&&c.filters["prismatic"]=="");
+  var orderFilter=dropdowns[3];
+  check(c.filters["orderType"]=="any"&&orderFilter.selectText.text=="Any"
+   &&[for(o in (cast orderFilter.options:Array<Dynamic>))o.name].join(",")=="Any,Buy,Sell");
+  orderFilter.selectedIndex=1;orderFilter.onSelectOption(null);view.update();check(c.filters["orderType"]=="buy");
+  orderFilter.selectedIndex=2;orderFilter.onSelectOption(null);view.update();check(c.filters["orderType"]=="sell");
   c.setHideMine(true);c.filters["online"]="true";var beforeClear=c.refreshes;
   GameAccess.buttons.filter(b->b.text=="Clear filters")[0].action();view.update();
-  check(c.hideMine&&c.filters["online"]=="true"&&c.filters["category"]==""&&c.filters["rarity"]==""&&c.refreshes==beforeClear+1);
+  check(c.hideMine&&c.filters["orderType"]=="any"&&c.filters["online"]=="true"&&c.filters["category"]==""&&c.filters["rarity"]==""&&c.refreshes==beforeClear+1);
   check(GameAccess.nodes.filter(n->n.fmtText.text=="Hide mine"||n.fmtText.text=="Online only").filter(n->n.selected==true).length==2);
   toggle.action();view.update();
   check(!c.filtersExpanded&&GameAccess.removed.indexOf(category)>=0&&GameAccess.removed.indexOf(toggle)<0);
@@ -601,7 +606,8 @@ class MarketplaceUiTest {
   // The Browse row and details must use the viewer's translated item name.
   trade.TradeInventory.localizedNames[row.item.baseId]="Bouclier des marées";
   GameAccess.labels=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="Bouclier des marées").length>=2);
+  check(GameAccess.labels.filter(l->l.text=="S> Bouclier des marées").length==1
+   &&GameAccess.labels.filter(l->l.text=="Bouclier des marées").length==1);
   trade.TradeInventory.localizedNames.remove(row.item.baseId);
   // Native detail formatting retains source-specific values and colour markup.
   var nativeId:Dynamic={token:"gift-id"};
@@ -668,6 +674,7 @@ class MarketplaceUiTest {
   trade.TradeInventory.definitions.remove(row.item.baseId);
   view.close();
   MarketplaceBadgeTest.run(row);
+  MarketplaceOrderUiTest.run(row);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

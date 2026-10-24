@@ -84,7 +84,12 @@ class MarketplaceBuyTest {
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");
         button("Open to offers").action();view.update();reflow(view);check(c.buy.offers);
         var count=c.refreshes;button("Place buy order").action();
-        check(c.refreshes==count&&c.buy.selected.kind==armor.id&&c.buy.quantity=="12"&&c.message=="");
+        check(c.refreshes==count&&c.buySubmissions==0&&c.buy.selected.kind==armor.id&&c.buy.quantity=="12"&&c.message=="");
+        c.ready=true;c.busy=false;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
+        check(c.buySubmissions==1);
+        c.atLimit=true;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
+        check(c.buySubmissions==1&&G.labels.filter(l->l.text==MarketController.error("listing_limit")).length==1);
+        c.atLimit=false;view.dirty=true;view.update();reflow(view);
         check(c.chosen==chosen&&view.quantity=="7"&&c.filters["search"]=="sword"&&c.filters["online"]=="true"&&c.hideMine);
         button("Clear filters").action();view.update();reflow(view);
         check(c.buy.visible.length==253&&c.buy.selected.kind==armor.id&&c.filters["search"]=="sword");

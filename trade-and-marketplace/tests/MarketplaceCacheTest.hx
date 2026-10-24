@@ -71,7 +71,7 @@ class MarketplaceCacheTest {
         check(!c.busy&&c.rows.length==1&&c.rows[0].id=="na-mine"&&MarketWorker.current.sent.length==sent);
         c.server="europe";c.chooseTab("My listings");
         check(!c.busy&&c.rows.length==2&&c.rows[0].id=="mine"&&MarketWorker.current.sent.length==sent);
-        c.refresh();check(c.busy&&MarketWorker.current.sent.length==sent+1&&last().path=="/api/v1/marketplace/listings?mine=true&limit=50");
+        c.refresh();check(c.busy&&MarketWorker.current.sent.length==sent+1&&last().path=="/api/v1/marketplace/listings?mine=true&orderType=any&limit=50");
         respond(c,app,last(),[{id:"mine",server:"europe"}],null);
 
         c.chooseTab("Browse");c.filters["rarity"]="Epic";c.filters["prismatic"]="true";c.page=1;c.refresh();
@@ -134,7 +134,7 @@ class MarketplaceCacheTest {
         c.setHideMine(true);
         var request=last(),path=Std.string(request.path);
         check(c.hideMine&&c.busy&&MarketWorker.current.sent.length==sent+1);
-        check(StringTools.startsWith(path,"/api/v1/marketplace/listings?server=north-america&excludeAccountId=self&limit=24"));
+        check(StringTools.startsWith(path,"/api/v1/marketplace/listings?server=north-america&orderType=any&excludeAccountId=self&limit=24"));
         check(path.indexOf("cursor=")<0&&path.indexOf("hideMine")<0);
 
         // Both Browse modes append server-filtered batches without local pagination.

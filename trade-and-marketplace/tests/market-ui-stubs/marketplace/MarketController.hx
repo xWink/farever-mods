@@ -31,7 +31,7 @@ class MarketController {
  public var rows:Array<Dynamic>=[]; public var inventory:Array<trade.TradeTypes.TradeItem>=[];
  public var page=1; public var pages=1; public var total=0; public var selected:Dynamic; public var chosen:trade.TradeTypes.TradeItem;
  public var inv:trade.TradeInventory=null;
- public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","pricing"=>"","classes"=>"","search"=>"","online"=>"false","sort"=>""];
+ public var filters:Map<String,String>=["category"=>"","subcategory"=>"","rarity"=>"","prismatic"=>"","orderType"=>"any","classes"=>"","search"=>"","online"=>"false","sort"=>""];
  public function new(){}
  public var presenceOverride:Null<Bool>;
  public function listingOnline(row:Dynamic):Bool return presenceOverride!=null?presenceOverride:fareverly.Protocol.expiry(trade.GameAccess.text(trade.GameAccess.field(trade.GameAccess.field(row,"seller"),"onlineUntil")))>Date.now().getTime()/1000;
@@ -50,6 +50,9 @@ class MarketController {
  public var availableQuantity:Null<Int>;
  public function availableToList(item:trade.TradeTypes.TradeItem):Int return availableQuantity==null?item.count:availableQuantity;
  public function list(q:Int,t:Int,o:Bool):Void{}
+ public var buySubmissions=0;
+ public function submitBuy():Void {buySubmissions++;}
+ public static function error(code:String):String return code=="listing_limit"?"You can have up to 20 active listings per region. Remove a listing first.":code;
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
  public var atLimit=false;
  public function listingLimitReached():Bool return atLimit;
