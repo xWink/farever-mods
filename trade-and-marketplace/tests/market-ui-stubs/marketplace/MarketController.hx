@@ -1,5 +1,6 @@
 package marketplace;
 class MarketController {
+ public function visibleListings(rows:Array<Dynamic>):Void {}
  public var filtersExpanded=false;public var view:MarketWindow;
  public var hideMine=false;
  public function setHideMine(value:Bool):Void {hideMine=value;if(view!=null)view.dirty=true;}

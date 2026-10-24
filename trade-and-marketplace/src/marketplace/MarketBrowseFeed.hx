@@ -15,10 +15,18 @@ class MarketBrowseFeed {
     public var fetchedAt=0.0;
     var seen:Map<String,Bool>=[];
     var ids:Map<String,Bool>=[];
+    var presencePaths:Map<String,String>=[];
+    var presenceChecked:Map<String,Float>=[];
 
     public function new(path:String)this.path=path;
     public function stale(now:Float):Bool return loaded&&now-fetchedAt>=MAX_AGE;
     public function url():String return path+(next==null?"":"&cursor="+StringTools.urlEncode(next));
+    public function presencePath(id:String,now:Float):Null<String> {
+        var path=presencePaths[id];if(path==null)return null;
+        var checked=presenceChecked[path];
+        return checked==null||now>=checked+MarketPresenceRefresh.INTERVAL?path:null;
+    }
+    public function checkedPresence(path:String,now:Float):Void presenceChecked[path]=now;
     public function append(value:Dynamic,now:Float):Void {
         if(!Std.isOfType(Reflect.field(value,"listings"),Array)
             ||(cast value.listings:Array<Dynamic>).length>LIMIT
@@ -29,10 +37,12 @@ class MarketBrowseFeed {
         // response can be retried without losing or partially appending items.
         for(row in (cast value.listings:Array<Dynamic>))
             if(row==null||!Std.isOfType(Reflect.field(row,"id"),String)||row.id=="")throw "Invalid listing";
+        var fetchedPath=url();
         for(row in (cast value.listings:Array<Dynamic>)) {
             if(ids.exists(row.id))continue;
-            ids[row.id]=true;rows.push(row);
+            ids[row.id]=true;rows.push(row);presencePaths[row.id]=fetchedPath;
         }
+        checkedPresence(fetchedPath,now);
         if(cursor!=null)seen[cursor]=true;
         loaded=true;failed=false;fetchedAt=now;next=cursor;complete=next==null;
     }

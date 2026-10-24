@@ -40,6 +40,10 @@ class MarketController {
     var locations:Map<String,String>=[];
     var ownOnlineUntil=0.0;
     var ownOnlineServer="";
+    var peerPresence=new MarketPresenceRefresh();
+    var visiblePresenceRows:Array<Dynamic>=[];
+    var presencePollAt=0.0;
+    var presenceRead:Null<{ticket:Int,path:String,feed:MarketBrowseFeed,row:Dynamic,batch:Bool}>;
     var ownedKnown=false;
     var ownedSellCount=0;
     var ownedBuyCount=0;
@@ -116,11 +120,13 @@ class MarketController {
         var event=worker.receive();
         while(event!=null){
             if(event.generation==generation) switch(event.op){
+                case "presence-read":receivePresenceRead(event,now);
                 case "prefetch":receivePrefetch(event,now);
                 case "request":
                     busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,orderType=pendingOrderType,buyItemKey=pendingBuyItemKey,failed=pendingFailure;pendingFailure=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
+                        peerPresence.observe(data,now);
                         if(ready)connectionIssue=false;
                         if(method=="GET")retryOnOpen=false;
                         var done=pending;pending=null;if(done!=null)try done(data==null?{}:data)catch(e:Dynamic) {
@@ -172,9 +178,11 @@ class MarketController {
         }
         if(navigationPending&&!busy)resumeNavigation();
         view.update();
+        refreshPeerPresence(now);
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
+        cancelPresenceRead();peerPresence=new MarketPresenceRefresh();
         ownOnlineUntil=0;ownOnlineServer="";
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
         generation=worker.session(server==""?"":account,key,server);busy=false;ready=false;pending=null;pendingFailure=null;navigationPending=false;navigationForce=false;cooldown.clear();retryOnOpen=false;
@@ -184,6 +192,7 @@ class MarketController {
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
+        cancelPresenceRead();peerPresence=new MarketPresenceRefresh();
         contactingSeller="";editingListingId="";
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;ownOnlineServer="";
@@ -226,7 +235,67 @@ class MarketController {
             filledBrowse.selectedId=G.text(G.field(selected,"id"));
     }
     function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
+    function cancelPresenceRead():Void {
+        presenceRead=null;visiblePresenceRows=[];presencePollAt=0;
+        worker.cancelPresenceRead();
+    }
+    /** The virtualized list reports just the rows on screen, including its small overscan. */
+    public function visibleListings(value:Array<Dynamic>):Void {
+        visiblePresenceRows=value;presencePollAt=0;
+    }
+    function refreshPeerPresence(now:Float):Void {
+        if(!view.isOpen()||tab!="Browse"||!canBrowse()) {
+            if(presenceRead!=null)cancelPresenceRead();
+            return;
+        }
+        if(busy||navigationPending||prefetch!=null||presenceRead!=null||now<peerPresence.next||now<presencePollAt)return;
+        presencePollAt=now+1;
+        if(filledBrowse==null||!filledBrowse.loaded)return;
+        var candidates=visiblePresenceRows.copy();if(selected!=null)candidates.push(selected);
+        for(row in candidates) {
+            var id=G.text(G.field(row,"id"));
+            if(G.text(G.field(G.field(row,"seller"),"accountId"))==account||!peerPresence.due(row,now)
+                ||!~/^[a-f0-9-]{36}$/.match(id))continue;
+            // Usually one existing list-page request refreshes every visible
+            // player. If a row moved out of that page, resolve its detail next.
+            var path=filledBrowse.presencePath(id,now),batch=path!=null;
+            if(!batch)path="/api/v1/marketplace/listings/"+id;
+            if(cooldown.remaining("GET",path,now)>0)return;
+            presenceRead={ticket:++nextTicket,path:path,feed:filledBrowse,row:row,batch:batch};
+            try worker.send({generation:generation,op:"presence-read",ticket:presenceRead.ticket,method:"GET",path:path})
+            catch(_:Dynamic){presenceRead=null;peerPresence.completed(0,"",now,Date.now().getTime()/1000);}
+            return;
+        }
+    }
+    function receivePresenceRead(event:MarketWorker.MarketEvent,now:Float):Void {
+        if(presenceRead==null||event.ticket!=presenceRead.ticket)return;
+        var work=presenceRead;presenceRead=null;
+        var response=event.response,status=response.status,data:Dynamic=null;
+        if(status==200&&response.error=="")try {
+            data=haxe.Json.parse(response.body);
+            if(work.batch) {
+                if(data==null||!Std.isOfType(data.listings,Array)||(cast data.listings:Array<Dynamic>).length>MarketBrowseFeed.LIMIT)
+                    throw "Invalid presence page";
+                work.feed.checkedPresence(work.path,now);
+            } else if(data==null||G.text(G.field(data,"id"))!=G.text(G.field(work.row,"id"))
+                ||G.text(G.field(data,"server"))!=G.text(G.field(work.row,"server"))
+                ||!Std.isOfType(G.field(G.field(data,"seller"),"online"),Bool))throw "Invalid presence detail";
+            peerPresence.observe(data,now);
+        }catch(_:Dynamic)status=0;
+        else if(work.batch&&(status==400||status==404)) {
+            // A cursor may stop resolving while its rows are still on screen.
+            // Use bounded detail reads instead of retrying that page forever.
+            work.feed.checkedPresence(work.path,now);status=404;
+        }
+        else if(status==404)peerPresence.unavailable(work.row,now);
+        else if(status==200)status=0;
+        peerPresence.completed(status,response.retryAfter,now,Date.now().getTime()/1000);
+        cooldown.record("GET",work.path,status,response.retryAfter,now,Date.now().getTime()/1000);
+        // Only live status changes. Keep rows, cursor, selected details, scroll,
+        // filters and the foreground loading/error state exactly as they were.
+    }
     function invalidateListings(resetCounts=true):Void {
+        cancelPresenceRead();
         cancelPrefetch();listingCaches=[];filledBrowse=null;mineScroll={offset:0.0};
         if(resetCounts){ownedSellCount=0;ownedBuyCount=0;ownedBuyItems=[];}
         ownedKnown=false;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
@@ -235,7 +304,7 @@ class MarketController {
     public function loadingMore():Bool return tab=="Browse"&&prefetch!=null&&prefetch.feed==filledBrowse;
     public function loadMoreFailed():Bool return tab=="Browse"&&filledBrowse!=null&&filledBrowse.failed;
     public function chooseTab(value:String):Void {
-        editingListingId="";rememberTab();cancelPrefetch();opened=true;
+        editingListingId="";rememberTab();cancelPrefetch();cancelPresenceRead();opened=true;
         tab=value;rows=[];browseRows=[];selected=null;total=0;page=pages=1;
         // Show the destination immediately; an unfinished request remains owned
         // by its original operation until the response is processed.
@@ -399,6 +468,7 @@ class MarketController {
         var now=at==null?Date.now().getTime()/1000:at;
         var seller=G.field(row,"seller"),deadline=Protocol.expiry(G.text(G.field(seller,"onlineUntil")));
         if(G.field(seller,"online")==false)deadline=0;
+        var fresh=peerPresence.deadline(row);if(fresh!=null)deadline=fresh;
         if(account!=""&&G.text(G.field(seller,"accountId"))==account&&ownOnlineServer!=""
             &&G.text(G.field(row,"server"))==ownOnlineServer)deadline=Math.max(deadline,ownOnlineUntil);
         return deadline>now;
@@ -518,7 +588,7 @@ class MarketController {
             replacement.selectedId=G.text(G.field(selected,"id"),stream.selectedId);
             stream=replacement;listingCaches[hideMine?"hidden":"all"]=stream;
         }
-        cancelPrefetch();filledBrowse=stream;
+        cancelPrefetch();cancelPresenceRead();filledBrowse=stream;
         if(stream.loaded){displayFilledBrowse(stream);return;}
         // Keep the previous snapshot visible during an explicit refresh. The
         // new feed owns a fresh scroll position and only replaces rows on success.
@@ -566,6 +636,7 @@ class MarketController {
             MarketApiLog.unexpected("GET",work.path,200,"Expected a JSON response",key);
         if(response.status==200&&response.error==""&&data!=null)try {
             work.feed.append(data,haxe.Timer.stamp());ok=true;
+            peerPresence.observe(data,now);
         }catch(e:Dynamic)MarketApiLog.unexpected("GET",work.path,response.status,"Could not process response: "+Std.string(e),key);
         if(!ok) {
             work.feed.failed=true;

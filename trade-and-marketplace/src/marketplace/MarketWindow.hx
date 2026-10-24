@@ -350,6 +350,7 @@ class MarketWindow {
         var end=Std.int(Math.min(listingData.length,Math.ceil((offset+height)/ROW_HEIGHT)+2));
         if(start==listingStart&&end==listingEnd)return;
         listingStart=start;listingEnd=end;
+        c.visibleListings(listingData.slice(start,end));
         for(layout in rowLayouts)tableLayouts.remove(layout);
         for(refresh in rowPresence)presenceLabels.remove(refresh);
         for(child in children(listingContent))G.call("h2d.Object","remove",child);
