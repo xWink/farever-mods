@@ -2,7 +2,7 @@ package marketplace;
 
 import trade.GameAccess as G;
 
-/** Embedded supporter artwork, shared by listing rows for the lifetime of a window. */
+/** Embedded player badges, shared by listing rows for the lifetime of a window. */
 class MarketBadges {
     public static inline var SIZE=22;
     public static inline var GAP=4;
@@ -14,7 +14,7 @@ class MarketBadges {
     public function create(parent:Dynamic,id:String,nativeArray:Dynamic):Dynamic {
         switch(id) {
             case "supporter-bronze", "supporter-silver", "supporter-gold",
-                 "supporter-ruby", "supporter-emerald", "supporter-diamond":
+                 "supporter-ruby", "supporter-emerald", "supporter-diamond", "fareverly-creator":
             default:return null;
         }
         if(failed.exists(id))return null;

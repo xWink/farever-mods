@@ -10,26 +10,26 @@ class MarketplaceBadgeTest {
  static function captions():Array<Dynamic> return G.labels.filter(l->StringTools.startsWith(G.text(l.text),"Seller: "));
  static function icons(box:Dynamic):Array<Dynamic> return (cast box.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
  static function dot(box:Dynamic):Dynamic return (cast box.children:Array<Dynamic>).filter(n->n.shapes!=null)[0];
- static function loads():Int return G.pngLoads.filter(s->StringTools.startsWith(s,"supporter-")).length;
+ static function loads():Int return G.pngLoads.filter(s->StringTools.startsWith(s,"supporter-")||s=="fareverly-creator.png").length;
 
  public static function run(fixture:Dynamic):Void {
-  var tiers=["bronze","silver","gold","ruby","emerald","diamond"];
+  var ids=["supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"];
   var c=new MarketController();
-  c.rows=[for(tier in tiers){
+  c.rows=[for(id in ids){
    var row=haxe.Json.parse(haxe.Json.stringify(fixture));
-   row.id=tier;row.seller.characterName="Tester";row.seller.badge="supporter-"+tier;
+   row.id=id;row.seller.characterName="Tester";row.seller.badge=id;
    row.seller.onlineUntil="2099-01-01T00:00:00.000Z";
    row;
   }];
   var initialLoads=loads(),textureStart=G.textures.length;
   var view=new MarketWindow(c);c.view=view;view.open();view.update();
   var sellers=captions();
-  check(sellers.length==6&&loads()==initialLoads+6,"all six supported badges load once");
-  for(i in 0...tiers.length) {
+  check(sellers.length==ids.length&&loads()==initialLoads+ids.length,"all supported badges load once");
+  for(i in 0...ids.length) {
    var caption=sellers[i],box=caption.parent,images=icons(box);
    check(images.length==1,"one badge per seller");
    var badge=images[0],presence=dot(box);
-   check(badge.tile.texture.resourceName=="supporter-"+tiers[i]+".png","correct tier artwork");
+   check(badge.tile.texture.resourceName==ids[i]+".png","correct badge artwork");
    check(badge.smooth&&badge.tile.width==22&&badge.tile.height==22,"small smooth icon");
    var texture=badge.tile.texture;
    check(texture.width==44&&texture.sourceTexture.width==88&&texture.sourceTexture.sourceTexture.sourcePng,
@@ -51,10 +51,10 @@ class MarketplaceBadgeTest {
   check(presence.shapes[0].color==0x888888&&icons(box)[0]==badge,"presence changes preserve badge");
   box.parent.action();check(c.selected==c.rows[0],"row still selects the original listing");
   view.update();
-  check(loads()==initialLoads+6,"redrawing reuses badge textures");
+  check(loads()==initialLoads+ids.length,"redrawing reuses badge textures");
   c.tab="My listings";view.dirty=true;view.update();
-  check(captions().length==6&&icons(captions()[0].parent).length==1,"own listings include seller badges");
-  check(loads()==initialLoads+6,"tab changes reuse textures");
+  check(captions().length==ids.length&&icons(captions()[ids.length-1].parent).length==1,"own listings include supporter and creator badges");
+  check(loads()==initialLoads+ids.length,"tab changes reuse textures");
   // The native FmtText ellipsis is given less width, while all row columns stay put.
   c.rows[0].seller.characterName="A very long seller name that fills the available name space";
   view.dirty=true;view.update();
@@ -69,7 +69,7 @@ class MarketplaceBadgeTest {
    view.dirty=true;view.update();first=captions()[0];box=first.parent;
    check(icons(box).length==0&&first.maxWidthText==260&&dot(box).x==118,"absent or unsupported badge leaves no gap");
   }
-  check(loads()==initialLoads+6,"unsupported IDs do not load resources");
+  check(loads()==initialLoads+ids.length,"unsupported IDs do not load resources");
   view.close();
   check(G.textures.slice(textureStart).filter(t->t.disposed!=true).length==0,"closing releases every texture");
   // A bad optional image must leave the listing selectable, and should not be
