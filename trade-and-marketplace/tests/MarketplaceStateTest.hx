@@ -211,6 +211,7 @@ class MarketplaceStateTest {
         MarketplaceRecoveryTest.run();
         MarketplaceBuyOrderTest.run();
         MarketplaceLimitsTest.run();
+        MarketplaceBuyDuplicateTest.run();
     }
 
     static function navigationDuringRequests():Void {
@@ -277,14 +278,15 @@ class MarketplaceStateTest {
         MarketWorker.current.incoming.push({generation:MarketWorker.current.generation,op:"prefetch",
             ticket:prefetch.ticket,response:{status:200,error:"",retryAfter:"",body:'{"listings":[{"id":"late"}],"nextCursor":null}'}});
         p.update(app,0);check(p.tab=="Sell"&&!p.busy);
-        // Catalog browsing is local, including when a foreground listing read
-        // finishes after the player has already switched to Buy.
+        // The catalog stays visible while Refresh queues an owned-order read
+        // behind an unfinished Browse request.
         p.chooseTab("Browse");p.refresh();check(p.busy);
         var sent=MarketWorker.current.sent.length;
         p.chooseTab("Buy");p.refresh();
-        check(p.tab=="Buy"&&p.busy&&!p.navigationPending&&MarketWorker.current.sent.length==sent);
+        check(p.tab=="Buy"&&p.busy&&p.navigationPending&&MarketWorker.current.sent.length==sent);
         reply(p,app,{id:"late-browse"},null);
-        check(p.tab=="Buy"&&!p.busy&&p.rows.length==0&&MarketWorker.current.sent.length==sent);
-        p.refresh();check(!p.busy&&MarketWorker.current.sent.length==sent);
+        check(p.tab=="Buy"&&p.busy&&p.rows.length==0&&MarketWorker.current.sent.length==sent+1);
+        ownReply(p,app,[]);check(!p.busy&&p.ownedKnown);
+        p.refresh();check(p.busy&&MarketWorker.current.sent.length==sent+2);ownReply(p,app,[]);
     }
 }

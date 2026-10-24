@@ -305,8 +305,10 @@ class MarketWindow {
         }
         button("Refresh",970,820,118,c.refresh,"",true,true);
         var message = c.message;
+        if(c.tab=="Sell"&&c.listingLimitReached("sell"))message=MarketController.error("listing_limit","sell");
         if(c.tab=="Buy"&&c.buy.selected!=null) {
             if(c.listingLimitReached("buy"))message=MarketController.error("listing_limit","buy");
+            else if(c.buyAlreadyListed())message=MarketController.error("duplicate_item","buy");
             else if(!c.ready&&message=="")message=c.connectionIssue?MarketText.CONNECTION_ERROR:"Connecting to Fareverly. Please try again shortly.";
         }
         if (message == "Loading..." || message == "No matching listings." || message == "Listings updated." || message == "Connected to Fareverly.") message = "";
@@ -822,7 +824,8 @@ class MarketWindow {
             var conversion=currencyLine(frame.container,int(b.trays),754,720,316,true);
             counter(b.trays,754,668,190,200000,s->{b.trays=s;conversion(int(s));},true);
         }
-        button("Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!c.listingLimitReached("buy"));
+        var duplicate=c.buyAlreadyListed();
+        button(duplicate?"Buy order already exists":"Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!duplicate&&!c.listingLimitReached("buy"));
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;

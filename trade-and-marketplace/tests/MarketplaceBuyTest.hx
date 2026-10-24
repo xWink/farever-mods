@@ -96,7 +96,10 @@ class MarketplaceBuyTest {
         check(c.buySubmissions==1);
         c.atBuyLimit=true;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
         check(c.buySubmissions==1&&G.labels.filter(l->l.text==MarketController.error("listing_limit","buy")).length==1);
-        c.atBuyLimit=false;c.atSellLimit=false;view.dirty=true;view.update();reflow(view);
+        c.atBuyLimit=false;c.atSellLimit=false;c.buyDuplicate=true;view.dirty=true;view.update();reflow(view);
+        var duplicate=button("Buy order already exists");check(duplicate!=null&&!duplicate.enable);
+        duplicate.action();check(c.buySubmissions==1&&G.labels.filter(l->l.text==MarketController.error("duplicate_item","buy")).length==1);
+        c.buyDuplicate=false;view.dirty=true;view.update();reflow(view);check(button("Place buy order").enable);
         check(c.chosen==chosen&&view.quantity=="7"&&c.filters["search"]=="sword"&&c.filters["online"]=="true"&&c.hideMine);
         button("Clear filters").action();view.update();reflow(view);
         check(c.buy.visible.length==253&&c.buy.selected.kind==armor.id&&c.filters["search"]=="sword");

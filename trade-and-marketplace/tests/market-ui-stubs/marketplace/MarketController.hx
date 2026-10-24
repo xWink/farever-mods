@@ -51,8 +51,10 @@ class MarketController {
  public function availableToList(item:trade.TradeTypes.TradeItem):Int return availableQuantity==null?item.count:availableQuantity;
  public function list(q:Int,t:Int,o:Bool):Void{}
  public var buySubmissions=0;
+ public var buyDuplicate=false;
+ public function buyAlreadyListed():Bool return buyDuplicate;
  public function submitBuy():Void {buySubmissions++;}
- public static function error(code:String,orderType=""):String return code=="listing_limit"?"You can have up to 20 active "+orderType+" orders per region. Remove a "+orderType+" order first.":code;
+ public static function error(code:String,orderType=""):String return code=="listing_limit"?"You can have up to 20 active "+orderType+" orders per region. Remove a "+orderType+" order first.":code=="duplicate_item"?"You already have a buy order for this item. Edit it in My listings.":code;
  public function setBankOnly(v:Bool):Void {bankOnly=v;chosen=null;page=1;}
  public var atSellLimit=false;
  public var atBuyLimit=false;

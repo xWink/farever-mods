@@ -43,6 +43,7 @@ class MarketController {
     var ownedKnown=false;
     var ownedSellCount=0;
     var ownedBuyCount=0;
+    var ownedBuyItems:Map<String,Float>=[];
     public function listingLimitReached(orderType:String):Bool return (orderType=="buy"?ownedBuyCount:ownedSellCount)>=LISTING_LIMIT;
     var ownedItems:Map<String,Bool>=[];
     var ownedKinds:Map<String,Bool>=[];
@@ -72,6 +73,7 @@ class MarketController {
     var pendingMethod="";
     var pendingPath="";
     var pendingOrderType="";
+    var pendingBuyItemKey="";
     // Requests and writes must finish, but navigation and filter changes should
     // take effect immediately. Replay only the latest desired view afterwards.
     var navigationPending=false;
@@ -116,7 +118,7 @@ class MarketController {
             if(event.generation==generation) switch(event.op){
                 case "prefetch":receivePrefetch(event,now);
                 case "request":
-                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,orderType=pendingOrderType,failed=pendingFailure;pendingFailure=null;
+                    busy=false;var response=event.response,data:Dynamic=null,method=pendingMethod,path=pendingPath,orderType=pendingOrderType,buyItemKey=pendingBuyItemKey,failed=pendingFailure;pendingFailure=null;
                     try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                     if(response.status>=200&&response.status<300&&response.error==""&&(data!=null||response.status==204)) {
                         if(ready)connectionIssue=false;
@@ -132,6 +134,7 @@ class MarketController {
                             if(orderType=="buy")ownedBuyCount=LISTING_LIMIT;
                             else if(orderType=="sell")ownedSellCount=LISTING_LIMIT;
                         }
+                        if(code=="duplicate_item"&&buyItemKey!="")ownedBuyItems[buyItemKey]=0;
                         if(method=="PUT"&&code=="stale_revision"){ownedKnown=false;editingListingId="";}
                         cooldown.record(method,path,response.status,response.retryAfter,haxe.Timer.stamp(),Date.now().getTime()/1000);
                         message=response.status==0||response.status>=500?MarketText.TEMPORARY_ERROR:
@@ -145,7 +148,7 @@ class MarketController {
                     view.dirty=true;
                 case "presence":ownOnlineUntil=event.onlineUntil;ownOnlineServer=event.server;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
-                    if(opened&&(tab=="Sell"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
+                    if(opened&&(tab=="Sell"||tab=="Buy"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "connection-error":message=event.message;view.dirty=true;
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
                 case "auth","auth-end":
@@ -225,7 +228,7 @@ class MarketController {
     function cancelPrefetch():Void {prefetch=null;worker.cancelPrefetch();}
     function invalidateListings(resetCounts=true):Void {
         cancelPrefetch();listingCaches=[];filledBrowse=null;mineScroll={offset:0.0};
-        if(resetCounts){ownedSellCount=0;ownedBuyCount=0;}
+        if(resetCounts){ownedSellCount=0;ownedBuyCount=0;ownedBuyItems=[];}
         ownedKnown=false;ownedExpiry=[];ownedRows=[];minePage=1;mineSelectedId="";
     }
     public function listingScrollState():{offset:Float} return tab=="Browse"&&filledBrowse!=null?filledBrowse.scroll:mineScroll;
@@ -238,7 +241,9 @@ class MarketController {
         // by its original operation until the response is processed.
         navigationPending=busy;navigationForce=false;
         if(tab=="Buy") {
-            buy.load();message="";navigationPending=false;
+            buy.load();message="";
+            if(ownedKnown)navigationPending=false;
+            else if(!busy&&ready)refreshSell();
         } else if(tab=="Sell") {
             if(ownedKnown){loadInventory();message="";}
             else if(busy)loadInventory();
@@ -258,6 +263,9 @@ class MarketController {
         if(!navigationPending||busy)return;
         var force=navigationForce;navigationPending=false;navigationForce=false;
         if(tab=="Browse")showListings(force);
+        else if(tab=="Buy") {
+            if(ready&&(force||!ownedKnown))refreshSell();
+        }
         else if(tab=="Sell") {
             if(force||!ownedKnown)refreshSell();
             else {loadInventory();message="";}
@@ -363,17 +371,29 @@ class MarketController {
             if(G.text(G.field(row,"server"))!=server||(expires!=""&&Protocol.expiry(expires)<=now))continue;
             if(MarketOrder.isBuy(row))ownedBuyCount++;else ownedSellCount++;
         }
-        var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[];
+        var items:Map<String,Bool>=[],kinds:Map<String,Bool>=[],expiry:Map<String,Float>=[],buys:Map<String,Float>=[];
         for(row in ownedRows) {
-            // Buy orders consume listing slots but do not mark inventory for sale.
-            if(MarketOrder.isBuy(row))continue;
             var item=G.field(G.field(row,"export"),"item");if(item==null)item=G.field(row,"item");
             if(item==null)continue;
             var id=MarketItemIdentity.key(item),expires=G.text(G.field(row,"expiresAt"));
+            // Identical buy orders conflict across all regions, independently of sell orders.
+            if(MarketOrder.isBuy(row)) {
+                var deadline=expires==""?0:Protocol.expiry(expires);
+                if(expires==""||deadline>now)buys[id]=deadline;
+                continue;
+            }
             items[id]=true;kinds[G.text(G.field(item,"baseId"))]=true;
             if(expires!="")expiry[id]=Protocol.expiry(expires);
         }
-        ownedItems=items;ownedKinds=kinds;ownedExpiry=expiry;
+        ownedItems=items;ownedKinds=kinds;ownedExpiry=expiry;ownedBuyItems=buys;
+    }
+    public function buyAlreadyListed():Bool {
+        try {
+            var key=MarketItemIdentity.key(MarketExport.buyItem(buy));
+            if(!ownedBuyItems.exists(key))return false;
+            var deadline=ownedBuyItems[key];
+            return deadline==0||deadline>Date.now().getTime()/1000;
+        }catch(_:Dynamic)return false;
     }
     public function listingOnline(row:Dynamic,?at:Float):Bool {
         var now=at==null?Date.now().getTime()/1000:at;
@@ -465,7 +485,12 @@ class MarketController {
         return cache;
     }
     public function refresh():Void {
-        if(tab=="Buy"){buy.load(true);view.dirty=true;return;}
+        if(tab=="Buy") {
+            buy.load(true);
+            if(busy){navigationPending=true;navigationForce=true;}
+            else if(ready)refreshSell();
+            view.dirty=true;return;
+        }
         if(busy) {
             // Preserve the latest query/desired tab; do not drop the click
             // while the current request or listing write is still in progress.
@@ -559,6 +584,8 @@ class MarketController {
         busy=true;pending=done;pendingFailure=failed;pendingMethod=method;pendingPath=path;message="Loading...";view.dirty=true;
         // A response belongs to the submitted order, even after navigating to another tab.
         pendingOrderType=method=="POST"&&path=="/api/v1/marketplace/listings"?(MarketOrder.isBuy(body)?"buy":"sell"):"";
+        pendingBuyItemKey="";
+        if(pendingOrderType=="buy")try pendingBuyItemKey=MarketItemIdentity.key(G.field(body,"item"))catch(_:Dynamic){}
         try worker.send({generation:generation,op:"request",method:method,path:path,body:body==null?null:haxe.Json.stringify(body),headers:headers})catch(e:Dynamic) {
             busy=false;pending=null;pendingFailure=null;
             MarketApiLog.unexpected(method,path,0,"Could not queue request: "+Std.string(e),key);
@@ -602,6 +629,7 @@ class MarketController {
         try {
             var submittedBuy=buy,draft=buy.draftKey();
             var value=MarketExport.buySnapshot(buy,server,app,player),body=haxe.Json.stringify(value);
+            if(buyAlreadyListed()){message=error("duplicate_item","buy");view.dirty=true;return;}
             // Keep a separate retry token so using Sell after a timeout cannot
             // change this draft's idempotency key. The server checks duplicates.
             if(body!=buyExpectedBody){buyRequestId=MarketExport.uuid();buyExpectedBody=body;}
@@ -609,6 +637,7 @@ class MarketController {
                 if(G.text(data.id)==""||G.integer(data.revision)!=1||!MarketOrder.isBuy(data)||G.text(data.server)!=G.text(value.server))
                     throw "Invalid buy order receipt";
                 invalidateListings(false);ownedBuyCount++;
+                ownedBuyItems[MarketItemIdentity.key(value.item)]=Date.now().getTime()/1000+72*60*60;
                 buyExpectedBody="";buyRequestId="";
                 if(buy==submittedBuy&&buy.draftKey()==draft)buy.clearSelection();
                 message="Buy order posted.";
@@ -707,7 +736,7 @@ class MarketController {
         if(!queued)contactingSeller="";
     }
     public static function error(code:String,orderType=""):String return switch(code){
-        case "duplicate_item":"You already have an active listing for this item.";
+        case "duplicate_item":orderType=="buy"?"You already have a buy order for this item. Edit it in My listings.":"You already have an active listing for this item.";
         case "listing_limit":orderType=="buy"||orderType=="sell"
             ?"You can have up to 20 active "+orderType+" orders per region. Remove a "+orderType+" order first."
             :"You can have up to 20 buy orders and 20 sell orders per region. Remove an order of the same type first.";

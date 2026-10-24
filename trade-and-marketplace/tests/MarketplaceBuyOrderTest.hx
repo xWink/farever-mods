@@ -68,13 +68,13 @@ class MarketplaceBuyOrderTest {
         reply(c,app,200,{id:"new-buy",revision:1,orderType:"buy",server:"europe",replayed:true});
         check(!c.busy&&c.buy.selected==null&&c.buyRequestId==""&&c.buyExpectedBody==""&&c.message=="Buy order posted.");
         check(!c.ownedKnown&&c.ownedBuyCount==1&&c.tab=="Buy");
-        c.buy=draft();c.submitBuy();key=last().headers.get("Idempotency-Key");
+        c.buy=draft();c.buy.level=16;c.submitBuy();key=last().headers.get("Idempotency-Key");
         reply(c,app,0,null);c.buy.quantity="13";c.submitBuy();
         check(last().headers.get("Idempotency-Key")!=key&&haxe.Json.parse(last().body).item.quantity==13);
         c.buy.quantity="14";
         reply(c,app,201,{id:"second-buy",revision:1,orderType:"buy",server:"europe"});
         check(c.buy.selected!=null&&c.buy.quantity=="14");
-        c.submitBuy();reply(c,app,200,{id:"bad-receipt",revision:1,orderType:"sell",server:"europe"});
+        c.buy.level=17;c.submitBuy();reply(c,app,200,{id:"bad-receipt",revision:1,orderType:"sell",server:"europe"});
         check(c.buy.selected!=null&&c.buyRequestId!=""&&c.message.indexOf("Unsupported marketplace response")>=0);
         var sent=MarketWorker.current.sent.length;c.ready=false;c.submitBuy();check(MarketWorker.current.sent.length==sent&&!c.busy);
         c.ready=true;c.ownedBuyCount=20;c.submitBuy();check(MarketWorker.current.sent.length==sent&&c.message==MarketController.error("listing_limit","buy"));

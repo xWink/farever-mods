@@ -57,14 +57,19 @@ class MarketExport {
         if(player==null||character==""||character=="0")throw "Your character is still loading. Try again shortly.";
         if(buy.selected==null)throw "Select an item to buy first.";
         buy.updatePreview();
-        if(buy.nativePreview==null||buy.preview==null)throw "This item's requested details could not be prepared. Refresh and choose it again.";
-        var item=itemData(buy.nativePreview,buy.preview,quantity);
-        if(!buy.selected.gear||buy.anyLevel){Reflect.deleteField(item,"requiredLevel");Reflect.deleteField(item,"itemLevel");}
         var data:Dynamic={schemaVersion:2,orderType:"buy",server:server,gameVersion:G.text(G.staticCall("Config","getVersion",[])),
-            character:{id:character,name:G.text(G.call("st.Player","getName",player))},item:item,
+            character:{id:character,name:G.text(G.call("st.Player","getName",player))},item:buyItem(buy,quantity),
             price:buy.offers?{mode:"offers"}:{mode:"fixed",silverTrays:trays}};
         if(haxe.io.Bytes.ofString(haxe.Json.stringify(data)).length>16384)throw "This item contains too much data to list.";
         return data;
+    }
+    /** Duplicate checks use the requested details even while price/quantity inputs are incomplete. */
+    public static function buyItem(buy:MarketBuy,quantity=1):Dynamic {
+        if(buy.selected==null||buy.nativePreview==null||buy.preview==null)
+            throw "This item's requested details could not be prepared. Refresh and choose it again.";
+        var item=itemData(buy.nativePreview,buy.preview,quantity);
+        if(!buy.selected.gear||buy.anyLevel){Reflect.deleteField(item,"requiredLevel");Reflect.deleteField(item,"itemLevel");}
+        return item;
     }
     /** The same item state is used for submission and account-wide duplicate checks. */
     public static function itemData(item:Dynamic,offer:TradeItem,quantity:Int):Dynamic {

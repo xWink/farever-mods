@@ -14,7 +14,7 @@ class MarketplaceLimitsTest {
 
         // Collect every region and both types across pages. Characters share the region's slots.
         var all:Array<Dynamic>=[];
-        for(region in ["europe","north-america","south-america","asia","oceania"])for(i in 0...40) {
+        for(region in ["europe","north-america","latin-america","asia","mainland-china"])for(i in 0...40) {
             var row:Dynamic={id:region+i,revision:1,server:region,character:{id:"character"+(i%2)},expiresAt:"2099-01-01T00:00:00.000Z"};
             if(i<20)row.orderType="buy"; // Omitted types remain legacy sell orders.
             all.push(row);
@@ -58,7 +58,7 @@ class MarketplaceLimitsTest {
         check(c.ownedBuyCount==20&&c.ownedSellCount==20&&!c.ownedKnown&&c.tab=="Buy");
 
         // A server-side cap belongs to the submitted type, never the currently visible tab.
-        c.ownedKnown=true;c.ownedSellCount=7;c.ownedBuyCount=4;c.buy=MarketplaceBuyOrderTest.draft();
+        c.ownedKnown=true;c.ownedSellCount=7;c.ownedBuyCount=4;c.buy=MarketplaceBuyOrderTest.draft();c.buy.level=16;
         c.submitBuy();c.chooseTab("Sell");reply(c,app,409,{error:{code:"listing_limit"}});
         check(c.ownedBuyCount==20&&c.ownedSellCount==7&&!c.listingLimitReached("sell"));
         c.ownedItems=[];c.ownedKinds=[];c.chosen=c.inventory[0];c.list(1,1,false);
@@ -66,7 +66,7 @@ class MarketplaceLimitsTest {
         c.ownedBuyCount=4;c.chooseTab("Buy");reply(c,app,409,{error:{code:"listing_limit"}});
         check(c.ownedSellCount==20&&c.ownedBuyCount==4&&!c.listingLimitReached("buy"));
         check(c.message==MarketController.error("listing_limit","sell"));
-        c.buy=MarketplaceBuyOrderTest.draft();c.submitBuy();check(c.busy);
+        c.buy=MarketplaceBuyOrderTest.draft();c.buy.level=17;c.submitBuy();check(c.busy);
         reply(c,app,409,{error:{code:"duplicate_item"}});
         check(c.ownedSellCount==20&&c.ownedBuyCount==4);
 

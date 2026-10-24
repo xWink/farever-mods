@@ -333,9 +333,10 @@ class MarketplaceUiTest {
   sellSlots[0].action();check(c.chosen==selected&&view.dirty);
   c.chosen=null;sellSlots[0].action();check(c.chosen==selected);c.busy=false;
   GameAccess.nodes=[];view.update();
-  c.atSellLimit=true;GameAccess.buttons=[];view.dirty=true;view.update();
+  c.atSellLimit=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   var limitButton=GameAccess.buttons.filter(b->b.text=="Too many sell orders").pop();check(limitButton!=null&&!limitButton.enable);
-  c.atSellLimit=false;c.atBuyLimit=true;GameAccess.buttons=[];view.dirty=true;view.update();check(GameAccess.buttons.filter(b->b.text=="List item for sale").pop().enable);c.atBuyLimit=false;
+  check(GameAccess.labels.filter(l->l.text==MarketController.error("listing_limit","sell")).length==1);
+  c.atSellLimit=false;c.atBuyLimit=true;GameAccess.labels=[];GameAccess.buttons=[];view.dirty=true;view.update();check(GameAccess.buttons.filter(b->b.text=="List item for sale").pop().enable);check(GameAccess.labels.filter(l->l.text==MarketController.error("listing_limit","sell")).length==0);c.atBuyLimit=false;
   c.listed=true;GameAccess.buttons=[];GameAccess.labels=[];view.dirty=true;view.update();
   check(GameAccess.labels.filter(l->l.text=="For sale").length==119&&GameAccess.labels.filter(l->l.text=="Already for sale").length==1);
   var sevenSlots=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInventorySlot")==0);
