@@ -654,6 +654,8 @@ class MarketplaceUiTest {
   check(sellMeta.length==1&&Std.string(sellMeta[0].text).indexOf("Class: Rogue, Mage")>=0,
    "Sell details derive classes from native aptitudes");
   trade.TradeInventory.definitions.remove(row.item.baseId);
+  view.close();
+  MarketplaceBadgeTest.run(row);
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }
 }

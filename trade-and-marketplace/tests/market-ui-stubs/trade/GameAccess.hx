@@ -6,6 +6,8 @@ class GameAccess {
  public static var nodes:Array<Dynamic>=[];
  public static var dialogs=0;
  public static var textures:Array<Dynamic>=[];
+ public static var pngLoads:Array<String>=[];
+ public static var failNextPng=false;
  public static var removed:Array<Dynamic>=[];
  public static var maskWhitened=false;
  public static var failNextTooltip=false;
@@ -28,6 +30,8 @@ class GameAccess {
  public static function current(t:String,n:String):Dynamic return t=="ui.BaseUI"?ui:n;
  public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Mask"?a[2]:t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h2d.Mask"){o.width=a[0];o.height=a[1];}if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
  public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
+  case "fromBytes": {resourceName:a[0]};
+  case "fromTexture": {texture:a[0]};
   case "makeAfxDescTextsComparisons":a[0];
   case "weaponEffect":a[0].text;
   case "isPressed":false;
@@ -64,7 +68,11 @@ class GameAccess {
     if(field(o,"bounds")!=null)o.bounds;else {xMin:0.0,yMin:field(o,"text")==null?0.0:4.0,xMax:field(o,"text")==null?number(field(o,"width"),22):Std.string(o.text).length*8.0,yMax:field(o,"text")==null?number(field(o,"height"),22):22.0};
    case "clear": if(t=="h3d.mat.Texture")o.clearAlpha=a[1];else if(t=="h2d.Graphics"){o.shapes=[];o.points=[];}null;
    case "dispose": o.disposed=true;null;
-   case "toTexture": var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture;
+   case "toTexture":
+    pngLoads.push(field(o,"resourceName"));
+    if(failNextPng){failNextPng=false;throw "Injected PNG decode failure";}
+    var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture.resourceName=field(o,"resourceName");texture;
+   case "scaleToSize": o.width=a[0];o.height=a[1];null;
    case "set_colorAdd": maskWhitened=true;null;
    case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
    case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;

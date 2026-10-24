@@ -18,6 +18,7 @@ class MarketWindow {
     final c:MarketController;
     var frame:trade.TradeFrame;
     var cart:MarketCartIcon;
+    final badges=new MarketBadges();
     var backdrop:Dynamic;
     final drawer=new MarketDrawer();
     var drawerTab="";
@@ -73,6 +74,7 @@ class MarketWindow {
             var old=frame;frame=null;px=old.x;py=old.y;
             old.dispose();
         }
+        badges.dispose();
     }
     public function recover(error:Dynamic):Void {
         report(stage,error);
@@ -1064,7 +1066,11 @@ class MarketWindow {
     function sellerLine(parent:Dynamic,name:String,online:Bool,x:Int,y:Int,width:Int,bold=false,?listing:Dynamic):Void {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
-        var caption=labelAt(box,"Seller: "+name,0,0,width-90,bold,bold?INK:MUTED,true);
+        var badge:Dynamic=null;
+        try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")))
+        catch(error:Dynamic)report("seller badge",error);
+        var badgeSpace=badge==null?0:MarketBadges.SIZE+MarketBadges.GAP;
+        var caption=labelAt(box,"Seller: "+name,0,0,width-90-badgeSpace,bold,bold?INK:MUTED,true);
         var status=labelAt(box,online?"Online":"Offline",0,0,70,false,MUTED,true);
         var dot=graphic(box);
         rounded(dot,0,0,10,10,5,online?0x426138:0x888888);
@@ -1079,6 +1085,13 @@ class MarketWindow {
             centerDropdownCaption(caption,24,0);
             var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
             var right=G.number(G.field(caption,"x"))+G.number(G.field(bounds,"xMax"))*G.number(G.field(caption,"scaleX"),1);
+            if(badge!=null) {
+                // Keep the badge with the rendered (possibly ellipsized) name,
+                // inside the existing seller line and before the presence dot.
+                var badgeX=Math.min(width-90-badgeSpace,Math.round(right))+MarketBadges.GAP;
+                position(badge,badgeX,(24-MarketBadges.SIZE)/2);
+                right=badgeX+MarketBadges.SIZE;
+            }
             var dotX=Math.min(width-84,Math.round(right)+6);
             position(dot,dotX,7);
             centerDropdownCaption(status,24,dotX+16);
