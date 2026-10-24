@@ -1067,7 +1067,7 @@ class MarketWindow {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
         var badge:Dynamic=null;
-        try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")))
+        try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")),G.field(frame.ui,"windows"))
         catch(error:Dynamic)report("seller badge",error);
         var badgeSpace=badge==null?0:MarketBadges.SIZE+MarketBadges.GAP;
         var caption=labelAt(box,"Seller: "+name,0,0,width-90-badgeSpace,bold,bold?INK:MUTED,true);

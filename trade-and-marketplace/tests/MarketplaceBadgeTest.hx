@@ -31,6 +31,14 @@ class MarketplaceBadgeTest {
    var badge=images[0],presence=dot(box);
    check(badge.tile.texture.resourceName=="supporter-"+tiers[i]+".png","correct tier artwork");
    check(badge.smooth&&badge.tile.width==22&&badge.tile.height==22,"small smooth icon");
+   var texture=badge.tile.texture;
+   check(texture.width==44&&texture.sourceTexture.width==88&&texture.sourceTexture.sourceTexture.sourcePng,
+    "two half-size smoothing passes retain a 2x final texture");
+   check(texture.clearAlpha==0&&texture.sourceTexture.clearAlpha==0
+    &&texture.drawnBlend=="AlphaAdd"&&texture.sourceTexture.drawnBlend==null&&badge.blendMode=="AlphaAdd",
+    "transparent smoothing retains premultiplied edge colors");
+   check(texture.sourceTexture.disposed&&texture.sourceTexture.sourceTexture.disposed&&texture.disposed!=true,
+    "only the final badge texture stays allocated");
    check(badge.x==14*8+4&&badge.y==1&&presence.x==badge.x+22+6,"badge follows name before presence");
    check(caption.maxWidthText==234&&caption.useEllipsis&&box.width==350&&box.height==24,"space reserved inside existing line");
    check(badge.flowProperties.isAbsolute&&badge.interactive==null&&badge.action==null&&badge.getTip==null,"badge cannot capture clicks or change flow");

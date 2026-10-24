@@ -73,6 +73,9 @@ class GameAccess {
     if(failNextPng){failNextPng=false;throw "Injected PNG decode failure";}
     var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture.resourceName=field(o,"resourceName");texture;
    case "scaleToSize": o.width=a[0];o.height=a[1];null;
+   case "drawTo":
+    a[0].resourceName=field(field(field(o,"tile"),"texture"),"resourceName");
+    a[0].sourceTexture=field(field(o,"tile"),"texture");a[0].drawnBlend=field(o,"blendMode");null;
    case "set_colorAdd": maskWhitened=true;null;
    case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
    case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;
