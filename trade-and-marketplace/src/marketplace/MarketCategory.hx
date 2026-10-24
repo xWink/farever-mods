@@ -45,7 +45,7 @@ class MarketCategory {
         case "Consumables":["Food","Potions","Elixirs","Scrolls","Enchantments","Demon enchantments","Skill point books","Other consumables"];
         case "Collections":["Recipes","Infusion patterns","Mounts","Gliders","Emotes","Other collectibles"];
         case "Containers":["Containers","Bags","Packages"];
-        case "Miscellaneous":["Tools","Currency","Soulstones","Other"];default:[];
+        case "Miscellaneous":["Tools","Soulstones","Other"];default:[];
     };
     public static function item(kind:String):Dynamic {
         var definition=TradeInventory.definition(kind);

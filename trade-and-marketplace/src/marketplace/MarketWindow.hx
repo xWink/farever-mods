@@ -727,7 +727,7 @@ class MarketWindow {
         if(!b.expanded)return;
         var categories=["","Components","Weapon","Armor","Accessory","Consumables","Collections","Containers","Miscellaneous"];
         dropdown("Category",categories,["All items"].concat(categories.slice(1).map(MarketCategory.label)),f["category"],28,190,322,s->{b.setFilter("category",s);dirty=true;});
-        var subs=[""].concat(MarketCategory.subcategories(f["category"]));
+        var subs=[""].concat(MarketCategory.subcategories(f["category"]).filter(s->s!="Tools"));
         dropdown("Subcategory",subs,["All subcategories"].concat(subs.slice(1)),f["subcategory"],366,190,338,s->{b.setFilter("subcategory",s);dirty=true;});
         var rarities=["","Common","Uncommon","Rare","Epic","Epic (Prismatic)","Legendary"];
         dropdown("Rarity",rarities,["Any rarity"].concat(rarities.slice(1)),f["rarity"],28,258,322,s->{b.setFilter("rarity",s);dirty=true;});

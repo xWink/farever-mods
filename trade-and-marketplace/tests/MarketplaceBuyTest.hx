@@ -24,13 +24,25 @@ class MarketplaceBuyTest {
         for(i in 0...250)definitions.push({id:"CatalogMaterial"+i,type:"CraftingComponent",nativeRarityId:"Common",gear:false,infusable:false});
         for(id in ["ActivityLoot","RecipeGenerator","Soulstone","SoulstoneLegendary","WorldLoot"])
             definitions.push({id:id,type:"Misc",nativeRarityId:"Common",valid:false});
+        var excluded:Map<String,String>=["Experience"=>"Currency","Gold"=>"Currency","BadgeOfGlory"=>"Currency","CraftPoint"=>"Currency",
+            "DemonicSoul"=>"Currency","Nightblood"=>"Currency","ShopCurrency"=>"Currency","Hide_Gear"=>"Gear",
+            "TPRiftStone"=>"Consumable","TPRiftStone_Perma"=>"Usable","Mastery"=>"Mastery","SparkCube"=>"Usable","TeleportationStone"=>"Usable",
+            "CopperProspecting"=>"Prospecting","TinProspecting"=>"Prospecting","TungsteneProspecting"=>"Prospecting",
+            "Hammer"=>"ToolBlacksmith","Mortar"=>"ToolAlchemist","Scissors"=>"ToolOutfitter","Pliers"=>"ToolJeweller",
+            "Knife"=>"ToolCook","Wand"=>"ToolEnchanter","Sickle"=>"GearSickle","Pickaxe"=>"GearPickaxe"];
+        for(id=>type in excluded)definitions.push({id:id,type:type,nativeRarityId:"Common"});
         for(d in definitions){TradeInventory.definitions[d.id]=d;TradeInventory.localizedNames[d.id]=d.id;}
         TradeInventory.localizedNames[armor.id]="Armure étoilée";TradeInventory.localizedNames[bow.id]="Arc";TradeInventory.localizedNames[potion.id]="Potion";
         var types:Map<String,Dynamic>=["Chest"=>{inherit:"Armor"},"Armor"=>{inherit:"Gear"},"Bow"=>{inherit:"Weapon"},"Weapon"=>{inherit:"Gear"},"Potion"=>{inherit:"Consumable"}];
+        types["GearTool"]={inherit:"Gear"};types["JobTool"]={inherit:"GearTool"};types["Mastery"]={inherit:"Consumable"};
+        for(type in ["ToolBlacksmith","ToolAlchemist","ToolOutfitter","ToolJeweller","ToolCook","ToolEnchanter"])types[type]={inherit:"JobTool"};
+        for(type in ["GearSickle","GearPickaxe"])types[type]={inherit:"GearTool"};
         var attributes:Map<String,Dynamic>=["Strength"=>{name:"Strength"},"Vitality"=>{name:"Vitality"},"FervorRating"=>{name:"Fervor"}];
         G.dataFields=["Data.item"=>{all:definitions.concat([armor])},"Data.itemType"=>{byId:types},"Const.Hero"=>{MaxLevel:30},
             "Data.attribute"=>{byId:attributes},"ent.UnitAttributes.infusionBonusAttributes"=>["Strength","Vitality","FervorRating"]];
         var b=new MarketBuy();b.load();check(b.items.length==253&&b.visible.length==253&&b.maxLevel==30);
+        check(marketplace.MarketCategory.subcategories("Miscellaneous").indexOf("Currency")<0
+            &&marketplace.MarketCategory.subcategories("Miscellaneous").indexOf("Prospecting")<0);
         b.setFilter("category","Armor");check(b.visible.length==1&&b.visible[0].kind==armor.id&&b.visible[0].subcategory=="Chest");
         b.setFilter("classes","Mage");check(b.visible.length==1);
         b.setFilter("classes","Rogue");check(b.visible.length==0);

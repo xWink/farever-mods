@@ -37,7 +37,14 @@ class GameAccess {
   case "weaponEffect":a[0].text;
   case "isPressed":false;
   case "getVersion":"test";
-  case "isType":a[1]=="Gear"&&field(a[0],"gear")==true;
+  case "isType":
+   var type=text(field(a[0],"type")),seen:Map<String,Bool>=[],found=a[1]=="Gear"&&field(a[0],"gear")==true;
+   var types:Map<String,Dynamic>=field(current("Data","itemType"),"byId");
+   while(type!=""&&!seen.exists(type)) {
+    if(type==a[1]){found=true;break;}
+    seen[type]=true;type=types==null?"":text(field(types[type],"inherit"));
+   }
+   found;
   case "canBeInfused":field(a[0],"infusable")==true;
   case "getItemExpectedScalings":field(a[0],"scalings")==null?[]:field(a[0],"scalings");
   case "getGfx":field(a[0],"valid")==false?null:a[0];

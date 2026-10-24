@@ -19,6 +19,8 @@ typedef CatalogItem = {
 
 /** Local catalog and order draft. This model has no marketplace/network operations. */
 class MarketBuy {
+    static var excludedKinds=["Hide_Gear","TPRiftStone","TPRiftStone_Perma","SparkCube","TeleportationStone"];
+    static var excludedTypes=["Currency","Mastery","Prospecting","GearTool"];
     public var filters:Map<String,String>=["search"=>"","category"=>"","subcategory"=>"","rarity"=>"","classes"=>""];
     public var expanded=false;
     public var items:Array<CatalogItem>=[];
@@ -38,6 +40,13 @@ class MarketBuy {
     var loaded=false;
 
     public function new() {}
+    static function allowed(definition:Dynamic,kind:String):Bool {
+        if(excludedKinds.indexOf(kind)>=0)return false;
+        // Native inheritance includes every crafting/gathering tool and keeps
+        // catalog eligibility independent of the player's language.
+        for(type in excludedTypes)if(G.staticCall("HItem","isType",[definition,type])==true)return false;
+        return true;
+    }
     public function load(force=false):Void {
         if(loaded&&!force)return;
         var definitions=G.array(G.field(G.current("Data","item"),"all"));
@@ -48,6 +57,7 @@ class MarketBuy {
             var kind=G.text(G.field(definition,"id"));
             if(kind==""||seen.exists(kind))continue;
             seen[kind]=true;
+            if(!allowed(definition,kind))continue;
             // Resolve native type/rarity fallback icons too; a missing item-level
             // gfx field alone does not mean the item has no usable artwork.
             if(G.staticCall("HItem","getGfx",[definition])==null)continue;
