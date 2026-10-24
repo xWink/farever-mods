@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.22.2",
-  "commit": "2d28edaeaef5ccdb492e4fc86856666fda713896",
-  "notes": "- Added options for bee, bomblet, and damage number limits\n- Added an option to disable Ctrl+F causing fullscreen\n- Added an option to hold any skill button to repeat it\n- Added options to change the size and opacity of damage numbers (with or without fancy damage numbers)\n- Huge shoutout to Seers/Smedz for the ideas and source code that produced the above performance improvements!\n- Added an option to display an enemy's distance from the player next to their targeting arrow. Also a huge shoutout to Morkai for this idea!",
+  "project": "minimap",
+  "version": "2.3.0",
+  "commit": "1c6a661f0cc6b40c34a5d59cbca4f3a53d5ee3e9",
+  "notes": "- Added an outline for activity and faction merchant markers.\n- Incomplete quests now have a gray marker. When a quest can be turned in or is completed, it turns green.\n- Minimap and enhanced main map can now be individually enabled/disabled.\n- Added dungeons, rifts, and soulstones to activity subfilters.\n- Added obelisks, respawns, faction merchants, and stations to NPC subfilters.\n- Clicking the heroic bonus dungeon indicator in the main map now pans the map to the dungeon.\n- The filter settings button next to the minimap now appears inside the corner of the square minimap instead of next to it. Circular minimap is unchanged.\n- The position of the minimap filter buttons can now be chosen as either the left or right side of the minimap.\n- Changed the \"Circular minimap\" toggle to a \"Minimap shape\" dropdown. The options are \"Circular\" and \"Square\".",
   "dry_run": false
 }
