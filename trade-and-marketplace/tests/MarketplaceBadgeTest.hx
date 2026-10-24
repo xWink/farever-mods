@@ -32,13 +32,18 @@ class MarketplaceBadgeTest {
    check(badge.tile.texture.resourceName==ids[i]+".png","correct badge artwork");
    check(badge.smooth&&badge.tile.width==22&&badge.tile.height==22,"small smooth icon");
    var texture=badge.tile.texture;
-   check(texture.width==44&&texture.sourceTexture.width==88&&texture.sourceTexture.sourceTexture.sourcePng,
-    "two half-size smoothing passes retain a 2x final texture");
-   check(texture.clearAlpha==0&&texture.sourceTexture.clearAlpha==0
-    &&texture.drawnBlend=="AlphaAdd"&&texture.sourceTexture.drawnBlend==null&&badge.blendMode=="AlphaAdd",
-    "transparent smoothing retains premultiplied edge colors");
-   check(texture.sourceTexture.disposed&&texture.sourceTexture.sourceTexture.disposed&&texture.disposed!=true,
-    "only the final badge texture stays allocated");
+   check(texture.width==44&&texture.sourceTexture.width==88,
+    "smoothing retains a 2x final texture");
+   var target:Dynamic=texture,passes=0;
+   while(target.sourceTexture!=null) {
+    var source:Dynamic=target.sourceTexture;
+    check(target.clearAlpha==0&&(source.sourcePng?target.drawnBlend==null:target.drawnBlend=="AlphaAdd"),
+     "every smoothing pass preserves transparent premultiplied edges");
+    check(source.disposed&&target.width>=Math.floor(source.width/2),"source is released after a gradual downsample");
+    passes++;target=source;
+   }
+   check(passes==(ids[i]=="supporter-diamond"?5:2)&&texture.disposed!=true&&badge.blendMode=="AlphaAdd",
+    "full resolution diamond uses extra smoothing passes");
    check(badge.x==14*8+4&&badge.y==1&&presence.x==badge.x+22+6,"badge follows name before presence");
    check(caption.maxWidthText==234&&caption.useEllipsis&&box.width==350&&box.height==24,"space reserved inside existing line");
    check(badge.flowProperties.isAbsolute&&badge.interactive==null&&badge.action==null&&badge.getTip==null,"badge cannot capture clicks or change flow");

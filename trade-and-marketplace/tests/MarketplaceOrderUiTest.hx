@@ -23,6 +23,11 @@ class MarketplaceOrderUiTest {
                 G.buttons.filter(b->b.text=="Cancel")[0].action();view.update();
             }
         }
+        c.tab="Browse";row.orderType="buy";row.item.category="Weapon";row.item.native.level=0;
+        Reflect.deleteField(row.item,"requiredLevel");view.dirty=true;view.update();
+        check(G.labels.filter(l->l.text=="Any").length==1&&G.labels.filter(l->l.text=="Any level").length==1);
+        row.orderType="sell";view.dirty=true;view.update();
+        check(G.labels.filter(l->l.text=="Any"||l.text=="Any level").length==0);
         view.close();Sys.println("Marketplace order UI checks passed: "+checks);
     }
 }

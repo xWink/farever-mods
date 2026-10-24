@@ -17,8 +17,8 @@ class MarketplaceBuyOrderTest {
         c.update(app,0);
     }
     static function draft(gear=true):MarketBuy {
-        var b=new MarketBuy(),kind=gear?"Shield_OrbitWater":"Potion";
-        b.selected={kind:kind,name:kind,category:gear?"Armor":"Consumables",subcategory:"",classes:[],rarity:"Epic",level:15,gear:gear,infusable:gear,
+        var b=new MarketBuy();b.maxLevel=30;var kind=gear?"Shield_OrbitWater":"Potion";
+        b.selected={kind:kind,name:kind,category:gear?"Armor":"Consumables",subcategory:"",classes:[],rarity:"Epic",level:15,gear:gear,weapon:false,infusable:gear,
             offer:{uid:"",kind:kind,name:kind,count:1,detail:"",color:0,fingerprint:"",
                 preview:{flags:0,level:0,upgrade:0,rarity:"",infusion:"",bonus:"",mastery:"",slots:[],effects:[]}}};
         b.level=gear?15:0;b.bonus=gear?"Vitality":"";b.prismatic=gear;b.quantity="12";b.trays="7";
@@ -32,6 +32,10 @@ class MarketplaceBuyOrderTest {
         check(value.item.quantity==12&&value.price.mode=="fixed"&&value.price.silverTrays==7);
         check(value.item.native.level==15&&value.item.native.bonus=="Vitality"&&value.item.prismatic&&value.item.native.flags==2);
         check(TradePreview.valid(value.item.native)&&value.item.requiredLevel==15&&value.item.itemLevel==35);
+        b.setAnyLevel(true);value=MarketExport.buySnapshot(b,"europe",app,player);
+        check(value.item.native.level==0&&!Reflect.hasField(value.item,"requiredLevel")&&!Reflect.hasField(value.item,"itemLevel"));
+        b.setAnyLevel(false);b.selected.weapon=true;b.setRarity("Rare");value=MarketExport.buySnapshot(b,"europe",app,player);
+        check(value.item.native.rarity=="Rare"&&value.item.rarity=="Rare"&&value.item.native.level==15);
         b=draft(false);b.offers=true;b.trays="";value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.price.mode=="offers"&&!Reflect.hasField(value.price,"silverTrays"));
         check(!Reflect.hasField(value.item,"requiredLevel")&&!Reflect.hasField(value.item,"itemLevel")&&!value.item.prismatic);

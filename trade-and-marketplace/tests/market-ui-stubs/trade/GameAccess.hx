@@ -83,7 +83,7 @@ class GameAccess {
    case "toTexture":
     pngLoads.push(field(o,"resourceName"));
     if(failNextPng){failNextPng=false;throw "Injected PNG decode failure";}
-    var texture=create("h3d.mat.Texture",[512,512]);texture.sourcePng=true;texture.clearAlpha=0.0;texture.resourceName=field(o,"resourceName");texture;
+    var pixels=field(o,"resourceName")=="supporter-diamond.png"?1254:176;var texture=create("h3d.mat.Texture",[pixels,pixels]);texture.sourcePng=true;texture.clearAlpha=0.0;texture.resourceName=field(o,"resourceName");texture;
    case "scaleToSize": o.width=a[0];o.height=a[1];null;
    case "drawTo":
     a[0].resourceName=field(field(field(o,"tile"),"texture"),"resourceName");

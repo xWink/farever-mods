@@ -24,7 +24,7 @@ class MarketplaceBuyTest {
         for(i in 0...250)definitions.push({id:"CatalogMaterial"+i,type:"CraftingComponent",nativeRarityId:"Common",gear:false,infusable:false});
         for(id in ["ActivityLoot","RecipeGenerator","Soulstone","SoulstoneLegendary","WorldLoot"])
             definitions.push({id:id,type:"Misc",nativeRarityId:"Common",valid:false});
-        var excluded:Map<String,String>=["Experience"=>"Currency","Gold"=>"Currency","BadgeOfGlory"=>"Currency","CraftPoint"=>"Currency",
+        var excluded:Map<String,String>=["RefillableFlask"=>"HealthPotion","Experience"=>"Currency","Gold"=>"Currency","BadgeOfGlory"=>"Currency","CraftPoint"=>"Currency",
             "DemonicSoul"=>"Currency","Nightblood"=>"Currency","ShopCurrency"=>"Currency","Hide_Gear"=>"Gear",
             "TPRiftStone"=>"Consumable","TPRiftStone_Perma"=>"Usable","Mastery"=>"Mastery","SparkCube"=>"Usable","TeleportationStone"=>"Usable",
             "CopperProspecting"=>"Prospecting","TinProspecting"=>"Prospecting","TungsteneProspecting"=>"Prospecting",
@@ -83,6 +83,13 @@ class MarketplaceBuyTest {
         var quantity=G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==918&&n.y==438)[0];
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");
         button("Open to offers").action();view.update();reflow(view);check(c.buy.offers);
+        button("Any").action();view.update();reflow(view);
+        check(c.buy.anyLevel&&levelInput(438).input.text=="Any"&&c.buy.preview.preview.level==0);
+        check(G.labels.filter(l->l.text=="Any level").length==1);
+        button("Any").action();view.update();reflow(view);check(!c.buy.anyLevel&&c.buy.level==20);
+        level=levelInput(438);level.input.text="any";level.onChange();view.update();reflow(view);
+        check(c.buy.anyLevel&&level.input.text=="Any");
+        level.input.text="20";level.onChange();view.update();reflow(view);check(!c.buy.anyLevel&&c.buy.level==20);
         var count=c.refreshes;button("Place buy order").action();
         check(c.refreshes==count&&c.buySubmissions==0&&c.buy.selected.kind==armor.id&&c.buy.quantity=="12"&&c.message=="");
         c.ready=true;c.busy=false;view.dirty=true;view.update();reflow(view);button("Place buy order").action();
@@ -101,7 +108,20 @@ class MarketplaceBuyTest {
         search=node("marketInput");search.input.text="Potion";search.onChange();view.update();reflow(view);slots()[0].action();view.update();reflow(view);
         check(c.buy.selected.kind==potion.id&&c.buy.quantity=="1"&&dropdown(534)==null&&dropdown(508)==null);
         check(G.nodes.filter(n->n.fmtText.text=="Prismatic").length==0&&button("Place buy order")!=null);
+        search.input.text="Arc";search.onChange();view.update();reflow(view);slots()[0].action();view.update();reflow(view);
+        var rarity=dropdown(464);check(c.buy.selected.weapon&&rarity!=null&&rarity.selectText.text=="Rare");
+        rarity.selectedIndex=3;rarity.onSelectOption(null);view.update();reflow(view);
+        check(c.buy.rarity=="Epic"&&c.buy.preview.preview.rarity=="Epic"&&c.buy.metadata().rarity=="Epic");
+        check(node("marketDetailViewport").y+node("marketDetailViewport").height<rarity.y-28);
         view.close();check(TradeFrame.active==0);
+        var amulet:Dynamic=haxe.Json.parse(haxe.Json.stringify(b.items.filter(i->i.kind==armor.id)[0]));
+        amulet.kind="Necklace_Z1_Mp";b.select(amulet,30);check(b.level==17&&b.levelLimit()==17);
+        b.setLevel("999999999999999999");check(b.level==17);
+        b.setLevel("1");check(b.level==1);b.setAnyLevel(true);check(b.anyLevel&&b.preview.preview.level==0);
+        b.select(b.items.filter(i->i.kind==bow.id)[0],30);check(!b.anyLevel&&b.level==30&&b.levelLimit()==30);
+        b.setRarity("Legendary");check(b.rarity=="Legendary"&&b.preview.preview.rarity=="Legendary");
+        b.setRarity("Invalid");check(b.rarity=="Legendary");
+        b.setFilter("rarity","Legendary");check(b.visible.length==1&&b.visible[0].kind==bow.id);
         TradeInventory.definitions=oldDefinitions;TradeInventory.localizedNames=oldNames;G.dataFields=[];
         Sys.println("Marketplace buy checks passed: "+checks);
     }

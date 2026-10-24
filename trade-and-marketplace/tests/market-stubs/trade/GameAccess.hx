@@ -8,5 +8,5 @@ class GameAccess {
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
  public static function enumName(v:Dynamic):String return text(v);
  public static function call(type:String,name:String,o:Dynamic,?args:Array<Dynamic>):Dynamic return switch(name){case "getName":"Tester";case "getRequiredLevel":15;case "getILevel":35;case "getStack":o.content[args[0]];case "checkRequestDropIndex":field(o.content[args[0]].item,"bound")==true?"NotAllowed_":"Ok";default:null;};
- public static function staticCall(type:String,name:String,args:Array<Dynamic>):Dynamic return name=="getVersion"?"0.3.1.31390":{id:"Epic"};
+ public static function staticCall(type:String,name:String,args:Array<Dynamic>):Dynamic return name=="getVersion"?"0.3.1.31390":{id:field(args[0],"rarity")==null||field(args[0],"rarity")==""?"Epic":field(args[0],"rarity")};
 }

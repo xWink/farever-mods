@@ -13,14 +13,19 @@ typedef CatalogItem = {
     var rarity:String;
     var level:Int;
     var gear:Bool;
+    var weapon:Bool;
     var infusable:Bool;
     var offer:TradeItem;
 };
 
 /** Local catalog and order draft; the controller owns submission. */
 class MarketBuy {
-    static var excludedKinds=["Hide_Gear","TPRiftStone","TPRiftStone_Perma","SparkCube","TeleportationStone"];
+    static var excludedKinds=["Hide_Gear","TPRiftStone","TPRiftStone_Perma","SparkCube","TeleportationStone","RefillableFlask"];
     static var excludedTypes=["Currency","Mastery","Prospecting","GearTool"];
+    // Confirmed item cap. The native database exposes base levels, not a
+    // universal roll range; do not infer maximums from those base levels.
+    static var knownLevelCaps:Map<String,Int>=["Necklace_Z1_Mp"=>17];
+    static var weaponRarities=["Common","Uncommon","Rare","Epic","Legendary"];
     public var filters:Map<String,String>=["search"=>"","category"=>"","subcategory"=>"","rarity"=>"","classes"=>""];
     public var expanded=false;
     public var items:Array<CatalogItem>=[];
@@ -29,6 +34,8 @@ class MarketBuy {
     public var scroll={offset:0.0};
     public var level=0;
     public var maxLevel=1;
+    public var anyLevel=false;
+    public var rarity="";
     public var bonus="";
     public var bonuses:Array<{id:String,name:String}>=[];
     public var prismatic=false;
@@ -40,10 +47,14 @@ class MarketBuy {
     var loaded=false;
 
     public function new() {}
-    public function draftKey():String return haxe.Json.stringify([selected==null?"":selected.kind,level,bonus,prismatic,quantity,trays,offers]);
+    public function draftKey():String return haxe.Json.stringify([selected==null?"":selected.kind,level,anyLevel,rarity,bonus,prismatic,quantity,trays,offers]);
     public function clearSelection():Void {
-        selected=null;preview=null;nativePreview=null;level=0;bonus="";bonuses=[];prismatic=false;quantity="1";
+        selected=null;preview=null;nativePreview=null;level=0;anyLevel=false;rarity="";bonus="";bonuses=[];prismatic=false;quantity="1";
     }
+    public function levelLimit():Int return selected!=null&&knownLevelCaps.exists(selected.kind)?Std.int(Math.min(maxLevel,knownLevelCaps[selected.kind])):maxLevel;
+    public function rarityOptions():Array<String> return selected==null?[]:selected.weapon?weaponRarities.copy():[selected.rarity];
+    public function setRarity(value:String):Void {if(rarityOptions().indexOf(value)<0)return;rarity=value;updatePreview();}
+    public function setAnyLevel(value:Bool):Void {anyLevel=value&&selected!=null&&selected.gear;updatePreview();}
     static function allowed(definition:Dynamic,kind:String):Bool {
         if(excludedKinds.indexOf(kind)>=0)return false;
         // Native inheritance includes every crafting/gathering tool and keeps
@@ -74,6 +85,7 @@ class MarketBuy {
             }};
             items.push({kind:kind,name:name,category:meta.category,subcategory:meta.subcategory,classes:meta.classes,
                 rarity:rarity,level:level,gear:G.staticCall("HItem","isType",[definition,"Gear"])==true,
+                weapon:G.staticCall("HItem","isType",[definition,"Weapon"])==true,
                 infusable:G.staticCall("HInfusion","canBeInfused",[definition])==true,offer:offer});
         }
         items.sort((a,b)->{var order=Reflect.compare(a.name.toLowerCase(),b.name.toLowerCase());return order==0?Reflect.compare(a.kind,b.kind):order;});
@@ -96,13 +108,15 @@ class MarketBuy {
         visible=items.filter(item->(query==""||item.name.toLowerCase().indexOf(query)>=0)
             &&(filters["category"]==""||item.category==filters["category"])
             &&(filters["subcategory"]==""||item.subcategory==filters["subcategory"])
-            &&(filters["rarity"]==""||(filters["rarity"]=="Epic (Prismatic)"?item.rarity=="Epic"&&item.infusable:item.rarity==filters["rarity"]))
+            &&(filters["rarity"]==""||(filters["rarity"]=="Epic (Prismatic)"?(item.rarity=="Epic"||item.weapon)&&item.infusable:item.rarity==filters["rarity"]||item.weapon&&weaponRarities.indexOf(filters["rarity"])>=0))
             &&(classes.length==0||classes.filter(c->item.classes.indexOf(c)>=0).length>0));
         scroll={offset:0.0};
     }
     public function select(item:CatalogItem,playerLevel=1):Void {
         if(selected==item)return;
-        selected=item;level=item.gear?Std.int(Math.max(1,Math.min(maxLevel,playerLevel))):0;
+        selected=item;level=item.gear?Std.int(Math.max(1,Math.min(levelLimit(),playerLevel))):0;anyLevel=false;
+        rarity=item.weapon&&weaponRarities.indexOf(filters["rarity"])>=0?filters["rarity"]:item.rarity;
+        if(item.weapon&&filters["rarity"]=="Epic (Prismatic)")rarity="Epic";
         bonus="";prismatic=false;quantity="1";bonuses=[];
         if(item.infusable) {
             var definition=TradeInventory.definition(item.kind);
@@ -120,16 +134,21 @@ class MarketBuy {
         updatePreview();
     }
     public function setLevel(value:String):Void {
-        var parsed=Std.parseInt(value);
-        level=selected!=null&&selected.gear?Std.int(Math.max(1,Math.min(maxLevel,parsed==null?level:parsed))):0;updatePreview();
+        if(value.toLowerCase()=="any"){setAnyLevel(true);return;}
+        if(!~/^-?[0-9]+$/.match(value))return;
+        level=selected!=null&&selected.gear?Std.int(Math.max(1,Math.min(levelLimit(),Std.parseFloat(value)))):0;anyLevel=false;updatePreview();
     }
     public function setBonus(value:String):Void {bonus=bonuses.filter(b->b.id==value).length>0?value:"";updatePreview();}
     public function setPrismatic(value:Bool):Void {prismatic=value&&selected!=null&&selected.infusable&&bonuses.length>0;updatePreview();}
     public function updatePreview():Void {
         if(selected==null)return;
+        level=selected.gear?Std.int(Math.max(1,Math.min(levelLimit(),level))):0;
+        if(!selected.gear)anyLevel=false;
+        if(rarityOptions().indexOf(rarity)<0)rarity=selected.rarity;
         var base=selected.offer;
         preview={uid:base.uid,kind:base.kind,name:base.name,count:1,detail:"",color:base.color,fingerprint:"",preview:trade.TradePreview.copy(base.preview)};
-        preview.preview.level=level;preview.preview.bonus=bonus;preview.preview.flags=prismatic?2:0;
+        preview.preview.level=anyLevel?0:level;preview.preview.bonus=bonus;preview.preview.flags=prismatic?2:0;
+        if(selected.weapon)preview.preview.rarity=rarity;
         nativePreview=null;
         try {
             nativePreview=trade.TradeTooltips.previewItem(preview);
@@ -140,5 +159,5 @@ class MarketBuy {
         }catch(_:Dynamic){} // Catalog entries without an instance still have their name, icon and definition.
     }
     public function metadata():Dynamic return selected==null?null:{category:selected.category,subcategory:selected.subcategory,
-        classes:selected.classes,rarity:selected.rarity,requiredLevel:selected.gear?(level>0?level:selected.level):0,prismatic:prismatic};
+        classes:selected.classes,rarity:rarity,requiredLevel:selected.gear&&!anyLevel?level:0,anyLevel:anyLevel,prismatic:prismatic};
 }

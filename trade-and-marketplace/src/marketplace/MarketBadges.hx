@@ -35,18 +35,21 @@ class MarketBadges {
                 var flags=G.call("hl.types.ArrayObj","slice",nativeArray,[0,0]);
                 G.call("hl.types.ArrayObj","pushDyn",flags,[G.current("h3d.mat.TextureFlags","Target")]);
                 var format=G.current("hxd.PixelFormat","RGBA"),blend=G.current("h2d.BlendMode","AlphaAdd");
-                // The supplied artwork is embedded at 8x the displayed size.
-                // Average down in half-size passes, keeping a 2x final texture:
+                // Average source artwork down in half-size passes, keeping a 2x final texture:
                 // a single bilinear shrink skips fine edges instead of smoothing
                 // them. Bake once per tier, as with the minimap icons.
-                for(pixels in [SIZE*4,SIZE*2]) {
+                var passes:Array<Int>=[],sourceSize=G.integer(G.field(texture,"width"),SIZE*8);
+                while(sourceSize>SIZE*8) {sourceSize=Std.int(Math.max(SIZE*8,Math.ceil(sourceSize/2)));passes.push(sourceSize);}
+                passes.push(SIZE*4);passes.push(SIZE*2);
+                for(i in 0...passes.length) {
+                    var pixels=passes[i];
                     var source=G.staticCall("h2d.Tile","fromTexture",[texture]);
                     G.call("h2d.Tile","scaleToSize",source,[pixels*1.0,pixels*1.0]);
                     holder=G.create("h2d.Bitmap",[source,null]);released=false;
                     G.set(holder,"smooth",true);
                     // PNGs have straight alpha; render targets are premultiplied.
                     // Preserve the latter so soft borders do not get darkened.
-                    if(pixels==SIZE*2)G.set(holder,"blendMode",blend);
+                    if(i>0)G.set(holder,"blendMode",blend);
                     texture=G.create("h3d.mat.Texture",[pixels,pixels,flags,format]);targets.push(texture);
                     G.call("h3d.mat.Texture","clear",texture,[0,0.0,null]);
                     G.call("h2d.Object","drawTo",holder,[texture]);released=true;
