@@ -1,7 +1,7 @@
 {
   "project": "trade-and-marketplace",
-  "version": "1.2.1",
-  "commit": "6e89f6827a96d8afeb0a35bd0dde836da99719f2",
+  "version": "1.2.2",
+  "commit": "ef90ed67125018a3bb7732e6c976a2f4cef1f4ab",
   "notes": "Improved sign in experience",
   "dry_run": false
 }
