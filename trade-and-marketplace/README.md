@@ -25,6 +25,12 @@ A full-inventory indicator appears if the incoming offer will not fit. Capacity 
 
 Trade and request windows remember their positions. Incoming requests are automatically rejected during combat, NPC dialogue, another trade, or while a menu is open, with **Player is busy.** Enable **Reject all trade requests** in Mod Settings to return **Player is not accepting trade requests.** instead.
 
+## Item links
+
+Hold **Alt** and left-click an item in the inventory, bank, equipment, shops, trade window, or marketplace to append an item link to your chat draft. Continue typing after it or press Enter to send normally. The click preserves your draft and does not use, move, or buy the item.
+
+Players with this mod see the item's name in bold and its rarity color. Hover the name for its native tooltip, including the linked item's level, upgrades, infusion, sockets, and other attributes. Players without item-link support see the encoded text. Links share the game's 250-character message limit; if there is insufficient space, the draft stays unchanged and an error explains why.
+
 ## Exchange limitations
 
 Trading automates normal item dropping and pickup; it does not provide server escrow or rollback. Movement and manual pickup are blocked during trading, and cancellation is disabled after commitment. A ten-second stall timeout releases controls if progress stops. Interruptions can leave items on the ground, so trade with someone you trust.

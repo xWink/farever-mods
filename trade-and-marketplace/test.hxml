@@ -76,3 +76,16 @@ resources.hxml
 -cp tests
 -main WindowFlagsTest
 --interp
+
+--next
+-cp src
+-cp tests
+-main ItemLinkTest
+--interp
+
+--next
+-cp src
+-cp tests
+-cp tests/item-link-stubs
+-main ItemLinkUiTest
+--interp

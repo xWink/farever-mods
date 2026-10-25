@@ -164,6 +164,7 @@ class TradeWindow {
             var quantity = textAt(row,"x"+item.count,73,60,66,true); ink(quantity,0xffffff);
             var right = G.enumeration("h2d.Align","Right"); G.call("h2d.Text","set_textAlign",quantity,[right]); style(quantity,"text-align",right);
             G.call("ui.UIElement","set_getTip",row,[()->TradeTooltips.create(item,own ? controller.inv : new TradeInventory(controller.partyMember(controller.state.peer)))]);
+            ItemLinks.bind(row,item);
             G.set(row,"showTipOnOver",true); style(row,"show-tip-on-over",true);
             if (own) {
                 G.call("ui.UIElement","set_onRightClick",row,[()->controller.remove(item.uid)]);

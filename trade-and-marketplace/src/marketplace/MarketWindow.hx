@@ -697,6 +697,7 @@ class MarketWindow {
         }
         afterReflow(row,layoutLabels);
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
+        trade.ItemLinks.bind(row,item);
         partialRow=null;
     }
     function rememberListingScroll():Void {
@@ -1095,6 +1096,7 @@ class MarketWindow {
     }
     function tooltip(object:Dynamic,item:TradeItem):Void {
         G.call("ui.UIElement","set_getTip",object,[()->TradeTooltips.create(item,c.tab=="Sell"?MarketInventory.source(c.inv,item.uid,c.bankOnly):null)]);
+        trade.ItemLinks.bind(object,item);
         G.set(object,"showTipOnOver",true);style(object,"show-tip-on-over",true);
     }
     function selectedItem(item:TradeItem,?metadata:Dynamic):Void {

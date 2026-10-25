@@ -34,9 +34,11 @@ class TradeMod {
     static function main():Void {
         config.marketplaceHotkey = Hotkey.normalize(config.marketplaceHotkey,118);
         ModConfig.save(HlxRuntime.moduleName(),config); controller = new TradeController(); market = new marketplace.MarketController();
+        ItemLinks.configure(config.enabled);
         Bus.subscribe("better-mod-settings/config-changed/"+HlxRuntime.moduleName(),(_)->{
             config = ModConfig.load(HlxRuntime.moduleName(),config);
             config.marketplaceHotkey = Hotkey.normalize(config.marketplaceHotkey,118);
+            ItemLinks.configure(config.enabled);
         });
     }
     @:hlx.postfix(GameApp.update)
@@ -71,6 +73,7 @@ class TradeMod {
     }
     @:hlx.prefix(GameApp.dispose)
     static function beforeDispose(instance:Dynamic):HlxPrefixResult<Void> {
+        ItemLinks.dispose();
         if (market != null) market.disconnect();
         if (controller != null) controller.dispose(); menuUi = null; menuUid = null; return Continue;
     }
@@ -104,6 +107,18 @@ class TradeMod {
             else controller.requestName([for(a in G.array(args)) G.text(a)].join(" "));
         } catch(e:Dynamic) controller.fail(e);
         return SkipWith(null);
+    }
+    @:hlx.postfix(ui.UIElement.makeInteractive)
+    static function itemLinkInteraction(instance:Dynamic,result:Void):Void {
+        try ItemLinks.install(instance) catch(error:Dynamic) ItemLinks.report(error);
+    }
+    @:hlx.postfix(ui.hud.ChatBoxMessage.init)
+    static function itemLinkMessage(instance:Dynamic,result:Void):Void {
+        try ItemLinks.attach(instance) catch(error:Dynamic) ItemLinks.report(error);
+    }
+    @:hlx.postfix(ui.BaseElement.onRemove)
+    static function removeItemLinks(instance:Dynamic,result:Void):Void {
+        try ItemLinks.forget(instance) catch(error:Dynamic) ItemLinks.report(error);
     }
     @:hlx.prefix(st.player.ChatClient.localReceiveMessage)
     static function receive(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receiveTrade(instance,message);
