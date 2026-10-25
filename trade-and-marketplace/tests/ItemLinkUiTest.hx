@@ -60,6 +60,31 @@ class ItemLinkUiTest {
         label.onOverHyperlink("wink-item:0");
         check(G.ui.currentTip!=null&&G.ui.currentTip.content.realItem.level==30,"Hover reconstructs the original item tooltip");
         check(G.ui.currentTip.content.realItem.__host==null&&G.ui.currentTip.content.realItem.__uid==null,"Tooltip items have no network host or borrowed UID");
+        var linkedTip:Dynamic=G.ui.currentTip;
+        linkedTip.scene={width:1280,height:720};linkedTip.parent={x:20,y:10,scale:1.5};
+        linkedTip.bounds={xMin:-180,yMin:-12,xMax:320,yMax:388};linkedTip.scale=1;
+        function contained():Bool {
+            var p=linkedTip.parent,b=linkedTip.bounds,s=G.number(linkedTip.scale);
+            return (G.number(linkedTip.x)+G.number(b.xMin)*s)*p.scale+p.x>=7.999
+                &&(G.number(linkedTip.y)+G.number(b.yMin)*s)*p.scale+p.y>=7.999
+                &&(G.number(linkedTip.x)+G.number(b.xMax)*s)*p.scale+p.x<=linkedTip.scene.width-7.999
+                &&(G.number(linkedTip.y)+G.number(b.yMax)*s)*p.scale+p.y<=linkedTip.scene.height-7.999;
+        }
+        for (corner in [{x:-500,y:-500},{x:1500,y:-500},{x:-500,y:1500},{x:1500,y:1500}]) {
+            linkedTip.x=corner.x;linkedTip.y=corner.y;ItemLinks.fitTooltip(linkedTip);
+            check(contained()&&linkedTip.scale==1,"Linked tooltip and comparisons stay inside each edge with scaled UI");
+        }
+        linkedTip.bounds.yMax=1200;ItemLinks.fitTooltip(linkedTip);
+        check(contained()&&linkedTip.scale<1,"Oversized linked tooltip scales to fit the window");
+        var fittedX=linkedTip.x,fittedY=linkedTip.y,fittedScale=linkedTip.scale;
+        ItemLinks.fitTooltip(linkedTip);
+        check(linkedTip.x==fittedX&&linkedTip.y==fittedY&&linkedTip.scale==fittedScale,"Repeated layout does not shrink or drift the tooltip");
+        linkedTip.scene.width=900;linkedTip.scene.height=540;ItemLinks.fitTooltip(linkedTip);
+        check(contained(),"Resizing the game window refits the active tooltip");
+        linkedTip.bounds.yMax=388;linkedTip.scene.width=1280;linkedTip.scene.height=720;ItemLinks.fitTooltip(linkedTip);
+        check(contained()&&linkedTip.scale==1,"Tooltip returns to normal size when it fits");
+        var unrelated:Dynamic={x:-500,y:-500,scale:1};ItemLinks.fitTooltip(unrelated);
+        check(unrelated.x==-500&&unrelated.y==-500&&unrelated.scale==1,"Other tooltips keep their native positioning");
         label.onOutHyperlink("wink-item:0");check(G.ui.currentTip==null,"Moving off the item hides its tooltip");
         label.onHyperlink("wink-item:0");check(foreign==0,"Item links do not invoke website or player-name actions");
         label.onHyperlink("native-link");label.onOverHyperlink("native-link");label.onOutHyperlink("native-link");

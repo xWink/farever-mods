@@ -84,6 +84,11 @@ class GameAccess {
         var rx:hl.Ref<Float> = x, ry:hl.Ref<Float> = y, rz:hl.Ref<Float> = z;
         return create("h3d.VectorImpl",[rx,ry,rz]);
     }
+    public static function point(x:Float,y:Float):Dynamic {
+        var point = HlxRuntime.allocInstance(HlxRuntime.resolveType("h2d.col.PointImpl"));
+        set(point,"x",x); set(point,"y",y);
+        return point;
+    }
     public static function enumValue(type:String,name:String,args:Array<Dynamic>):Dynamic {
         var t = HlxRuntime.resolveType(type);
         if (t == null) throw "Game enum unavailable: "+type;

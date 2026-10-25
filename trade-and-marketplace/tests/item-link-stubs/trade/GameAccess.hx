@@ -10,6 +10,8 @@ class GameAccess {
     public static function set(o:Dynamic,k:String,v:Dynamic):Void { if (o != null) Reflect.setField(o,k,v); }
     public static function text(v:Dynamic,f=""):String return v == null ? f : Std.string(v);
     public static function integer(v:Dynamic,f=0):Int return v == null ? f : Std.int(v);
+    public static function number(v:Dynamic,f:Float=0):Float return v == null ? f : v;
+    public static function point(x:Float,y:Float):Dynamic return {x:x,y:y};
     public static function isA(o:Dynamic,t:String):Bool {
         var kind=field(o,"nativeType");
         return kind == t || (kind == "st.item.Weapon" && (t == "st.Item" || t == "st.item.Gear"));
@@ -46,6 +48,13 @@ class GameAccess {
             if(o.prevUnformatted!=a[0]) {o.prevUnformatted=a[0];o.text=o.formatText(a[0]);}a[0];
         case "setTip":o.currentTip={content:a[0],anchor:a[1]};o.currentTip;
         case "removeTip":o.currentTip=null;null;
+        case "getScene":o.scene;
+        case "getBounds":
+            if(a[0]!=o)throw "Measure tooltip contents in their own unscaled coordinates";
+            o.bounds;
+        case "globalToLocal":{x:(number(a[0].x)-number(o.x))/number(o.scale,1),y:(number(a[0].y)-number(o.y))/number(o.scale,1)};
+        case "setScale":o.scale=a[0];null;
+        case "setPosition":o.x=a[0];o.y=a[1];null;
         default:throw "Unexpected call "+t+"."+n;
     };
 }

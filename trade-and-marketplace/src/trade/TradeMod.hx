@@ -57,6 +57,7 @@ class TradeMod {
     @:hlx.postfix(ui.Tooltip.sync)
     static function fitTradeTooltip(instance:Dynamic,engine:Dynamic,result:Void):Void {
         if (controller != null && controller.view.shown()) controller.view.fitTooltip(instance);
+        try ItemLinks.fitTooltip(instance) catch(error:Dynamic) ItemLinks.report(error);
     }
     @:hlx.prefix(client.UnitController.isInputBlocked)
     static function blockTradeInputs(instance:Dynamic):HlxPrefixResult<Bool> return controller != null && controller.controlsLocked(instance) ? SkipWith(true) : Continue;

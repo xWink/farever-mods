@@ -198,6 +198,24 @@ class ItemLinks {
         tip = G.call("ui.BaseUI","setTip",ui,[element,row.label,null,null]);
         tipRow = row.row; tipUi = ui;
     }
+    /** Run after native layout so wrapping and comparison panels are included. */
+    public static function fitTooltip(object:Dynamic):Void {
+        if (object == null || object != tip || tipUi == null || G.field(tipUi,"currentTip") != object) return;
+        var parent = G.field(object,"parent"), scene = G.call("h2d.Object","getScene",object);
+        if (parent == null || scene == null) return;
+        var bounds = G.call("h2d.Object","getBounds",object,[object,null]);
+        // Convert screen edges into the tooltip parent's coordinates, including UI scale.
+        var top = G.call("h2d.Object","globalToLocal",parent,[G.point(8,8)]);
+        var bottom = G.call("h2d.Object","globalToLocal",parent,[G.point(
+            G.number(G.field(scene,"width"))-8,G.number(G.field(scene,"height"))-8)]);
+        var fit = TradeTooltipPlacement.fit(G.number(G.field(object,"x")),G.number(G.field(object,"y")),{
+            xMin:G.number(G.field(bounds,"xMin")),yMin:G.number(G.field(bounds,"yMin")),
+            xMax:G.number(G.field(bounds,"xMax")),yMax:G.number(G.field(bounds,"yMax"))
+        },{xMin:G.number(G.field(top,"x")),yMin:G.number(G.field(top,"y")),
+            xMax:G.number(G.field(bottom,"x")),yMax:G.number(G.field(bottom,"y"))});
+        G.call("h2d.Object","setScale",object,[fit.scale]);
+        G.call("h2d.Object","setPosition",object,[fit.x,fit.y]);
+    }
     static function hideTip():Void {
         var ui = tipUi, old = tip;
         tipRow = null; tipUi = null; tip = null;
