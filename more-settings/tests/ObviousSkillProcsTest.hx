@@ -191,7 +191,36 @@ class ObviousSkillProcsTest {
         eq(aimed.inf.gfx.tile.texture.atlas, true, "cleanup preserves shared game textures");
         useFeedback();
         countdownAndLayout();
+        combatVisibility();
         trace('Skill proc alerts: $checks checks passed');
+    }
+
+    static function combatVisibility():Void {
+        Procs.clear(); G.created = []; setupHud();
+        G.hero.isInCombat = false;
+        var proc = skill("Bow_Craft_Skill1", true); button(proc);
+        eq(SettingsData.defaults().hideSkillProcAlertsOutsideCombat, false, "combat-only alerts are opt-in");
+        Procs.configure(true); tick();
+        eq(shown().length, 1, "default behavior still shows procs outside combat");
+        Procs.configure(true, 100, "Right", true); tick();
+        eq(shown().length, 0, "combat-only setting hides an already-visible proc");
+        var calls = G.highlightCalls, created = G.created.length;
+        Procs.onUse(G.hero, proc); tick();
+        eq(G.created.length, created, "out-of-combat skill use creates no alert feedback");
+        eq(G.highlightCalls, calls, "hidden alerts skip native highlight polling outside combat");
+        G.hero.isInCombat = true; tick();
+        eq(shown().length, 1, "entering combat immediately shows a currently active proc");
+        Procs.onUse(G.hero, proc); tick();
+        eq(sparks().length, 12, "in-combat proc use keeps the existing feedback");
+        G.hero.isInCombat = false; tick();
+        eq(shown().length, 0, "leaving combat hides the whole alert");
+        eq(sparks().length, 0, "leaving combat cancels active feedback");
+        proc.proc = false; tick(); G.hero.isInCombat = true; tick();
+        eq(shown().length, 0, "returning to combat never replays expired procs or feedback");
+        G.hero.isInCombat = false; proc.proc = true; tick();
+        Procs.configure(true); tick();
+        eq(shown().length, 1, "turning off combat-only mode restores a current proc outside combat");
+        Procs.clear();
     }
 
     static function sparks():Array<Dynamic>

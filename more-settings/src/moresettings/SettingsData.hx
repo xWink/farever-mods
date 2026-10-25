@@ -22,6 +22,7 @@ typedef MoreSettingsConfig = {
     var holdSkillRepeat:Bool;
     var showSkillIconNextToDamageNumber:Bool;
     var obviousSkillProcs:Bool;
+    var hideSkillProcAlertsOutsideCombat:Bool;
     var skillProcAlertSize:Int;
     var skillProcAlertPosition:String;
     var buffStackNumberOutline:Bool;
@@ -76,6 +77,7 @@ class SettingsData {
         holdSkillRepeat: false,
         showSkillIconNextToDamageNumber: false,
         obviousSkillProcs: false,
+        hideSkillProcAlertsOutsideCombat: false,
         skillProcAlertSize: 100,
         skillProcAlertPosition: "Right",
         buffStackNumberOutline: true,

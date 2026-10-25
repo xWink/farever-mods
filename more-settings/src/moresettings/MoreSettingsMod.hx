@@ -41,7 +41,7 @@ class MoreSettingsMod {
         DungeonLeaveButton.riftEnabled = config.leaveRiftButton;
         CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
         MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
-        ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);
+        ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition, config.hideSkillProcAlertsOutsideCombat);
         BuffStackOutlines.configure(config.buffStackNumberOutline);
         SocialHooks.configure(config, false);
         hideUi.configure(config.hideUiKey);
@@ -63,7 +63,7 @@ class MoreSettingsMod {
             DungeonLeaveButton.riftEnabled = config.leaveRiftButton;
             CrabgantuaWarnings.configure(config.crabgantuaRockfallWarnings);
             MinionHealthBars.configure(config.hideAlliedMinionHealthBars);
-            ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition);
+            ObviousSkillProcs.configure(config.obviousSkillProcs, config.skillProcAlertSize, config.skillProcAlertPosition, config.hideSkillProcAlertsOutsideCombat);
             BuffStackOutlines.configure(config.buffStackNumberOutline);
             SocialHooks.configure(config);
             hideUi.configure(config.hideUiKey);

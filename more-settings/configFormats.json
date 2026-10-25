@@ -178,8 +178,13 @@
       "label": "Skill proc alerts",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Shows equipped skills with active procs or special highlights near the character, with a rounded pulsing golden border. Timed procs show their remaining duration inside the icon. Using a highlighted skill gives its alert a brief black-and-white impact frame, a gold flash, an expanding frame and sparkles. Follows the game's skill highlight rules, including Aimed Shot and Pyroclasm."
+        "tooltipText": "For skills that can proc (e.g. Aimed Shot, Pyroclasm, Raging Smash, and others). When a proc occurs, displays the skill icon near the middle of the screen."
       }
+    },
+    {
+      "key": "hideSkillProcAlertsOutsideCombat",
+      "type": "checkbox",
+      "label": "Hide skill proc alerts outside combat"
     },
     {
       "key": "skillProcAlertSize",

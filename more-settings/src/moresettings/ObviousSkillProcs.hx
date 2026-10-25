@@ -34,6 +34,7 @@ class ObviousSkillProcs {
     static inline var IMPACT_DURATION:Float = 0.06;
     static inline var BURST_DURATION:Float = 0.55;
     static var enabled = false;
+    static var hideOutsideCombat = false;
     static var alertScale:Float = 1.0;
     static var alertPosition = "Right";
     static var buttons:Array<Dynamic> = [];
@@ -46,8 +47,9 @@ class ObviousSkillProcs {
     static var untilCheck:Float = 0;
     static var reported = false;
 
-    public static function configure(value:Bool, size:Int = 100, position:String = "Right"):Void {
+    public static function configure(value:Bool, size:Int = 100, position:String = "Right", combatOnly:Bool = false):Void {
         enabled = value;
+        hideOutsideCombat = combatOnly;
         alertScale = Math.max(50, Math.min(200, size)) / 100;
         alertPosition = ["Left", "Right", "Below"].indexOf(position) < 0 ? "Right" : position;
         untilCheck = 0;
@@ -71,6 +73,7 @@ class ObviousSkillProcs {
     /** Hero.onSkillUse runs after native skill.start, not for queued key presses. */
     public static function onUse(hero:Dynamic, skill:Dynamic):Void {
         if (!enabled || root == null || hero == null || skill == null
+            || (hideOutsideCombat && G.field(hero, "isInCombat") != true)
             || hero != G.staticCall("GameApp", "getMyHero", [])
             || G.field(skill, "owner") != hero || hud != G.staticCall("ui.GameUI", "getHud", [])
             || !under(root, hud, true) || G.call("ent.GameObject", "isDead", hero) == true
@@ -111,6 +114,7 @@ class ObviousSkillProcs {
         var scene = G.field(app, "s2d");
         var hero = G.staticCall("GameApp", "getMyHero", []);
         if (hud == null || scene == null || hero == null || barParent == null || !under(barParent, hud, true)
+            || (hideOutsideCombat && G.field(hero, "isInCombat") != true)
             || !under(hud, scene, true)
             || G.call("ent.GameObject", "isDead", hero) == true
             || G.call("ui.Hud", "canShowHeroBar", hud) != true) {
