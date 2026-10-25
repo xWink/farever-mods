@@ -78,7 +78,7 @@ class TimelineTest {
         check(reopened.count == events.length, "Self-contained sidecar reopens without the original process");
         check(TimelineStore.read(dir + "/legacy.json") == null, "Legacy records have explicit unavailable detail");
         check(DetailedReport.timestamp(61.007) == "01:01.007", "Millisecond display is stable");
-        check(DetailedReport.timestamp(-.1) == "−00:00.100", "Lead-in timestamps remain negative");
+        check(DetailedReport.timestamp(-.1) == "-00:00.100", "Lead-in timestamps use a visible ASCII minus in native fonts");
         // Long encounters flush bounded chunks without truncating the event stream.
         for (i in 0...10000) { var e = CombatTimeline.event("damage", "me", "boss", "Tick"); e.amount = 1; trace.append(e, 200 + i * .001); }
         trace.flush(211);

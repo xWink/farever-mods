@@ -251,7 +251,9 @@ class DetailedReport {
     }
     public static function timestamp(time:Float):String {
         var millis = Std.int(Math.round(Math.abs(time) * 1000));
-        return (time < 0 ? "−" : "") + StringTools.lpad(Std.string(Std.int(millis / 60000)), "0", 2)
+        // Native UI fonts can omit the Unicode minus glyph, making the
+        // two-second lead-in look positive and the chronological list reversed.
+        return (time < 0 ? "-" : "") + StringTools.lpad(Std.string(Std.int(millis / 60000)), "0", 2)
             + ":" + StringTools.lpad(Std.string(Std.int(millis / 1000) % 60), "0", 2)
             + "." + StringTools.lpad(Std.string(millis % 1000), "0", 3);
     }
