@@ -31,6 +31,8 @@ Hold **Alt** and left-click an item in the inventory, bank, equipment, shops, tr
 
 Item links appear as bold, rarity-colored names both in your draft and in sent messages for players with this mod. Hover the name for its native tooltip, including the linked item's level, upgrades, infusion, sockets, and other attributes. Each draft link behaves as a single unit: Backspace or Delete removes the whole item, and selecting, copying, pasting, and undoing preserve its details. Players without item-link support see the encoded text. Links share the game's 250-character message limit; if there is insufficient space, the draft stays unchanged and an error explains why.
 
+Overhead chat bubbles also show the colored item name, without a hover tooltip. Their text limit applies to the readable name instead of the encoded item data.
+
 ## Exchange limitations
 
 Trading automates normal item dropping and pickup; it does not provide server escrow or rollback. Movement and manual pickup are blocked during trading, and cancellation is disabled after commitment. A ten-second stall timeout releases controls if progress stops. Interruptions can leave items on the ground, so trade with someone you trust.

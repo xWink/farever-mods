@@ -90,6 +90,9 @@ class ItemLinkCodec {
     }
 
     public static function markup(name:String, color:Int, index:Int):String
-        return '<a href="wink-item:' + index + '"><font color="#' + StringTools.hex(color & 0xffffff, 6)
-            + '"><b>' + StringTools.htmlEscape(name) + '</b></font></a>';
+        return '<a href="wink-item:' + index + '">' + nameMarkup(name,color) + '</a>';
+
+    public static function nameMarkup(name:String, color:Int):String
+        return '<font color="#' + StringTools.hex(color & 0xffffff, 6)
+            + '"><b>' + StringTools.htmlEscape(name) + '</b></font>';
 }

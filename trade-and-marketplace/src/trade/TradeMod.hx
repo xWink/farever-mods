@@ -151,6 +151,11 @@ class TradeMod {
     static function itemLinkMessage(instance:Dynamic,result:Void):Void {
         try ItemLinks.attach(instance) catch(error:Dynamic) ItemLinks.report(error);
     }
+    @:hlx.prefix(ui.hud.ChatBubble.open)
+    static function itemLinkBubble(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> {
+        try ItemLinks.prepareBubble(instance,message) catch(error:Dynamic) ItemLinks.report(error);
+        return Continue;
+    }
     @:hlx.postfix(ui.BaseElement.onRemove)
     static function removeItemLinks(instance:Dynamic,result:Void):Void {
         try ItemLinks.forget(instance) catch(error:Dynamic) ItemLinks.report(error);

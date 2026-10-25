@@ -9,6 +9,7 @@ private typedef LinkInteraction = {
     wrappedPush:Dynamic, wrappedRelease:Dynamic, captured:Bool
 };
 private typedef LinkEntry = {token:String, offer:TradeItem};
+private typedef LinkBubble = {label:Dynamic, format:Dynamic, wrapper:Dynamic};
 private typedef LinkRow = {
     row:Dynamic, label:Dynamic, entries:Array<LinkEntry>, format:Dynamic,
     over:Dynamic, out:Dynamic, click:Dynamic,
@@ -21,6 +22,7 @@ class ItemLinks {
     static var offers:ObjectMap<Dynamic, TradeItem> = new ObjectMap();
     static var interactions:ObjectMap<Dynamic, LinkInteraction> = new ObjectMap();
     static var rows:ObjectMap<Dynamic, LinkRow> = new ObjectMap();
+    static var bubbles:ObjectMap<Dynamic, LinkBubble> = new ObjectMap();
     static var tipRow:Dynamic;
     static var tipUi:Dynamic;
     static var tip:Dynamic;
@@ -32,6 +34,7 @@ class ItemLinks {
         ItemLinkDraft.configure(value);
         if (!value) hideTip();
         for (row in rows) refresh(row.label);
+        for (bubble in bubbles) refresh(bubble.label);
     }
 
     /** Register custom Marketplace/trade icons whose parent owns their snapshot. */
@@ -148,12 +151,9 @@ class ItemLinks {
         }]);
     }
 
-    public static function attach(row:Dynamic):Void {
-        var label = G.field(row,"msgText"), message = G.field(row,"message");
-        if (label == null || message == null || G.field(message,"notify") != null) return;
-        forgetRow(row);
+    static function entriesFor(text:String):Array<LinkEntry> {
         var entries:Array<LinkEntry> = [];
-        for (token in ItemLinkCodec.tokens(G.text(G.field(message,"text")))) {
+        for (token in ItemLinkCodec.tokens(text)) {
             var offer = ItemLinkCodec.decode(token);
             if (offer == null) continue;
             // Known database IDs and detached reconstruction are checked before rendering.
@@ -163,6 +163,14 @@ class ItemLinks {
             offer.name = described.name; offer.color = described.color;
             entries.push({token:token,offer:offer});
         }
+        return entries;
+    }
+
+    public static function attach(row:Dynamic):Void {
+        var label = G.field(row,"msgText"), message = G.field(row,"message");
+        if (label == null || message == null || G.field(message,"notify") != null) return;
+        forgetRow(row);
+        var entries = entriesFor(G.text(G.field(message,"text")));
         if (entries.length == 0) return;
         var state:LinkRow = {row:row,label:label,entries:entries,format:G.field(label,"formatText"),
             over:G.field(label,"onOverHyperlink"),out:G.field(label,"onOutHyperlink"),click:G.field(label,"onHyperlink"),
@@ -192,6 +200,53 @@ class ItemLinks {
         G.set(label,"onOutHyperlink",state.wrappedOut);
         G.set(label,"onHyperlink",state.wrappedClick);
         refresh(label);
+    }
+
+    /** Native bubbles cut raw text to 100 characters before formatting. Read the
+        complete message and apply that limit to readable names, never encoded tokens. */
+    public static function prepareBubble(bubble:Dynamic,message:Dynamic):Void {
+        forgetBubble(bubble);
+        if (!enabled || message == null || G.field(message,"notify") != null) return;
+        var label=G.field(bubble,"messageText"),text=G.text(G.field(message,"text"));
+        if (label == null) return;
+        var entries=entriesFor(text);
+        if (entries.length==0) return;
+        var prefix="~wink-bubble-";
+        while(text.indexOf(prefix)>=0)prefix+="x";
+        var source="",offset=0,visible=0,shortened=false;
+        var replacements:Array<{key:String,markup:String}>=[];
+        while(offset<text.length && visible<100) {
+            var found:LinkEntry=null;
+            for(entry in entries) if(text.substr(offset,entry.token.length)==entry.token) {found=entry;break;}
+            if(found==null) {source+=text.charAt(offset++);visible++;continue;}
+            var name=found.offer.name.substr(0,100-visible),key=prefix+replacements.length+"~";
+            replacements.push({key:key,markup:ItemLinkCodec.nameMarkup(name,found.offer.color)});
+            source+=key;visible+=name.length;offset+=found.token.length;
+            if(name.length<found.offer.name.length) {shortened=true;break;}
+        }
+        if(shortened||offset<text.length)source+="...";
+        // Keep native player-text sanitizing and formatting. Insert only our escaped
+        // item-name markup afterwards; bubbles have no links or hover callbacks.
+        var clean=G.text(G.staticCall("HText","cleanPlayerText",[source]));
+        var state:LinkBubble={label:label,format:G.field(label,"formatText"),wrapper:null};
+        state.wrapper=function(nativeText:String):String {
+            var result=enabled?clean:nativeText;
+            if(state.format!=null)result=state.format(result);
+            if(enabled && result!=null)for(replacement in replacements)
+                result=StringTools.replace(result,replacement.key,replacement.markup);
+            return result;
+        };
+        bubbles.set(bubble,state);
+        G.set(label,"formatText",state.wrapper);
+        G.set(label,"prevUnformatted",null);
+    }
+
+    static function forgetBubble(bubble:Dynamic):Void {
+        var state=bubbles.get(bubble);
+        if(state==null)return;
+        if(G.field(state.label,"formatText")==state.wrapper)G.set(state.label,"formatText",state.format);
+        G.set(state.label,"prevUnformatted",null);
+        bubbles.remove(bubble);
     }
 
     static function linkIndex(href:String, length:Int):Int {
@@ -262,13 +317,15 @@ class ItemLinks {
         var binding = interactions.get(object);
         if (binding != null) { restoreInteraction(binding); interactions.remove(object); }
         forgetRow(object);
+        forgetBubble(object);
     }
     public static function dispose():Void {
         ItemLinkDraft.dispose();
         hideTip();
         for (binding in interactions) restoreInteraction(binding);
         for (row in [for (row in rows.keys()) row]) forgetRow(row);
-        offers = new ObjectMap(); interactions = new ObjectMap(); rows = new ObjectMap();
+        for (bubble in [for (bubble in bubbles.keys()) bubble]) forgetBubble(bubble);
+        offers = new ObjectMap(); interactions = new ObjectMap(); rows = new ObjectMap(); bubbles = new ObjectMap();
     }
     public static function report(error:Dynamic):Void {
         if (!reported) { reported = true; TradeDiagnostics.log("Item links: "+Std.string(error)); }

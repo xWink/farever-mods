@@ -47,6 +47,7 @@ class GameAccess {
         default:throw "Unexpected allocation "+t;
     };
     public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
+        case "cleanPlayerText":StringTools.htmlEscape(a[0]);
         case "isDown":alt;
         case "create":{nativeType:"st.item.Weapon",kind:a[0],inf:{id:a[0]}};
         case "fromItem":{realItem:a[1]};

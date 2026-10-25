@@ -6,6 +6,14 @@ class ItemLinkUiTest {
     static var checks=0;
     static function check(value:Bool,message:String):Void {checks++;if(!value)throw message;}
     static function event(button=0):Dynamic return {button:button,cancel:false,propagate:true};
+    static function openBubble(bubble:Dynamic,message:Dynamic):Void {
+        ItemLinks.prepareBubble(bubble,message);
+        var text=G.text(message.text);
+        bubble.timer=bubble.countdown;
+        if(text.length>100)text=text.substr(0,100)+"...";
+        G.call("ui.comp.FmtText","set_text",bubble.messageText,[G.staticCall("HText","cleanPlayerText",[text])]);
+        bubble.visible=true;
+    }
     static function main():Void {
         for (entry in ["item:Sword","item:CorruptedGift","rarity:Epic","skill:Warrior_Smash","skill:Rogue_Poison","attribute:Power"])
             G.definitions.set(entry,{id:entry.split(":")[1]});
@@ -115,6 +123,36 @@ class ItemLinkUiTest {
         check(G.ui.currentTip!=null,"A second link in a message can display its tooltip");
         ItemLinks.attach(row);
         check(G.ui.currentTip==null&&G.text(label.text).indexOf('wink-item:1')>=0,"Reinitializing a row clears old hover state and avoids stacked handlers");
+        var nativeFormat:Dynamic=(text:String)->"native:"+text;
+        var nativeHover:Dynamic=(href:String)->{foreign++;};
+        var ownBubble:Dynamic={timer:0,countdown:5,messageText:{text:"",prevUnformatted:null,formatText:nativeFormat,onOverHyperlink:nativeHover}};
+        var remoteBubble:Dynamic={timer:0,countdown:5,messageText:{text:"",prevUnformatted:null,formatText:nativeFormat,onOverHyperlink:nativeHover}};
+        var bubbleMessage:Dynamic={text:"Selling "+token+" today",notify:null,sender:{isMe:true}};
+        openBubble(ownBubble,bubbleMessage);
+        check(ownBubble.messageText.text=='native:Selling <font color="#AABBCC"><b>Épée du test</b></font> today',"Self bubble displays the colored localized name even when the wire token exceeds the native 100-character cap");
+        check(bubbleMessage.text=="Selling "+token+" today","Bubble presentation leaves shared chat history and wire data intact");
+        check(G.text(ownBubble.messageText.text).indexOf("<a ")<0&&ownBubble.messageText.onOverHyperlink==nativeHover,"Bubble names do not add interactive links or hover handlers");
+        check(ownBubble.timer==5&&ownBubble.visible==true,"Native bubble visibility and countdown still run");
+        bubbleMessage.sender={isMe:false};openBubble(remoteBubble,bubbleMessage);
+        check(remoteBubble.messageText.text==ownBubble.messageText.text,"Other players' bubbles use the same formatting");
+        openBubble(ownBubble,bubbleMessage);
+        check(ownBubble.messageText.text==remoteBubble.messageText.text,"Repeated bubble messages refresh without stacking formatters");
+        ItemLinks.configure(false);
+        check(G.text(ownBubble.messageText.text).indexOf("~i1:")>=0,"Disabling restores native bubble text");
+        ItemLinks.configure(true);
+        check(G.text(ownBubble.messageText.text).indexOf("~i1:")<0,"Re-enabling restores the readable bubble name");
+        bubbleMessage.text=StringTools.lpad("","x",80)+" "+token+" "+StringTools.lpad("","y",30);
+        openBubble(ownBubble,bubbleMessage);
+        var readable=~/<[^>]*>/g.replace(G.text(ownBubble.messageText.text).substr(7),"");
+        check(readable.length==103&&StringTools.endsWith(readable,"...")&&readable.indexOf("Épée du test")>=0,"Bubble truncation counts visible names and keeps valid markup");
+        bubbleMessage.text=StringTools.lpad("","x",96)+token;openBubble(ownBubble,bubbleMessage);
+        check(StringTools.endsWith(G.text(ownBubble.messageText.text),'<b>Épée</b></font>...'),"The visible limit may shorten a name without exposing a partial encoded token or breaking its color tag");
+        bubbleMessage.text="<evil> ~wink-bubble-0~ "+token;openBubble(ownBubble,bubbleMessage);
+        check(G.text(ownBubble.messageText.text).indexOf("&lt;evil&gt; ~wink-bubble-0~ ")>=0,"Native escaping and literal text resembling internal placeholders are preserved");
+        bubbleMessage.text="Ordinary message";openBubble(ownBubble,bubbleMessage);
+        check(ownBubble.messageText.text=="native:Ordinary message"&&ownBubble.messageText.formatText==nativeFormat,"Reusing a bubble for ordinary text restores its native formatter");
+        ItemLinks.forget(remoteBubble);
+        check(remoteBubble.messageText.formatText==nativeFormat,"Removing a bubble releases its formatter");
         var malformed:Dynamic={message:{text:"before ~i1:AAAA~ after",notify:null},msgText:{prevUnformatted:"unchanged",text:"unchanged"}};
         ItemLinks.attach(malformed);check(malformed.msgText.text=="unchanged","Malformed links never replace ordinary text");
         offer.kind="MissingItem";var unknownToken=ItemLinkCodec.encode(offer);
