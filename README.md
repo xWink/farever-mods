@@ -2,6 +2,8 @@
 
 Independent HLX mods for Farever. Each mod has its own build, installable ZIP, and version.
 
+Visit [Fareverly](https://fareverly.com) for [mod showcases](https://fareverly.com/mods), [boss leaderboards](https://fareverly.com/leaderboards), [combat-log analysis](https://fareverly.com/analyze), and the [Farever marketplace](https://fareverly.com/marketplace). New to modding? Start with the [Getting Started guide](https://fareverly.com/getting-started).
+
 | Mod | Downloads | Test builds |
 | --- | --- | --- |
 | [Better Mod Settings](better-mod-settings/) | [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) |

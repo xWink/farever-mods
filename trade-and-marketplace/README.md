@@ -37,6 +37,8 @@ Source lives in `trade-and-marketplace/`. Actions runs regression tests and comp
 
 ## Marketplace
 
+Browse the same live buy and sell orders on the [Farever marketplace at Fareverly](https://fareverly.com/marketplace), with no website sign-in required. Create listings and arrange trades through the mod. View [screenshots and features](https://fareverly.com/mods/trade-and-marketplace).
+
 Press **F7** to open or close the marketplace, or type `/market` or `/marketplace` to open it. The hotkey can be rebound in Better Mod Settings. Closing and reopening preserves your scroll position and selection.
 
 - Browse listings for your game server, filter items and inspect native tooltips. Scroll down to load more listings automatically. **My listings** also uses a continuous scrollable list.
@@ -49,4 +51,4 @@ Press **F7** to open or close the marketplace, or type `/market` or `/marketplac
 - **Whisper seller** contacts their account. Meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
 - Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 
-Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website marketplace remains a separate preview until its live-data rollout.
+Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website displays the same live listings for browsing.
