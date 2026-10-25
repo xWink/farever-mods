@@ -132,6 +132,17 @@ class ItemLinks {
         G.set(input,"cursorIndex",G.call("h2d.TextInput","getTextLength",input));
         G.call("h2d.TextInput","inputText",input,[next.substr(draft.length)]);
         G.call("ui.hud.ChatBox","focus",chat);
+        // Chat focus is deferred; the item click can blur the input and reset
+        // its cursor before that focus completes. Finish placement afterwards.
+        G.call("ui.UIElement","waitNextFrame",chat,[function():Void {
+            try {
+                if (!enabled || G.current("ui.BaseUI","current") != ui || G.field(chat,"removed") == true
+                    || G.field(G.field(chat,"messageInput"),"input") != input || G.text(G.field(input,"text")) != next) return;
+                G.call("h2d.TextInput","focus",input,[null]);
+                G.set(input,"selectionRange",null);
+                G.set(input,"cursorIndex",G.call("h2d.TextInput","getTextLength",input));
+            } catch (error:Dynamic) report(error);
+        }]);
     }
 
     public static function attach(row:Dynamic):Void {

@@ -4,6 +4,11 @@ class GameAccess {
     public static var ui:Dynamic;
     public static var alt = false;
     public static var focused = 0;
+    public static var nextFrame:Array<Void->Void> = [];
+    public static function runNextFrame():Void {
+        var pending=nextFrame;nextFrame=[];
+        for (callback in pending) callback();
+    }
     public static var errors:Array<String> = [];
     public static var definitions:Map<String,Dynamic> = [];
     public static function field(o:Dynamic,k:String):Dynamic return o == null ? null : Reflect.field(o,k);
@@ -42,7 +47,16 @@ class GameAccess {
             if(o.selectionRange!=null)throw "Existing draft selection would be overwritten";
             if(o.cursorIndex!=Std.string(o.text).length)throw "Link must append at the end";
             o.text=Std.string(o.text)+a[0];o.cursorIndex=Std.string(o.text).length;o.changes++;null;
-        case "focus":focused++;null;
+        case "focus":
+            if(t=="ui.hud.ChatBox") {
+                focused++;
+                nextFrame.push(()->{call("h2d.TextInput","focus",o.messageInput.input,[null]);});
+            } else {
+                o.focused=true;
+                if(integer(o.cursorIndex)<0)o.cursorIndex=0;
+            }
+            null;
+        case "waitNextFrame":nextFrame.push(a[0]);null;
         case "chatError":errors.push(a[0]);null;
         case "set_text":
             if(o.prevUnformatted!=a[0]) {o.prevUnformatted=a[0];o.text=o.formatText(a[0]);}a[0];

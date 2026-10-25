@@ -29,6 +29,14 @@ class ItemLinkUiTest {
         check(input.selectionRange==null,"An existing selection is not replaced");
         G.alt=false;interactive.onRelease(event());
         check(releases==2,"Releasing Alt before the mouse does not run the native release action");
+        // The scene blurs chat after the item click, before deferred focus runs.
+        input.cursorIndex=-1;input.focused=false;input.selectionRange={start:0,length:4};
+        G.runNextFrame();
+        check(input.focused==true&&input.cursorIndex==G.text(input.text).length,"Caret lands after the link once native deferred focus completes");
+        check(input.selectionRange==null,"Deferred focus leaves no selected text to overwrite");
+        var linkedDraft=G.text(input.text);
+        G.call("h2d.TextInput","inputText",input,["selling"]);
+        check(input.text==linkedDraft+"selling","Typing immediately continues after the complete link");
         var token=ItemLinkCodec.tokens(StringTools.trim(input.text))[0];
         check(ItemLinkCodec.decode(token).count==2,"The selected stack is serialized");
         var full=StringTools.lpad("x","x",250);input.text=full;G.alt=true;
