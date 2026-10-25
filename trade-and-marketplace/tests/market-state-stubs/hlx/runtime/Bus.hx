@@ -1,5 +1,6 @@
 package hlx.runtime;
 class Bus {
-    public static function subscribe(topic:String,callback:Dynamic->Void):Void {}
-    public static function publish(topic:String,data:Dynamic):Void {}
+    static var handlers:Map<String,Dynamic->Void>=[];
+    public static function subscribe(topic:String,callback:Dynamic->Void):Void handlers[topic]=callback;
+    public static function publish(topic:String,data:Dynamic):Void {if(handlers.exists(topic))handlers[topic](data);}
 }

@@ -209,6 +209,7 @@ class MarketplaceStateTest {
         Sys.println("Marketplace state checks passed: "+checks);
         MarketplaceCacheTest.run();
         MarketplacePresenceRefreshTest.run();
+        MarketplaceConnectionTest.run();
         MarketplaceRecoveryTest.run();
         MarketplaceBuyOrderTest.run();
         MarketplaceLimitsTest.run();

@@ -45,7 +45,7 @@ class MarketWorker {
     function current(id:Int):Bool { mutex.acquire();var yes=id==generation;mutex.release();return yes; }
     function run():Void {
         var id=0,account="",server="",presenceAccount="",key="",verified=false,verifyAt=0.0,verifyFailures=0;
-        var presence=new MarketPresence(),opened="",message="";
+        var presence=new MarketPresence(),opened="",message="",verifyRequested=false;
         var http=new MarketHttp(()->{if(!current(id))throw "Session ended";});
         var auth=new fareverly.AuthFlow((m,u,b,k)->http.authenticated(m,u,b,k),()->Date.now().getTime()/1000);
         while(true) {
@@ -56,13 +56,17 @@ class MarketWorker {
             if(job!=null && current(job.generation)) try {
                 if(job.op=="session") {
                     id=job.generation; account=job.account; server=job.server; key=job.key; verified=false;verifyAt=0;verifyFailures=0;
-                    auth.cancel();presence.stopped=false;
+                    auth.cancel();presence.stopped=false;verifyRequested=false;
                     if(account!=""&&account!=presenceAccount){presence.reset();presenceAccount=account;}
                     opened="";message="";
                 } else if(job.generation==id) switch(job.op) {
                     case "auth":
                         auth.begin(account,key!="",job.entropy);opened="";message="";
                     case "cancel-auth": auth.cancel();
+                    case "verify":
+                        if(Math.isFinite(verifyAt)&&verifyAt>Date.now().getTime()/1000)
+                            events.add({generation:id,op:"verification",message:"Fareverly is temporarily unavailable. Please wait before verifying again."});
+                        else {verifyRequested=true;verifyAt=0;}
                     case "request","prefetch","presence-read":
                         var needsKey=job.method!="GET" || job.path.indexOf("mine=true")>=0;
                         var response:Response=needsKey&&!verified?{status:401,body:'{"error":"sign_in_required"}',retryAfter:"",error:""}:
@@ -89,20 +93,24 @@ class MarketWorker {
                 }
                 if(message!=auth.message) { message=auth.message;events.add({generation:id,op:auth.active?"auth":"auth-end",message:message,code:auth.userCode}); }
                 if(auth.credential!=null) {events.add({generation:id,op:"credential",credential:auth.credential,expectedKey:key});auth.clearCredential();}
-            } else if(Protocol.validKey(key) && !verified && now>=verifyAt) {
+            } else if(Protocol.validKey(key) && (!verified||verifyRequested) && now>=verifyAt) {
                 var response=http.authenticated("GET",Protocol.ORIGIN+"/api/v1/account",null,key);
                 if(!current(id))continue;
                 var data:Dynamic=null;try data=haxe.Json.parse(response.body)catch(_:Dynamic){}
                 var scopes:Array<String>=data!=null&&Std.isOfType(data.scopes,Array)?data.scopes:[];
-                if(response.status==200 && data!=null && data.account_id==account && scopes.indexOf("marketplace:write")>=0 && scopes.indexOf("marketplace:presence")>=0) {
-                    verified=true;events.add({generation:id,op:"ready",message:"Connected to Fareverly."});
+                if(response.status==200 && response.error=="" && data!=null && data.account_id==account && scopes.indexOf("marketplace:write")>=0 && scopes.indexOf("marketplace:presence")>=0) {
+                    verified=true;verifyFailures=0;verifyAt=0;events.add({generation:id,op:"ready",message:Protocol.CONNECTED});
+                    if(verifyRequested)events.add({generation:id,op:"verification",message:Protocol.CONNECTED});
                 } else if(response.status==401||response.status==403||response.status==200) {
                     if(response.status==200)MarketApiLog.unexpected("GET","/api/v1/account",200,
                         data==null?"Expected a JSON account response":data.account_id!=account?"API key belongs to a different account":"Missing marketplace:write or marketplace:presence scope",key);
-                    verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Sign in with Steam to connect this Farever account to the marketplace."});
+                    verified=false;verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:Protocol.LOGIN_REQUIRED});
+                    if(verifyRequested)events.add({generation:id,op:"verification",message:Protocol.LOGIN_REQUIRED});
                 } else { verifyFailures++;
                     if(verifyFailures==1)events.add({generation:id,op:"connection-error",message:MarketText.TEMPORARY_ERROR});
+                    if(verifyRequested)events.add({generation:id,op:"verification",message:"Could not verify Fareverly connection. Try again later."});
                     verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
+                verifyRequested=false;
             } else if(verified && MarketPresence.validServer(server) && presence.due(now)) {
                 var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(MarketPresence.body(server)),key);
                 if(!current(id))continue;

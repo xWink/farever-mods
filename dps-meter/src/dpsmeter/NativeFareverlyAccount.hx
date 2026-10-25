@@ -18,6 +18,7 @@ class NativeFareverlyAccount {
     var localAccount = "";
     var opening = false;
     var active = false;
+    var verifying = false;
     var openedUri = "";
     var owner:String;
     var generation = 0;
@@ -28,6 +29,7 @@ class NativeFareverlyAccount {
         owner = HlxRuntime.moduleName();
         var prefix = "better-mod-settings/action/" + owner + "/";
         Bus.subscribe(prefix + "fareverlySignIn", (_:Dynamic) -> start());
+        Bus.subscribe(prefix + "fareverlyVerify", (_:Dynamic) -> verify());
         settingsChanged(false);
     }
     public function settingsChanged(notifySuccess:Bool = true):Void {
@@ -39,16 +41,26 @@ class NativeFareverlyAccount {
         worker.settings(localAccount, key, edited);
     }
     function start():Void {
-        if (active) return;
+        if (active || verifying) return;
         var key:String;
         try key = readKey() catch (_:Dynamic) { notice("Common settings could not be read. Check hlx/config/common/config.json."); return; }
-        if (localAccount == "") { notice("Enter the game with your character before generating a key."); return; }
+        if (localAccount == "") { notice("Enter the game with your character before connecting to Fareverly."); return; }
         if (!SessionLease.acquire(owner)) { notice("A Fareverly sign-in is already in progress in another mod."); return; }
         active = true; cancelled = false; openedUri = ""; status.value = "Preparing Steam sign-in...";
         generation = worker.start(localAccount, key != "", key);
     }
+    function verify():Void {
+        if (active || verifying) return;
+        var key:String;
+        try key = readKey() catch (_:Dynamic) { notice("Common settings could not be read."); return; }
+        if (localAccount == "") { notice("Enter the game with your character before verifying Fareverly."); return; }
+        if (!Protocol.validKey(key)) { notice(Protocol.LOGIN_REQUIRED); return; }
+        cancelled = false; verifying = true;
+        notice("Verifying Fareverly connection...");
+        generation = worker.verify(localAccount, key);
+    }
     public function uploadMessage(message:String):Void { if (!active && message != "") status.value = message; }
-    public function disconnect():Void { cancelled = true; closeDialog(); localAccount = ""; worker.settings("", observedKey); worker.cancel(); }
+    public function disconnect():Void { cancelled = true; verifying = false; closeDialog(); localAccount = ""; worker.settings("", observedKey); worker.cancel(); }
     public function update(hero:Dynamic):Void {
         var account = NativePlayerIdentity.accountId(hero);
         if (account == null) account = "";
@@ -66,10 +78,11 @@ class NativeFareverlyAccount {
             if (cancelled) { event = worker.receive(); continue; }
             status.value = event.message;
             if (event.code != "") status.value = "Code: " + event.code + "\n" + event.message;
+            if (event.manualResult) verifying = false;
             if (event.persist) {
                 if (saveCredential(event.credential, event.expectedKey))
-                    status.value = event.manualResult ? "Fareverly key verified and saved." : "Steam connected. Your Fareverly key has been saved. It is shared with other Fareverly mods.";
-                else status.value = "The key could not be saved, or the textbox changed during sign-in. Your current common settings were kept.";
+                    status.value = Protocol.CONNECTED;
+                else status.value = "The key could not be saved, or the connection changed during sign-in. Your current common settings were kept.";
             }
             if (finished || event.manualResult) notice(status.value);
             if (event.url != "" && event.url != openedUri) {

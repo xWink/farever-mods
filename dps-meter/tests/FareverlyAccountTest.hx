@@ -50,6 +50,7 @@ class FareverlyAccountTest {
         flow.begin("test-account", false, random);
         check(random.get(0) == 0, "Entropy buffer is cleared after encoding");
         flow.step(); check(calls == 1 && flow.userCode == "ABCD-1234" && flow.verificationUri == uri, "Code and verified browser URL are available to the UI");
+        check(StringTools.endsWith(flow.message,"Connection may take up to 1 minute."), "Steam sign-in explains the connection delay");
         now += 4.99; flow.step(); check(calls == 1, "Never poll faster than five seconds");
         now += .01; flow.step(); now += 11; flow.step(); check(calls == 2, "Pending response honors Retry-After");
         now++; flow.step(); check(!flow.active && flow.credential.accessToken == key && flow.userCode == "" && flow.verificationUri == "", "One-time credential delivery clears flow secrets/UI code");
@@ -156,7 +157,7 @@ class FareverlyAccountTest {
         };
         var queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.enqueue(RecoveryTest.fixture()); queue.step(); check(calls == 0, "Missing key pauses without any network request");
-        value = key; queue.step(); check(posts == 1 && queue.authMessage.indexOf("Generate API key") >= 0, "401 pauses and offers regeneration");
+        value = key; queue.step(); check(posts == 1 && queue.authMessage.indexOf("Login to Fareverly") >= 0, "401 pauses and offers login");
         now += 1000; queue.step(); check(posts == 1, "Invalid key is not retried");
         queue = new FareverlyUploader(root, transport, _ -> {}, () -> now, () -> 0, () -> value);
         queue.step(); check(posts == 1, "401 pause survives restart");

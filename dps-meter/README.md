@@ -16,7 +16,7 @@ Reports reflect events observed by your client, so totals can differ between pla
 
 ## Fareverly
 
-Generate an API key through the mod's settings and sign in with Steam to enable uploads to [fareverly.com](https://fareverly.com). Eligible boss victories upload in the background.
+Choose **Login to Fareverly** in the mod's settings and sign in with Steam to enable uploads to [fareverly.com](https://fareverly.com). Use **Verify Fareverly connection** to check your saved connection. Eligible boss victories upload in the background.
 
 Ranked uploads require an observed encounter start and uninterrupted recording. Joining or reconnecting during a fight keeps that recording local, including its later phases. A confirmed reset permits a fresh attempt. Older queued logs without start evidence also stay local; their history and analyzer access remain available.
 

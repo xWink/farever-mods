@@ -40,6 +40,7 @@ class FareverlyDialogTest {
         completed = event(2,false); completed.persist = true; completed.message = "Saved";
         worker.events.push(completed); controller.update(hero);
         check(saves == 1 && G.latest.buttons.length == 1 && G.latest.buttons[0].text == "OK", "Successful authorization still saves and shows its result");
+        check(G.latest.message == Protocol.CONNECTED, "Login confirms the shared Fareverly connection");
         controller.disconnect();
         verificationFeedback();
         Sys.println('Fareverly dialog: $checks checks passed.');
@@ -71,6 +72,26 @@ class FareverlyDialogTest {
         var failed = event(0,false); failed.manualResult = true; failed.message = "Could not verify this key.";
         worker.events.push(failed); controller.update(hero);
         check(G.created == created + 2 && G.latest.message == failed.message, "Verification errors remain visible");
+        G.choose(G.latest, 0);
+        var browsers = FareverlyBrowser.opened.length;
+        Bus.publish("better-mod-settings/action/dps-meter/fareverlyVerify", null);
+        Bus.publish("better-mod-settings/action/dps-meter/fareverlyVerify", null);
+        check(worker.verificationCalls.length == 1 && worker.verificationCalls[0].key == key,
+            "Verify checks the unchanged saved key once even when pressed repeatedly");
+        check(FareverlyBrowser.opened.length == browsers, "Verification never opens Steam sign-in");
+        failed.generation = worker.generation;
+        worker.events.push(failed); controller.update(hero);
+        check(G.latest.message == failed.message, "An explicit verification failure is displayed");
+        Bus.publish("better-mod-settings/action/dps-meter/fareverlyVerify", null);
+        check(worker.verificationCalls.length == 2, "Verification can be retried after a failure");
+        verified.generation = worker.generation; verified.message = Protocol.CONNECTED;
+        worker.events.push(verified); controller.update(hero);
+        check(G.latest.message == Protocol.CONNECTED && G.latest.message.indexOf(key) < 0,
+            "Successful verification confirms the connection without exposing the key");
+        key = "";
+        Bus.publish("better-mod-settings/action/dps-meter/fareverlyVerify", null);
+        check(worker.verificationCalls.length == 2 && G.latest.message == Protocol.LOGIN_REQUIRED,
+            "A missing key asks for login without sending a verification request");
         controller.disconnect();
     }
 }

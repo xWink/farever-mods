@@ -27,24 +27,23 @@
       "modifiers": true
     },
     {
-      "key": "fareverlyApiKey",
-      "type": "text",
-      "isSecret": true,
-      "isCommon": true,
-      "label": "Fareverly API key",
+      "key": "fareverlySignIn",
+      "type": "button",
+      "label": "Login to Fareverly",
+      "buttonText": "Login to Fareverly",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "This secret key connects your Farever account to Fareverly. Do not share it with anyone."
+        "tooltipText": "Sign in through Steam in your browser to connect your Fareverly account. Fareverly access is shared across all downloaded mods."
       }
     },
     {
-      "key": "fareverlySignIn",
+      "key": "fareverlyVerify",
       "type": "button",
-      "label": "Generate API key",
-      "buttonText": "Generate API key",
+      "label": "Verify Fareverly connection",
+      "buttonText": "Verify Fareverly connection",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "Sign in through Steam in your browser to create or replace your Fareverly key. Your current key remains valid until the new key is issued."
+        "tooltipText": "Check your saved Fareverly connection without signing in again."
       }
     }
   ]

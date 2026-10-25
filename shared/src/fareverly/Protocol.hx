@@ -8,6 +8,8 @@ typedef Credential = {accessToken:String, accountId:String, steamId:String, expi
 
 class Protocol {
     public static inline var ORIGIN = "https://fareverly.com";
+    public static inline var CONNECTED = "Fareverly account successfully connected. Fareverly access is shared across all downloaded mods.";
+    public static inline var LOGIN_REQUIRED = "Choose Login to Fareverly to connect your account.";
     public static function validKey(value:String):Bool return value != null && ~/^fv1_[A-Za-z0-9_-]{43}$/.match(value);
     public static function validAccount(value:String):Bool return value != null && ~/^[A-Za-z0-9:_-]{1,128}$/.match(value);
     public static function connectUrl(value:String):Bool
@@ -45,15 +47,15 @@ class Protocol {
         } catch (_:Dynamic) return 0;
     }
     public static function error(code:String):String return switch (code) {
-        case "already_linked": "This account is already linked. Choose Generate API key.";
-        case "account_not_linked": "This account is not linked yet. Choose Generate API key.";
+        case "already_linked": "This account is already linked. Choose Login to Fareverly.";
+        case "account_not_linked": "This account is not linked yet. Choose Login to Fareverly.";
         case "account_conflict": "This Steam or Farever account is linked to another account. Contact Fareverly support.";
         case "account_mismatch": "The Fareverly key belongs to another Farever account. Contact Fareverly support.";
-        case "already_consumed": "The key was already delivered. Choose Generate API key if it was not saved.";
+        case "already_consumed": "The key was already delivered. Choose Login to Fareverly if it was not saved.";
         case "invalid_grant", "request_expired": "The sign-in request expired or is invalid. Start again.";
         case "access_denied": "Steam sign-in was declined.";
         case "invalid_request": "Fareverly rejected the sign-in request format. Please report this error.";
-        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Generate API key.";
+        case "unauthorized": "The Fareverly key is invalid, expired, or revoked. Choose Login to Fareverly.";
         default: "Fareverly sign-in is unavailable. Please try again later.";
     }
 }

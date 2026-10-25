@@ -48,6 +48,8 @@ class MarketWindow {
     var shown = false;
     var connectionNoticeShown=false;
     var connectionDialog:Dynamic;
+    var fareverlyDialog:Dynamic;
+    var fareverlyDialogOwner:Dynamic;
     var px:Null<Float>;
     var py:Null<Float>;
     var quantity = "1";
@@ -86,6 +88,7 @@ class MarketWindow {
         if(connectionDialog!=null&&frame!=null&&G.field(connectionDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",frame.ui,[connectionDialog]);
         connectionDialog=null;
+        closeFareverlyNotice();
         if (frame != null) {
             var old=frame;frame=null;px=old.x;py=old.y;
             old.dispose();
@@ -1356,6 +1359,23 @@ class MarketWindow {
             connectionDialog=G.call("ui.BaseUI","displayDialog",frame.ui,["Marketplace connection",escape(c.canBrowse()?MarketText.CONNECTION_ERROR:MarketText.SIGN_IN_TO_BROWSE),buttons,function(_:String):Void {connectionDialog=null;}]);
             if(connectionDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(connectionDialog,"buttons"),[0]),["OK"]);
         }catch(error:Dynamic) {report("connection notice",error);c.message=MarketText.CONNECTION_ERROR;dirty=true;}
+    }
+    function closeFareverlyNotice():Void {
+        if(fareverlyDialog!=null&&fareverlyDialogOwner!=null&&G.field(fareverlyDialog,"allocated")==true)
+            G.call("ui.BaseUI","removeWindow",fareverlyDialogOwner,[fareverlyDialog]);
+        fareverlyDialog=null;fareverlyDialogOwner=null;
+    }
+    public function showFareverlyNotice(message:String):Void {
+        closeFareverlyNotice();
+        connectionNoticeShown=true;
+        var ui=G.current("ui.BaseUI","current");if(ui==null)return;
+        var buttons=G.call("hl.types.ArrayObj","slice",G.field(ui,"windows"),[0,0]);
+        G.call("hl.types.ArrayObj","pushDyn",buttons,[{ic:"Confirm",input:null,checkEnable:null,onBack:true}]);
+        fareverlyDialogOwner=ui;
+        fareverlyDialog=G.call("ui.BaseUI","displayDialog",ui,["Fareverly",escape(message),buttons,function(_:String):Void {
+            fareverlyDialog=null;fareverlyDialogOwner=null;
+        }]);
+        if(fareverlyDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(fareverlyDialog,"buttons"),[0]),["OK"]);
     }
     static function labelAt(parent:Dynamic,value:String,x:Int,y:Int,width:Int,bold=false,color=INK,single=false):Dynamic {
         var obj=textAt(parent,value,x,y,width,bold);

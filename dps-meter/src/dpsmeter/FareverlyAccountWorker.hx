@@ -36,6 +36,7 @@ class FareverlyAccountWorker {
     public function new() Thread.create(run);
     public function start(account:String, rotate:Bool, key:String):Int { var id = ++requestedGeneration; commands.add({kind:"start", account:account, rotate:rotate, key:key, generation:id, notifySuccess:false}); wake.release(); return id; }
     public function settings(account:String, key:String, notifySuccess:Bool = false):Void { commands.add({kind:"settings", account:account, rotate:false, key:key, generation:requestedGeneration, notifySuccess:notifySuccess}); wake.release(); }
+    public function verify(account:String, key:String):Int { var id = ++requestedGeneration; commands.add({kind:"verify", account:account, key:key, rotate:false, generation:id, notifySuccess:true}); wake.release(); return id; }
     public function cancel():Void { cancellations.add(true); wake.release(); }
     public function receive():Null<AccountEvent> return events.pop(false);
     function progress():Void {
@@ -79,6 +80,12 @@ class FareverlyAccountWorker {
                                     && (verifiedKey != configuredKey || verifiedAccount != account) ? configuredKey : null;
                                 manualAt = haxe.Timer.stamp() + 0.75;
                             }
+                        case "verify":
+                            generation = command.generation;
+                            if (!flow.active && !cancelled) {
+                                account = command.account; expectedKey = command.key;
+                                manualNotifySuccess = true; manualKey = command.key; manualAt = 0;
+                            } else {manualResult = true; status = "Could not verify Fareverly connection while sign-in is being cancelled. Try again.";}
                         default:
                     }
                     command = commands.pop(false);
@@ -109,12 +116,12 @@ class FareverlyAccountWorker {
         if (key == "") {
             credential = Protocol.empty(); status = "Fareverly key cleared. Sign in through Steam to reconnect."; return;
         }
-        if (!Protocol.validKey(key)) { status = "Enter a complete Fareverly API key, or sign in through Steam."; return; }
+        if (!Protocol.validKey(key)) { status = Protocol.LOGIN_REQUIRED; return; }
         if (!Protocol.validAccount(account)) { status = "Enter the game with your character before connecting a key."; return; }
         var response = transport.authenticated("GET", Protocol.ORIGIN + "/api/v1/account", null, key);
         var value:Dynamic = null; try value = haxe.Json.parse(response.body) catch (_:Dynamic) {}
         if (response.status != 200 || response.error != "" || value == null) {
-            status = response.status == 401 ? Protocol.error("unauthorized") : "Could not verify this key. Try pasting it again later."; return;
+            status = response.status == 401 ? Protocol.error("unauthorized") : "Could not verify Fareverly connection. Try again later."; return;
         }
         if (value.account_id != account) { status = Protocol.error("account_mismatch"); return; }
         if (!Std.isOfType(value.steam_id, String) || !~/^[0-9]{17}$/.match(value.steam_id)
@@ -122,9 +129,9 @@ class FareverlyAccountWorker {
             status = "This key does not grant combat-log uploads."; return;
         }
         verifiedKey = key; verifiedAccount = account;
-        status = "Fareverly key verified.";
-        // Background checks still report errors, but only an edited key needs
-        // a success dialog. Loading a saved key at login should be silent.
+        status = Protocol.CONNECTED;
+        // Explicit verification and key changes get a result dialog.
+        // Loading a saved key at login remains silent on success.
         manualResult = manualNotifySuccess;
     }
 }

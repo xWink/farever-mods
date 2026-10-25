@@ -21,6 +21,7 @@ class MarketController {
     public var connectionIssue=false;
     public var busy=false;
     public var signingIn=false;
+    var verifying=false;
     public var view:MarketWindow;
     public var tab="Browse";
     public var buy=new MarketBuy();
@@ -98,6 +99,7 @@ class MarketController {
         Bus.subscribe(CommonSettings.CHANGED_TOPIC,(_:Dynamic)->{if(player!=null)try {if(readKey(CommonSettings.read())!=key)reconnect();}catch(_:Dynamic){}});
         var action="better-mod-settings/action/"+HlxRuntime.moduleName()+"/";
         Bus.subscribe(action+"fareverlySignIn",(_:Dynamic)->signIn());
+        Bus.subscribe(action+"fareverlyVerify",(_:Dynamic)->verifyConnection());
     }
     public function update(app:Dynamic,now:Float):Void {
         this.app=app;
@@ -157,6 +159,8 @@ class MarketController {
                     if(opened&&(tab=="Sell"||tab=="Buy"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "connection-error":message=event.message;view.dirty=true;
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
+                case "verification":
+                    if(verifying){verifying=false;view.showFareverlyNotice(event.message);}
                 case "auth","auth-end":
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
                     if(!signingIn)SessionLease.release(HlxRuntime.moduleName());view.dirty=true;
@@ -169,7 +173,7 @@ class MarketController {
                         sys.FileSystem.createDirectory(haxe.io.Path.directory(CommonSettings.PATH));
                         MarketNative.write(sys.FileSystem.fullPath(CommonSettings.PATH),haxe.Json.stringify(values,null,"  "));
                         Bus.publish(CommonSettings.CHANGED_TOPIC,{key:"fareverlyApiKey"});
-                        message="Fareverly connected. Your API key is shared with other Fareverly mods.";
+                        message=Protocol.CONNECTED;
                     } catch(e:Dynamic)message=Std.string(e);
                     view.dirty=true;
                 default:
@@ -186,7 +190,7 @@ class MarketController {
         ownOnlineUntil=0;ownOnlineServer="";
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
         generation=worker.session(server==""?"":account,key,server);busy=false;ready=false;pending=null;pendingFailure=null;navigationPending=false;navigationForce=false;cooldown.clear();retryOnOpen=false;
-        signingIn=false;SessionLease.release(HlxRuntime.moduleName());
+        signingIn=false;verifying=false;SessionLease.release(HlxRuntime.moduleName());
         invalidateListings();ownedItems=[];ownedKinds=[];
         if(tab=="Sell"){availableInventory=[];inventory=[];inventorySlots=[];chosen=null;total=0;}
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
@@ -196,7 +200,7 @@ class MarketController {
         contactingSeller="";editingListingId="";
         view.close(); if(player!=null)generation=worker.session("","");
         ownOnlineUntil=0;ownOnlineServer="";
-        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;connectionIssue=false;pending=null;pendingFailure=null;navigationPending=false;navigationForce=false;
+        player=null;inv=null;account="";server="";ready=false;busy=false;signingIn=false;verifying=false;connectionIssue=false;pending=null;pendingFailure=null;navigationPending=false;navigationForce=false;
         cooldown.clear();retryOnOpen=false;
         rows=[];browseRows=[];inventory=[];availableInventory=[];locations=[];selected=null;chosen=null;expectedBody="";requestId="";
         buyExpectedBody="";buyRequestId="";
@@ -222,11 +226,21 @@ class MarketController {
         if(player==null)return;
         view.open();
         if(server==""){message="Reconnect to a game server before signing in.";view.dirty=true;return;}
-        if(signingIn)return;
+        if(signingIn||verifying)return;
         if(!SessionLease.acquire(HlxRuntime.moduleName())){message="A Fareverly sign-in is already running in another mod.";view.dirty=true;return;}
         try {worker.send({generation:generation,op:"auth",entropy:MarketNative.random()});signingIn=true;message="Preparing Steam sign-in...";}
         catch(e:Dynamic){SessionLease.release(HlxRuntime.moduleName());message=Std.string(e);}
         view.dirty=true;
+    }
+    function verifyConnection():Void {
+        if(signingIn||verifying)return;
+        if(player==null||account==""||server=="") {view.showFareverlyNotice("Enter the game with your character before verifying Fareverly.");return;}
+        var saved:String;
+        try saved=readKey(CommonSettings.read()) catch(_:Dynamic){view.showFareverlyNotice("Common settings could not be read.");return;}
+        if(saved!=key)reconnect();
+        if(!Protocol.validKey(key)){view.showFareverlyNotice(Protocol.LOGIN_REQUIRED);return;}
+        verifying=true;view.showFareverlyNotice("Verifying Fareverly connection...");
+        worker.send({generation:generation,op:"verify"});
     }
     public function cancelSignIn():Void {reconnect();message="Sign-in cancelled.";view.dirty=true;}
     function rememberTab():Void {
