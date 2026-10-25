@@ -91,7 +91,9 @@ class MarketWorker {
                     opened=auth.verificationUri;
                     try MarketNative.open(opened) catch(_:Dynamic) auth.finish("Could not open the browser. Try signing in again.");
                 }
-                if(message!=auth.message) { message=auth.message;events.add({generation:id,op:auth.active?"auth":"auth-end",message:message,code:auth.userCode}); }
+                // Successful sign-in is reported once, after the game thread saves
+                // the credential. Do not flash an intermediate completion dialog.
+                if(message!=auth.message&&auth.credential==null) { message=auth.message;events.add({generation:id,op:auth.active?"auth":"auth-end",message:message,code:auth.userCode}); }
                 if(auth.credential!=null) {events.add({generation:id,op:"credential",credential:auth.credential,expectedKey:key});auth.clearCredential();}
             } else if(Protocol.validKey(key) && (!verified||verifyRequested) && now>=verifyAt) {
                 var response=http.authenticated("GET",Protocol.ORIGIN+"/api/v1/account",null,key);

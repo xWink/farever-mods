@@ -5,6 +5,7 @@ class GameAccess {
  public static var labels:Array<Dynamic>=[];
  public static var nodes:Array<Dynamic>=[];
  public static var dialogs=0;
+ public static var latestDialog:Dynamic;
  public static var textures:Array<Dynamic>=[];
  public static var pngLoads:Array<String>=[];
  public static var failNextPng=false;
@@ -103,13 +104,15 @@ class GameAccess {
      o.interactive.onOver=()->{if(o.showTipOnOver)o.displayedTip=o.getTip();};
     }
     null;
-   case "displayDialog": dialogs++;null;
+   case "displayDialog": dialogs++;latestDialog={title:a[0],message:a[1],descriptors:a[2],callback:a[3],buttons:[{}],allocated:true};latestDialog;
+   case "getDyn": (cast o:Array<Dynamic>)[a[0]];
+   case "removeWindow": a[0].allocated=false;removed.push(a[0]);null;
    case "setItem": o.item=a[0];null;
    case "set_filter", "set_scrollPosY", "set_minHeight", "set_maxHeight", "set_verticalSpacing", "set_layout", "set_multiline": Reflect.setField(o,n.substr(4),a[0]);null;
    case "updateScale": o.scaleX=1.;o.scaleY=1.;null;
    case "set_options": o.options=a[0];null;
    case "initSelectedIndex": o.selectText.text=o.options[a[0]].name;null;
-   case "set_text": o.text=a[0];null;
+   case "set_text", "setText": o.text=a[0];null;
    case "set_textColor": o.textColor=a[0];null;
    case "set_verticalAlign", "set_horizontalAlign", "set_isAbsolute", "set_selected", "set_enable", "set_textAlign", "set_maxWidthText", "set_maxWidth", "set_textMultiline", "set_lineBreak", "set_useEllipsis", "set_width", "set_height", "set_visible": Reflect.setField(o,n.substr(4),a[0]);null;
    case "moveTo", "lineTo": if(field(o,"points")==null)o.points=[]; (cast o.points:Array<Dynamic>).push(a);null;

@@ -14,9 +14,48 @@ class MarketplaceConnectionTest {
     public static function run():Void {
         var cwd=Sys.getCwd(),root=cwd+"build/market-connection-"+Std.random(0x3fffffff);
         FileSystem.createDirectory(root);Sys.setCwd(root);
-        try test() catch(e:Dynamic){Sys.setCwd(cwd);remove(root);throw e;}
+        try {test();login();} catch(e:Dynamic){Sys.setCwd(cwd);remove(root);throw e;}
         Sys.setCwd(cwd);remove(root);
         Sys.println('Marketplace connection: $checks checks passed.');
+    }
+    static function login():Void {
+        var c=new MarketController(),worker=MarketWorker.current;
+        var topic="better-mod-settings/action/trade-and-marketplace/fareverlySignIn";
+        Bus.publish(topic,null);
+        check(!c.view.isOpen()&&worker.sent.length==0,"Login without a character only shows a notice");
+        var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app={me:player};
+        c.player=player;c.account="test-account";c.server="europe";
+        c.key="fv1_"+StringTools.lpad("","K",43);
+        var original=File.getContent(CommonSettings.PATH),writes=marketplace.MarketNative.writes;
+        Bus.publish(topic,null);Bus.publish(topic,null);
+        check(!c.view.isOpen()&&c.signingIn&&worker.sent.length==1&&worker.sent[0].op=="auth"&&c.view.noticePending,
+            "Login starts one authentication attempt with a cancellable popup and no marketplace window");
+        worker.incoming.push({generation:c.generation,op:"auth",code:"ABCD-1234",
+            message:"Match this code in your browser, then approve Steam sign-in. Connection may take up to 1 minute."});c.update(app,0);
+        var progress=c.view.notices[c.view.notices.length-1];
+        check(!c.view.isOpen()&&c.view.noticePending&&progress.indexOf("ABCD-1234")>=0
+            &&StringTools.endsWith(progress,"Connection may take up to 1 minute."),"Sign-in progress is shown in the popup");
+        var cancelledGeneration=c.generation;
+        c.cancelSignIn();var count=c.view.notices.length;
+        var credential={accessToken:"fv1_"+StringTools.lpad("","N",43),accountId:c.account,steamId:"76561198000000000",expiresAt:"2030-01-01T00:00:00.000Z"};
+        worker.incoming.push({generation:cancelledGeneration,op:"auth",code:"LATE",message:"Late response"});
+        worker.incoming.push({generation:cancelledGeneration,op:"credential",credential:credential,expectedKey:c.key});c.update(app,0);
+        check(!c.signingIn&&!c.view.isOpen()&&!c.view.noticePending&&c.view.notices.length==count,
+            "Cancellation suppresses late popups and keeps the marketplace closed");
+        check(File.getContent(CommonSettings.PATH)==original&&marketplace.MarketNative.writes==writes,
+            "Cancelled login never overwrites the saved credential");
+        Bus.publish(topic,null);
+        worker.incoming.push({generation:c.generation,op:"auth-end",message:"Steam sign-in was declined."});c.update(app,0);
+        check(!c.signingIn&&!c.view.noticePending&&!c.view.isOpen()
+            &&c.view.notices[c.view.notices.length-1]=="Steam sign-in was declined.","Sign-in failure displays a result popup");
+        Bus.publish(topic,null);
+        worker.incoming.push({generation:c.generation,op:"credential",credential:credential,expectedKey:c.key});c.update(app,0);
+        check(!c.signingIn&&!c.view.noticePending&&!c.view.isOpen()
+            &&c.view.notices[c.view.notices.length-1]==Protocol.CONNECTED,"Success shows the shared connection confirmation without opening the marketplace");
+        var saved=CommonSettings.read();
+        check(saved.fareverlyApiKey==credential.accessToken&&saved.otherModSetting==42&&marketplace.MarketNative.writes==writes+1,
+            "Successful login keeps secure credential saving and other common settings intact");
+        c.disconnect();
     }
     static function test():Void {
         var c=new MarketController(),worker=MarketWorker.current;

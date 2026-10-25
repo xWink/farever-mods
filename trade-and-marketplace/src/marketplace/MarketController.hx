@@ -162,9 +162,12 @@ class MarketController {
                 case "verification":
                     if(verifying){verifying=false;view.showFareverlyNotice(event.message);}
                 case "auth","auth-end":
+                    if(!signingIn){event=worker.receive();continue;}
                     signingIn=event.op=="auth";message=(event.code==null||event.code==""?"":"Code: "+event.code+"\n")+event.message;
                     if(!signingIn)SessionLease.release(HlxRuntime.moduleName());view.dirty=true;
+                    view.showFareverlyNotice(message,signingIn);
                 case "credential":
+                    if(!signingIn){event=worker.receive();continue;}
                     signingIn=false;SessionLease.release(HlxRuntime.moduleName());
                     try {
                         var values=CommonSettings.read();
@@ -175,6 +178,7 @@ class MarketController {
                         Bus.publish(CommonSettings.CHANGED_TOPIC,{key:"fareverlyApiKey"});
                         message=Protocol.CONNECTED;
                     } catch(e:Dynamic)message=Std.string(e);
+                    view.showFareverlyNotice(message);
                     view.dirty=true;
                 default:
             }
@@ -186,6 +190,7 @@ class MarketController {
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
+        if(signingIn)view.closeFareverlyNotice();
         cancelPresenceRead();peerPresence=new MarketPresenceRefresh();
         ownOnlineUntil=0;ownOnlineServer="";
         key="";try key=readKey(CommonSettings.read())catch(_:Dynamic){}
@@ -223,13 +228,13 @@ class MarketController {
         if(!opened||retryOnOpen&&!busy){opened=true;refresh();}
     }
     public function signIn():Void {
-        if(player==null)return;
-        view.open();
-        if(server==""){message="Reconnect to a game server before signing in.";view.dirty=true;return;}
         if(signingIn||verifying)return;
-        if(!SessionLease.acquire(HlxRuntime.moduleName())){message="A Fareverly sign-in is already running in another mod.";view.dirty=true;return;}
+        if(player==null){view.showFareverlyNotice("Enter the game with your character before connecting to Fareverly.");return;}
+        if(server==""){view.showFareverlyNotice("Reconnect to a game server before signing in.");return;}
+        if(!SessionLease.acquire(HlxRuntime.moduleName())){view.showFareverlyNotice("A Fareverly sign-in is already running in another mod.");return;}
         try {worker.send({generation:generation,op:"auth",entropy:MarketNative.random()});signingIn=true;message="Preparing Steam sign-in...";}
         catch(e:Dynamic){SessionLease.release(HlxRuntime.moduleName());message=Std.string(e);}
+        view.showFareverlyNotice(message,signingIn);
         view.dirty=true;
     }
     function verifyConnection():Void {

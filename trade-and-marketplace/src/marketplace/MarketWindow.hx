@@ -1360,22 +1360,24 @@ class MarketWindow {
             if(connectionDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(connectionDialog,"buttons"),[0]),["OK"]);
         }catch(error:Dynamic) {report("connection notice",error);c.message=MarketText.CONNECTION_ERROR;dirty=true;}
     }
-    function closeFareverlyNotice():Void {
+    public function closeFareverlyNotice():Void {
         if(fareverlyDialog!=null&&fareverlyDialogOwner!=null&&G.field(fareverlyDialog,"allocated")==true)
             G.call("ui.BaseUI","removeWindow",fareverlyDialogOwner,[fareverlyDialog]);
         fareverlyDialog=null;fareverlyDialogOwner=null;
     }
-    public function showFareverlyNotice(message:String):Void {
+    public function showFareverlyNotice(message:String,pending=false):Void {
         closeFareverlyNotice();
         connectionNoticeShown=true;
         var ui=G.current("ui.BaseUI","current");if(ui==null)return;
         var buttons=G.call("hl.types.ArrayObj","slice",G.field(ui,"windows"),[0,0]);
-        G.call("hl.types.ArrayObj","pushDyn",buttons,[{ic:"Confirm",input:null,checkEnable:null,onBack:true}]);
+        G.call("hl.types.ArrayObj","pushDyn",buttons,[{ic:pending?"Cancel":"Confirm",input:null,checkEnable:null,onBack:true}]);
         fareverlyDialogOwner=ui;
-        fareverlyDialog=G.call("ui.BaseUI","displayDialog",ui,["Fareverly",escape(message),buttons,function(_:String):Void {
+        fareverlyDialog=G.call("ui.BaseUI","displayDialog",ui,["Fareverly",escape(message),buttons,function(choice:String):Void {
+            // BaseDialog closes itself after this callback; clear ownership first.
             fareverlyDialog=null;fareverlyDialogOwner=null;
+            if(pending&&choice=="Cancel")c.cancelSignIn();
         }]);
-        if(fareverlyDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(fareverlyDialog,"buttons"),[0]),["OK"]);
+        if(fareverlyDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(fareverlyDialog,"buttons"),[0]),[pending?"Cancel sign-in":"OK"]);
     }
     static function labelAt(parent:Dynamic,value:String,x:Int,y:Int,width:Int,bold=false,color=INK,single=false):Dynamic {
         var obj=textAt(parent,value,x,y,width,bold);

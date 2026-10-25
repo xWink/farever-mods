@@ -46,7 +46,8 @@ class MarketController {
  function cycleSort(column:String):Void {var s=listingSort();filters["sort"]=s==column+"-asc"?column+"-desc":s==column+"-desc"?"":column+"-asc";if(view!=null)view.dirty=true;}
  public function refresh():Void {refreshes++;}
  public function searchInventory():Void {inventorySearches++;if(view!=null)view.dirty=true;}
- public function cancelSignIn():Void{}
+ public var signInCancellations=0;
+ public function cancelSignIn():Void {signInCancellations++;}
  public function signIn():Void{}
  public var availableQuantity:Null<Int>;
  public function availableToList(item:trade.TradeTypes.TradeItem):Int return availableQuantity==null?item.count:availableQuantity;

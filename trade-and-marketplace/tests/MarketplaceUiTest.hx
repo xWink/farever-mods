@@ -676,6 +676,25 @@ class MarketplaceUiTest {
   view.close();
   MarketplaceBadgeTest.run(row);
   MarketplaceOrderUiTest.run(row);
+  loginDialog();
   Sys.println("Marketplace UI recovery checks passed: "+checks);
+ }
+ static function loginDialog():Void {
+  var c=new MarketController(),view=new MarketWindow(c),frames=TradeFrame.active;
+  view.showFareverlyNotice("Preparing Steam sign-in...",true);
+  var pending=GameAccess.latestDialog;
+  check(!view.isOpen()&&TradeFrame.active==frames,"Login popup works without creating a marketplace frame");
+  view.showFareverlyNotice("Code: ABCD-1234\nApprove Steam sign-in. Connection may take up to 1 minute.",true);
+  var dialog=GameAccess.latestDialog;
+  check(pending.allocated==false&&dialog.buttons[0].text=="Cancel sign-in"&&dialog.descriptors[0].ic=="Cancel"
+   &&dialog.descriptors[0].onBack==true,"Progress replaces the previous popup and Escape uses Cancel");
+  var removed=GameAccess.removed.length;
+  dialog.callback("Cancel");view.closeFareverlyNotice();
+  check(c.signInCancellations==1&&GameAccess.removed.length==removed,"Native cancellation closes itself without duplicate removal");
+  view.showFareverlyNotice(fareverly.Protocol.CONNECTED);
+  dialog=GameAccess.latestDialog;
+  check(dialog.message==fareverly.Protocol.CONNECTED&&dialog.buttons[0].text=="OK"&&TradeFrame.active==frames,
+   "Success is a standalone confirmation popup");
+  view.closeFareverlyNotice();check(dialog.allocated==false,"Disconnect can close the standalone popup");
  }
 }
