@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.10",
-  "commit": "ef90ed67125018a3bb7732e6c976a2f4cef1f4ab",
-  "notes": "Improved sign in experience",
+  "project": "more-settings",
+  "version": "1.22.3",
+  "commit": "cf09a3b4bb3b8326b3ceffb95c92d53610d305b9",
+  "notes": "Added option to hide skill proc alerts outside combat",
   "dry_run": false
 }
