@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.9",
-  "commit": "a0c38a29adb15ffaf96f9a7fc4dfeb7e51fbda84",
-  "notes": "Performance improvements",
+  "project": "trade-and-marketplace",
+  "version": "1.2.1",
+  "commit": "6e89f6827a96d8afeb0a35bd0dde836da99719f2",
+  "notes": "Improved sign in experience",
   "dry_run": false
 }
