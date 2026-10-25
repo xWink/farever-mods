@@ -89,3 +89,10 @@ resources.hxml
 -cp tests/item-link-stubs
 -main ItemLinkUiTest
 --interp
+
+--next
+-cp src
+-cp tests
+-cp tests/item-link-stubs
+-main ItemLinkDraftTest
+--interp

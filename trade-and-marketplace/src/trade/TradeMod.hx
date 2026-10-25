@@ -113,6 +113,40 @@ class TradeMod {
     static function itemLinkInteraction(instance:Dynamic,result:Void):Void {
         try ItemLinks.install(instance) catch(error:Dynamic) ItemLinks.report(error);
     }
+    @:hlx.postfix(ui.hud.ChatBox.init)
+    @:hlx.postfix(ui.hud.ChatBox.focus)
+    static function itemLinkDraft(instance:Dynamic,result:Void):Void {
+        try ItemLinkDraft.attach(instance) catch(error:Dynamic) ItemLinks.report(error);
+    }
+    @:hlx.prefix(h2d.TextInput.inputText)
+    static function insertDraftLink(instance:Dynamic,text:String):HlxPrefixResult<Void> {
+        try {if(ItemLinkDraft.insert(instance,text))return Skip;} catch(error:Dynamic) ItemLinks.report(error);
+        return Continue;
+    }
+    @:hlx.prefix(h2d.TextInput.set_text)
+    static function rewriteDraftLinks(instance:Dynamic,text:String):HlxPrefixResult<String> {
+        try {
+            var changed=ItemLinkDraft.rewrite(instance,text);
+            if(changed!=null)return SkipWith(G.call("h2d.TextInput","set_text",instance,[changed]));
+        } catch(error:Dynamic) ItemLinks.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(h2d.TextInput.set_text)
+    static function updateDraftLinks(instance:Dynamic,text:String,result:String):String {
+        try ItemLinkDraft.changed(instance) catch(error:Dynamic) ItemLinks.report(error);
+        return result;
+    }
+    @:hlx.prefix(h2d.TextInput.sync)
+    static function prepareDraftLinks(instance:Dynamic,context:Dynamic):HlxPrefixResult<Void> {
+        try ItemLinkDraft.changed(instance) catch(error:Dynamic) ItemLinks.report(error);
+        return Continue;
+    }
+    @:hlx.postfix(h2d.TextInput.draw)
+    static function positionDraftLinks(instance:Dynamic,context:Dynamic,result:Void):Void {
+        try ItemLinkDraft.position(instance) catch(error:Dynamic) ItemLinks.report(error);
+    }
+    @:hlx.postfix(h2d.TextInput.getSelectedText)
+    static function copyDraftLinks(instance:Dynamic,result:String):String return ItemLinkDraft.wire(instance,result);
     @:hlx.postfix(ui.hud.ChatBoxMessage.init)
     static function itemLinkMessage(instance:Dynamic,result:Void):Void {
         try ItemLinks.attach(instance) catch(error:Dynamic) ItemLinks.report(error);

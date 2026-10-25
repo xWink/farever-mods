@@ -29,6 +29,7 @@ class ItemLinks {
     public static function configure(value:Bool):Void {
         if (enabled == value) return;
         enabled = value;
+        ItemLinkDraft.configure(value);
         if (!value) hideTip();
         for (row in rows) refresh(row.label);
     }
@@ -119,8 +120,9 @@ class ItemLinks {
         var chat = G.call("ui.GameUI","get_chat",ui);
         var input = G.field(G.field(chat,"messageInput"),"input");
         if (input == null) return;
+        ItemLinkDraft.attach(chat);
         var token = ItemLinkCodec.encode(offer);
-        var draft = G.text(G.field(input,"text"));
+        var draft = ItemLinkDraft.wire(input,G.text(G.field(input,"text")));
         var next = ItemLinkCodec.append(draft,token,G.integer(G.field(input,"maxCharacters"),ItemLinkCodec.MAX_MESSAGE));
         if (next == null) {
             G.call("ui.hud.ChatBox","chatError",chat,[token == null
@@ -131,13 +133,14 @@ class ItemLinks {
         G.set(input,"selectionRange",null);
         G.set(input,"cursorIndex",G.call("h2d.TextInput","getTextLength",input));
         G.call("h2d.TextInput","inputText",input,[next.substr(draft.length)]);
+        var displayNext = G.text(G.field(input,"text"));
         G.call("ui.hud.ChatBox","focus",chat);
         // Chat focus is deferred; the item click can blur the input and reset
         // its cursor before that focus completes. Finish placement afterwards.
         G.call("ui.UIElement","waitNextFrame",chat,[function():Void {
             try {
                 if (!enabled || G.current("ui.BaseUI","current") != ui || G.field(chat,"removed") == true
-                    || G.field(G.field(chat,"messageInput"),"input") != input || G.text(G.field(input,"text")) != next) return;
+                    || G.field(G.field(chat,"messageInput"),"input") != input || G.text(G.field(input,"text")) != displayNext) return;
                 G.call("h2d.TextInput","focus",input,[null]);
                 G.set(input,"selectionRange",null);
                 G.set(input,"cursorIndex",G.call("h2d.TextInput","getTextLength",input));
@@ -203,11 +206,16 @@ class ItemLinks {
         G.call("ui.comp.FmtText","set_text",label,[raw]);
     }
     static function showTip(row:LinkRow, offer:TradeItem):Void {
+        showItemTip(row.row,row.label,offer);
+    }
+    public static function showDraftTip(input:Dynamic,offer:TradeItem):Void showItemTip(input,input,offer);
+    public static function hideDraftTip(input:Dynamic):Void {if(tipRow==input)hideTip();}
+    static function showItemTip(owner:Dynamic,anchor:Dynamic,offer:TradeItem):Void {
         hideTip();
         var ui = G.current("ui.BaseUI","current"), element = TradeTooltips.create(offer,null);
         if (ui == null || element == null) return;
-        tip = G.call("ui.BaseUI","setTip",ui,[element,row.label,null,null]);
-        tipRow = row.row; tipUi = ui;
+        tip = G.call("ui.BaseUI","setTip",ui,[element,anchor,null,null]);
+        tipRow = owner; tipUi = ui;
     }
     /** Run after native layout so wrapping and comparison panels are included. */
     public static function fitTooltip(object:Dynamic):Void {
@@ -249,12 +257,14 @@ class ItemLinks {
         rows.remove(row);
     }
     public static function forget(object:Dynamic):Void {
+        ItemLinkDraft.forget(object);
         offers.remove(object);
         var binding = interactions.get(object);
         if (binding != null) { restoreInteraction(binding); interactions.remove(object); }
         forgetRow(object);
     }
     public static function dispose():Void {
+        ItemLinkDraft.dispose();
         hideTip();
         for (binding in interactions) restoreInteraction(binding);
         for (row in [for (row in rows.keys()) row]) forgetRow(row);

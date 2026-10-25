@@ -10,7 +10,7 @@ class ItemLinkUiTest {
         for (entry in ["item:Sword","item:CorruptedGift","rarity:Epic","skill:Warrior_Smash","skill:Rogue_Poison","attribute:Power"])
             G.definitions.set(entry,{id:entry.split(":")[1]});
         var offer=ItemLinkTest.fixture();
-        var input:Dynamic={text:"Selling café",maxCharacters:250,cursorIndex:0,selectionRange:{start:0,length:4},changes:0};
+        var input:Dynamic={text:"Selling café",maxCharacters:250,cursorIndex:0,selectionRange:{start:0,length:4},changes:0,font:G.font(),interactive:{width:600,height:20}};
         G.ui={nativeType:"ui.GameUI",chat:{messageInput:{input:input}},currentTip:null};
         var pushes=0,releases=0;
         var originalPush:Dynamic=(e:Dynamic)->{pushes++;};
@@ -37,7 +37,7 @@ class ItemLinkUiTest {
         var linkedDraft=G.text(input.text);
         G.call("h2d.TextInput","inputText",input,["selling"]);
         check(input.text==linkedDraft+"selling","Typing immediately continues after the complete link");
-        var token=ItemLinkCodec.tokens(StringTools.trim(input.text))[0];
+        var token=ItemLinkCodec.tokens(StringTools.trim(trade.ItemLinkDraft.wire(input,input.text)))[0];
         check(ItemLinkCodec.decode(token).count==2,"The selected stack is serialized");
         var full=StringTools.lpad("x","x",250);input.text=full;G.alt=true;
         interactive.onPush(event());interactive.onRelease(event());
@@ -47,15 +47,15 @@ class ItemLinkUiTest {
         ItemLinks.configure(true);
         var custom:Dynamic={interactive:{onPush:originalPush,onRelease:originalRelease}};
         ItemLinks.bind(custom,offer);custom.interactive.onPush(event());custom.interactive.onRelease(event());
-        check(ItemLinkCodec.tokens(StringTools.trim(input.text)).length==1,"Custom trade and Marketplace icons link their exact snapshot");
+        check(ItemLinkCodec.tokens(StringTools.trim(trade.ItemLinkDraft.wire(input,input.text))).length==1,"Custom trade and Marketplace icons link their exact snapshot");
         input.text="";slot.count=7;interactive.onPush(event());interactive.onRelease(event());
-        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(input.text))[0]).count==7,"Reused inventory slots link their current quantity");
+        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(trade.ItemLinkDraft.wire(input,input.text)))[0]).count==7,"Reused inventory slots link their current quantity");
         var catalog:Dynamic={nativeType:"ui.comp.ItemButton",inf:{id:"Sword"},interactive:{onPush:originalPush,onRelease:originalRelease}};
         input.text="";ItemLinks.install(catalog);catalog.interactive.onPush(event());catalog.interactive.onRelease(event());
-        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(input.text))[0]).kind=="Sword","Definition-only recipe and shop item buttons can be linked");
+        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(trade.ItemLinkDraft.wire(input,input.text)))[0]).kind=="Sword","Definition-only recipe and shop item buttons can be linked");
         var decorative:Dynamic={nativeType:"ui.comp.ItemButton",parent:custom,item:slot.item,interactive:{onPush:originalPush,onRelease:originalRelease}};
         input.text="";ItemLinks.install(decorative);decorative.interactive.onPush(event());decorative.interactive.onRelease(event());
-        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(input.text))[0]).count==2,"Decorative children use their custom parent's exact snapshot");
+        check(ItemLinkCodec.decode(ItemLinkCodec.tokens(StringTools.trim(trade.ItemLinkDraft.wire(input,input.text)))[0]).count==2,"Decorative children use their custom parent's exact snapshot");
         var row:Dynamic={message:{text:"Before "+token+" after",notify:null},msgText:{prevUnformatted:"[12:34] Player: Before "+token+" after",
             text:"",formatText:(text:String)->text,onOverHyperlink:null,onOutHyperlink:null,onHyperlink:null}};
         var foreign=0;row.msgText.onHyperlink=(href:String)->{foreign++;};

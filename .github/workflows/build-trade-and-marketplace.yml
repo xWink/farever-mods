@@ -79,6 +79,8 @@ jobs:
           ../.trade-oracle-hashlink/hl build/item-link-test.hl
           haxe -cp src -cp tests -cp tests/item-link-stubs -main ItemLinkUiTest -hl build/item-link-ui-test.hl
           ../.trade-oracle-hashlink/hl build/item-link-ui-test.hl
+          haxe -cp src -cp tests -cp tests/item-link-stubs -main ItemLinkDraftTest -hl build/item-link-draft-test.hl
+          ../.trade-oracle-hashlink/hl build/item-link-draft-test.hl
           haxe -cp src -cp tests -cp tests/controller-stubs -main PartyTest -hl build/party-test.hl
           ../.trade-oracle-hashlink/hl build/party-test.hl
           haxe -cp src -cp tests -cp tests/chat-stubs -main ChatTest -hl build/chat-test.hl

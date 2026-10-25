@@ -29,7 +29,7 @@ Trade and request windows remember their positions. Incoming requests are automa
 
 Hold **Alt** and left-click an item in the inventory, bank, equipment, shops, trade window, or marketplace to append an item link to your chat draft. Continue typing after it or press Enter to send normally. The click preserves your draft and does not use, move, or buy the item.
 
-Players with this mod see the item's name in bold and its rarity color. Hover the name for its native tooltip, including the linked item's level, upgrades, infusion, sockets, and other attributes. Players without item-link support see the encoded text. Links share the game's 250-character message limit; if there is insufficient space, the draft stays unchanged and an error explains why.
+Item links appear as bold, rarity-colored names both in your draft and in sent messages for players with this mod. Hover the name for its native tooltip, including the linked item's level, upgrades, infusion, sockets, and other attributes. Each draft link behaves as a single unit: Backspace or Delete removes the whole item, and selecting, copying, pasting, and undoing preserve its details. Players without item-link support see the encoded text. Links share the game's 250-character message limit; if there is insufficient space, the draft stays unchanged and an error explains why.
 
 ## Exchange limitations
 
