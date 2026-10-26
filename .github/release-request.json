@@ -1,7 +1,7 @@
 {
   "project": "trade-and-marketplace",
-  "version": "1.3.0",
-  "commit": "c9d42db0480fc531f4027eb838609df38a213f51",
-  "notes": "Added item linking. Alt+LClick an item to link it in chat. Hover the linked item to see its details.",
+  "version": "1.3.1",
+  "commit": "57407daf98300fcb27e2e4825c3f52d1914b6b98",
+  "notes": "Fixed an issue where buy orders for epic armor with \"Any\" infusion bonus didn't show an infusion bonus at all in the item details",
   "dry_run": false
 }
