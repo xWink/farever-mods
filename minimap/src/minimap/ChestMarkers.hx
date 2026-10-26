@@ -16,21 +16,28 @@ class ChestMarkers {
     var kinds:Map<String, String> = [];
 
     var world:Map<String, WorldChest> = [];
+    var activityChests:Map<String, Bool> = [];
 
     public function new() {}
 
-    public function clearWorld():Void world = [];
+    public function clearWorld():Void {
+        world = [];
+        activityChests = [];
+    }
 
     public function addDefinition(definition:Dynamic):Void {
         var inf = G.field(definition, "inf");
         if (!available(inf)) return;
         var prefab = G.field(definition, "prefab");
         if (prefab == null) return;
-        // Activity rewards depend on live encounter/script state. A prefab
-        // alone must not advertise them before the activity has spawned them.
+        // Activity rewards belong to activity markers, not the chest filter.
+        // Remember their IDs even if their live activity association is absent.
         var parent = G.field(prefab, "parent");
         while (parent != null) {
-            if (G.text(G.call("hrt.prefab.Prefab", "getCdbType", parent)) == "activity") return;
+            if (G.text(G.call("hrt.prefab.Prefab", "getCdbType", parent)) == "activity") {
+                excludeActivity(G.text(G.field(inf, "id")));
+                return;
+            }
             parent = G.field(parent, "parent");
         }
         var matrix = G.call("hrt.prefab.Object3D", "getAbsPos", prefab, [true]);
@@ -39,14 +46,28 @@ class ChestMarkers {
             G.number(G.field(matrix, "_43"), Math.NaN));
     }
 
-    public function observe(element:Dynamic):Void {
-        var inf = G.field(element, "inf"), id = G.text(G.field(inf, "id"));
-        if (world.exists(id) || !available(inf)) return;
+    public function acceptLive(element:Dynamic):Bool {
+        var inf = G.field(element, "inf"), id = G.text(G.field(inf, "id"), G.text(G.field(element, "kind")));
+        if (activityChests.exists(id)) return false;
+        // Native getActivity follows all parents and the layer's main activity.
+        // Check before the cache: an already indexed chest can turn out to be
+        // an activity reward when its live entity arrives.
+        if (G.call("st.State", "getActivity", element) != null) {
+            excludeActivity(id);
+            return false;
+        }
+        if (world.exists(id) || !available(inf)) return true;
         // Native HElement clears a prefab after spawning it. Retain positions
         // of those already-loaded world chests before they leave streaming range.
-        if (G.call("st.State", "getActivity", element) != null) return;
         add(inf, G.number(G.field(element, "posx"), Math.NaN), G.number(G.field(element, "posy"), Math.NaN),
             G.number(G.field(element, "posz"), Math.NaN));
+        return true;
+    }
+
+    function excludeActivity(id:String):Void {
+        if (id == "") return;
+        activityChests[id] = true;
+        world.remove(id);
     }
 
     static function available(inf:Dynamic):Bool {

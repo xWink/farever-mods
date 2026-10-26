@@ -120,11 +120,42 @@ class WorldChestMarkersTest {
         var reward:Dynamic = {family:'chest',kind:'activity',inf:activity.inf,enabled:true,
             state:0,posx:110.,posy:200.,posz:5.,activity:{}};
         layer.interactibles = [seen,reward];
-        eq(sample(), 'activity,observed,recipe,respawn,vault', 'Live activity rewards still render');
+        eq(sample(), 'observed,recipe,respawn,vault', 'Live activity rewards are excluded from chest markers');
+        reward.activity = null;
+        eq(sample(), 'observed,recipe,respawn,vault', 'Prefab activity ownership also excludes a loaded reward');
         layer.interactibles = [];
         eq(sample(), 'observed,recipe,respawn,vault', 'Observed world chest remains after streaming out');
         states['observed'] = {completed:100.};
         eq(sample(), 'recipe,respawn,vault', 'Observed chest also respects completion');
+        // A chest can arrive without its prefab ancestry and only reveal its
+        // activity ownership through the live native State hierarchy.
+        var ancient = definition('ancient'); ancient.inf.texts = {name:'Ancient Chest'};
+        var camp = definition('camp'); camp.inf.texts = {name:'Camp Chest'};
+        G.globals['elements'] = [ancient,camp]; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
+        eq(sample(), 'ancient,camp', 'Unknown activity association can initially be indexed');
+        var ancientLive:Dynamic = {family:'chest',kind:'ancient',inf:ancient.inf,enabled:true,
+            state:16,posx:100.,posy:200.,posz:5.,activity:{kind:'AncientChestActivity'}};
+        var campLive:Dynamic = {family:'chest',kind:'camp',inf:camp.inf,enabled:true,
+            state:0,posx:120.,posy:200.,posz:5.,activity:{kind:'CampActivity'}};
+        layer.interactibles = [ancientLive,campLive];
+        eq(sample(), '', 'Ancient and camp activity rewards never count as chests, completed or unopened');
+        layer.interactibles = [];
+        eq(sample(), '', 'Activity rewards cannot return from the distant chest cache');
+        // The activity itself continues to use the activity filters/completion.
+        G.globals['HActivity.allActivities'] = new Map<String,Dynamic>();
+        G.globals['activities'] = [{inf:{id:'CampActivity'},prefab:{},position:{x:120.,y:200.,z:5.}}];
+        eq(sample(), 'CampActivity', 'The activity marker is retained without its reward chest');
+        progress.completed = 'CampActivity';
+        eq(sample(), '', 'Completed activity follows the existing hide-completed setting');
+        settings = BigMapTest.change(settings,'hideCompletedActivities',false);
+        eq(sample(), 'CampActivity', 'Show-completed activities does not restore their chest markers');
+        settings = BigMapTest.change(settings,'hideCompletedActivities',true);
+        G.globals['activities'] = []; G.globals['HActivity.allActivities'] = new Map<String,Dynamic>();
+        // Classification follows native ownership, never an English display name.
+        G.globals['elements'] = [ancient,camp]; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
+        eq(sample(), 'ancient,camp', 'A fresh world clears ownership exclusions; names alone are not a filter');
+        states['ancient'] = {completed:100.}; states['camp'] = {completed:100.};
+        eq(sample(), '', 'All ordinary world chests completed leaves no chest markers');
         G.globals['elements'] = []; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
         eq(sample(), '', 'Changing world definitions discards old chest cache');
         Sys.println('World chest markers: $checks checks passed.');

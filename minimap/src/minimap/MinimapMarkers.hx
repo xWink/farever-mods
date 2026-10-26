@@ -476,8 +476,8 @@ class MinimapMarkers {
             if (category == "npc" && !config.showNpcs || category == "chest" && !config.showChests
                 || category == "gatherable" && !config.showPlants && !config.showOre) continue;
             if (category == "chest") {
-                chests.observe(element);
                 liveChests[G.text(G.field(element, "kind"), G.text(G.field(G.field(element, "inf"), "id")))] = true;
+                if (!chests.acceptLive(element)) continue;
             }
             var px = G.number(G.field(element, "posx")), py = G.number(G.field(element, "posy"));
             if (category != "npc" && !near(px, py, x, y, radius)) continue;
@@ -492,7 +492,7 @@ class MinimapMarkers {
             } else if (category == "chest") {
                 if (!active || player == null) continue;
                 // Player-specific completion and respawn rules are resolved by
-                // the game, including activity chests. Locked chests still show.
+                // the game for ordinary world chests. Locked chests still show.
                 var state = G.call("ent.Element", "getElementStateInf", element, [player]);
                 var flags = G.integer(G.field(state, "flags"));
                 if ((flags & 0x29) == 0) points.push({kind: chests.kind(G.field(element, "inf")), x: px, y: py,
