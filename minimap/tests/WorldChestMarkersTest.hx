@@ -14,9 +14,12 @@ class WorldChestMarkersTest {
         def.inf.states = [{state:'None', flags:0}, {state:'Opened', flags:8},
             {state:'Hidden', flags:32}, {state:'Disabled', flags:1}, {state:'Locked', flags:2}];
         def.inf.zoneBaked = 'known';
+        def.inf.inherit = 'LEVEL_WorldChest';
         return def;
     }
     static function main():Void {
+        G.globals['elementTypes'] = ['VaultChest'=>{id:'VaultChest',inherit:'LEVEL_WorldChest'},
+            'Recipe_Chest_Root'=>{id:'Recipe_Chest_Root',inherit:'LEVEL_WorldChest'}];
         var chest = definition('chest'), recipe = definition('recipe'), vault = definition('vault');
         recipe.inf.inherit = 'Recipe_Chest_Root'; vault.inf.inherit = 'VaultChest';
         var hidden = definition('hidden'); hidden.inf.props.interactible = {hidden:true};
@@ -54,10 +57,11 @@ class WorldChestMarkersTest {
         eq(sample(), 'chest,recipe,vault', 'Distant world chests appear without entities; unavailable rewards do not');
         var kinds = [for (p in markers.points) p.kind]; kinds.sort(Reflect.compare);
         eq(kinds.join(','), 'chest,recipeChest,vaultChest', 'World chests retain native families');
-        var reads = G.prefabReads, scans = G.elementScans;
+        var reads = G.prefabReads, scans = G.elementScans, classifications = G.worldChestChecks;
         eq(sample(), 'chest,recipe,vault', 'Stable refresh');
         eq(G.prefabReads, reads, 'No repeated prefab transforms');
         eq(G.elementScans, scans, 'No repeated definition scans');
+        eq(G.worldChestChecks, classifications, 'Native world-chest ancestry is cached between marker refreshes');
         states['chest'] = {completed:100.};
         eq(sample(), 'recipe,vault', 'Opening a chest removes its marker');
         layer.time.serverNow = Math.NaN;
@@ -127,12 +131,16 @@ class WorldChestMarkersTest {
         eq(sample(), 'observed,recipe,respawn,vault', 'Observed world chest remains after streaming out');
         states['observed'] = {completed:100.};
         eq(sample(), 'recipe,respawn,vault', 'Observed chest also respects completion');
-        // A chest can arrive without its prefab ancestry and only reveal its
-        // activity ownership through the live native State hierarchy.
-        var ancient = definition('ancient'); ancient.inf.texts = {name:'Ancient Chest'};
-        var camp = definition('camp'); camp.inf.texts = {name:'Camp Chest'};
+        // Real regression: a detached activity chest prefab has no activity
+        // parent and no live entity yet. It still must never appear as a chest.
+        var ancient = definition('ancient'); ancient.inf.inherit = 'AncientActivityReward'; ancient.inf.texts = {name:'Ancient Chest'};
+        var camp = definition('camp'); camp.inf.inherit = 'CampActivityReward'; camp.inf.texts = {name:'Camp Chest'};
         G.globals['elements'] = [ancient,camp]; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
-        eq(sample(), 'ancient,camp', 'Unknown activity association can initially be indexed');
+        eq(sample(), '', 'Far-away ancient and camp rewards are excluded before any entity loads');
+        radius = 100.;
+        eq(sample(), '', 'Moving the minimap view does not discover an unclassified chest');
+        radius = 20000.;
+        eq(sample(), '', 'Returning to the full map still excludes unloaded activity rewards');
         var ancientLive:Dynamic = {family:'chest',kind:'ancient',inf:ancient.inf,enabled:true,
             state:16,posx:100.,posy:200.,posz:5.,activity:{kind:'AncientChestActivity'}};
         var campLive:Dynamic = {family:'chest',kind:'camp',inf:camp.inf,enabled:true,
@@ -153,9 +161,16 @@ class WorldChestMarkersTest {
         G.globals['activities'] = []; G.globals['HActivity.allActivities'] = new Map<String,Dynamic>();
         // Classification follows native ownership, never an English display name.
         G.globals['elements'] = [ancient,camp]; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
-        eq(sample(), 'ancient,camp', 'A fresh world clears ownership exclusions; names alone are not a filter');
+        eq(sample(), '', 'Reopening the map never restores detached activity reward prefabs');
+        ancient.inf.inherit = 'LEVEL_WorldChest'; camp.inf.inherit = 'LEVEL_WorldChest';
+        G.globals['HElement.allElements'] = new Map<String,Dynamic>();
+        eq(sample(), 'ancient,camp', 'Only positive native world ancestry admits a chest; names alone are not a filter');
         states['ancient'] = {completed:100.}; states['camp'] = {completed:100.};
         eq(sample(), '', 'All ordinary world chests completed leaves no chest markers');
+        states.remove('ancient'); layer.interactibles = [ancientLive];
+        eq(sample(), '', 'Live activity ownership also rejects a previously indexed world-chest variant');
+        layer.interactibles = [];
+        eq(sample(), '', 'A rejected live activity variant cannot reappear from the distant cache');
         G.globals['elements'] = []; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
         eq(sample(), '', 'Changing world definitions discards old chest cache');
         Sys.println('World chest markers: $checks checks passed.');

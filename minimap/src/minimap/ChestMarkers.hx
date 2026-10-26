@@ -14,6 +14,7 @@ private typedef WorldChest = {
 /** Match the native map's chest families, including inherited world variants. */
 class ChestMarkers {
     var kinds:Map<String, String> = [];
+    var worldKinds:Map<String, Bool> = [];
 
     var world:Map<String, WorldChest> = [];
     var activityChests:Map<String, Bool> = [];
@@ -23,6 +24,19 @@ class ChestMarkers {
     public function clearWorld():Void {
         world = [];
         activityChests = [];
+        worldKinds = [];
+    }
+
+    public function isWorldChest(inf:Dynamic):Bool {
+        if (inf == null) return false;
+        var id = G.text(G.field(inf, "id"));
+        if (id != "" && worldKinds.exists(id)) return worldKinds[id];
+        // MapWindow.getZoneChests -> DataCache.getDynamicObjectiveTargets uses
+        // this exact native ancestry check. A generic Chest entity type or a
+        // missing activity parent does not establish world-chest membership.
+        var result = G.staticCall("HElement", "isOfType", [inf, "LEVEL_WorldChest"]) == true;
+        if (id != "") worldKinds[id] = result;
+        return result;
     }
 
     public function addDefinition(definition:Dynamic):Void {
@@ -48,6 +62,7 @@ class ChestMarkers {
 
     public function acceptLive(element:Dynamic):Bool {
         var inf = G.field(element, "inf"), id = G.text(G.field(inf, "id"), G.text(G.field(element, "kind")));
+        if (!isWorldChest(inf)) return false;
         if (activityChests.exists(id)) return false;
         // Native getActivity follows all parents and the layer's main activity.
         // Check before the cache: an already indexed chest can turn out to be
@@ -70,9 +85,10 @@ class ChestMarkers {
         world.remove(id);
     }
 
-    static function available(inf:Dynamic):Bool {
+    function available(inf:Dynamic):Bool {
         // Native Element.create constructs Chest only for Data.Element_type.Chest (2).
         return inf != null && G.integer(G.field(inf, "type"), -1) == 2
+            && isWorldChest(inf)
             && NpcMarkers.availableDefinition(inf);
     }
 

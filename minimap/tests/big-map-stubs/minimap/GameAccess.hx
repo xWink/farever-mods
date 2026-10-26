@@ -5,6 +5,7 @@ class GameAccess {
     public static var elementScans:Int = 0;
     public static var prefabReads:Int = 0;
     public static var chestProgressReads:Int = 0;
+    public static var worldChestChecks:Int = 0;
     public static var globals:Map<String, Dynamic> = ["h3d.mat.TextureFlags.Target" => "Target", "hxd.PixelFormat.RGBA" => "RGBA", "h2d.BlendMode.AlphaAdd" => "AlphaAdd",
         "h3d.mat.TextureFlags.MipMapped" => "MipMapped", "h3d.mat.MipMap.Linear" => "Linear"];
     public static var styledObjects:Array<Dynamic> = [];
@@ -88,7 +89,18 @@ class GameAccess {
         if (type == "gamepad.Pad" && name == "get_active") return globals["padActive"] == true;
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
         if (type == "HData" && name == "checkStatus") return args[0] == null || args[0] == 3;
-        if (name == "isOfType") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
+        if (name == "isOfType") {
+            if (type != "HElement") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
+            if (args[1] == "LEVEL_WorldChest") worldChestChecks++;
+            var inf = args[0];
+            var definitions:Map<String,Dynamic> = globals["elementTypes"];
+            while (inf != null) {
+                if (field(inf,"id") == args[1] || field(inf,"inherit") == args[1]) return true;
+                var parent:String = field(inf,"inherit");
+                inf = definitions == null || parent == null ? null : definitions.get(parent);
+            }
+            return false;
+        }
         if (type == "HActivity" && name == "allFiltered") return globals["activities"];
         if (type == "HActivity" && name == "getInf") {
             activityNameReads++;

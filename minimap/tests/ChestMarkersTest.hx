@@ -27,6 +27,20 @@ class ChestMarkersTest {
         eq(markers.kind(null), "chest", "missing definition retains ordinary chest marker");
         eq(markers.kind({inherit: "Recipe_Chest_Root"}), "recipeChest", "unnamed native recipe variant");
         eq(markers.kind({inherit: "VaultChest"}), "vaultChest", "unnamed variants do not share a cache entry");
+        G.elements["LEVEL_WorldChest"] = {id:"LEVEL_WorldChest"};
+        G.elements["VaultChest"].inherit = "LEVEL_WorldChest";
+        G.elements["Recipe_Chest_Root"].inherit = "LEVEL_WorldChest";
+        eq(markers.isWorldChest({id:"ordinary",inherit:"LEVEL_WorldChest"}),true,"Native world-chest root");
+        eq(markers.isWorldChest({id:"vault",inherit:"VaultChest"}),true,"Native world vault ancestry");
+        eq(markers.isWorldChest({id:"recipe",inherit:"RegionalRecipe"}),true,"World recipe ancestry follows multiple parents");
+        eq(markers.isWorldChest({id:"ancient",type:2,texts:{name:"Ancient Chest"}}),false,"Generic ancient chest without world ancestry is excluded before loading");
+        eq(markers.isWorldChest({id:"camp",type:2,texts:{name:"Camp Chest"}}),false,"Generic camp reward without world ancestry is excluded before loading");
+        eq(markers.isWorldChest({id:"localized",type:2,texts:{name:"Coffre"}}),false,"Classification does not depend on English names");
+        eq(markers.isWorldChest({id:"misleading-name",inherit:"LEVEL_WorldChest",texts:{name:"Ancient Chest"}}),true,"Native world membership takes precedence over display name");
+        eq(markers.isWorldChest(null),false,"Missing definition is not evidence of a world chest");
+        eq(markers.isWorldChest({id:"unknown",inherit:"Unavailable"}),false,"Unknown ancestry does not advertise a chest");
+        markers.clearWorld();
+        eq(markers.isWorldChest({id:"unknown",inherit:"LEVEL_WorldChest"}),true,"Reloaded world definitions refresh classification");
         // Exercise the real icon geometry: an invalid closing vertex can compile
         // successfully yet throw while drawing a marker in the game.
         var vertices = 0;
