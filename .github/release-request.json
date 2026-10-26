@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.22.5",
-  "commit": "4ca1e044741a27f90aa5e5b5aef2b93366de871e",
-  "notes": "- Added a slider to choose the delay before holding a skill button starts repeating the skill inputs\n",
+  "project": "item-utilities",
+  "version": "1.15.2",
+  "commit": "d2db707473aa3e60d294e31c3d4a212936996178",
+  "notes": "- Arsenal ability choices are now included in equipment presets. Set your current presets again to apply the change.\n",
   "dry_run": false
 }
