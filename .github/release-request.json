@@ -1,7 +1,7 @@
 {
   "project": "minimap",
-  "version": "2.3.1",
-  "commit": "ee33478966a584e7c940dad9266c11858982e218",
-  "notes": "- Unopened chests now appear in the map from any distance instead of just nearby\n- Soulstone marker outlines are no longer thicc\n- Performance optimization",
+  "version": "2.3.2",
+  "commit": "fbc8f9eb4db35a14c5fa0ea15724a2cd15c7093f",
+  "notes": "Fixed an issue where opened activity chests would appear as chests",
   "dry_run": false
 }
