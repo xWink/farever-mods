@@ -2,20 +2,28 @@ package moresettings;
 
 /** Repeat native binding presses while held, without bypassing skill legality. */
 class HoldRepeat {
-    static inline var HOLD_DELAY:Float = 1.0;
+    public static inline var DEFAULT_DELAY:Float = 0.7;
     static inline var REPEAT_INTERVAL:Float = 0.1;
+    var delay:Float;
     var next:Float = -1;
     var lastSample:Float = -1;
-    public function new() {}
+    public function new(delay:Float = DEFAULT_DELAY) {this.delay = delay;}
+    public static function normalizeDelay(value:Dynamic):Float {
+        if (value == null) return DEFAULT_DELAY;
+        var parsed = Std.parseFloat(Std.string(value));
+        return !Math.isFinite(parsed) ? DEFAULT_DELAY : Math.round(Math.max(0, Math.min(2, parsed)) * 10) / 10;
+    }
     public function reset():Void {next = -1;lastSample = -1;}
     public function sample(enabled:Bool, held:Bool, allowed:Bool, now:Float, original:Bool):Bool {
         if (!enabled || !held || !allowed || !Math.isFinite(now)) {
             reset(); return original;
         }
         var start = original || next < 0 || now < lastSample;
+        // Zero delay still permits only one synthetic press per input sample.
+        if (!start && now == lastSample) return original;
         lastSample = now;
         if (start) {
-            next = now + HOLD_DELAY;
+            next = now + delay;
             return original;
         }
         if (now < next) return original;

@@ -34,7 +34,7 @@ class MoreSettingsMod {
         BombletEffects.configure(VisualLimit.bomblets.count(config.bombletVisualLimit));
         PerformanceDamageNumbers.configure(VisualLimit.damage.count(config.damageNumberLimit));
         EnemyDistance.enabled = config.showEnemyDistance;
-        InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
+        InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat,config.holdSkillRepeatDelay);
         StallMetrics.configure(config.performanceDiagnostics);
         DungeonPartyGuard.enabled = config.waitForParty;
         DungeonLeaveButton.enabled = config.leaveDungeonButton;
@@ -56,7 +56,7 @@ class MoreSettingsMod {
             BombletEffects.configure(VisualLimit.bomblets.count(config.bombletVisualLimit));
             PerformanceDamageNumbers.configure(VisualLimit.damage.count(config.damageNumberLimit));
             EnemyDistance.enabled = config.showEnemyDistance;
-            InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat);
+            InputComfort.configure(config.preventCtrlFFullscreen,config.holdSkillRepeat,config.holdSkillRepeatDelay);
             StallMetrics.configure(config.performanceDiagnostics);
             DungeonPartyGuard.enabled = config.waitForParty;
             DungeonLeaveButton.enabled = config.leaveDungeonButton;

@@ -6,6 +6,7 @@ import moresettings.GameAccess as G;
 class InputComfort {
     public static var blockCtrlF:Bool = false;
     public static var holdSkills:Bool = false;
+    static var holdDelay:Float = HoldRepeat.DEFAULT_DELAY;
     static var inSkillInputs:Bool = false;
     static var controller:Dynamic;
     static var pulses:Map<String,HoldRepeat> = [];
@@ -14,9 +15,9 @@ class InputComfort {
     public static function reset():Void {
         inSkillInputs=false;controller=null;pulses=[];
     }
-    public static function configure(ctrlF:Bool, hold:Bool):Void {
-        if (blockCtrlF != ctrlF || holdSkills != hold) reset();
-        blockCtrlF=ctrlF;holdSkills=hold;
+    public static function configure(ctrlF:Bool, hold:Bool, delay:Float):Void {
+        if (blockCtrlF != ctrlF || holdSkills != hold || holdDelay != delay) reset();
+        blockCtrlF=ctrlF;holdSkills=hold;holdDelay=delay;
     }
     public static function blockFullscreen(action:String):Bool {
         if (!blockCtrlF || action!="Fullscreen") return false;
@@ -53,7 +54,7 @@ class InputComfort {
         try {
             var held=G.staticCall("lib.Input","isDown",[action])==true;
             var pulse=pulses.get(action);
-            if (pulse==null) {pulse=new HoldRepeat();pulses.set(action,pulse);}
+            if (pulse==null) {pulse=new HoldRepeat(holdDelay);pulses.set(action,pulse);}
             return pulse.sample(true,held,true,haxe.Timer.stamp(),original);
         }catch(e:Dynamic){reset();warn(e);return original;}
     }

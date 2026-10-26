@@ -170,7 +170,16 @@ class CombatUiTest {
             "bomblet limit follows bee limit");
         eq(keys.indexOf("holdSkillRepeat"), keys.indexOf("bombletVisualLimit") + 1,
             "hold skill repeat is available in Combat");
-        eq(keys.indexOf("showSkillIconNextToDamageNumber"), keys.indexOf("holdSkillRepeat") + 1,
+        eq(keys.indexOf("holdSkillRepeatDelay"), keys.indexOf("holdSkillRepeat") + 1,
+            "repeat delay appears directly below hold-to-repeat");
+        var delay = rows[keys.indexOf("holdSkillRepeatDelay")];
+        eq(delay.type, "slider", "repeat delay uses a slider");
+        eq(delay.label, "Delay until skill repeats (seconds)", "repeat delay shows units");
+        eq(delay.min, 0, "repeat delay allows zero");
+        eq(delay.max, 2, "repeat delay allows two seconds");
+        eq(delay.step, 0.1, "repeat delay uses tenths of a second");
+        eq(config.holdSkillRepeatDelay, 0.7, "repeat delay defaults to 0.7 seconds");
+        eq(keys.indexOf("showSkillIconNextToDamageNumber"), keys.indexOf("holdSkillRepeatDelay") + 1,
             "skill icons follow the new Combat controls");
         eq(keys.indexOf("disableDamageNumbers"), -1, "Old damage number disable checkbox was removed");
         for (key in ["damageNumberLimit", "beeVisualLimit", "bombletVisualLimit"]) {

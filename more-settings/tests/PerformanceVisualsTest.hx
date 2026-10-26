@@ -27,6 +27,26 @@ class PerformanceVisualsTest {
         eq(c.performanceOptimization,false,"Performance effects remain opt-in");
         eq(c.preventCtrlFFullscreen,false,"Ctrl+F fix remains opt-in");
         eq(c.holdSkillRepeat,false,"Hold-to-repeat remains opt-in");
+        eq(c.holdSkillRepeatDelay,0.7,"Hold-to-repeat defaults to a 0.7-second delay");
+        for (i in 0...21) {
+            c.holdSkillRepeatDelay=i/10;
+            SettingsData.normalize(c);
+            eq(c.holdSkillRepeatDelay,i/10,"Every delay slider step survives normalization");
+        }
+        c.holdSkillRepeatDelay=-1;SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,0,"Negative delays clamp to zero");
+        c.holdSkillRepeatDelay=3;SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,2,"Excessive delays clamp to two seconds");
+        c.holdSkillRepeatDelay=0.74;SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,0.7,"Delay normalizes to a slider step");
+        c.holdSkillRepeatDelay=Math.NaN;SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,0.7,"Invalid delay falls back to default");
+        c=cast haxe.Json.parse(haxe.Json.stringify(SettingsData.defaults()));
+        Reflect.deleteField(c,"holdSkillRepeatDelay");SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,0.7,"Existing configs receive the new default");
+        c.holdSkillRepeatDelay=1.3;
+        c=cast haxe.Json.parse(haxe.Json.stringify(c));SettingsData.normalize(c);
+        eq(c.holdSkillRepeatDelay,1.3,"Saved fractional delay survives reload");
         eq(c.damageNumberScale,100,"Default damage scale is neutral");
         eq(c.damageNumberOpacity,100,"Default damage alpha is neutral");
         eq(c.damageNumberLimit,"Medium","Damage number dropdown defaults to Medium");
@@ -238,7 +258,22 @@ class PerformanceVisualsTest {
             eq(HoldRepeat.repeatableSkillAction(action),false,
                 action+": every action outside the skill allowlist stays native");
         }
-        var repeat=new HoldRepeat();
+        var defaultRepeat=new HoldRepeat();
+        eq(defaultRepeat.sample(true,true,true,1,true),true,"Default delay preserves the immediate native press");
+        eq(defaultRepeat.sample(true,true,true,1.699,false),false,"Default delay waits for 0.7 seconds");
+        eq(defaultRepeat.sample(true,true,true,1.7,false),true,"Default delay repeats at 0.7 seconds");
+        for (delay in [0.0,0.1,0.7,1.3,2.0]) {
+            var custom=new HoldRepeat(delay);
+            eq(custom.sample(true,true,true,0,true),true,"Custom delay preserves first press");
+            eq(custom.sample(true,true,true,0,false),false,"Zero delay cannot duplicate the initial sample");
+            if (delay>0) eq(custom.sample(true,true,true,delay-0.001,false),false,"Custom delay never fires early");
+            var first=delay==0?0.001:delay;
+            eq(custom.sample(true,true,true,first,false),true,"Custom delay controls when repeats begin");
+            eq(custom.sample(true,true,true,first,false),false,"Custom delay cannot duplicate a sample");
+            eq(custom.sample(true,true,true,first+0.05,false),false,"Custom delay preserves the repeat rate limit");
+            eq(custom.sample(true,true,true,first+0.101,false),true,"Custom delay preserves the 100 ms repeat interval");
+        }
+        var repeat=new HoldRepeat(1.0);
         eq(repeat.sample(true,true,true,1,true),true,"Native first press preserved");
         eq(repeat.sample(true,true,true,1.05,false),false,"Repeat never fires early");
         eq(repeat.sample(true,true,true,1.101,false),false,"The old 100 ms delay no longer starts repeating");

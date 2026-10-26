@@ -160,7 +160,19 @@
       "label": "Hold skill button to repeat it",
       "tooltip": {
         "enabled": true,
-        "tooltipText": "After holding for 1 second, repeats only weapon, class, and signature skills while held (up to 10 presses/sec). All other actions keep their normal behavior. Native cooldowns, targeting, and skill restrictions still apply."
+        "tooltipText": "After the selected delay, repeats only weapon, class, and signature skills while held (up to 10 presses/sec). All other actions keep their normal behavior. Native cooldowns, targeting, and skill restrictions still apply."
+      }
+    },
+    {
+      "key": "holdSkillRepeatDelay",
+      "type": "slider",
+      "label": "Delay until skill repeats (seconds)",
+      "min": 0,
+      "max": 2,
+      "step": 0.1,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "How long to hold a skill button before repeating begins. Requires Hold skill button to repeat it. The first press still activates immediately."
       }
     },
     {

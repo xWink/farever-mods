@@ -7,7 +7,7 @@ Additional camera, combat, social, and visual settings for Farever.
 ## Features
 
 - **General:** field-of-view slider, hide-UI hotkey, leave-dungeon and leave-rift buttons, and optional performance improvements and diagnostics.
-- **Combat:** damage-number styles, scale, and opacity; independent None/Low/Medium/High/Max limits for damage numbers, bees, and Bomblets; hold-to-repeat after a one-second hold, exclusively for weapon, class, and signature skills; enemy-distance nameplates, skill icons/proc alerts, outlined buff stacks, boss health, Crabgantua warnings, and allied minion health-bar visibility.
+- **Combat:** damage-number styles, scale, and opacity; independent None/Low/Medium/High/Max limits for damage numbers, bees, and Bomblets; hold-to-repeat after a configurable 0–2 second delay (0.1-second steps, default 0.7 seconds), exclusively for weapon, class, and signature skills; enemy-distance nameplates, skill icons/proc alerts, outlined buff stacks, boss health, Crabgantua warnings, and allied minion health-bar visibility.
 - **Social:** message timestamps, profanity-filter control, friend notes and notifications, self chat bubbles, chat behavior, and social-interact bindings.
 - **Effects:** separate controls for your own and allied attacks/buffs in rifts, dungeons, and the overworld, plus ally visibility controls.
 - **Character tools:** character deletion locks and a native appearance editor with Save/Cancel.

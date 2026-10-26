@@ -20,6 +20,7 @@ typedef MoreSettingsConfig = {
     var bombletVisualLimit:Dynamic;
     var showEnemyDistance:Bool;
     var holdSkillRepeat:Bool;
+    var holdSkillRepeatDelay:Float;
     var showSkillIconNextToDamageNumber:Bool;
     var obviousSkillProcs:Bool;
     var hideSkillProcAlertsOutsideCombat:Bool;
@@ -75,6 +76,7 @@ class SettingsData {
         bombletVisualLimit: "Max",
         showEnemyDistance: false,
         holdSkillRepeat: false,
+        holdSkillRepeatDelay: HoldRepeat.DEFAULT_DELAY,
         showSkillIconNextToDamageNumber: false,
         obviousSkillProcs: false,
         hideSkillProcAlertsOutsideCombat: false,
@@ -113,6 +115,7 @@ class SettingsData {
         config.damageNumberLimit = VisualLimit.damage.normalize(config.damageNumberLimit);
         config.beeVisualLimit = VisualLimit.bees.normalize(config.beeVisualLimit);
         config.bombletVisualLimit = VisualLimit.bomblets.normalize(config.bombletVisualLimit);
+        config.holdSkillRepeatDelay = HoldRepeat.normalizeDelay(Reflect.field(config,"holdSkillRepeatDelay"));
         if (config.disableDamageNumbers) {
             config.damageNumberLimit = "None"; // Migrate the old checkbox once.
             config.disableDamageNumbers = false;
