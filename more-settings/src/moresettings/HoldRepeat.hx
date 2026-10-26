@@ -2,19 +2,24 @@ package moresettings;
 
 /** Repeat native binding presses while held, without bypassing skill legality. */
 class HoldRepeat {
+    static inline var HOLD_DELAY:Float = 1.0;
+    static inline var REPEAT_INTERVAL:Float = 0.1;
     var next:Float = -1;
+    var lastSample:Float = -1;
     public function new() {}
-    public function reset():Void next = -1;
+    public function reset():Void {next = -1;lastSample = -1;}
     public function sample(enabled:Bool, held:Bool, allowed:Bool, now:Float, original:Bool):Bool {
         if (!enabled || !held || !allowed || !Math.isFinite(now)) {
             reset(); return original;
         }
-        if (original || next < 0 || now < next - 0.1) {
-            next = now + 0.1;
+        var start = original || next < 0 || now < lastSample;
+        lastSample = now;
+        if (start) {
+            next = now + HOLD_DELAY;
             return original;
         }
         if (now < next) return original;
-        next = now + 0.1;
+        next = now + REPEAT_INTERVAL;
         return true;
     }
     /** Only the native weapon, class and signature skill bindings repeat.
