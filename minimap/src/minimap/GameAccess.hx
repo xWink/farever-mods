@@ -40,7 +40,9 @@ class GameAccess {
     }
     public static function number(value:Dynamic, fallback:Float = 0):Float {
         if (value == null) return fallback;
-        var n = Std.parseFloat(Std.string(value));
+        // Native numeric values need no string formatting, allocation or parsing.
+        // Preserve support for strings from either HashLink module as a fallback.
+        var n:Float = Std.isOfType(value, Float) ? cast value : Std.parseFloat(Std.string(value));
         return Math.isFinite(n) ? n : fallback;
     }
     public static function integer(value:Dynamic, fallback:Int = 0):Int {

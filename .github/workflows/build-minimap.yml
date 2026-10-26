@@ -53,6 +53,20 @@ jobs:
           persist-credentials: false
       - name: Build the HashLink test runtime
         run: make -C .minimap-hashlink -j2 hl
+      - uses: actions/checkout@v4
+        with:
+          repository: hlx-framework/hlx-core
+          ref: 70800e6e279ca5df2bd2cb45d347c92a3d30e435
+          path: .minimap-hlx
+          persist-credentials: false
+      - name: Test production numeric reads on HashLink
+        working-directory: minimap
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.minimap-hashlink
+        run: |
+          mkdir -p build
+          haxe -cp tests -cp src -cp ../.minimap-hlx/hlx-runtime/src -main GameAccessNumberTest -dce full -hl build/game-access-number-test.hl
+          ../.minimap-hashlink/hl build/game-access-number-test.hl
       - name: Test big-map integration on HashLink
         working-directory: minimap
         env:
@@ -73,6 +87,8 @@ jobs:
           ../.minimap-hashlink/hl build/minimap-filter-panel-test.hl
           haxe -cp src -cp tests -cp tests/big-map-stubs -main MapChangesTest -hl build/map-changes-test.hl
           ../.minimap-hashlink/hl build/map-changes-test.hl
+          haxe -cp src -cp tests -cp tests/big-map-stubs -main WorldChestMarkersTest -hl build/world-chest-markers-test.hl
+          ../.minimap-hashlink/hl build/world-chest-markers-test.hl
 
   build:
     needs: test

@@ -314,12 +314,14 @@ class MinimapMarkers {
             stationSource = allElements;
             stationDefinitions = [];
             soulstoneDefinitions = [];
+            chests.clearWorld();
             // Stations and soulstone circles have no dedicated HElement list.
             // Index loaded definitions once, not on each refresh or from disk.
             if (allElements != null) for (definition in G.array(G.staticCall("HElement", "all", []))) {
                 if (G.text(G.field(definition, "mapId")) != level) continue;
                 if (stationKind(G.integer(G.field(G.field(definition, "inf"), "type"))) != "")
                     stationDefinitions.push(definition);
+                chests.addDefinition(definition);
                 var inf = G.field(definition, "inf");
                 if (SoulstoneMarkers.isCircle(inf)
                     && worldEvents.checkStatus(G.field(G.field(inf, "props"), "releaseStatus")))
@@ -386,6 +388,7 @@ class MinimapMarkers {
         var points:Array<MapPoint> = [];
         alertTargets = [];
         var liveNpcs:Map<String, MapPoint> = [];
+        var liveChests:Map<String, Bool> = [];
         var player = G.field(hero, "player");
         var progress = G.field(player, "progress");
         var unitsProgress = G.field(G.field(progress, "unitsProgress"), "map");
@@ -472,6 +475,10 @@ class MinimapMarkers {
             if (category != "gatherable" && category != "npc" && category != "chest") continue;
             if (category == "npc" && !config.showNpcs || category == "chest" && !config.showChests
                 || category == "gatherable" && !config.showPlants && !config.showOre) continue;
+            if (category == "chest") {
+                chests.observe(element);
+                liveChests[G.text(G.field(element, "kind"), G.text(G.field(G.field(element, "inf"), "id")))] = true;
+            }
             var px = G.number(G.field(element, "posx")), py = G.number(G.field(element, "posy"));
             if (category != "npc" && !near(px, py, x, y, radius)) continue;
             var active = G.field(element, "enabled") == true && G.call("ent.Element", "isHidden", element) != true;
@@ -500,6 +507,8 @@ class MinimapMarkers {
                     points.push({kind: kind, x: px, y: py, z: G.number(G.field(element, "posz"), Math.NaN), entity: element});
             }
         }
+
+        if (config.showChests) chests.append(points, liveChests, player, layer, x, y, radius, worldEvents);
 
         for (key => point in landmarks) {
             if (isNpc(point.kind) && liveNpcs.exists(key)) continue;

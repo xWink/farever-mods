@@ -137,6 +137,14 @@ class MapRefinementsTest {
         eq(pads,1,'Exactly one outlined pad');
         eq(stroke,0.,'Paw resets line style for subsequent artwork');
 
+        G.recordShapes = true; G.shapes = [];
+        art.drawIcon({kind:'soulstone',x:0,y:0,z:0});
+        G.recordShapes = false;
+        var circles = G.shapes.filter(command -> command.name == 'drawCircle');
+        near(G.number(circles[0].args[2]) - G.number(circles[1].args[2]), 0.25,
+            'Soulstone rim no longer stacks a full pixel on the cached outline');
+        near(minimap.MarkerOutline.THICKNESS + 0.25, 0.75, 'Combined soulstone outer outline is half as thick');
+
         var friend:minimap.MapPoint = {kind:'player',friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Friend'}};
         var party:minimap.MapPoint = {kind:'player',partyMember:true,friend:true,x:0,y:0,z:0,heading:0,entity:{name:'Party'}};
         var services:Array<minimap.MapPoint> = [{kind:'demon',x:0,y:0,z:0},{kind:'soulWell',x:0,y:0,z:0}];

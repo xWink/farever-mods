@@ -805,8 +805,10 @@ class LandmarkIcons {
 
     static function soulstone(g:Dynamic, r:Float):Void {
         // A runic summoning ring around a faceted soulstone, distinct from portals.
+        // The cached black silhouette already adds half a pixel. Keep this
+        // inner dark rim to a quarter pixel instead of stacking a full pixel.
         fill(g, 0x251c32);
-        circle(g, 0, 0, r + 1);
+        circle(g, 0, 0, r + 0.25);
         end(g);
         fill(g, 0xc5a0e6);
         circle(g, 0, 0, r);

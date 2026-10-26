@@ -2,6 +2,9 @@ package minimap;
 
 /** Native-only boundary; BigMapView and the complete marker collector/renderer run unchanged. */
 class GameAccess {
+    public static var elementScans:Int = 0;
+    public static var prefabReads:Int = 0;
+    public static var chestProgressReads:Int = 0;
     public static var globals:Map<String, Dynamic> = ["h3d.mat.TextureFlags.Target" => "Target", "hxd.PixelFormat.RGBA" => "RGBA", "h2d.BlendMode.AlphaAdd" => "AlphaAdd",
         "h3d.mat.TextureFlags.MipMapped" => "MipMapped", "h3d.mat.MipMap.Linear" => "Linear"];
     public static var styledObjects:Array<Dynamic> = [];
@@ -84,7 +87,7 @@ class GameAccess {
         if (type == "hxd.Key" && name == "isDown") return globals["mouseDown"] == true;
         if (type == "gamepad.Pad" && name == "get_active") return globals["padActive"] == true;
         if (type == "HMapActivity" && name == "getKind") return args[0].id;
-        if (type == "HData" && name == "checkStatus") return true;
+        if (type == "HData" && name == "checkStatus") return args[0] == null || args[0] == 3;
         if (name == "isOfType") return field(args[0], "id") == args[1] || field(args[0], "inherit") == args[1];
         if (type == "HActivity" && name == "allFiltered") return globals["activities"];
         if (type == "HActivity" && name == "getInf") {
@@ -92,6 +95,8 @@ class GameAccess {
             if (failActivityLookup) throw "Activity definitions unavailable";
             return globals["activity:" + args[0]];
         }
+        if (type == "HElement" && name == "all") { elementScans++; return globals["elements"]; }
+        if (type == "ui.win.MapWindow" && name == "getZoneRedOrbs") return [];
         if (type == "HElement" && name == "getDialogGoals") return field(args[0], "testGoals");
         if (type == "HActivity" && name == "getPos") return args[0].position;
         if (type == "hxd.res.DefaultFont" && name == "get") return {size: 14};
@@ -302,8 +307,21 @@ class GameAccess {
             default: throw "MapWindow " + name;
         };
         if (type == "haxe.ds.StringMap" && name == "get") return o == null ? null : (cast o:Map<String, Dynamic>).get(args[0]);
-        if (type == "hrt.prefab.Object3D" && name == "getAbsPos") return o;
-        if (type == "ent.Element" && name == "isHidden") return false;
+        if (type == "hrt.prefab.Object3D" && name == "getAbsPos") { prefabReads++; return o; }
+        if (type == "hrt.prefab.Prefab" && name == "getCdbType") return field(o, "cdbType");
+        if (type == "st.State" && name == "getActivity") return field(o, "activity");
+        if (type == "st.GameLayer" && name == "get_time") return field(o, "time");
+        if (type == "st.player.Progress" && name == "getElementState") {
+            if (args.length != 2 || args[1] != null) throw "Completion lookup must not create progress";
+            chestProgressReads++;
+            var states:Map<String, Dynamic> = field(o, "chests");
+            return states == null ? null : states.get(args[0]);
+        }
+        if (type == "st.event.WorldEvents" && name == "getEventStatus") {
+            if (args.length != 3 || args[0] != null || args[2] != null) throw "Event lookup arguments";
+            return {status:args[1] == field(o,"disabled") ? "Disabled" : "Active"};
+        }
+        if (type == "ent.Element" && name == "isHidden") return field(o, "hidden") == true;
         if (type == "ent.Element" && name == "getElementStateInf") return {flags: o.state};
         if (type == "st.player.Progress" && name == "hasElementCompleted") return field(o, "lockedElement") != args[0];
         if (type == "st.player.Progress" && name == "hasZoneDiscovered") return field(o, "lockedZone") != field(args[0], "id");
