@@ -2,6 +2,9 @@ import SkillPresetSerializationHost.SkillPresetStringFixture;
 import itemutilities.SkillPresetPlan;
 import itemutilities.SkillPresetPlan.SkillPresetState;
 import itemutilities.SkillPresetPlan.SkillPresetRules;
+import itemutilities.ArsenalPresetPlan;
+import itemutilities.NativeArsenal;
+import itemutilities.InspectAccess as G;
 
 class SkillPresetSerializationPlugin {
     @:hlNative("std", "sys_resolve_type")
@@ -100,6 +103,31 @@ class SkillPresetSerializationPlugin {
             check(SkillPresetPlan.build(conduitState, SkillPresetPlan.saved(conduitState,owners), rules, owners,
                 null, decoded).length==0, "Foreign native conduit IDs compare correctly against restored choices.");
         }
-        Sys.println("Skill preset cross-module serialization passed.");
+        var weapon:String = cast Reflect.field(host, "arsenalWeapon");
+        var weaponSkill:String = cast Reflect.field(host, "arsenalSkill");
+        var passive:String = cast Reflect.field(host, "arsenalPassive");
+        var nativeSelection:Dynamic = Reflect.field(host, "arsenalSkills");
+        check(Type.getClass(weapon) != String && Type.getClass(passive) != String,
+            "Arsenal fixture uses game-owned weapon and passive IDs.");
+        var arsenalSaved = ArsenalPresetPlan.saved([{weapon:weapon, skills:[weaponSkill, passive]}]);
+        for (target in [ArsenalPresetPlan.decode(arsenalSaved),
+            ArsenalPresetPlan.decode(haxe.Json.parse(haxe.Json.stringify(arsenalSaved)))]) {
+            check(Std.isOfType(target[0].weapon, String) && Std.isOfType(target[0].skills[1], String),
+                "Arsenal IDs save as strings both immediately and across login sessions.");
+            check(target[0].weapon == "Weapon_Bow" && target[0].skills.join(",") == "Bow_Shot,Bow_Passive",
+                "Arsenal weapon, active skill and passive are preserved exactly.");
+            G.data = {item:{byId:(["Weapon_Bow" => {id:weapon, valid:[weaponSkill,passive]}]:Map<String,Dynamic>)},
+                skill:{byId:(["Bow_Shot" => {id:weaponSkill}, "Bow_Passive" => {id:passive}]:Map<String,Dynamic>)}};
+            var specialization:Dynamic = {arsenals:(["Weapon_Bow" => nativeSelection]:Map<String,Dynamic>)};
+            var hero:Dynamic = {specialization:specialization, limit:2};
+            NativeArsenal.apply(hero, target[0]);
+            var request:Dynamic = specialization.request;
+            check(Reflect.callMethod(host, Reflect.field(host, "acceptArsenalRequest"),
+                [request.weapon, request.skills]) == true,
+                "Native arsenal RPC receives the host module's array and string types.");
+            check(ArsenalPresetPlan.same(NativeArsenal.current(specialization, weapon), [passive]),
+                "Request construction never changes the original game-owned selection.");
+        }
+        Sys.println("Skill and arsenal preset cross-module serialization passed.");
     }
 }

@@ -118,3 +118,9 @@
 -cp tests
 -main InventoryControlsTest
 --interp
+--next
+-cp src
+-cp tests/arsenal-stubs
+-cp tests
+-main ArsenalPresetTest
+--interp

@@ -11,6 +11,7 @@ import hlx.runtime.HlxPrefixResult;
 import itemutilities.CharacterResetStore.CharacterResetKind;
 import itemutilities.InspectAccess as G;
 import itemutilities.JunkSaleQueue.JunkSaleItem;
+import itemutilities.ArsenalPresetPlan.ArsenalChoice;
 
 typedef ItemUtilitiesConfig = {
     var enabled:Bool;
@@ -261,7 +262,15 @@ class ItemUtilitiesMod {
     static var presetInventory:Dynamic;
     static var presetEquipment:Dynamic;
     static var presetEquippedIndexes:Array<Int> = [];
+    static var presetEquippedKinds:Map<String, Bool> = [];
     static var presetTransferActive:Bool = false;
+    static var presetHero:Dynamic;
+    static var presetHost:Dynamic;
+    static var presetSpecialization:Dynamic;
+    static var presetCharacterId:String;
+    static var presetArsenals:Array<ArsenalChoice> = [];
+    static var arsenalPresetTransfer = new ArsenalPresetTransfer();
+    static var nextArsenalPresetCheck:Float = 0;
     static var lockErrors:Map<String, Bool> = new Map();
     static inline var ITEM_FINGERPRINT_VERSION = ItemLockState.FINGERPRINT_VERSION;
     static inline var LOCK_RECONCILE_INTERVAL = 0.2;
@@ -903,6 +912,7 @@ class ItemUtilitiesMod {
             nextJunkBadgeCheck = badgeTime + LOCK_RECONCILE_INTERVAL;
         }
         refreshActiveHero();
+        updateEquipmentPreset();
         updateJunkSale();
         updateTalentPreset();
         updateSkillPreset();
@@ -1791,36 +1801,41 @@ class ItemUtilitiesMod {
     }
 
     static function saveCurrentEquipmentToPreset(preset:Int):Void {
-        if (!PresetSlots.valid(preset) || presetTransferActive) return;
-        var hero = resolveHero();
-        var characterId = heroPersistentId(hero);
-        var loadout = fieldOrNull(hero, "loadout");
-        var equipment = fieldOrNull(loadout, "equipment");
-        if (characterId == null || equipment == null || !resolveMembers())
-            return;
+        if (!enabled || !PresetSlots.valid(preset) || presetTransferActive) return;
+        try {
+            var hero = resolveHero();
+            var characterId = heroPersistentId(hero);
+            var loadout = fieldOrNull(hero, "loadout");
+            var equipment = fieldOrNull(loadout, "equipment");
+            if (characterId == null || equipment == null || !resolveMembers() || !talentsReady(hero))
+                return;
 
-        var weapons:Array<Dynamic> = [];
-        for (index in equipmentPresetSlotIndexes()) {
-            var item = itemAt(equipment, index);
-            if (item == null)
-                continue;
-            weapons.push({
-                index: index,
-                uid: itemUid(item),
-                fingerprint: itemFingerprint(item)
-            });
-        }
+            var weapons:Array<Dynamic> = [];
+            var items:Array<Dynamic> = [];
+            for (index in equipmentPresetSlotIndexes()) {
+                var item = itemAt(equipment, index);
+                if (item == null)
+                    continue;
+                items.push(item);
+                weapons.push({
+                    index: index,
+                    uid: itemUid(item),
+                    fingerprint: itemFingerprint(item)
+                });
+            }
 
-        var existing = findEquipmentPreset(characterId, preset);
-        if (existing == null)
-            weaponPresets.push({
-                characterId: characterId,
-                preset: preset,
-                weapons: weapons
-            });
-        else
+            var arsenals = ArsenalPresetPlan.saved(NativeArsenal.capture(hero, items));
+            var existing = findEquipmentPreset(characterId, preset);
+            if (existing == null) {
+                existing = {characterId:characterId, preset:preset};
+                weaponPresets.push(existing);
+            }
             Reflect.setField(existing, "weapons", weapons);
-        saveConfig();
+            Reflect.setField(existing, "arsenals", arsenals);
+            saveConfig();
+        } catch (error:Dynamic) {
+            logLockError("save equipment preset", error);
+        }
     }
 
     static function equipmentPresetSlotIndexes():Array<Int> {
@@ -1842,31 +1857,46 @@ class ItemUtilitiesMod {
     }
 
     static function activateEquipmentPreset(preset:Int):Void {
-        if (!PresetSlots.valid(preset) || presetTransferActive)
+        if (!enabled || !PresetSlots.valid(preset) || presetTransferActive)
             return;
-        var hero = resolveHero();
-        var characterId = heroPersistentId(hero);
-        var saved = findEquipmentPreset(characterId, preset);
-        var loadout = fieldOrNull(hero, "loadout");
-        var inventory = fieldOrNull(loadout, "inventory");
-        var equipment = fieldOrNull(loadout, "equipment");
-        var weapons:Array<Dynamic> = saved == null ? null : cast Reflect.field(saved, "weapons");
-        if (inventory == null || equipment == null || weapons == null || weapons.length == 0
-            || !resolveMembers())
-            return;
+        try {
+            var hero = resolveHero();
+            var characterId = heroPersistentId(hero);
+            var saved = findEquipmentPreset(characterId, preset);
+            var loadout = fieldOrNull(hero, "loadout");
+            var inventory = fieldOrNull(loadout, "inventory");
+            var equipment = fieldOrNull(loadout, "equipment");
+            var weapons:Array<Dynamic> = saved == null ? null : cast Reflect.field(saved, "weapons");
+            if (inventory == null || equipment == null || weapons == null || weapons.length == 0
+                || !resolveMembers() || !talentsReady(hero))
+                return;
 
-        presetEquipQueue = weapons.copy();
-        presetEquipPosition = 0;
-        presetInventory = inventory;
-        presetEquipment = equipment;
-        presetEquippedIndexes = [];
-        presetTransferActive = true;
-        equipNextPresetItem();
+            // Missing data means a pre-arsenal preset. Do not invent selections.
+            var arsenals = ArsenalPresetPlan.fromPreset(saved);
+            NativeArsenal.validate(hero, arsenals);
+            presetHero = hero;
+            presetHost = fieldOrNull(currentGameApp(), "host");
+            presetSpecialization = fieldOrNull(hero, "specialization");
+            presetCharacterId = characterId;
+            presetArsenals = arsenals;
+            presetEquipQueue = weapons.copy();
+            presetEquipPosition = 0;
+            presetInventory = inventory;
+            presetEquipment = equipment;
+            presetEquippedIndexes = [];
+            presetEquippedKinds = [];
+            presetTransferActive = true;
+            equipNextPresetItem();
+        } catch (error:Dynamic) {
+            cancelPresetTransfer();
+            logLockError("apply equipment preset", error);
+        }
     }
 
     static function equipNextPresetItem():Void {
         if (!presetTransferActive)
             return;
+        if (!equipmentPresetSessionValid()) {cancelPresetTransfer(); return;}
         while (presetEquipPosition < presetEquipQueue.length) {
             var saved = presetEquipQueue[presetEquipPosition];
             presetEquipPosition++;
@@ -1877,8 +1907,10 @@ class ItemUtilitiesMod {
             var source = findPresetItem(saved);
             if (source == null)
                 continue;
+            var weaponKind = G.text(fieldOrNull(itemAt(source.inventory, source.index), "kind"));
             if (source.inventory == presetEquipment && source.index == targetIndex) {
                 presetEquippedIndexes.push(targetIndex);
+                presetEquippedKinds.set(weaponKind, true);
                 continue;
             }
             if (!resolveMembers()) {
@@ -1891,8 +1923,10 @@ class ItemUtilitiesMod {
                 // A reply from before a reset must not advance a newly saved
                 // and activated preset's queue.
                 if (!presetTransferActive || presetEquipQueue != requestQueue) return;
-                if (success)
+                if (success) {
                     presetEquippedIndexes.push(targetIndex);
+                    presetEquippedKinds.set(weaponKind, true);
+                }
                 equipNextPresetItem();
             };
             try {
@@ -1910,7 +1944,44 @@ class ItemUtilitiesMod {
             }
             return;
         }
-        cancelPresetTransfer();
+        // Use successful transfer replies: equipment replication may trail the
+        // callback. Missing/rejected items must not change arsenal preferences.
+        var choices = [for (choice in presetArsenals) if (presetEquippedKinds.exists(choice.weapon)) choice];
+        arsenalPresetTransfer.start(presetSpecialization, choices);
+        nextArsenalPresetCheck = 0;
+        if (!arsenalPresetTransfer.active) cancelPresetTransfer();
+    }
+
+    static function equipmentPresetSessionValid():Bool {
+        var hero = resolveHero();
+        var loadout = fieldOrNull(hero, "loadout");
+        return enabled && hero == presetHero && heroPersistentId(hero) == presetCharacterId
+            && fieldOrNull(currentGameApp(), "host") == presetHost
+            && fieldOrNull(hero, "specialization") == presetSpecialization
+            && fieldOrNull(loadout, "inventory") == presetInventory
+            && fieldOrNull(loadout, "equipment") == presetEquipment && talentsReady(hero);
+    }
+
+    static function updateEquipmentPreset():Void {
+        if (!presetTransferActive) return;
+        try {
+            if (!equipmentPresetSessionValid()) {cancelPresetTransfer(); return;}
+            if (!arsenalPresetTransfer.active) return; // Item requests still in progress.
+            var now = haxe.Timer.stamp();
+            if (now < nextArsenalPresetCheck) return;
+            nextArsenalPresetCheck = now + 0.05;
+            var current = NativeArsenal.current(presetSpecialization, arsenalPresetTransfer.weapon());
+            var change = arsenalPresetTransfer.next(presetSpecialization, now, current);
+            if (change != null) NativeArsenal.apply(presetHero, change);
+            if (!arsenalPresetTransfer.active) {
+                var error = arsenalPresetTransfer.error;
+                cancelPresetTransfer();
+                if (error != "") logLockError("apply equipment preset arsenal", error);
+            }
+        } catch (error:Dynamic) {
+            cancelPresetTransfer();
+            logLockError("apply equipment preset arsenal", error);
+        }
     }
 
     static function findPresetItem(saved:Dynamic):{ inventory:Dynamic, index:Int } {
@@ -1937,11 +2008,18 @@ class ItemUtilitiesMod {
     }
 
     static function cancelPresetTransfer():Void {
+        arsenalPresetTransfer.cancel();
+        presetArsenals = [];
+        presetHero = null;
+        presetHost = null;
+        presetSpecialization = null;
+        presetCharacterId = null;
         presetEquipQueue = [];
         presetEquipPosition = 0;
         presetInventory = null;
         presetEquipment = null;
         presetEquippedIndexes = [];
+        presetEquippedKinds = [];
         presetTransferActive = false;
     }
 
@@ -3338,12 +3416,16 @@ class ItemUtilitiesMod {
                         var preset = recordInt(entry, "preset", -1);
                         var weapons:Array<Dynamic> = cast Reflect.field(entry, "weapons");
                         if (characterId != null && StringTools.startsWith(characterId, "db:")
-                            && PresetSlots.valid(preset) && weapons != null)
-                            weaponPresets.push({
+                            && PresetSlots.valid(preset) && weapons != null) {
+                            var restored:Dynamic = {
                                 characterId: characterId,
                                 preset: preset,
                                 weapons: weapons
-                            });
+                            };
+                            if (Reflect.hasField(entry, "arsenals"))
+                                Reflect.setField(restored, "arsenals", Reflect.field(entry, "arsenals"));
+                            weaponPresets.push(restored);
+                        }
                     }
                 }
             }

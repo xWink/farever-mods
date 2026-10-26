@@ -13,7 +13,7 @@ Also available on [Nexus Mods](https://www.nexusmods.com/farever/mods/9).
 ## Features and controls
 
 - **Inspect:** use the player interaction menu or `/inspect PlayerName` to view equipment and appearance with native tooltips.
-- **Presets:** save and apply equipment, talent, skill, and appearance presets. Right-click a closed preset dropdown to rename the selected preset. Optional hotkeys support Ctrl, Shift, and Alt.
+- **Presets:** save and apply equipment, talent, skill, and appearance presets. Equipment presets include selected arsenal weapon skills and passives. Right-click a closed preset dropdown to rename the selected preset. Optional hotkeys support Ctrl, Shift, and Alt.
 - **Item locks:** use the lock control beside inventory sorting to protect items from destructive actions. Locked items are excluded from bulk deposits and junk marking.
 - **Junk:** mark unwanted items with the trash control, then use **Sell junk** at a guild merchant.
 - **Bank deposits:** buttons deposit all eligible items, crafting components, food/consumables, demonic items, equipment, or collectibles. Demonic items include enchantments and soulstones; collectibles include mounts, gliders, recipes, infusion patterns, and emotes.
@@ -23,5 +23,7 @@ Also available on [Nexus Mods](https://www.nexusmods.com/farever/mods/9).
 - **Optional conveniences:** hold interact to quick-loot drops, or enable instant mote conversion.
 
 Presets and item preferences are saved per character. Configure features and hotkeys in Mod Settings.
+
+Press **Set** again on an existing equipment preset to include your current arsenal selections. Older presets retain their equipment-only behavior until re-saved. Item locking and its buttons/icons are enabled by default on a fresh install.
 
 See [Building](../README.md#building) for source builds and tests.
