@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.22.4",
-  "commit": "de3c63a449b102a206d2c3e58e4bfd583e7c81c0",
-  "notes": "Added a slight delay before holding a skill button starts repeating it",
+  "project": "minimap",
+  "version": "2.3.1",
+  "commit": "ee33478966a584e7c940dad9266c11858982e218",
+  "notes": "- Unopened chests now appear in the map from any distance instead of just nearby\n- Soulstone marker outlines are no longer thicc\n- Performance optimization",
   "dry_run": false
 }
