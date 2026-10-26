@@ -1,7 +1,7 @@
 {
-  "project": "minimap",
-  "version": "2.3.2",
-  "commit": "fbc8f9eb4db35a14c5fa0ea15724a2cd15c7093f",
-  "notes": "Fixed an issue where opened activity chests would appear as chests",
+  "project": "more-settings",
+  "version": "1.22.5",
+  "commit": "4ca1e044741a27f90aa5e5b5aef2b93366de871e",
+  "notes": "- Added a slider to choose the delay before holding a skill button starts repeating the skill inputs\n",
   "dry_run": false
 }
