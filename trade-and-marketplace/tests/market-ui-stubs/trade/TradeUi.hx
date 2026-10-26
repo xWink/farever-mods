@@ -28,5 +28,6 @@ class TradeUi {
  public static function position(o:Dynamic,x:Float,y:Float):Void {o.x=x;o.y=y;}
  public static function style(o:Dynamic,p:String,v:Dynamic):Void{}
  public static function setText(o:Dynamic,s:String):Void {o.text=s;}
- public static function escape(s:String):String return s;
+ public static function escape(s:String):String
+  return s==null?"":StringTools.replace(StringTools.replace(StringTools.htmlEscape(s),"[","&#91;"),"$","&#36;");
 }

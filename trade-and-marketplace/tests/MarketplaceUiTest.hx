@@ -676,6 +676,7 @@ class MarketplaceUiTest {
   view.close();
   MarketplaceBadgeTest.run(row);
   MarketplaceOrderUiTest.run(row);
+  MarketplaceDetailsTest.run(row);
   loginDialog();
   Sys.println("Marketplace UI recovery checks passed: "+checks);
  }

@@ -72,6 +72,7 @@ class MarketplaceBuyTest {
         check(c.buy.visible.length==1&&slots().length==1&&viewport.scrollPosY==0&&node("marketInput")==search);
         slots()[0].action();view.update();reflow(view);
         check(c.buy.selected.kind==armor.id&&levelInput(438)!=null&&dropdown(438)==null&&dropdown(508)!=null);
+        check(G.labels.filter(l->Std.string(l.text).indexOf("Infusion bonus: Any")>=0).length==1);
         var level=levelInput(438);check(level.input.text=="17"&&c.buy.preview.preview.level==17);
         level.input.text="999";level.onChange();view.update();reflow(view);check(c.buy.level==30&&level.input.text=="30");
         level.input.text="";level.onChange();view.update();check(level.input.text==""&&c.buy.level==30);
@@ -79,6 +80,8 @@ class MarketplaceBuyTest {
         var bonus=dropdown(508);bonus.selectedIndex=1;bonus.onSelectOption(null);view.update();reflow(view);
         var prism=G.nodes.filter(n->n.fmtText.text=="Prismatic")[0];prism.onValueChange(true);view.update();reflow(view);
         check(c.buy.level==20&&c.buy.bonus=="Vitality"&&c.buy.prismatic&&c.buy.preview.preview.flags==2);
+        check(G.labels.filter(l->Std.string(l.text).indexOf("Infusion bonus: Vitality")>=0).length==1);
+        check(G.labels.filter(l->Std.string(l.text).indexOf("Infusion bonus: Any")>=0).length==0);
         check(G.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic").length==1);
         var quantity=G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==918&&n.y==438)[0];
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");

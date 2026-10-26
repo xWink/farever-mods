@@ -1173,7 +1173,8 @@ class MarketWindow {
         }
         var stats=labelAt(details,lines.join("\n"),0,0,284,false,0xFFFFFF);
         try {
-            var nativeText=MarketDetails.text(item,nativeItem);
+            var buyOrder=c.tab=="Buy"||((c.tab=="Browse"||c.tab=="My listings")&&MarketOrder.isBuy(c.selected));
+            var nativeText=MarketDetails.text(item,nativeItem,buyOrder);
             if(nativeText!=null)G.call("ui.comp.FmtText","set_text",stats,[nativeText]);
         }catch(error:Dynamic)report("native item details",error);
         G.call("h2d.Text","set_wordBreak",stats,[true]);

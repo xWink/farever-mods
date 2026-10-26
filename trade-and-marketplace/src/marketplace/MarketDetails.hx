@@ -7,15 +7,28 @@ import trade.TradeTypes;
 
 /** Native tooltip descriptions, preserving modifier values, colours and icons. */
 class MarketDetails {
-    public static function text(offer:TradeItem,?item:Dynamic):Null<String> {
+    public static function text(offer:TradeItem,?item:Dynamic,buyOrder=false):Null<String> {
+        var hasNativeState=item!=null||offer.preview!=null;
         if(item==null)item=TradeTooltips.previewItem(offer);
         if(item==null||!G.isA(item,"st.item.Gear"))return null;
         var lines=affixes(G.call("st.Item","getItemAffixes",item));
-        // Infusion labels are plain text; modifier markup below comes only from
-        // the game's validated item definitions, never from a listing's text.
-        for(line in MarketText.detail(offer.detail,TradeInventory.skillName,offer.preview==null?"":offer.preview.infusion).split("\n"))
-            if(StringTools.startsWith(line,"Infusion:" )||StringTools.startsWith(line,"Infusion bonus:"))
-                lines.push(trade.TradeUi.escape(line));
+        if(hasNativeState) {
+            // Reconstructed item state is authoritative. The optional saved
+            // summary can be absent, outdated, or written in another language.
+            var infusion=G.text(G.field(item,"infusion")),bonus=G.text(G.field(item,"infusionBonusStat"));
+            if(infusion!="")lines.push(trade.TradeUi.escape("Infusion: "+TradeInventory.skillName(infusion)));
+            if(bonus!="") {
+                var definition=G.call("haxe.ds.StringMap","get",G.field(G.current("Data","attribute"),"byId"),[bonus]);
+                var name=G.text(G.field(definition,"name"));
+                lines.push(trade.TradeUi.escape("Infusion bonus: "+(name!=""?name:bonus)));
+            } else if(buyOrder&&G.staticCall("HInfusion","canBeInfused",[TradeInventory.definition(offer.kind)])==true)
+                lines.push("Infusion bonus: Any");
+        } else {
+            // Legacy listings without an instance snapshot only have a summary.
+            for(line in MarketText.detail(offer.detail,TradeInventory.skillName).split("\n"))
+                if(StringTools.startsWith(line,"Infusion:")||StringTools.startsWith(line,"Infusion bonus:"))
+                    lines.push(trade.TradeUi.escape(line));
+        }
         for(slot in G.array(G.field(item,"slots"),true)) {
             var id=G.text(slot);
             if(id=="")continue;
