@@ -10,6 +10,7 @@ import moresettings.BeeEffects;
 import moresettings.BombletEffects;
 import moresettings.PerformanceDamageNumbers;
 
+@:access(moresettings.BombletEffects)
 class PerformanceVisualsTest {
     static var checks=0;
     static function eq(actual:Dynamic,expected:Dynamic,message:String):Void {
@@ -22,7 +23,54 @@ class PerformanceVisualsTest {
         BombletEffects.configure(VisualLimit.bomblets.count(c.bombletVisualLimit));
         PerformanceDamageNumbers.configure(VisualLimit.damage.count(c.damageNumberLimit));
     }
+    static function bombletHitEffects():Void {
+        var skill:Dynamic={inf:{id:"Infusion_Kobold_DPS"}};
+        var otherSkill:Dynamic={inf:{id:"OtherSkill"}};
+        for (step in ["Bomblet","GoldenBomblet"]) {
+            for (hitFirst in [false,true]) {
+                BombletEffects.configure(5);
+                BombletEffects.reset();
+                // Hold the budget closed after its first claim without sleeping.
+                BombletEffects.explosionRate=new VisualRateLimit(Math.POSITIVE_INFINITY);
+                var visible:Dynamic={baseSkill:skill,stepKind:step,isServer:false};
+                var hidden:Dynamic={baseSkill:skill,stepKind:step,isServer:false};
+                var shownHit:Dynamic={skill:skill,area:visible,amount:42,result:{damage:42}};
+                var hiddenHit:Dynamic={skill:skill,area:hidden,amount:42,result:{damage:42}};
+                eq(hitFirst ? BombletEffects.suppressHit(shownHit) : BombletEffects.suppress(visible),false,
+                    step+": first explosion claims one visible slot");
+                eq(hitFirst ? BombletEffects.suppressHit(hiddenHit) : BombletEffects.suppress(hidden),true,
+                    step+": next explosion is hidden");
+                for (target in 0...3) {
+                    eq(BombletEffects.suppressHit(shownHit),false,step+": visible explosion keeps each target splash");
+                    eq(BombletEffects.suppressHit(hiddenHit),true,step+": hidden explosion suppresses each target splash");
+                }
+                eq(BombletEffects.suppress(visible),false,step+": hit FX does not spend the explosion slot twice");
+                eq(BombletEffects.suppress(hidden),true,step+": explosion and target splash agree");
+                eq(BombletEffects.suppressHit({skill:otherSkill,area:hidden}),false,"Unrelated damage remains visible");
+                eq(BombletEffects.suppressHit({skill:skill,area:null}),false,"Missing area fails open");
+                eq(BombletEffects.suppressHit(null),false,"Missing hit fails open");
+                eq(BombletEffects.suppressHit({skill:skill,area:{baseSkill:skill,stepKind:"OtherStep",isServer:false}}),
+                    false,"Other infusion steps remain visible");
+                hidden.isServer=true;
+                eq(BombletEffects.suppressHit(hiddenHit),false,"Cached suppression never affects server hits");
+                hidden.isServer=false;
+                eq(hiddenHit.amount,42,"Suppression leaves hit amount intact");
+                eq(hiddenHit.result.damage,42,"Suppression leaves damage results intact");
+                BombletEffects.explosionRate.reset();
+                eq(BombletEffects.suppressHit(hiddenHit),true,"Hidden explosion stays hidden when the rate window reopens");
+                BombletEffects.release(hidden);
+                eq(BombletEffects.explosions.exists(hidden),false,"Removing area releases its cached decision");
+                eq(BombletEffects.suppressHit(hiddenHit),false,"Released area can claim a fresh decision");
+                BombletEffects.configure(0);
+                eq(BombletEffects.suppressHit(shownHit),true,"None hides previously visible bomblet hit FX");
+                BombletEffects.configure(-1);
+                eq(BombletEffects.suppressHit(hiddenHit),false,"Max restores all bomblet hit FX");
+                eq(BombletEffects.explosions.iterator().hasNext(),false,"Settings changes clear cached areas");
+            }
+        }
+    }
     static function main():Void {
+        bombletHitEffects();
         var c=SettingsData.defaults();
         eq(c.performanceOptimization,false,"Performance effects remain opt-in");
         eq(c.preventCtrlFFullscreen,false,"Ctrl+F fix remains opt-in");

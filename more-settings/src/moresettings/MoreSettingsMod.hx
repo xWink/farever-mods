@@ -289,10 +289,6 @@ class MoreSettingsMod {
 
     // Cosmetic FX suppression never touches skill damage, area-hit callbacks,
     // server simulation, or any object owned by the combat model.
-    @:hlx.prefix(st.skill.SkillArea.playAreaFx)
-    static function reduceBombletExplosions(area:Dynamic):HlxPrefixResult<Void>
-        return BombletEffects.suppress(area)?Skip:Continue;
-
     @:hlx.prefix(world.World.playBellFx)
     static function reduceBombletTravel(world:Dynamic,inf:Dynamic,owner:Dynamic,
         from:Dynamic,to:Dynamic,duration:Float):HlxPrefixResult<Void>

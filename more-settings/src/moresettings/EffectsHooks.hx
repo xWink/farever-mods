@@ -45,6 +45,13 @@ class EffectsHooks {
     }
 
     @:hlx.prefix(st.skill.SkillArea.playAreaFx)
+    static function explosionBefore(instance:Dynamic):HlxPrefixResult<Void> {
+        AllyEffects.pushEntity(instance);
+        return BombletEffects.suppress(instance) ? Skip : Continue;
+    }
+    @:hlx.postfix(st.skill.SkillArea.doRemove)
+    static function areaRemoved(instance:Dynamic, result:Void):Void BombletEffects.release(instance);
+
     @:hlx.prefix(st.skill.SkillArea.initVisual)
     @:hlx.prefix(ent.Projectile.initVisual)
     @:hlx.prefix(ent.Projectile.playLinkFx)
@@ -77,7 +84,9 @@ class EffectsHooks {
 
     @:hlx.prefix(ent.Unit.playHitDmgFX)
     static function damageBefore(instance:Dynamic, source:Dynamic, hitData:Dynamic):HlxPrefixResult<Dynamic> {
-        AllyEffects.pushSkill(gamecompat.HitSkill.read(hitData, G.field)); return Continue;
+        // Postfix scopes still run when a cosmetic call is skipped.
+        AllyEffects.pushSkill(gamecompat.HitSkill.read(hitData, G.field));
+        return BombletEffects.suppressHit(hitData) ? SkipWith(null) : Continue;
     }
     @:hlx.postfix(ent.Unit.playHitDmgFX)
     static function damageAfter(instance:Dynamic, source:Dynamic, hitData:Dynamic, result:Dynamic):Dynamic {

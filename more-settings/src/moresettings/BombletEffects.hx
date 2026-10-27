@@ -8,6 +8,9 @@ class BombletEffects {
     static var failed = false;
     static var travelRate = new VisualRateLimit(0.01);
     static var explosionRate = new VisualRateLimit(0.01);
+    // A single explosion can hit several enemies before playAreaFx runs.
+    // Share its decision with every hit splash instead of spending one slot per hit.
+    static var explosions = new haxe.ds.ObjectMap<Dynamic, Bool>();
     static var amount:Int = -1;
     public static function configure(value:Int):Void {
         var next=value < 0 ? -1 : value;
@@ -23,6 +26,10 @@ class BombletEffects {
     public static function reset():Void {
         failed=false;
         travelRate.reset();explosionRate.reset();
+        explosions = new haxe.ds.ObjectMap();
+    }
+    public static function release(area:Dynamic):Void {
+        if (area != null) explosions.remove(area);
     }
     static function isClient(state:Dynamic):Bool
         return G.call("st.BaseState","get_isServer",state) == false;
@@ -34,11 +41,21 @@ class BombletEffects {
             if (id!="Infusion_Kobold_DPS") return false;
             var step=G.text(G.call("st.skill.SkillArea","get_stepKind",area));
             if (!BombletEffectPolicy.explosion(enabled,id,step,!isClient(area))) return false;
-            return amount==0 || !explosionRate.allow(haxe.Timer.stamp());
+            var cached=explosions.get(area);
+            if (cached != null) return cached;
+            var hidden=amount==0 || !explosionRate.allow(haxe.Timer.stamp());
+            explosions.set(area,hidden);
+            return hidden;
         } catch(e:Dynamic) {
             failed=true;trace("[More Settings] Bomblet visual protection disabled: "+Std.string(e));
             return false;
         }
+    }
+    public static function suppressHit(hitData:Dynamic):Bool {
+        if (!enabled || failed || hitData == null) return false;
+        var skill=gamecompat.HitSkill.read(hitData,G.field);
+        if (G.text(G.field(G.field(skill,"inf"),"id")) != "Infusion_Kobold_DPS") return false;
+        return suppress(G.field(hitData,"area"));
     }
     public static function suppressTravel(inf:Dynamic,owner:Dynamic):Bool {
         if (!enabled || failed || inf == null || owner == null) return false;
