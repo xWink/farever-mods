@@ -4,7 +4,8 @@ import dpsmeter.RiftTracker.RiftRecap;
 
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
 typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int,
-    ?defeated:Bool, ?victoryKind:String, ?victoryUid:String};
+    ?defeated:Bool, ?victoryKind:String, ?victoryUid:String,
+    ?victoryObjective:Bool, ?victoryActive:Bool};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
@@ -183,6 +184,10 @@ class Fight {
     // Encounter identity stays Honeyzabeth; Heroic's final target is Queenslayer.
     public var victoryKind:String = "";
     public var victoryUid:String = "";
+    // These observations belong to this attempt, never to the dungeon/layer.
+    public var victoryObjectiveArmed:Bool = false;
+    public var victoryTargetEngaged:Bool = false;
+    public var victoryNotifiedAt:Float = -1;
     public var bossLevel:Int = 0;
     public var bossFoeId:Int = 0;
     public var difficulty:Int = -1;
@@ -232,8 +237,8 @@ class Fight {
         if (outcome != "") return;
         var won = defeated;
         // Honeyzabeth has multiple phases and a heroic death-door transition.
-        // Only the final boss's death RPC/state or completed goal confirms a
-        // win: Honeyzabeth normally, Queenslayer on Heroic.
+        // Normal uses her final death; Heroic requires fresh objective/banner
+        // evidence from the current Queenslayer attempt, not a reset death.
         if (bossKind == "Cleodora") { outcome = won ? "Victory" : "Defeat"; return; }
         if (!won && (bossFlags & 0x10) != 0) won = bossUid != "" && killedTargets.exists(bossUid);
         else if (!won) {
@@ -264,6 +269,8 @@ class Fight {
         result.bossKind = bossKind; result.bossName = bossName; result.bossUid = bossUid; result.bossLevel = bossLevel;
         result.bossFlags = bossFlags;
         result.victoryKind = victoryKind; result.victoryUid = victoryUid;
+        result.victoryObjectiveArmed = victoryObjectiveArmed;
+        result.victoryTargetEngaged = victoryTargetEngaged; result.victoryNotifiedAt = victoryNotifiedAt;
         result.bossFoeId = bossFoeId; result.difficulty = difficulty; result.activityId = activityId;
         result.partySize = partySize;
         result.category = category;
@@ -570,6 +577,21 @@ class CombatModel {
                 && fight.victoryUid == uid) fight.defeated = true;
         }
     }
+    /** The server's victory banner can arrive before KillBossAlt replication,
+        or without it when a very fast Queenslayer kill breaks the chest state. */
+    public function onDungeonVictory(now:Float):Void {
+        if (rift != null || dungeonBoss == null || dungeonBoss.victoryKind != "Queenslayer") return;
+        var fight = current != null ? current : pendingFight != null ? pendingFight : lastCombat;
+        if (fight == null || fight.bossKind != "Cleodora" || fight.victoryKind != "Queenslayer"
+            || fight.activityId != activityId || fight.outcome != "" || now < fight.start
+            || (fight.closed != 0 && now - fight.closed > ENTRY_DAMAGE_SECONDS)
+            || (dungeonBoss.uid != "" && fight.bossUid != "" && fight.bossUid != dungeonBoss.uid)) return;
+        fight.victoryNotifiedAt = now;
+        if (fight.victoryTargetEngaged) fight.defeated = true;
+        // If no final-boss activity was visible yet, only its immediately
+        // following lethal hit may corroborate this event. Do not bank a queen
+        // transition notification for a later Queenslayer phase or retry.
+    }
     function expirePendingFight(now:Float):Void {
         // Bound the whole buffer, so remote party damage while resting cannot
         // accumulate indefinitely and get imported into the next encounter.
@@ -596,6 +618,7 @@ class CombatModel {
         if (victoryKind == null) victoryKind = difficulty == 2 ? "Queenslayer" : "Cleodora";
         if (fight.victoryKind != victoryKind) {
             fight.victoryKind = victoryKind; fight.victoryUid = ""; fight.defeated = false;
+            fight.victoryObjectiveArmed = false; fight.victoryTargetEngaged = false; fight.victoryNotifiedAt = -1;
         }
         // A respawn may arrive during the finished fight's final-damage grace
         // period. Keep that attempt attached to the queen it actually fought.
@@ -610,7 +633,18 @@ class CombatModel {
             if (victoryUid != "") {
                 fight.victoryUid = victoryUid; fight.targets[victoryUid] = true;
             }
-            if (dungeonBoss.defeated == true) fight.defeated = true;
+            if (victoryKind == "Queenslayer") {
+                if (dungeonBoss.victoryActive == true) fight.victoryTargetEngaged = true;
+                // A completed objective can survive respawn in a broken
+                // instance. It must have been incomplete during THIS attempt.
+                if (dungeonBoss.victoryObjective == false) fight.victoryObjectiveArmed = true;
+                else if (dungeonBoss.victoryObjective == true) {
+                    if (fight.victoryObjectiveArmed && fight.victoryTargetEngaged) fight.defeated = true;
+                    // Consume this transition even when it arrived too early.
+                    // Delayed old completion cannot be banked for a later phase.
+                    fight.victoryObjectiveArmed = false;
+                }
+            } else if (dungeonBoss.defeated == true) fight.defeated = true;
         }
         return true;
     }
@@ -644,7 +678,13 @@ class CombatModel {
         // ordinary combat damage, including wipes before she becomes hittable.
         // Do not let a miniboss's flags, name or death replace the final boss.
         if (dungeonEncounter) {
-            if (e.effect != 1 && e.bossKind == fight.victoryKind && e.summoned != true) fight.victoryUid = e.target;
+            if (e.effect != 1 && e.bossKind == fight.victoryKind && e.summoned != true) {
+                fight.victoryUid = e.target;
+                fight.victoryTargetEngaged = true;
+                if (fight.victoryKind == "Queenslayer" && e.kill && fight.victoryNotifiedAt >= 0
+                    && e.time >= fight.victoryNotifiedAt && e.time - fight.victoryNotifiedAt <= ENTRY_DAMAGE_SECONDS)
+                    fight.defeated = true;
+            }
             if (e.effect != 1 && e.bossKind == dungeonBoss.kind && e.summoned != true) {
                 fight.bossUid = e.target; fight.bossLevel = e.bossLevel; fight.bossFoeId = e.bossFoeId;
                 if (e.bossName != null && e.bossName != "") fight.bossName = e.bossName;
@@ -722,7 +762,10 @@ class CombatModel {
                 if (current != null) addToFight(current, e, info);
             } else if (e.effect != 1) {
                 expirePendingFight(e.time);
-                if (e.kill && lastCombat != null && e.target != "" && lastCombat.targets.exists(e.target)
+                if (e.kill && lastCombat != null && e.target != "" && (lastCombat.targets.exists(e.target)
+                    || (lastCombat.bossKind == "Cleodora" && lastCombat.victoryKind == "Queenslayer"
+                        && e.bossKind == "Queenslayer" && e.summoned != true && lastCombat.victoryNotifiedAt >= 0
+                        && e.time >= lastCombat.victoryNotifiedAt && e.time - lastCombat.victoryNotifiedAt <= ENTRY_DAMAGE_SECONDS))
                     && e.time >= lastCombat.closed && e.time - lastCombat.closed <= ENTRY_DAMAGE_SECONDS) {
                     // Unit.receiveDamage handles death before sending its damage
                     // RPC. Reconcile that final blow if exit arrived first, while

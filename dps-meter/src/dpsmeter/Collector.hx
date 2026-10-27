@@ -250,8 +250,23 @@ class Collector {
         // or a summon returning to view must not become another cast.
     }
     public function combatEnter(uid:String, now:Float):Void {
-        if (uid == model.me) refreshPhrixes(now);
+        if (uid == model.me) {
+            refreshPhrixes(now);
+            // Capture the current objective before a new attempt's opening
+            // hit, even when entry occurs between the regular roster polls.
+            if (model.dungeonBoss != null) refreshDungeonBoss(G.field(layer, "isRift") == true);
+        }
         model.onCombatEnter(uid, now);
+    }
+    public function dungeonVictory(context:Dynamic, now:Float):Void {
+        if (!config.enabled || hero == null || context == null || G.field(context, "simulatingServer") == true
+            || G.field(hero, "layer") != layer || G.field(context, "layer") != layer) return;
+        var activity = G.field(layer, "mainActivity");
+        if (activity == null || G.field(context, "activity") != activity) return;
+        var personal = G.call("st.Player", "getActivityContext", G.field(hero, "player"), [activity]);
+        if (context != personal && context != G.field(activity, "globalCtx")) return;
+        refreshDungeonBoss(G.field(layer, "isRift") == true);
+        model.onDungeonVictory(now);
     }
     public function combatExit(uid:String, now:Float):Void {
         if (uid == model.me) refreshPhrixes(now);
@@ -269,7 +284,9 @@ class Collector {
         var player = G.field(hero, "player"), activity = G.field(layer, "mainActivity");
         var altCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Queenslayer", "KillBossAlt");
         var heroic = model.difficulty == 2 || altCompleted != null;
+        var previousQueen = cleodora;
         cleodora = dungeonUnit("Cleodora", cleodora);
+        if (cleodora != previousQueen) queenslayer = null;
         queenslayer = heroic ? dungeonUnit("Queenslayer", queenslayer) : null;
         var name = "";
         if (cleodora != null) name = G.text(G.call("ent.Unit", "getName", cleodora));
@@ -279,19 +296,24 @@ class Collector {
             if (inf != null) name = G.text(G.staticCall("HText", "unit", [inf, null]));
         }
         // Heroic continues after Queenslayer kills Honeyzabeth. Her death and
-        // KillBoss goal are only a transition; KillBossAlt owns the final win.
-        // Heroic requires the server objective: death/removal during a wipe
-        // is not evidence that the alternate boss was defeated.
+        // KillBoss goal are only a transition into the final fight.
+        // Death/removal during a wipe is not evidence of a Heroic win. The
+        // model checks an objective transition or a fresh server victory RPC.
         var queenCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Cleodora");
         var finalBoss = heroic ? queenslayer : cleodora;
-        var defeated = heroic ? altCompleted == true
-            : (finalBoss != null ? G.call("ent.GameObject", "isDead", finalBoss) == true : queenCompleted == true);
-        honeyzabethTransition = heroic && !defeated
-            && (queenCompleted == true || (cleodora != null && G.call("ent.GameObject", "isDead", cleodora) == true))
-            && NativeCombatMetadata.dungeonInCombat(player, activity);
+        var defeated = !heroic && (finalBoss != null
+            ? G.call("ent.GameObject", "isDead", finalBoss) == true : queenCompleted == true);
         model.setDungeonBoss({kind:"Cleodora", name:name == "" ? "Cleodora" : name, uid:G.uid(cleodora),
             level:G.integer(G.field(cleodora, "_level")), foeId:G.integer(G.field(cleodora, "foeId")), defeated:defeated,
-            victoryKind:heroic ? "Queenslayer" : "Cleodora", victoryUid:G.uid(finalBoss)});
+            victoryKind:heroic ? "Queenslayer" : "Cleodora", victoryUid:G.uid(finalBoss),
+            victoryObjective:altCompleted,
+            victoryActive:heroic && finalBoss != null && G.field(finalBoss, "removed") != true
+                && G.field(finalBoss, "isInCombat") == true && G.call("ent.GameObject", "isDead", finalBoss) != true});
+        var fight = model.displayedFight();
+        var confirmed = fight != null && fight.closed == 0 && fight.bossKind == "Cleodora" && fight.defeated;
+        honeyzabethTransition = heroic && !confirmed
+            && (queenCompleted == true || (cleodora != null && G.call("ent.GameObject", "isDead", cleodora) == true))
+            && NativeCombatMetadata.dungeonInCombat(player, activity);
     }
     function dungeonUnit(kind:String, cached:Dynamic):Dynamic {
         if (cached != null && (G.field(cached, "layer") != layer || G.field(cached, "removed") == true)) cached = null;

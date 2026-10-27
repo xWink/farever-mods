@@ -1,8 +1,15 @@
 import dpsmeter.Collector;
 import dpsmeter.MeterConfig;
 import dpsmeter.GameAccess;
+import dpsmeter.CombatModel;
+import dpsmeter.FightHistory;
+import dpsmeter.FareverlyContract;
 
 private enum HoneyObjectiveTarget { Unit(kind:String); }
+private typedef HeroicFixture = {
+    collector:Collector, model:CombatModel, app:Dynamic, hero:Dynamic, layer:Dynamic, ctx:Dynamic,
+    queen:Dynamic, mini:Dynamic, slayer:Dynamic, queenGoal:Dynamic, finalGoal:Dynamic, damage:Dynamic
+};
 
 class CollectorHoneyzabethTest {
     static var checks = 0;
@@ -166,13 +173,162 @@ class CollectorHoneyzabethTest {
         // The server's exact alternate-boss objective also covers an external
         // final blow when the boss entity/death RPC is outside the client's view.
         hero.isInCombat = true; collector.combatEnter("me", 70); collector.damage(mini, damage, 71);
+        finalBoss.dead = false; finalBoss.removed = false; finalBoss.isInCombat = true;
+        collector.update(app, 71.5);
+        finalBoss.removed = true; finalBoss.isInCombat = false;
         finalGoal.completed = true; ctx.dungeonState = "BossWin"; hero.isInCombat = false;
         collector.combatExit("me", 72); collector.update(app, 73);
         check(model.history.length == 2 && model.history[1].outcome == "Victory",
             "Queenslayer's completed KillBossAlt objective confirms Heroic victory without a visible entity");
     }
+    static function fixture():HeroicFixture {
+        GameAccess.globals["gameBranch"] = "MAIN";
+        GameAccess.globals["Main.get_branchName"] = true;
+        GameAccess.globals["activities"] = ["HoneyHeroic" => {types:["Dungeon"]}];
+        var queenGoal:Dynamic = {kind:"KillBoss", target:HoneyObjectiveTarget.Unit("Cleodora"), completed:false};
+        var finalGoal:Dynamic = {kind:"KillBossAlt", target:HoneyObjectiveTarget.Unit("Queenslayer"), completed:false};
+        var ctx:Dynamic = {dungeonState:"Explo", objectives:{array:[queenGoal, finalGoal]}};
+        var layer:Dynamic = {isRift:false, config:{activityID:"HoneyHeroic", difficulty:2},
+            mainActivity:{kind:"HoneyHeroic", bossId:"Cleodora", globalCtx:ctx}};
+        ctx.layer = layer; ctx.activity = layer.mainActivity;
+        var hero:Dynamic = {__uid:"me", name:"Wink", layer:layer, isInCombat:false,
+            player:{isMe:true, heroData:{kind:"rogue"}, context:ctx}};
+        var queen:Dynamic = {__uid:"queen", kind:"Cleodora", name:"Queen Honeyzabeth", layer:layer,
+            isInCombat:false, inf:{flags:0x10}, _level:20, foeId:9};
+        var mini:Dynamic = {__uid:"mini", kind:"Cleodora_Champion2", name:"Miniboss", layer:layer,
+            inf:{flags:0x10}, _level:20, foeId:10};
+        var slayer:Dynamic = {__uid:"queenslayer", kind:"Queenslayer", name:"Queenslayer", layer:layer,
+            isInCombat:false, inf:{flags:0x10}, _level:20, foeId:11};
+        layer.units = [queen, mini];
+        var app:Dynamic = {hero:hero}, collector = new Collector(MeterConfig.defaults());
+        collector.update(app, 1);
+        return {collector:collector, model:collector.model, app:app, hero:hero, layer:layer, ctx:ctx,
+            queen:queen, mini:mini, slayer:slayer, queenGoal:queenGoal, finalGoal:finalGoal,
+            damage:{source:hero, weakSource:"me", skill:{kind:"Rogue_Attack"},
+                _amount:100., _critical:false, _kill:false, effect:0, physical:true, magical:false}};
+    }
+    static function pull(f:HeroicFixture, at:Float):Void {
+        f.ctx.dungeonState = "BossPhase"; f.hero.isInCombat = true;
+        f.queen.dead = false; f.queen.isInCombat = true;
+        f.queenGoal.completed = false; f.damage._kill = false;
+        f.layer.units = [f.queen, f.mini];
+        f.collector.combatEnter("me", at);
+        f.collector.damage(f.mini, f.damage, at + 1);
+    }
+    static function finalPhase(f:HeroicFixture, at:Float):Void {
+        f.queen.dead = true; f.queen.isInCombat = false; f.queenGoal.completed = true;
+        f.slayer.isInCombat = true; f.slayer.dead = false;
+        f.layer.units.push(f.slayer); f.collector.update(f.app, at);
+    }
+    static function close(f:HeroicFixture, at:Float):Void {
+        f.hero.isInCombat = false; f.queen.isInCombat = false; f.slayer.isInCombat = false;
+        f.ctx.dungeonState = "BossLoose";
+        f.collector.combatExit("me", at); f.collector.update(f.app, at + 1);
+    }
+    static function uploadable(f:HeroicFixture, index:Int):Bool
+        return FareverlyContract.candidate(FightHistory.encode(f.model.history[index], "honey_" + index));
+
+    static function brokenHeroicInstance():Void {
+        var f = fixture(); pull(f, 10); finalPhase(f, 20);
+        f.collector.damage(f.slayer, f.damage, 21);
+        f.damage._kill = true; f.collector.damage(f.slayer, f.damage, 22);
+        f.slayer.dead = true; f.slayer.isInCombat = false;
+        f.collector.dungeonVictory(f.ctx, 22);
+        check(f.model.current.defeated && !f.finalGoal.completed,
+            "Fresh native victory confirms a fast Queenslayer kill even with a broken chest/objective");
+        close(f, 22);
+        check(f.model.history.length == 1 && uploadable(f, 0)
+            && f.model.history[0].duration() == 11 && f.model.history[0].players["me"].damage == 300,
+            "Fast victory keeps the full fight and qualifies for upload once");
+
+        // Reproduce the broken instance: completion finally arrives and stays
+        // true through repeated respawns. None of these four-second wipes win.
+        f.finalGoal.completed = true; f.collector.update(f.app, 25);
+        for (at in [30.,40.,50.]) {
+            pull(f, at);
+            check(!f.model.current.defeated, "An old completed goal cannot pre-win a new pull");
+            f.collector.dungeonVictory(f.ctx, at + 2);
+            check(!f.model.current.defeated, "A repeated banner without the final phase cannot win an early retry");
+            close(f, at + 5);
+            var i = f.model.history.length - 1;
+            check(f.model.history[i].outcome == "Defeat" && f.model.history[i].duration() == 4 && !uploadable(f, i),
+                "Four-second wipes with stale completion never enter the upload queue");
+        }
+        // A stale goal also cannot win a retry that does reach Queenslayer.
+        pull(f, 60);
+        var retry = f.model.current;
+        f.queen.dead = true; f.queen.isInCombat = false; f.queenGoal.completed = true;
+        f.hero.isInCombat = false; f.collector.combatExit("me", 61.5);
+        check(f.model.current == retry && !retry.defeated,
+            "Stale completion cannot cut the Queen-to-Queenslayer transition short on a retry");
+        finalPhase(f, 62); f.collector.damage(f.slayer, f.damage, 63);
+        f.model.onTargetDeath("queenslayer", 64); f.slayer.dead = true;
+        close(f, 64);
+        check(f.model.history[4].outcome == "Defeat" && !uploadable(f, 4),
+            "Final-boss reset/death plus a stale objective is still a defeat");
+        check(f.model.history.filter(fight -> fight.outcome == "Victory").length == 1,
+            "The original victory is not copied into later attempts");
+
+        f.finalGoal.completed = false; f.collector.update(f.app, 70);
+        pull(f, 71); finalPhase(f, 73); f.finalGoal.completed = true;
+        close(f, 75);
+        check(f.model.history[5].outcome == "Victory" && uploadable(f, 5),
+            "A freshly reset and then completed objective still confirms a later real victory");
+
+        f = fixture(); pull(f, 10);
+        f.finalGoal.completed = true; close(f, 15);
+        check(f.model.history[0].outcome == "Defeat" && !uploadable(f, 0),
+            "Even a delayed objective transition cannot win a retry that never reached Queenslayer");
+        f = fixture(); pull(f, 10);
+        f.finalGoal.completed = true; f.collector.update(f.app, 12);
+        finalPhase(f, 20); f.collector.damage(f.slayer, f.damage, 21); close(f, 23);
+        check(f.model.history[0].outcome == "Defeat" && !uploadable(f, 0),
+            "Premature objective completion cannot be banked for a later Queenslayer phase");
+    }
+    static function victoryEventOrdering():Void {
+        var f = fixture(); pull(f, 10);
+        f.queen.dead = true; f.queen.isInCombat = false; f.queenGoal.completed = true;
+        // Banner/exit can precede the first and lethal hit on a very fast final
+        // boss, before even its entity appears in the collector's roster poll.
+        f.collector.dungeonVictory(f.ctx, 20);
+        f.ctx.dungeonState = "Explo"; f.hero.isInCombat = false;
+        f.collector.combatExit("me", 20);
+        check(f.model.current == null && !f.model.lastCombat.defeated,
+            "Uncorroborated victory event waits in only the current fight's grace period");
+        f.damage._kill = true; f.collector.damage(f.slayer, f.damage, 20.1);
+        f.collector.update(f.app, 21);
+        check(f.model.history.length == 1 && f.model.history[0].outcome == "Victory"
+            && f.model.history[0].start == 11 && f.model.history[0].duration() == 9
+            && f.model.history[0].players["me"].damage == 200 && uploadable(f, 0),
+            "Late final damage corroborates the banner without splitting/restarting the original fight");
+
+        f = fixture(); pull(f, 10);
+        f.collector.dungeonVictory(f.ctx, 12);
+        finalPhase(f, 20); f.collector.damage(f.slayer, f.damage, 21);
+        f.damage._kill = true; f.collector.damage(f.slayer, f.damage, 22);
+        close(f, 23);
+        check(f.model.history[0].outcome == "Defeat",
+            "An early queen-phase notification cannot be banked for a later final phase");
+
+        f = fixture(); pull(f, 10); finalPhase(f, 20);
+        f.collector.damage(f.slayer, f.damage, 21);
+        for (context in [null, {layer:{}, activity:f.ctx.activity},
+            {layer:f.layer, activity:{}}, {layer:f.layer, activity:f.ctx.activity}])
+            f.collector.dungeonVictory(context, 22);
+        f.ctx.simulatingServer = true; f.collector.dungeonVictory(f.ctx, 22); f.ctx.simulatingServer = false;
+        check(!f.model.current.defeated, "Other layers, activities, contexts and server callbacks cannot confirm a win");
+        close(f, 23);
+        f.collector.dungeonVictory(f.ctx, 25);
+        check(f.model.history[0].outcome == "Defeat" && !uploadable(f, 0),
+            "Late events cannot rewrite archived failures or create uploads");
+
+        f = fixture(); pull(f, 10); finalPhase(f, 20);
+        f.model.current.interruptRecording(); f.collector.dungeonVictory(f.ctx, 22); close(f, 23);
+        check(f.model.history[0].outcome == "Victory" && !uploadable(f, 0),
+            "Fresh victory does not override the incomplete-recording upload restriction");
+    }
     static function main():Void {
-        normal(); heroic();
+        normal(); heroic(); brokenHeroicInstance(); victoryEventOrdering();
         Sys.println("Honeyzabeth client collector: " + checks + " checks passed");
     }
 }

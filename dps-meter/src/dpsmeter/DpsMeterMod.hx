@@ -289,6 +289,11 @@ class DpsMeterMod {
         if (collector != null && config.enabled) try collector.model.onTargetDeath(G.uid(instance), haxe.Timer.stamp())
         catch (_:Dynamic) {}
     }
+    @:hlx.postfix(st.activity.DungeonContext.victory__impl)
+    static function onDungeonVictory(instance:Dynamic, result:Void):Void {
+        if (collector != null && config.enabled) try collector.dungeonVictory(instance, haxe.Timer.stamp())
+        catch (_:Dynamic) {}
+    }
     @:hlx.postfix(ent.Hero.onLeaveCombat)
     static function onCombatExit(instance:Dynamic, result:Void):Void {
         // This callback runs before set_isInCombat stores false. Observe the
