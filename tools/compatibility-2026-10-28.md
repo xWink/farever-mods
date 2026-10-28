@@ -82,6 +82,29 @@ HashLink, including final-objective completion, reordered callbacks, stale goals
 wipes/retries, boss replacement, late gate damage, partial uploads and Normal.
 This is bytecode and automated verification, not an in-game/server playtest.
 
+## Talent layout and minimap hover follow-up
+
+The reported stretched initial talent panel and minimap flicker exposed a layout
+ordering hazard in Minimap. Its `GameApp.update` postfix read the UI root through
+`h2d.Flow.get_innerWidth/Height`. Both getters immediately call `reflow` when the
+root is dirty. The native `App.render` applies pending styles through
+`BaseUI.updateStyle` afterward, before rendering the 2D scene. Thus the minimap
+could measure newly constructed talent details before their styles were applied.
+October 28 also moved `FmtText` scale updates into bounds measurement.
+
+Minimap now reads `BaseUI.s2d.width/height`, preserving the root's inner padding.
+`BaseUIRoot` natively fills that scene in both axes, and scene dimensions already
+use scaled UI coordinates. No window layout is forced, and transient measured
+window bounds cannot move the minimap or its filter rail. Existing absolute
+positioning, shape, margins and offsets are retained.
+
+The full Minimap interpreter suite and production/bootstrap compile pass. The
+new HUD layout regression passes 43 checks in both the interpreter and native
+HashLink, covering pending initial layout, repeated hover invalidations, resize,
+scaled coordinates, padding, unavailable scenes and disposal. These tests verify
+the removed early-layout path; the two reported visual symptoms still require
+in-game confirmation with the test build.
+
 ## Validation and limits
 
 All eight mods and their dependency bootstraps compile, and all eight interpreter

@@ -10,6 +10,13 @@
 --next
 -cp src
 -cp tests
+-cp tests/big-map-stubs
+-cp tests/hud-stubs
+-main MinimapLayoutTest
+--interp
+--next
+-cp src
+-cp tests
 -main SoulstoneMarkersTest
 --interp
 --next

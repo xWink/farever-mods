@@ -77,6 +77,8 @@ class MinimapView {
     var size:Int = 0;
     var panelX:Float = Math.NaN;
     var panelY:Float = Math.NaN;
+    var viewportWidth:Float = 0;
+    var viewportHeight:Float = 0;
     var scale:Float = 0;
     var bounds:String = "";
     var index:Map<String, MapTile> = [];
@@ -153,18 +155,7 @@ class MinimapView {
         position(npcTerrain, -x * scale, -y * scale);
         position(partyTerrain, -x * scale, -y * scale);
         G.call("h2d.Object", "set_rotation", arrow, [heading + rotation]);
-        var outerSize = size + BORDER * 2;
-        var screenWidth = G.number(G.call("h2d.Flow", "get_innerWidth", root));
-        var screenHeight = G.number(G.call("h2d.Flow", "get_innerHeight", root));
-        var nextX = MinimapPosition.axis(screenWidth, outerSize, config.xOffset, true);
-        var nextY = MinimapPosition.axis(screenHeight, outerSize, config.yOffset);
-        if (panelX != nextX || panelY != nextY) {
-            panelX = nextX; panelY = nextY;
-            hovered = false;
-            setHoverCaption("");
-        }
-        // A native Flow reflow can move absolute children; reapply after measuring it.
-        position(panel, panelX, panelY);
+        if (!updatePosition(config)) { show(false); return; }
         // A rotating square needs enough tiles/markers to cover its diagonal.
         var radius = size / (2 * scale) * (config.rotateMap && !circular ? Math.sqrt(2) : 1);
         selectTiles(x, y, radius);
@@ -176,9 +167,33 @@ class MinimapView {
         markers.updateAlerts(markerSettings, x, y, size, scale, rotation, rifts);
         compass.update(size, circular, rotation, markerScale / 100, config.showNorthIndicator);
         updateClockTimer(config);
-        filterBar.updateHud(size, circular, screenWidth, screenHeight, panelX, panelY, null, config.filterButtonPosition == "Right");
+        filterBar.updateHud(size, circular, viewportWidth, viewportHeight, panelX, panelY, null, config.filterButtonPosition == "Right");
         show(true);
         updateHover(hero, x, y, rotation);
+    }
+
+    function updatePosition(config:MinimapSettings):Bool {
+        // BaseUIRoot fills its UI scene. Flow.get_innerWidth/Height force an
+        // immediate reflow, but GameApp.update runs BEFORE App.render applies
+        // pending DOM styles. Measuring the root here can cache unstyled talent
+        // details and expose transient window bounds to the minimap. Scene sizes
+        // are already in scaled UI units and do not lay out any window.
+        var scene = G.field(owner, "s2d");
+        viewportWidth = G.number(G.field(scene, "width"))
+            - G.number(G.field(root, "paddingLeft")) - G.number(G.field(root, "paddingRight"));
+        viewportHeight = G.number(G.field(scene, "height"))
+            - G.number(G.field(root, "paddingTop")) - G.number(G.field(root, "paddingBottom"));
+        if (viewportWidth <= 0 || viewportHeight <= 0) return false;
+        var outerSize = size + BORDER * 2;
+        var nextX = MinimapPosition.axis(viewportWidth, outerSize, config.xOffset, true);
+        var nextY = MinimapPosition.axis(viewportHeight, outerSize, config.yOffset);
+        if (panelX != nextX || panelY != nextY) {
+            panelX = nextX; panelY = nextY;
+            hovered = false;
+            setHoverCaption("");
+        }
+        position(panel, panelX, panelY);
+        return true;
     }
 
     function cameraHeading(app:Dynamic, fallback:Float):Float {
@@ -617,5 +632,6 @@ class MinimapView {
         index = []; sprites = []; wanted = []; cached = []; prefetch = []; pending = [];
         size = 0; scale = 0; bounds = ""; generation = 0; circular = false;
         panelX = Math.NaN; panelY = Math.NaN;
+        viewportWidth = 0; viewportHeight = 0;
     }
 }
