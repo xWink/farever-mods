@@ -49,12 +49,38 @@ pass in both the interpreter and native HashLink. No speculative target-lock
 behavior change was made. Live settings, physical input and the user's precise
 failure symptom cannot be validated from bytecode alone.
 
-No additional compatibility change was identified for Better Mod Settings,
-Minimap, DPS Meter or Mod Update Alerts. In particular, the damage/victory RPC
+The initial compatibility audit identified no additional change for Better Mod
+Settings, Minimap, DPS Meter or Mod Update Alerts. In particular, the damage/victory RPC
 hooks and the marketplace/item-link hooks retain their signatures. Native text
 scaling, skin/collection and projectile changes were reviewed against their mod
 callers; native text layout and game-owned cosmetic selection remain delegated
 to the game.
+
+## Chakram Heroic encounter follow-up
+
+The subsequent encounter review found a DPS Meter behavior mismatch despite the
+unchanged damage/victory hook signatures. `Phrixes.onDieServer` spawns the Heroic
+alternate boss `Phrixes_NightGod`; `Dungeon.populateContext` registers a blocked
+`KillBossAlt` objective for it. The final boss summons `Phrixes_NightGodGate`
+targets, and `Phrixes_H_NG_Status.onSummonKilled` kills their owner after the last
+gate dies. `DungeonBaseContext.areAllBossesDefeated` requires both `KillBoss` and
+`KillBossAlt`. This structure was already present in the October 21 baseline;
+October 28 changes the alternate spawn to `GameObject.spawnFoe` with persistence
+and inherited level, and limits the summon-death handler to the gate kind.
+
+DPS Meter previously archived victory at the original Phrixes death. Heroic now
+keeps one encounter through the alternate boss/gates and requires both completed
+objectives, with the alternate objective observed incomplete during that attempt.
+Normal difficulty and the excluded opening health bar retain their boundaries.
+The final phase preserves Chakram's identity, timing, damage and recording
+coverage; expected original-entity removal does not create a recording gap.
+Reconnects and actual loss of final-phase visibility remain incomplete.
+
+The full DPS Meter interpreter suite and production/bootstrap compile pass.
+The new collector regression has 40 passing checks in the interpreter and native
+HashLink, including final-objective completion, reordered callbacks, stale goals,
+wipes/retries, boss replacement, late gate damage, partial uploads and Normal.
+This is bytecode and automated verification, not an in-game/server playtest.
 
 ## Validation and limits
 

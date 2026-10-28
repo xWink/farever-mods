@@ -5,7 +5,7 @@ import dpsmeter.RiftTracker.RiftRecap;
 typedef WeaponInfo = {kind:String, rarity:String, level:Int, upgrade:Int};
 typedef DungeonBossInfo = {kind:String, name:String, uid:String, level:Int, foeId:Int,
     ?defeated:Bool, ?victoryKind:String, ?victoryUid:String,
-    ?victoryObjective:Bool, ?victoryActive:Bool};
+    ?victoryObjective:Bool, ?victoryActive:Bool, ?primaryObjective:Bool, ?encounterActive:Bool};
 typedef PlayerInfo = {
     uid:String, name:String, isMe:Bool, className:String,
     weapon:Null<WeaponInfo>, classSkills:Array<String>, weaponSkills:Array<String>,
@@ -181,7 +181,7 @@ class Fight {
     public var bossFlags:Int = 0;
     public var bossName:String = "";
     public var bossUid:String = "";
-    // Encounter identity stays Honeyzabeth; Heroic's final target is Queenslayer.
+    // The encounter keeps its original boss identity through an alternate boss.
     public var victoryKind:String = "";
     public var victoryUid:String = "";
     // These observations belong to this attempt, never to the dungeon/layer.
@@ -236,10 +236,12 @@ class Fight {
         // victory. Ordinary combats succeed only when all observed foes died.
         if (outcome != "") return;
         var won = defeated;
-        // Honeyzabeth has multiple phases and a heroic death-door transition.
-        // Normal uses her final death; Heroic requires fresh objective/banner
-        // evidence from the current Queenslayer attempt, not a reset death.
-        if (bossKind == "Cleodora") { outcome = won ? "Victory" : "Defeat"; return; }
+        // Multi-boss encounters cannot use the original boss's killed-target
+        // entry as victory. Their collector must confirm the final phase.
+        if (bossKind == "Cleodora" || (bossKind == "Phrixes"
+            && (difficulty == 2 || victoryKind == "Phrixes_NightGod"))) {
+            outcome = won ? "Victory" : "Defeat"; return;
+        }
         if (!won && (bossFlags & 0x10) != 0) won = bossUid != "" && killedTargets.exists(bossUid);
         else if (!won) {
             won = targets.iterator().hasNext();
@@ -421,7 +423,8 @@ class CombatModel {
         // A dead/revivable local hero may already have left combat while the
         // party continues. End only when that continuation also stops; never
         // let a teammate's combat flag start a new encounter by itself.
-        if (!inCombat && !partyInCombat && current != null && phrixesUid == "") finishCurrent(now);
+        updatePhrixesHeroic(now);
+        if (!inCombat && !partyInCombat && current != null && phrixesUid == "" && !heroicPhrixesFight(current)) finishCurrent(now);
         expirePendingFight(now);
         drainHistory(now);
         if (boss != null && (phrixesUid == "" || boss.bossUid != phrixesUid) && now - boss.last > 8) {
@@ -474,7 +477,7 @@ class CombatModel {
         // Preserve an existing party encounter through local death or exit.
         // The final teammate's exit can close it between polls. Chakram still
         // follows its own replicated boss/phase lifecycle.
-        if (current != null && (phrixesUid != "" || partyInCombat)) return;
+        if (current != null && (phrixesUid != "" || heroicPhrixesFight(current) || partyInCombat)) return;
         finishPendingFight();
         if (current != null) finishCurrent(now);
     }
@@ -496,6 +499,12 @@ class CombatModel {
         // Drop the live-only chart on surrender or a new attempt. Its totals
         // never become the main encounter's opening damage or start time.
         if (phrixesUid == "" || phase >= 2) phrixesIntro = null;
+        // Heroic's original boss really dies, then spawns NightGod. His death
+        // is a phase boundary; only the two replicated objectives can win.
+        if (heroicPhrixes() && phase >= 2) {
+            phrixesUid = uid; phrixesPhase = phase;
+            return;
+        }
         if (dead) {
             if (uid == phrixesUid) {
                 // Death state may precede the lethal RPC even while the local
@@ -516,6 +525,24 @@ class CombatModel {
         }
     }
     public function trackingPhrixes(uid:String):Bool return phrixesUid == uid && uid != "";
+    function heroicPhrixes():Bool return rift == null && dungeonBoss != null
+        && dungeonBoss.kind == "Phrixes" && dungeonBoss.victoryKind == "Phrixes_NightGod";
+    static function heroicPhrixesFight(fight:Null<Fight>):Bool return fight != null
+        && fight.bossKind == "Phrixes" && fight.victoryKind == "Phrixes_NightGod";
+    function updatePhrixesHeroic(now:Float):Void {
+        if (!heroicPhrixes() || !heroicPhrixesFight(current)) return;
+        // A replacement original boss belongs to a new attempt, even if its
+        // combat state arrives before the old encounter's final exit callback.
+        if (current.bossUid != "" && dungeonBoss.uid != "" && current.bossUid != dungeonBoss.uid) {
+            endPhrixes(now, false); return;
+        }
+        if (current.defeated) { endPhrixes(now, true); return; }
+        if (dungeonBoss.encounterActive == true || dungeonBoss.victoryActive == true) phrixesInactiveAt = -1;
+        else {
+            if (phrixesInactiveAt < 0) phrixesInactiveAt = now;
+            if (now - phrixesInactiveAt >= 1) endPhrixes(phrixesInactiveAt, false);
+        }
+    }
     function clearPhrixes(keepIntro:Bool = false):Void {
         phrixesUid = ""; phrixesPhase = 0; phrixesInactiveAt = -1; phrixesDeadAt = -1;
         if (!keepIntro) phrixesIntro = null;
@@ -525,7 +552,7 @@ class CombatModel {
             phrixesIntro.last = Math.max(phrixesIntro.start, now);
             phrixesIntro.closed = now;
         }
-        if (current != null && current.targets.exists(phrixesUid)) {
+        if (current != null && (current.targets.exists(phrixesUid) || heroicPhrixesFight(current))) {
             current.defeated = defeated;
             finishCurrent(now);
         }
@@ -605,14 +632,16 @@ class CombatModel {
             for (fight in list) if (fight != null && fight.activityId == activityId) applyDungeonBoss(fight);
     }
     function applyDungeonBoss(fight:Fight):Bool {
-        if (rift != null || dungeonBoss == null || dungeonBoss.kind != "Cleodora" || fight.targetDummy
+        if (rift != null || dungeonBoss == null || (dungeonBoss.kind != "Cleodora" && !heroicPhrixes()) || fight.targetDummy
             || (activityCategory != HistoryCatalog.HistoryCategory.BOSS
                 && activityCategory != HistoryCatalog.HistoryCategory.DUNGEON)) return false;
         fight.category = activityCategory;
         if (fight.bossKind != dungeonBoss.kind) {
             fight.bossUid = ""; fight.bossLevel = 0; fight.bossFoeId = 0;
         }
-        fight.bossKind = dungeonBoss.kind; fight.bossName = dungeonBoss.name;
+        fight.bossKind = dungeonBoss.kind;
+        if (dungeonBoss.kind != "Phrixes" || dungeonBoss.name != "Phrixes" || fight.bossName == "")
+            fight.bossName = dungeonBoss.name;
         fight.bossFlags = 0x10;
         var victoryKind = dungeonBoss.victoryKind;
         if (victoryKind == null) victoryKind = difficulty == 2 ? "Queenslayer" : "Cleodora";
@@ -621,8 +650,9 @@ class CombatModel {
             fight.victoryObjectiveArmed = false; fight.victoryTargetEngaged = false; fight.victoryNotifiedAt = -1;
         }
         // A respawn may arrive during the finished fight's final-damage grace
-        // period. Keep that attempt attached to the queen it actually fought.
-        if (dungeonBoss.uid != "" && (fight.closed == 0 || fight.bossUid == "" || fight.bossUid == dungeonBoss.uid)) {
+        // period. Keep that attempt attached to the boss it actually fought.
+        if (dungeonBoss.uid != "" && (fight.bossUid == "" || fight.bossUid == dungeonBoss.uid
+            || (fight.closed == 0 && dungeonBoss.kind != "Phrixes"))) {
             fight.bossUid = dungeonBoss.uid;
             fight.bossLevel = dungeonBoss.level; fight.bossFoeId = dungeonBoss.foeId;
             fight.targets[fight.bossUid] = true;
@@ -633,7 +663,14 @@ class CombatModel {
             if (victoryUid != "") {
                 fight.victoryUid = victoryUid; fight.targets[victoryUid] = true;
             }
-            if (victoryKind == "Queenslayer") {
+            if (victoryKind == "Phrixes_NightGod") {
+                // Arm from this attempt's incomplete alternate goal. Keep the
+                // evidence while primary/alternate goals replicate out of order.
+                // A pre-completed goal on reconnect/retry never arms a victory.
+                if (dungeonBoss.victoryObjective == false) fight.victoryObjectiveArmed = true;
+                if (fight.victoryObjectiveArmed && dungeonBoss.primaryObjective == true
+                    && dungeonBoss.victoryObjective == true) fight.defeated = true;
+            } else if (victoryKind == "Queenslayer") {
                 if (dungeonBoss.victoryActive == true) fight.victoryTargetEngaged = true;
                 // A completed objective can survive respawn in a broken
                 // instance. It must have been incomplete during THIS attempt.
@@ -757,7 +794,14 @@ class CombatModel {
                 lastCombat = rift.last;
                 return;
             }
-            if (inCombat || current != null) {
+            if (current == null && e.kill && heroicPhrixesFight(lastCombat) && lastCombat.activityId == activityId
+                && (e.bossKind == "Phrixes_NightGodGate" || e.bossKind == "Phrixes_NightGod")
+                && e.time >= lastCombat.closed && e.time - lastCombat.closed <= ENTRY_DAMAGE_SECONDS) {
+                // The objective can replicate before the last gate's damage
+                // RPC, even with a stale true local combat flag.
+                var end = lastCombat.last;
+                addToFight(lastCombat, e, info); lastCombat.last = end;
+            } else if (inCombat || current != null) {
                 if (current == null && e.effect != 1) current = new Fight(e.time, gameVersion, gameBranch);
                 if (current != null) addToFight(current, e, info);
             } else if (e.effect != 1) {
@@ -781,6 +825,9 @@ class CombatModel {
             }
         }
         if (rift != null || intro) return;
+        // Heroic is archived as one objective-owned encounter. Do not produce
+        // a separate legacy boss report for Chakram, NightGod, or the gates.
+        if (heroicPhrixes()) return;
         if (e.kill && e.target == phrixesUid) endPhrixes(e.time, true);
         // Match the DLL's target.inf.flags mask, including world/elite bosses.
         var bossHit = e.effect != 1 && e.targetDummy != true && (e.bossFlags & 0x38) != 0;

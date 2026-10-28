@@ -71,6 +71,14 @@
 -cp tests
 -cp tests/collector
 --macro haxe.macro.Compiler.allowPackage('hl')
+-main CollectorChakramHeroicTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/collector
+--macro haxe.macro.Compiler.allowPackage('hl')
 -main CollectorHoneyzabethTest
 --interp
 --next

@@ -16,6 +16,8 @@ class Collector {
     var profileRefresh:Map<String, Float> = [];
     var profileWeapons:Map<String, Dynamic> = [];
     var phrixes:Dynamic;
+    var chakram:Dynamic;
+    var nightGod:Dynamic;
     var cleodora:Dynamic;
     var queenslayer:Dynamic;
     var honeyzabethTransition:Bool = false;
@@ -52,6 +54,7 @@ class Collector {
             groupMembers = []; lastGroupSeen = -1; lastRoster = -1;
             profileRefresh = []; profileWeapons = [];
             phrixes = null;
+            chakram = null; nightGod = null;
             cleodora = null;
             queenslayer = null; honeyzabethTransition = false;
             riftWait = null;
@@ -278,10 +281,37 @@ class Collector {
             && (PartyCombat.active(hero, uid) || honeyzabethInCombat()));
     }
     function refreshDungeonBoss(inRift:Bool):Void {
+        var player = G.field(hero, "player"), activity = G.field(layer, "mainActivity");
+        if (!inRift && NativeCombatMetadata.dungeonBoss(model.activityId) == "Phrixes") {
+            var finalCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Phrixes_NightGod", "KillBossAlt");
+            if (model.difficulty == 2 || finalCompleted != null) {
+                cleodora = null; queenslayer = null; honeyzabethTransition = false;
+                chakram = dungeonUnit("Phrixes", chakram);
+                nightGod = dungeonUnit("Phrixes_NightGod", nightGod);
+                var name = chakram == null ? "" : G.text(G.call("ent.Unit", "getName", chakram));
+                if (name == "") {
+                    var byId = G.field(G.current("Data", "unit"), "byId");
+                    var inf = byId == null ? null : G.call("haxe.ds.StringMap", "get", byId, ["Phrixes"]);
+                    if (inf != null) name = G.text(G.staticCall("HText", "unit", [inf, null]));
+                }
+                var phase = G.integer(G.field(chakram, "phase"));
+                model.setDungeonBoss({kind:"Phrixes", name:name == "" ? "Phrixes" : name, uid:G.uid(chakram),
+                    level:G.integer(G.field(chakram, "_level")), foeId:G.integer(G.field(chakram, "foeId")),
+                    victoryKind:"Phrixes_NightGod", victoryUid:G.uid(nightGod), victoryObjective:finalCompleted,
+                    primaryObjective:NativeCombatMetadata.dungeonBossCompletion(player, activity, "Phrixes"),
+                    victoryActive:nightGod != null && G.field(nightGod, "removed") != true
+                        && G.field(nightGod, "isInCombat") == true && G.call("ent.GameObject", "isDead", nightGod) != true,
+                    encounterActive:NativeCombatMetadata.dungeonInCombat(player, activity)
+                        || (chakram != null && G.field(chakram, "removed") != true
+                            && G.call("ent.GameObject", "isDead", chakram) != true
+                            && (G.field(chakram, "isInCombat") == true || phase == 3))});
+                return;
+            }
+        }
+        chakram = null; nightGod = null;
         if (inRift || NativeCombatMetadata.dungeonBoss(model.activityId) != "Cleodora") {
             cleodora = null; queenslayer = null; honeyzabethTransition = false; model.setDungeonBoss(null); return;
         }
-        var player = G.field(hero, "player"), activity = G.field(layer, "mainActivity");
         var altCompleted = NativeCombatMetadata.dungeonBossCompletion(player, activity, "Queenslayer", "KillBossAlt");
         var heroic = model.difficulty == 2 || altCompleted != null;
         var previousQueen = cleodora;

@@ -60,8 +60,11 @@ class NativeCombatMetadata {
             // replicate too, or arrive before her own KillBoss objective.
             var queen = G.text(G.field(activity, "bossId")) == "Cleodora" || bosses.indexOf("Cleodora") >= 0
                 || dungeonBosses[id] == "Cleodora";
-            var result = HistoryCategory.fromObjectives(false, true, ready || queen, clearFoes);
+            var chakram = G.text(G.field(activity, "bossId")) == "Phrixes" || bosses.indexOf("Phrixes") >= 0
+                || dungeonBosses[id] == "Phrixes";
+            var result = HistoryCategory.fromObjectives(false, true, ready || queen || chakram, clearFoes);
             if (queen) dungeonBosses[id] = "Cleodora";
+            else if (chakram) dungeonBosses[id] = "Phrixes";
             else if (bosses.length == 1) dungeonBosses[id] = bosses[0];
             else if (bosses.length > 1) dungeonBosses.remove(id);
             if (result != HistoryCategory.OTHER) observed[id] = result;

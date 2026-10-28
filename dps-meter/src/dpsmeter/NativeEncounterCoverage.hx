@@ -22,6 +22,10 @@ class NativeEncounterCoverage {
     var dungeonContext:Dynamic;
     var dungeonGlobal:Dynamic;
     var bosses:Map<String, ObservedBoss> = [];
+    var phrixesDungeon = false;
+    var phrixesAttempt:Null<EncounterCoverage>;
+    var phrixesEntry:Null<ObservedBoss>;
+    var phrixesFinalUid = "";
 
     public function new() {}
 
@@ -55,8 +59,18 @@ class NativeEncounterCoverage {
             dungeonContext = context; dungeonGlobal = global;
             observeDungeon();
         }
+        phrixesDungeon = dungeonMode && (G.text(G.field(activity, "bossId")) == "Phrixes"
+            || NativeCombatMetadata.dungeonBoss(G.text(G.field(activity, "kind"))) == "Phrixes");
+        var phrixesDefeated = phrixesDungeon
+            && NativeCombatMetadata.dungeonBossCompletion(G.field(hero, "player"), activity, "Phrixes") == true;
+        var finalDefeated = phrixesDungeon
+            && NativeCombatMetadata.dungeonBossCompletion(G.field(hero, "player"), activity, "Phrixes_NightGod", "KillBossAlt") == true;
         var seen:Map<String, Bool> = [];
         for (unit in G.array(G.field(layer, "units"))) {
+            if (phrixesDungeon && G.text(G.field(unit, "kind")) == "Phrixes_NightGod"
+                && G.field(unit, "removed") != true) {
+                phrixesFinalUid = G.uid(unit); seen[phrixesFinalUid] = true;
+            }
             if (!bossUnit(unit)) continue;
             if (dungeonMode && G.text(G.field(unit, "kind")) != "Phrixes") continue;
             var uid = G.uid(unit);
@@ -66,11 +80,18 @@ class NativeEncounterCoverage {
         }
         // Leaving replication range during an attempt loses coverage too.
         for (uid => entry in bosses) if (!seen.exists(uid)) {
+            // The original entity may unload normally after its completed
+            // objective. NightGod and its gates continue the same recording.
+            if (entry == phrixesEntry && phrixesDefeated) continue;
             if (entry.attempt.complete()) interrupted.push(uid);
             entry.attempt.interrupt();
             // A phase first seen after returning to range is not an observed
             // transition from the last phase seen before the gap.
             entry.phase = -1; entry.engaged = false; entry.ready = false;
+        }
+        if (phrixesFinalUid != "" && !seen.exists(phrixesFinalUid) && !finalDefeated && phrixesAttempt != null) {
+            if (phrixesEntry != null && phrixesAttempt.complete()) interrupted.push(G.uid(phrixesEntry.unit));
+            phrixesAttempt.interrupt();
         }
     }
 
@@ -117,12 +138,19 @@ class NativeEncounterCoverage {
             if (active || (max > 0 && hp < max)) entry.engaged = true;
             entry.unit = unit; entry.phase = phase; entry.ready = ready;
         }
+        if (G.text(G.field(unit, "kind")) == "Phrixes") {
+            if (phrixesAttempt != entry.attempt) phrixesFinalUid = "";
+            phrixesEntry = entry; phrixesAttempt = entry.attempt;
+        }
         return entry;
     }
 
     /** Called before source/party filtering, including damage we cannot record. */
     public function damage(target:Dynamic, now:Float):Null<CoverageHit> {
-        if (target == null || G.field(target, "player") != null || G.field(target, "summonOwner") != null) return null;
+        if (target == null || G.field(target, "player") != null) return null;
+        var kind = G.text(G.field(target, "kind"));
+        // These summoned gates are the actual Heroic final-phase targets.
+        if (G.field(target, "summonOwner") != null && !(phrixesDungeon && kind == "Phrixes_NightGodGate")) return null;
         // Opening hits can precede the next roster poll. Read the cached
         // replicated context, without scanning all units for every damage RPC.
         if (dungeonMode) observeDungeon();
@@ -137,6 +165,12 @@ class NativeEncounterCoverage {
             }
             return riftBoss == null ? rift.damage(now) : riftBoss.damage(now);
         }
+        if (phrixesDungeon && kind != "Phrixes") {
+            // Do not replace phase-two start evidence with the dungeon state
+            // or a newly spawned full-health final boss. Reconnects stay partial.
+            if (phrixesAttempt == null) phrixesAttempt = new EncounterCoverage();
+            return phrixesAttempt.damage(now);
+        }
         if (G.text(G.field(target, "kind")) != "Phrixes" && dungeonMode && (dungeonState == "BossStart" || dungeonState == "BossPhase"
             || dungeonState == "BossWin" || bossUnit(target))) return dungeon.damage(now);
         if (!bossUnit(target)) return null;
@@ -147,6 +181,7 @@ class NativeEncounterCoverage {
             entry = {unit:target, attempt:new EncounterCoverage(), phase:G.integer(G.field(target, "phase"), -1),
                 engaged:true, ready:false};
             bosses[G.uid(target)] = entry;
+            if (kind == "Phrixes") { phrixesEntry = entry; phrixesAttempt = entry.attempt; }
         } else entry = observeBoss(target, false);
         return entry.attempt.damage(now);
     }
