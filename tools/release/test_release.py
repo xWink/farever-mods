@@ -6,6 +6,9 @@ from pathlib import Path
 import re
 import tempfile
 import shutil
+import subprocess
+import sys
+import textwrap
 import unittest
 from unittest.mock import patch
 import urllib.error
@@ -99,6 +102,82 @@ class ReleaseTests(unittest.TestCase):
         plan = release.validate_request({**self.request, 'version': '1.7.0-rc.1'}, self.config)
         self.assertTrue(plan['prerelease'])
         self.assertIsNone(release.stable_version(plan['version']))
+
+    def test_farever_range_is_stable_and_retained_for_nexus(self):
+        for suffix, bounds in [
+            ('max0.3.1.31995', {'maxGameVersion': '0.3.1.31995'}),
+            ('min0.3', {'minGameVersion': '0.3'}),
+            ('min0.3.1.31995-max0.3.1', {'minGameVersion': '0.3.1.31995', 'maxGameVersion': '0.3.1'}),
+        ]:
+            with self.subTest(suffix=suffix):
+                version = '1.7.1-' + suffix
+                plan = release.validate_request({**self.request, 'version': version}, self.config)
+                self.assertFalse(plan['prerelease'])
+                self.assertEqual(plan['version'], version)
+                self.assertEqual(plan['tag'], 'minimap/v' + version)
+                self.assertEqual(plan['game_versions'], bounds)
+                self.assertEqual(release.stable_version(version), (1, 7, 1))
+                with patch.object(release, 'api', side_effect=self.nexus_responses('1.7.0-max0.3.1.31617')):
+                    self.assertEqual(release.nexus_target(plan)['nexus_file_id'], 'file-uuid')
+
+    def test_invalid_or_ambiguous_game_ranges_are_rejected(self):
+        for version in ['1.2.3-max0.3.1.31995.1', '1.2.3-max', '1.2.3-max00.3',
+                        '1.2.3-max2147483647', '1.2.3-min0.4-max0.3',
+                        '1.2.3-max0.3-min0.2', '1.2.3-rc.1-max0.3.1.31995']:
+            with self.subTest(version=version), self.assertRaises(ValueError):
+                release.validate_request({**self.request, 'version': version}, self.config)
+
+    def test_compatibility_archive_requires_matching_bytecode_and_native_gates(self):
+        project = 'dps-meter'
+        plan = release.validate_request({**self.request, 'project': project,
+                                         'version': '1.11.12-max0.3.1.31995'}, self.config)
+        package = self.package(project)
+        plugin = package / 'hlx/plugins' / project
+        plugin.mkdir(parents=True)
+        (plugin / 'dps_meter_desktop.hdll').write_bytes(b'native test plugin')
+        info = b'maxGameVersion=0.3.1.31995\n'
+        for folder in [package / 'hlx/mods' / project, plugin]:
+            with self.assertRaises(ValueError):
+                release.make_archive(package, plan)
+            (folder / 'mod.info').write_bytes(info)
+        archive = release.make_archive(package, plan)
+        with zipfile.ZipFile(archive) as zipped:
+            for kind in ('mods', 'plugins'):
+                self.assertEqual(zipped.read(f'hlx/{kind}/{project}/mod.info'), info)
+        for invalid in ['maxGameVersion=0.3.1\n', 'maxVersion=0.3.1.31995\n',
+                        'maxGameVersion=0.3.1.31995\nmaxGameVersion=0.3.1.31995\n']:
+            (plugin / 'mod.info').write_text(invalid)
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                release.make_archive(package, plan)
+
+    def test_production_packagers_include_game_version_metadata(self):
+        source = Path(__file__).resolve().parents[2]
+        workflow = (source / '.github/workflows/_build-mod.yml').read_text()
+        script = workflow.split('      - name: Package\n', 1)[1].split('        run: |\n', 1)[1].split('\n      - name:', 1)[0]
+        script = textwrap.dedent(script)
+        for project in ['more-settings', 'item-utilities', 'minimap', 'trade-and-marketplace', 'dps-meter']:
+            with self.subTest(project=project):
+                folder = self.root / project
+                build = folder / 'build' / project
+                (build / 'implementation').mkdir(parents=True)
+                (build / f'{project}.hl').write_bytes(b'HLB bootstrap')
+                (build / 'implementation' / f'{project}.hl').write_bytes(b'HLB implementation')
+                (folder / 'configFormats.json').write_text('{}')
+                (folder / 'README.md').write_text('Test package')
+                shutil.copy2(source / project / 'mod.info', folder / 'mod.info')
+                if project in ('dps-meter', 'trade-and-marketplace'):
+                    (folder / 'build/native').mkdir()
+                    plugin = 'dps_meter_desktop.hdll' if project == 'dps-meter' else 'trade_marketplace_desktop.hdll'
+                    (folder / 'build/native' / plugin).write_bytes(b'Native test plugin')
+                if project == 'dps-meter':
+                    (folder / 'tools').mkdir()
+                    shutil.copy2(source / project / 'tools/package.py', folder / 'tools/package.py')
+                    subprocess.run([sys.executable, 'tools/package.py'], cwd=folder, check=True, capture_output=True)
+                else:
+                    env = {**os.environ, 'PROJECT':project, 'MODULE':project, 'REQUIRED_SETTINGS':'true', 'REQUIREMENTS':'Test'}
+                    subprocess.run(['bash', '-e', '-c', script], cwd=folder, env=env, check=True, capture_output=True)
+                plan = release.validate_request({**self.request, 'project':project, 'version':'1.0.0-max0.3.1.31995'}, self.config)
+                release.make_archive(folder / 'package', plan)
 
     def test_zip_has_installable_root_and_stable_bytes(self):
         package = self.package()

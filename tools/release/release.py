@@ -19,6 +19,8 @@ REQUEST = ROOT / '.github/release-request.json'
 WORK = ROOT / 'build/release'
 REPO = 'xWink/farever-mods'
 SEMVER = re.compile(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?\Z', re.ASCII)
+GAME_VERSION = r'(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*)){0,3}'
+GAME_RANGE = re.compile(rf'(?:min(?P<min>{GAME_VERSION})(?:-max(?P<max>{GAME_VERSION}))?|max(?P<max_only>{GAME_VERSION}))\Z', re.ASCII)
 
 
 def require(condition, message):
@@ -51,14 +53,37 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def version_info(version):
+    match = SEMVER.fullmatch(version) if isinstance(version, str) else None
+    require(match, 'Use a version like 1.2.3, 1.2.3-max0.3.1.31995 or 1.2.3-rc.1, without a v prefix')
+    suffix = match[4]
+    bounds = {}
+    if suffix and re.match(r'^(min|max)(?:[0-9]|$)', suffix):
+        supported = GAME_RANGE.fullmatch(suffix)
+        require(supported, 'Invalid Farever range: use -minVERSION and/or -maxVERSION with 1-4 numeric components')
+        for key, value in [('minGameVersion', supported['min']),
+                           ('maxGameVersion', supported['max'] or supported['max_only'])]:
+            if value is not None:
+                require(all(int(part) < 2147483647 for part in value.split('.')), 'Game version component exceeds loader range')
+                bounds[key] = value
+        if len(bounds) == 2:
+            lower = tuple(map(int, bounds['minGameVersion'].split('.')))
+            upper = tuple(map(int, bounds['maxGameVersion'].split('.')))
+            require(lower + (0,) * (4 - len(lower)) <= upper + (2147483646,) * (4 - len(upper)),
+                    'Minimum game version exceeds maximum')
+    elif suffix:
+        require(all(not (x.isdigit() and len(x) > 1 and x[0] == '0') for x in suffix.split('.')), 'Invalid prerelease identifier')
+        # Vortex only recognizes a range immediately after the first dash.
+        require(not re.search(r'-(?:min|max)[0-9]', suffix), 'Do not combine prerelease and Farever range suffixes')
+    return {'parts': tuple(map(int, match.group(1, 2, 3))),
+            'prerelease': bool(suffix) and not bounds, 'game_versions': bounds}
+
+
 def validate_request(request, config):
     require(set(request) == {'project', 'version', 'commit', 'notes', 'dry_run'}, 'Unexpected/missing release request fields')
     require(request['project'] in config, 'Unknown mod project')
     version = request['version']
-    match = SEMVER.fullmatch(version) if isinstance(version, str) else None
-    require(match, 'Use a version like 1.2.3 or 1.2.3-rc.1, without a v prefix')
-    if match[4]:
-        require(all(not (x.isdigit() and len(x) > 1 and x[0] == '0') for x in match[4].split('.')), 'Invalid prerelease identifier')
+    info = version_info(version)
     require(isinstance(request['commit'], str) and re.fullmatch('[0-9a-f]{40}', request['commit']), 'Source must be a full commit SHA')
     require(type(request['dry_run']) is bool, 'dry_run must be true or false')
     notes = request['notes']
@@ -71,7 +96,8 @@ def validate_request(request, config):
     return {**request, **mod, 'tag': f"{request['project']}/v{version}",
             'mod_name': mod['title'],
             'title': f"{mod['title']} {version}", 'fingerprint': fingerprint,
-            'archive': f"farever-{request['project']}.zip", 'prerelease': bool(match[4]),
+            'archive': f"farever-{request['project']}.zip", 'prerelease': info['prerelease'],
+            'game_versions': info['game_versions'],
             'nexus_url': f"https://www.nexusmods.com/farever/mods/{mod['nexus_page_id']}"}
 
 
@@ -157,8 +183,11 @@ def select_nexus_file(files, versions, override=None):
 
 
 def stable_version(version):
-    match = SEMVER.fullmatch(version)
-    return tuple(map(int, match.group(1, 2, 3))) if match and not match[4] else None
+    try:
+        info = version_info(version)
+        return None if info['prerelease'] else info['parts']
+    except ValueError:
+        return None
 
 
 def nexus_target(plan, completed=False):
@@ -222,6 +251,23 @@ def validate_package(package, project):
 
 def make_archive(package, plan):
     files = validate_package(package, plan['project'])
+    # Both bytecode loading and eager native plugin loading have their own gate.
+    # Keep the archive metadata and Vortex's Nexus version suffix in agreement.
+    expected = version_info(plan['version'])['game_versions']
+    folders = [package / 'hlx/mods' / plan['project']]
+    plugin = package / 'hlx/plugins' / plan['project']
+    if plugin.is_dir():
+        folders.append(plugin)
+    for folder in folders:
+        info_path = folder / 'mod.info'
+        actual = {}
+        if info_path.exists():
+            for line in info_path.read_text(encoding='utf-8').splitlines():
+                key, separator, value = line.partition('=')
+                if separator and key.strip() in ('minGameVersion', 'maxGameVersion'):
+                    require(key.strip() not in actual, f'Duplicate game version in {info_path}')
+                    actual[key.strip()] = value.strip()
+        require(actual == expected, f'Packaged {info_path} does not match release game-version suffix')
     destination = WORK / plan['archive']
     with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED) as archive:
         for file in files:
@@ -308,10 +354,14 @@ def main():
     request.add_argument('--commit', required=True)
     request.add_argument('--notes-file', required=True)
     request.add_argument('--dry-run', action='store_true')
+    version = sub.add_parser('is-prerelease', help='Classify a release, including stable Farever range suffixes')
+    version.add_argument('--version', required=True)
     for command in ('check', 'prepare', 'github', 'nexus-check', 'nexus-finish'):
         sub.add_parser(command)
     args = parser.parse_args()
-    if args.command == 'request':
+    if args.command == 'is-prerelease':
+        print('true' if version_info(args.version)['prerelease'] else 'false')
+    elif args.command == 'request':
         value = {'project': args.project, 'version': args.version, 'commit': args.commit,
                  'notes': Path(args.notes_file).read_text(encoding='utf-8'), 'dry_run': args.dry_run}
         validate_request(value, read_json(CONFIG))

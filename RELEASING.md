@@ -57,6 +57,27 @@ GitHub publishing uses the built-in workflow token and needs no additional key.
 Prerelease versions such as `1.9.0-rc.1` publish a **GitHub prerelease only**.
 They do not change the Nexus stable file or advertised page version.
 
+Farever compatibility suffixes are **stable releases**, not prerelease labels.
+Use `<mod-version>-max<game-version>`, for example
+`1.15.3-max0.3.1.31995`. The full suffix is kept on GitHub and Nexus; stable-version
+ordering compares the mod's numeric version. Increment the mod revision when
+updating its supported game range. `-minVERSION` and
+`-minVERSION-maxVERSION` are also supported. Do not combine these with a
+prerelease suffix: Vortex recognizes compatibility only after the first dash.
+
+Set the project's `mod.info` to the matching `maxGameVersion=0.3.1.31995`
+(and `minGameVersion` when used). All four components are required to stop at a
+particular build; `max0.3.1` allows every `0.3.1.x` build. Packaging copies
+`mod.info` alongside the top-level `.hl` and any native plugin. Release validation
+rejects a missing, duplicated or mismatched bound before publishing.
+
+The [Farever Vortex extension](https://github.com/hlx-framework/vortex-farever-extension)
+uses the Nexus file-version suffix to refuse incompatible installs or disable
+incompatible installed mods with a notification. HLX uses `mod.info` at launch
+when the [Game Version Driver](https://www.nexusmods.com/farever/mods/16) is
+installed, including for manual installations and native plugins. Without the
+driver, HLX's launch-time version check is unavailable.
+
 The pipeline performs Nexus publishing directly after GitHub publishing.
 It does not rely on a release event caused by `GITHUB_TOKEN`, because that event
 would not start a second workflow. The existing tag workflows remain available

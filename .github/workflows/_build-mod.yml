@@ -107,9 +107,15 @@ jobs:
           if [[ -f configFormats.json ]]; then
             cp configFormats.json "$destination/"
           fi
+          if [[ -f mod.info ]]; then
+            cp mod.info "$destination/"
+          fi
           if [[ "$PROJECT" == 'trade-and-marketplace' ]]; then
             mkdir -p package/hlx/plugins/trade-and-marketplace
             cp build/native/trade_marketplace_desktop.hdll package/hlx/plugins/trade-and-marketplace/
+            if [[ -f mod.info ]]; then
+              cp mod.info package/hlx/plugins/trade-and-marketplace/
+            fi
           fi
           printf '%s\n' \
             "$REQUIREMENTS" \
@@ -158,7 +164,7 @@ jobs:
         shell: bash
         run: |
           release_options=()
-          if [[ "${GITHUB_REF_NAME#"$PROJECT"/v}" == *-* ]]; then
+          if [[ "$(python3 tools/release/release.py is-prerelease --version "${GITHUB_REF_NAME#"$PROJECT"/v}")" == true ]]; then
             release_options+=(--prerelease)
           fi
           # A retry must not overwrite an already published release.

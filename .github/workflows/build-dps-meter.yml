@@ -264,7 +264,7 @@ jobs:
             exit 0
           fi
           release_options=()
-          if [[ "${GITHUB_REF_NAME#dps-meter/v}" == *-* ]]; then
+          if [[ "$(python3 tools/release/release.py is-prerelease --version "${GITHUB_REF_NAME#dps-meter/v}")" == true ]]; then
             release_options+=(--prerelease)
           fi
           gh release create "$GITHUB_REF_NAME" farever-dps-meter.zip \
