@@ -16,7 +16,7 @@ private typedef ChakramFixture = {
 class CollectorChakramHeroicTest {
     static var checks = 0;
     static function check(ok:Bool, why:String):Void { checks++; if (!ok) throw why; }
-    static function fixture(heroic:Bool = true, reconnect:Bool = false, stale:Bool = false):ChakramFixture {
+    static function fixture(heroic:Bool = true, reconnect:Bool = false, stale:Bool = false, startPhase:Int = 1):ChakramFixture {
         G.globals["Main.get_branchName"] = true; G.globals["gameBranch"] = "MAIN";
         G.globals["activities"] = ["ChakramArena" => {types:["Dungeon"]}];
         var primary:Dynamic = {kind:"KillBoss", target:ChakramTarget.Unit("Phrixes"), completed:reconnect};
@@ -28,7 +28,7 @@ class CollectorChakramHeroicTest {
         var player:Dynamic = {isMe:true, heroData:{kind:"rogue"}, context:ctx};
         var hero:Dynamic = {__uid:"me", name:"Wink", player:player, layer:layer, isInCombat:false};
         var chakram:Dynamic = {__uid:"chakram", kind:"Phrixes", name:"High Inquisitor Chakram", layer:layer,
-            phase:1, health:1000., maxHealth:1000., isInCombat:false, inf:{flags:0x10}, _level:30, foeId:1};
+            phase:startPhase, health:1000., maxHealth:1000., isInCombat:false, inf:{flags:0x10}, _level:30, foeId:1};
         var night:Dynamic = {__uid:"night", kind:"Phrixes_NightGod", name:"Final boss", layer:layer,
             phase:1, health:1000., maxHealth:1000., isInCombat:true, inf:{flags:0x10}, _level:30, foeId:2};
         var gate:Dynamic = {__uid:"gate", kind:"Phrixes_NightGodGate", name:"Gate", layer:layer,
@@ -67,8 +67,58 @@ class CollectorChakramHeroicTest {
         f.collector.update(f.app, 32);
     }
     static function main():Void {
-        victory(); lateSurrenderHit(); deathBeforeObjective(); wipeAndRetry(); objectiveOrdering(); partial(); normal(); replacement();
+        victory(); checkpointStart(); checkpointRetry(); lateSurrenderHit(); deathBeforeObjective(); wipeAndRetry(); objectiveOrdering(); partial(); normal(); replacement();
         Sys.println('Chakram Heroic collector: $checks checks passed');
+    }
+    static function checkpointStart():Void {
+        for (heroic in [false, true]) {
+            // Retrying never replays the excluded first form. The replacement
+            // boss can already be in phase 2 on the collector's first poll.
+            var f = fixture(heroic, false, false, 2);
+            f.ctx.dungeonState = "BossPhase"; f.hero.isInCombat = true; f.chakram.isInCombat = true;
+            f.collector.combatEnter("me", 10); hit(f, f.chakram, 11);
+            var fight = f.model.current;
+            check(fight != null && fight.start == 11 && fight.recordingComplete,
+                "Observing an idle darkness-form checkpoint before the pull qualifies the ranked start");
+            f.chakram.phase = 3; f.collector.update(f.app, 20);
+            f.chakram.phase = 4; hit(f, f.chakram, 25);
+            check(fight.recordingComplete, "Checkpoint-start coverage survives the bridge and demon form");
+            transition(f);
+            if (heroic) {
+                spawnFinal(f); hit(f, f.gate, 33);
+                check(f.model.current == fight && fight.recordingComplete,
+                    "A darkness-form retry continues completely into the Heroic final gates");
+                f.finalGoal.completed = true; f.ctx.dungeonState = "BossWin";
+                f.collector.update(f.app, 34); f.collector.update(f.app, 35);
+            } else f.collector.update(f.app, 32);
+            var saved = f.model.history[0];
+            check(saved.outcome == "Victory" && saved.start == 11
+                && FareverlyContract.candidate(FightHistory.encode(saved, "checkpoint-victory")),
+                "The complete retry uploads without needing or counting the excluded opening form");
+        }
+    }
+    static function checkpointRetry():Void {
+        for (heroic in [false, true]) for (lostRange in [false, true]) {
+            var f = fixture(heroic, false, false, 2);
+            f.ctx.dungeonState = "BossPhase"; f.hero.isInCombat = true; f.chakram.isInCombat = true;
+            f.collector.combatEnter("me", 10); hit(f, f.chakram, 11);
+            var old = f.model.current;
+            f.chakram.health = 400.; f.collector.update(f.app, 12);
+            f.hero.isInCombat = false; f.chakram.isInCombat = false; f.ctx.dungeonState = "BossLoose";
+            f.collector.combatExit("me", 20); f.collector.update(f.app, 20); f.collector.update(f.app, 21.1);
+            check(f.model.current == null && f.model.history[0].outcome == "Defeat",
+                "A wiped darkness-form attempt closes as a defeat");
+            // Health restoration may replicate after the combat-exit flag,
+            // and the reset may reuse the same phase and entity UID.
+            if (lostRange) { f.layer.units = []; f.collector.update(f.app, 21.5); }
+            f.layer.units = [f.chakram];
+            f.chakram.health = 1000.; f.collector.update(f.app, 22);
+            f.ctx.dungeonState = "BossPhase"; f.hero.isInCombat = true; f.chakram.isInCombat = true;
+            f.collector.combatEnter("me", 23); hit(f, f.chakram, 23, 25);
+            check(f.model.current != null && f.model.current != old && f.model.current.start == 23
+                && f.model.current.players["me"].damage == 25 && f.model.current.recordingComplete,
+                "A same-entity phase-two reset starts fresh complete coverage after a wipe");
+        }
     }
     static function lateSurrenderHit():Void {
         for (polled in [false, true]) for (knownSource in [false, true]) {

@@ -24,7 +24,7 @@ class EncounterCoverageTest {
         return hit.attempt.record(hit);
     }
     static function main():Void {
-        world(); dungeon(); phrixes(); rifts(); snapshots(); collectorReconnect();
+        world(); dungeon(); phrixes(); phrixesCheckpoint(); rifts(); snapshots(); collectorReconnect();
         Sys.println('Encounter coverage: $checks checks passed');
     }
     static function world():Void {
@@ -98,6 +98,25 @@ class EncounterCoverageTest {
         map.units = []; c.poll(null, map, "Boss Dungeons");
         boss.phase = 2; map.units = [boss]; c.poll(null, map, "Boss Dungeons");
         check(!recorded(c, boss, 70).complete, "Returning to phase two after losing sight of phase one is not a witnessed transition");
+    }
+    static function phrixesCheckpoint():Void {
+        var boss = unit("Phrixes", false, 2), map = layer(boss, "BossLoose"), c = new NativeEncounterCoverage();
+        c.poll(null, map, "Boss Dungeons"); boss.isInCombat = true;
+        check(recorded(c, boss, 10).complete, "An observed idle darkness-form checkpoint qualifies without the opening form");
+
+        boss.isInCombat = false; c = new NativeEncounterCoverage();
+        check(!recorded(c, boss, 20).complete, "A first damage callback cannot certify a phase-two start by itself");
+        c = new NativeEncounterCoverage(); boss.isInCombat = true; c.poll(null, map, "Boss Dungeons");
+        check(!recorded(c, boss, 30).complete, "An active phase-two first observation stays partial even at full HP");
+        c = new NativeEncounterCoverage(); boss.isInCombat = false; boss.health = 500.; c.poll(null, map, "Boss Dungeons");
+        check(!recorded(c, boss, 40).complete, "Idle alone cannot qualify a damaged phase-two boss");
+        for (phase in [3, 4]) {
+            c = new NativeEncounterCoverage(); boss.phase = phase; boss.health = 1000.; c.poll(null, map, "Boss Dungeons");
+            check(!recorded(c, boss, 50 + phase).complete, "An idle full-health later Chakram phase is not a checkpoint start");
+        }
+        boss = unit("OtherBoss", false, 2); map = layer(boss); c = new NativeEncounterCoverage();
+        c.poll(null, map, "Other");
+        check(!recorded(c, boss, 60).complete, "The darkness-form exception does not qualify another boss's second phase");
     }
     static function rifts():Void {
         var boss = unit(), map = layer(boss), c = new NativeEncounterCoverage(); map.isRift = true;

@@ -99,6 +99,23 @@ and native HashLink, including both callback orderings, reconnects, actual
 visibility gaps, stale objectives and retries. The full interpreter suite and
 production/bootstrap compile also pass. In-game confirmation remains necessary.
 
+### Chakram darkness-form retries
+
+The follow-up report was a Heroic retry that began after the excluded opening
+form. Coverage only recognized idle bosses in phases zero/one or an observed
+one-to-two transition, so the valid darkness-form checkpoint could never arm a
+complete start. Phrixes in phase two now also qualifies when observed alive,
+out of combat and at full health before the pull. This works for a replacement
+entity and a reused entity, including after leaving replication range during
+respawn. The opening form remains excluded on every difficulty.
+
+Joining active phase two, first seeing damage without a ready baseline, and
+first seeing phases three/four still cannot qualify. The collector regression
+now has 75 checks, including complete Normal/Heroic checkpoint victories and
+same-entity retries; coverage has 82 checks. Both pass in the interpreter and
+native HashLink. The full interpreter suite and production/bootstrap compile
+also pass; the fixed retry path still needs in-game confirmation.
+
 ## Talent layout and minimap hover follow-up
 
 The reported stretched initial talent panel and minimap flicker exposed a layout

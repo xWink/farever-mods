@@ -130,11 +130,16 @@ class NativeEncounterCoverage {
 
     function observeBoss(unit:Dynamic, allowReset:Bool = true):ObservedBoss {
         var uid = G.uid(unit), phase = G.integer(G.field(unit, "phase"), -1);
+        var phrixes = G.text(G.field(unit, "kind")) == "Phrixes";
         var active = G.field(unit, "isInCombat") == true;
         var alive = G.field(unit, "removed") != true && G.call("ent.GameObject", "isDead", unit) != true;
         var hp = G.number(G.call("ent.Unit", "get_health", unit), -1);
         var max = G.number(G.call("ent.Unit", "get_maxHealth", unit), -1);
-        var ready = alive && G.field(unit, "isInCombat") == false && phase >= 0 && phase <= 1
+        // Chakram retries start in the darkness form (phase 2), never replaying
+        // the excluded opening form. Seeing that reset boss idle at full HP
+        // before damage is a valid start, even without a 1-to-2 transition.
+        // Active phase 2 and later full-health phases cannot arm a recording.
+        var ready = alive && G.field(unit, "isInCombat") == false && phase >= 0 && phase <= (phrixes ? 2 : 1)
             && max > 0 && hp >= max;
         var entry = bosses[uid];
         if (entry == null) {
@@ -145,9 +150,13 @@ class NativeEncounterCoverage {
         } else {
             // Phrixes' first bar is deliberately local-only. The ranked fight
             // starts at phase 2; phases 3 and 4 must retain the same evidence.
-            if (G.text(G.field(unit, "kind")) == "Phrixes" && entry.unit == unit && entry.phase == 1 && phase == 2) {
+            if (phrixes && entry.unit == unit && entry.phase == 1 && phase == 2) {
                 entry.attempt = new EncounterCoverage(); entry.attempt.ready();
-            } else if (allowReset && ready && !entry.ready && (entry.engaged || entry.phase > phase)) {
+            } else if (allowReset && ready && !entry.ready
+                && (entry.engaged || entry.phase > phase || (phrixes && phase == 2))) {
+                // Respawning can put the old boss out of replication range.
+                // Its freshly observed idle checkpoint is still a new pull;
+                // prior fights retain their own sticky incomplete status.
                 entry.attempt = new EncounterCoverage(); entry.attempt.ready();
                 entry.engaged = false;
             }
@@ -155,7 +164,7 @@ class NativeEncounterCoverage {
             if (active || (max > 0 && hp < max)) entry.engaged = true;
             entry.unit = unit; entry.phase = phase; entry.ready = ready;
         }
-        if (G.text(G.field(unit, "kind")) == "Phrixes") trackPhrixes(entry);
+        if (phrixes) trackPhrixes(entry);
         return entry;
     }
 
