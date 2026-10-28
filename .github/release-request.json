@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.22.6",
-  "commit": "7bb11f0e1f5c4c3182e609cc79701a208073538d",
-  "notes": "Fixed an issue where bomblet hits still created a hit effect on enemies when the bomblets were hidden",
+  "project": "trade-and-marketplace",
+  "version": "1.3.2",
+  "commit": "50bc143adefe59db20a4f6b1a348a58e7cff4313",
+  "notes": "Improved UI",
   "dry_run": false
 }
