@@ -1,7 +1,7 @@
 {
-  "project": "minimap",
-  "version": "2.3.3-max0.3.1.31995",
-  "commit": "70cebda2810dcc90c4f0e1dbc28b25099292c6db",
-  "notes": "New Farever version compatibility update",
+  "project": "dps-meter",
+  "version": "1.11.13-max0.3.1.31995",
+  "commit": "50fcd7817007c087346cc6332ccec2e7fc0e0284",
+  "notes": "Fixed an issue where heroic Chakram logs were not uploaded to Fareverly",
   "dry_run": false
 }
