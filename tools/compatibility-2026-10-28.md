@@ -82,6 +82,23 @@ HashLink, including final-objective completion, reordered callbacks, stale goals
 wipes/retries, boss replacement, late gate damage, partial uploads and Normal.
 This is bytecode and automated verification, not an in-game/server playtest.
 
+### Chakram recording completeness follow-up
+
+A late lethal RPC from the excluded first health bar could consume the coverage
+start after phase two had replicated. The model correctly discarded that hit,
+but the later ranked start then appeared to miss the first damage. Coverage now
+observes the phase transition without counting that surrender hit, including
+when its source is unavailable or it arrives between roster polls.
+
+The existing death RPC also now informs coverage. Witnessed original/final-boss
+deaths allow normal entity removal while objective replication catches up;
+removal alone is still not death evidence, and death alone does not grant a
+Heroic victory. Death evidence resets with each attempt and cannot repair an
+earlier gap. The collector regression now passes 60 checks in the interpreter
+and native HashLink, including both callback orderings, reconnects, actual
+visibility gaps, stale objectives and retries. The full interpreter suite and
+production/bootstrap compile also pass. In-game confirmation remains necessary.
+
 ## Talent layout and minimap hover follow-up
 
 The reported stretched initial talent panel and minimap flicker exposed a layout

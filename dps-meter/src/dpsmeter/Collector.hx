@@ -142,6 +142,10 @@ class Collector {
         model.interruptRecording();
         coverage = new NativeEncounterCoverage();
     }
+    public function targetDeath(target:Dynamic, now:Float):Void {
+        coverage.death(target);
+        model.onTargetDeath(G.uid(target), now);
+    }
     /** Count the server-replicated execution of a passive infusion/enchant.
         One proc may hit several targets or play multiple client steps. Do not
         infer an activation from any damage/healing notification. */
@@ -503,7 +507,7 @@ class Collector {
         var blocker = G.text(G.field(damage, "blocker"));
         if (blocker == "InvulnerableHit" || blocker == "DamageDodge") return;
         var coverageHit = G.integer(G.field(damage, "effect")) != 1 && G.number(G.field(damage, "_amount")) > 0
-            ? coverage.damage(target, now) : null;
+            ? coverage.damage(target, now, G.field(damage, "_kill") == true) : null;
         var source:Dynamic = G.call("st.skill.DamageResult", "get_source", damage);
         var skill = NativeCasts.origin(gamecompat.HitSkill.read(damage, G.field));
         var uid = G.text(G.field(damage, "weakSource"));

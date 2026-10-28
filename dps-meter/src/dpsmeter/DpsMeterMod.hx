@@ -286,7 +286,7 @@ class DpsMeterMod {
     @:hlx.postfix(ent.GameObject.rpcDie__impl)
     static function onTargetDeath(instance:Dynamic, result:Void):Void {
         if (timeline != null) try timeline.death(instance) catch (error:Dynamic) timeline.report(error);
-        if (collector != null && config.enabled) try collector.model.onTargetDeath(G.uid(instance), haxe.Timer.stamp())
+        if (collector != null && config.enabled) try collector.targetDeath(instance, haxe.Timer.stamp())
         catch (_:Dynamic) {}
     }
     @:hlx.postfix(st.activity.DungeonContext.victory__impl)
