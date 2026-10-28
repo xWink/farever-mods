@@ -1,6 +1,6 @@
 {
-  "project": "more-settings",
-  "version": "1.22.7-max0.3.1.31995",
+  "project": "item-utilities",
+  "version": "1.15.3-max0.3.1.31995",
   "commit": "70cebda2810dcc90c4f0e1dbc28b25099292c6db",
   "notes": "New Farever version compatibility update",
   "dry_run": false
