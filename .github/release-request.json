@@ -1,7 +1,7 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.3.2",
-  "commit": "50bc143adefe59db20a4f6b1a348a58e7cff4313",
-  "notes": "Improved UI",
+  "project": "dps-meter",
+  "version": "1.11.11",
+  "commit": "ea3e90eee4a69fbc4aacb9253286e808116605e2",
+  "notes": "Fixed an issue with Queen Honeyzabeth completion detection when killing Queenslayer too fast",
   "dry_run": false
 }
