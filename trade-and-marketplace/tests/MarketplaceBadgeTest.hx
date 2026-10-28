@@ -7,7 +7,7 @@ class MarketplaceBadgeTest {
  static function check(value:Bool,context:String):Void {
   checks++;if(!value)throw "Marketplace badge assertion: "+context;
  }
- static function captions():Array<Dynamic> return G.labels.filter(l->StringTools.startsWith(G.text(l.text),"Seller: "));
+ static function captions():Array<Dynamic> return G.labels.filter(l->StringTools.startsWith(G.text(l.parent.id),"marketSeller")&&l.text!="Online"&&l.text!="Offline");
  static function icons(box:Dynamic):Array<Dynamic> return (cast box.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
  static function dot(box:Dynamic):Dynamic return (cast box.children:Array<Dynamic>).filter(n->n.shapes!=null)[0];
  static function loads():Int return G.pngLoads.filter(s->StringTools.startsWith(s,"supporter-")||s=="fareverly-creator.png").length;
@@ -44,14 +44,14 @@ class MarketplaceBadgeTest {
    }
    check(passes==(ids[i]=="supporter-diamond"?5:2)&&texture.disposed!=true&&badge.blendMode=="AlphaAdd",
     "full resolution diamond uses extra smoothing passes");
-   check(badge.x==14*8+4&&badge.y==1&&presence.x==badge.x+22+6,"badge follows name before presence");
-   check(caption.maxWidthText==234&&caption.useEllipsis&&box.width==350&&box.height==24,"space reserved inside existing line");
+   check(badge.x==caption.x+6*8+4&&badge.y==1&&presence.x==badge.x+22+6,"badge follows name before presence");
+   check(caption.x+caption.maxWidthText==234&&caption.useEllipsis&&box.width==350&&box.height==24,"space reserved inside existing line");
    check(badge.flowProperties.isAbsolute&&badge.interactive==null&&badge.action==null&&badge.getTip==null,"badge cannot capture clicks or change flow");
   }
   var first=sellers[0],box=first.parent,badge=icons(box)[0],presence=dot(box);
   first.inkBounds={xMin:2.,yMin:5.,xMax:202.,yMax:29.};first.scaleX=.75;first.scaleY=.75;
   box.onAfterReflow();
-  check(badge.x==154&&presence.x==182&&first.y+29*.75<=24,"native font bounds and scale position the badge");
+  check(badge.x==Math.round(first.x+202*.75)+4&&presence.x==badge.x+28&&first.y+29*.75<=24,"native font bounds and scale position the badge");
   c.presenceOverride=false;@:privateAccess view.presenceCheckAt=0;view.update();
   check(presence.shapes[0].color==0x888888&&icons(box)[0]==badge,"presence changes preserve badge");
   box.parent.action();check(c.selected==c.rows[0],"row still selects the original listing");
@@ -64,15 +64,15 @@ class MarketplaceBadgeTest {
   c.rows[0].seller.characterName="A very long seller name that fills the available name space";
   view.dirty=true;view.update();
   first=captions()[0];box=first.parent;badge=icons(box)[0];
-  check(first.maxWidthText==234&&first.lineBreak==false&&first.useEllipsis,"long names retain native ellipsis");
-  first.inkBounds={xMin:0.,yMin:4.,xMax:234.,yMax:22.};box.onAfterReflow();
+  check(first.x+first.maxWidthText==234&&first.lineBreak==false&&first.useEllipsis,"long names retain native ellipsis");
+  first.inkBounds={xMin:0.,yMin:4.,xMax:first.maxWidthText*1.0,yMax:22.};box.onAfterReflow();
   presence=dot(box);
   var status=G.labels.filter(l->l.parent==box&&l.text=="Offline")[0];
   check(badge.x==238&&presence.x==266&&status.x==282&&status.x+7*8<=box.width,"long name, badge and offline status fit");
   for(missing in [null,"","supporter-unknown","../supporter-gold"]) {
    c.rows[0].seller.badge=missing;c.rows[0].seller.characterName="Tester";
    view.dirty=true;view.update();first=captions()[0];box=first.parent;
-   check(icons(box).length==0&&first.maxWidthText==260&&dot(box).x==118,"absent or unsupported badge leaves no gap");
+   check(icons(box).length==0&&first.x+first.maxWidthText==260&&dot(box).x==first.x+6*8+6,"absent or unsupported badge leaves no gap");
   }
   check(loads()==initialLoads+ids.length,"unsupported IDs do not load resources");
   view.close();
@@ -84,7 +84,7 @@ class MarketplaceBadgeTest {
   c.rows[0].seller.badge="supporter-silver";c.rows[0].seller.characterName="Tester";
   G.failNextPng=true;view.dirty=true;view.update();
   first=captions()[0];box=first.parent;
-  check(icons(box).length==0&&first.maxWidthText==260,"decode failure preserves normal seller layout");
+  check(icons(box).length==0&&first.x+first.maxWidthText==260,"decode failure preserves normal seller layout");
   box.parent.action();check(c.selected==c.rows[0],"decode failure preserves listing action");
   var failedLoads=loads();view.update();check(loads()==failedLoads,"failed resource is not retried during redraw");
   view.close();view.open();view.update();
