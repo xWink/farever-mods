@@ -638,15 +638,13 @@ class MarketWindow {
             hovered=over;
             G.call("h2d.Graphics","clear",bg);
             // Keep order identity visible during hover, selection and drawer
-            // resizing. These decorations share the existing row background.
+            // resizing through the existing row background.
             var border=buyOrder?(selected?0x62899A:over?0x88A4AE:0xA5B6BB)
-                :(selected?0xBC9146:over?0xC6B297:0xD7C5AC);
+                :(selected?0xBC9146:over?0xC9B17A:0xD7C58F);
             var fill=buyOrder?(selected?0xC4D8E0:over?0xCCDADD:0xDCE4E5)
-                :(selected?0xF0D7A2:over?0xE2D1B7:0xE9DDC9);
+                :(selected?0xEFD18E:over?0xECD9A6:0xF0E3B9);
             rounded(bg,0,0,rowWidth,height-4,5,border);
             rounded(bg,1,1,rowWidth-2,height-6,4,fill);
-            if(listing!=null)rounded(bg,1,5,4,height-14,2,buyOrder?0x648799:0xAC7952);
-            else if(selected)rounded(bg,1,5,3,height-14,1,0xB78534);
         }
         draw(false);
         G.call("ui.UIElement","set_onOver",row,[()->draw(true)]);
