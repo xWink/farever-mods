@@ -633,12 +633,20 @@ class MarketWindow {
         var baseWidth=c.tab=="Sell"?680:664;
         absolute(root,row);padding(row,0);size(row,baseWidth,height-4);position(row,parent==null?28:6,y);
         var bg=graphic(row),rowWidth=baseWidth,hovered=false;
+        var buyOrder=listing!=null&&MarketOrder.isBuy(listing);
         function draw(over:Bool):Void {
             hovered=over;
             G.call("h2d.Graphics","clear",bg);
-            rounded(bg,0,0,rowWidth,height-4,5,selected?0xBC9146:over?0xC6B297:0xD7C5AC);
-            rounded(bg,1,1,rowWidth-2,height-6,4,selected?0xF0D7A2:over?0xE2D1B7:0xE9DDC9);
-            if(selected)rounded(bg,1,5,3,height-14,1,0xB78534);
+            // Keep order identity visible during hover, selection and drawer
+            // resizing. These decorations share the existing row background.
+            var border=buyOrder?(selected?0x62899A:over?0x88A4AE:0xA5B6BB)
+                :(selected?0xBC9146:over?0xC6B297:0xD7C5AC);
+            var fill=buyOrder?(selected?0xC4D8E0:over?0xCCDADD:0xDCE4E5)
+                :(selected?0xF0D7A2:over?0xE2D1B7:0xE9DDC9);
+            rounded(bg,0,0,rowWidth,height-4,5,border);
+            rounded(bg,1,1,rowWidth-2,height-6,4,fill);
+            if(listing!=null)rounded(bg,1,5,4,height-14,2,buyOrder?0x648799:0xAC7952);
+            else if(selected)rounded(bg,1,5,3,height-14,1,0xB78534);
         }
         draw(false);
         G.call("ui.UIElement","set_onOver",row,[()->draw(true)]);
