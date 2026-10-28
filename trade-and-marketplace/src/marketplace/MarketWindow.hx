@@ -15,6 +15,8 @@ class MarketWindow {
     static inline var EDGE = 0xB69B7F;
     static inline var LEVEL_X = 420;
     static inline var LEVEL_WIDTH = 84;
+    static inline var BUY_STRIPE = 0x355D72;
+    static inline var SELL_STRIPE = 0x805034;
     final c:MarketController;
     var frame:trade.TradeFrame;
     var cart:MarketCartIcon;
@@ -54,6 +56,7 @@ class MarketWindow {
     var py:Null<Float>;
     var quantity = "1";
     var trays = "1";
+    var unitTrays = "1";
     var offers = false;
     var contentY = 284;
     var buyViewport:Dynamic;
@@ -634,17 +637,19 @@ class MarketWindow {
         absolute(root,row);padding(row,0);size(row,baseWidth,height-4);position(row,parent==null?28:6,y);
         var bg=graphic(row),rowWidth=baseWidth,hovered=false;
         var buyOrder=listing!=null&&MarketOrder.isBuy(listing);
+        var stripe=buyOrder?BUY_STRIPE:SELL_STRIPE;
+        var stripeWidth=8+44/3;
+        var stripeLayers=metalStripe(stripe,stripeWidth,height-4);
         function draw(over:Bool):Void {
             hovered=over;
             G.call("h2d.Graphics","clear",bg);
             rounded(bg,0,0,rowWidth,height-4,5,selected?0xBC9146:over?0xC6B297:0xD7C5AC);
             rounded(bg,1,1,rowWidth-2,height-6,4,selected?0xF0D7A2:over?0xE2D1B7:0xE9DDC9);
             if(listing!=null) {
-                // A full-height 30px band reaches halfway behind the icon.
-                // Round the outer corners to match the row, with a straight inner edge.
-                var stripe=buyOrder?0x648799:0xAC7952;
+                // Static metallic highlights; the band reaches one-third behind the icon.
                 rounded(bg,0,0,10,height-4,5,stripe);
-                rounded(bg,5,0,25,height-4,0,stripe);
+                rounded(bg,5,0,stripeWidth-5,height-4,0,stripe);
+                for(layer in stripeLayers)rounded(bg,layer.x,layer.y,layer.width,layer.height,0,layer.color);
             } else if(selected)rounded(bg,1,5,3,height-14,1,0xB78534);
         }
         draw(false);
@@ -656,10 +661,12 @@ class MarketWindow {
             ||(item.preview!=null&&(item.preview.flags&2)!=0);
         itemIcon(row,item,8,iconY,44,rarity,prismatic);
         stage="item row labels";
-        var nameX=64;
+        var nameX=64.0;
         var nameRight=c.tab=="Sell"?484:392,extraWidth=0;
-        var fullName=(listing==null?"":MarketOrder.prefix(listing))+item.name+(item.count>1?" ×"+item.count:"");
-        var nameLabel=labelAt(row,fullName,nameX,0,nameRight-nameX,true,INK,true);
+        var prefix=listing==null?null:labelAt(row,MarketOrder.prefix(listing),64,0,40,true,stripe,true);
+        if(prefix!=null){largeLabel(prefix);G.call("ui.comp.FmtText","set_maxWidthText",prefix,[null]);}
+        var fullName=item.name+(item.count>1?" ×"+item.count:"");
+        var nameLabel=labelAt(row,fullName,64,0,nameRight-64,true,INK,true);
         // FmtText's native ellipsis overwrites its source text; fit from the original
         // name after the font, rarity and price columns have their final bounds.
         G.call("ui.comp.FmtText","set_useEllipsis",nameLabel,[false]);
@@ -675,6 +682,11 @@ class MarketWindow {
         }
         var priceLabel:Dynamic=null;
         function layoutLabels():Void {
+            if(prefix!=null) {
+                updateTextScale(prefix);
+                nameX=64+G.number(G.call("h2d.Text","calcTextWidth",prefix,[MarketOrder.prefix(listing)]))*G.number(G.field(prefix,"scaleX"),1);
+                centerControlText(prefix,24,64,5);
+            }
             var available=Std.int(Math.max(1,nameRight-nameX));
             var fitted=MarketText.ellipsis(fullName,available,text->G.number(G.call("h2d.Text","calcTextWidth",nameLabel,[text])));
             if(fitted!=displayedName){setText(nameLabel,fitted);displayedName=fitted;}
@@ -706,6 +718,25 @@ class MarketWindow {
         G.call("ui.UIElement","set_onClick",row,[()->{if(!c.busy)action();}]);
         trade.ItemLinks.bind(row,item);
         partialRow=null;
+    }
+    /** Narrow bright reflection with dark edges, calculated only when a row is built. */
+    static function metalStripe(color:Int,width:Float,height:Float):Array<{x:Float,y:Float,width:Float,height:Float,color:Int}> {
+        var stops=[{at:0.0,light:-0.5},{at:0.12,light:0.0},{at:0.24,light:0.58},
+            {at:0.36,light:0.05},{at:0.65,light:-0.35},{at:0.9,light:0.0},{at:1.0,light:-0.5}];
+        var layers=[],count=Math.ceil(width),span=width/count;
+        for(i in 0...count) {
+            var x=i*span,t=(x+span/2)/width,index=0;
+            while(index<stops.length-2&&t>stops[index+1].at)index++;
+            var a=stops[index],b=stops[index+1],light=a.light+(b.light-a.light)*(t-a.at)/(b.at-a.at);
+            var tint=0;
+            for(shift in [16,8,0]) {
+                var channel=(color>>shift)&255;
+                tint|=Std.int(light>=0?channel+(255-channel)*light:channel*(1+light))<<shift;
+            }
+            var inset=x<5?5-Math.sqrt(25-(5-x)*(5-x)):0;
+            layers.push({x:x,y:inset,width:span,height:height-2*inset,color:tint});
+        }
+        return layers;
     }
     function rememberListingScroll():Void {
         if(listingViewport!=null&&listingScrollRestored&&listingScrollState!=null)
@@ -822,22 +853,21 @@ class MarketWindow {
             button("Any",856,y,50,()->{b.setAnyLevel(!b.anyLevel);dirty=true;},b.anyLevel?"unaccept":"");
         }
         var quantityX=b.selected.gear?918:754;
+        var refreshPrice:Void->Void=()->{};
         labelAt(frame.container,"Quantity to buy",quantityX,y-28,152,true);
-        counter(b.quantity,quantityX,y,152,10000,s->b.quantity=s);
+        counter(b.quantity,quantityX,y,152,10000,s->{b.quantity=s;refreshPrice();});
         if(b.bonuses.length>0) {
             dropdown("Infusion bonus",[""].concat(b.bonuses.map(v->v.id)),["Any bonus"].concat(b.bonuses.map(v->v.name)),b.bonus,754,508,316,s->{b.setBonus(s);dirty=true;});
             checkbox("Prismatic",b.prismatic,754,556,316,value->{b.setPrismatic(value);dirty=true;},true);
         }
-        labelAt(frame.container,"Price for the entire order",754,592,316,true);
-        tabButton("Buyout",754,620,152,()->{b.offers=false;dirty=true;},!b.offers);
-        tabButton("Open to offers",918,620,152,()->{b.offers=true;dirty=true;},b.offers);
-        if(b.offers)labelAt(frame.container,"Sellers can contact you to agree on a price.",754,670,316,false,MUTED);
-        else {
-            var conversion=currencyLine(frame.container,int(b.trays),754,720,316,true);
-            counter(b.trays,754,668,190,200000,s->{b.trays=s;conversion(int(s));},true);
-        }
         var duplicate=c.buyAlreadyListed();
-        button(duplicate?"Buy order already exists":"Place buy order",754,752,316,c.submitBuy,"accept",c.ready&&!c.busy&&!duplicate&&!c.listingLimitReached("buy"));
+        var enabled=c.ready&&!c.busy&&!duplicate&&!c.listingLimitReached("buy"),submit:Dynamic=null;
+        refreshPrice=unitPriceFields(592,()->b.quantity,()->b.unitTrays,s->b.unitTrays=s,b.offers,
+            value->{b.offers=value;dirty=true;},true,valid->{if(submit!=null)G.call("ui.UIElement","set_enable",submit,[enabled&&valid]);});
+        submit=button(duplicate?"Buy order already exists":"Place buy order",754,752,316,()->{
+            if(MarketQuantity.valid(b.quantity,1,10000)&&(b.offers||MarketQuantity.totalPrice(b.quantity,b.unitTrays)!=null))c.submitBuy();
+        },"accept",enabled);
+        refreshPrice();
     }
     function inventoryGrid():Void {
         var key=(c.bankOnly?"bank:"+c.bankTab:"inventory")+":"+c.sellSearch;
@@ -1214,6 +1244,35 @@ class MarketWindow {
         labelAt(root,signIn?MarketText.SIGN_IN_TO_BROWSE:c.tab=="My listings"?c.ready?"Select Sell to create your first listing.":"Sign in with Steam to view and manage your listings.":"Try another search or clear your filters. New listings will appear here as players add them.",64,y+32,560,false,MUTED);
         if(c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"",true,true);
     }
+    /** Updates only the preview and submit state, preserving input focus while typing. */
+    function unitPriceFields(y:Int,getQuantity:Void->String,getPrice:Void->String,setPrice:String->Void,
+        openOffers:Bool,setOffers:Bool->Void,buyOrder:Bool,validity:Bool->Void):Void->Void {
+        labelAt(frame.container,"Per unit price",754,y,316,true);
+        tabButton("Buyout",754,y+28,152,()->{if(openOffers)setOffers(false);},!openOffers);
+        tabButton("Open to offers",918,y+28,152,()->{if(!openOffers)setOffers(true);},openOffers);
+        if(openOffers) {
+            labelAt(frame.container,buyOrder?"Sellers can contact you to agree on a price.":"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
+            return ()->validity(MarketQuantity.valid(getQuantity(),1,10000));
+        }
+        var totalBox=G.field(node("element",G.field(frame.container,"dom"),[],"marketOrderTotal"+(sequence++)),"obj");
+        absolute(frame.container,totalBox);padding(totalBox,0);size(totalBox,316,28);position(totalBox,754,y+128);
+        var totalLabel=labelAt(totalBox,"Total:",0,0,48,true,INK,true);
+        centerControlText(totalLabel,28,0);
+        var updateTotal=currencyLine(totalBox,0,53,0,263);
+        var warning=labelAt(frame.container,"",754,y+128,316,false,MUTED,true);
+        function refresh():Void {
+            var total=MarketQuantity.totalPrice(getQuantity(),getPrice()),valid=total!=null;
+            G.call("h2d.Object","set_visible",totalBox,[valid]);
+            G.call("h2d.Object","set_visible",warning,[!valid]);
+            if(valid)updateTotal(total);
+            else setText(warning,getQuantity()==""||getPrice()==""?"Total: —":"Total limit: 200,000 Silver Trays");
+            validity(valid);
+        }
+        counter(getPrice(),754,y+76,190,200000,s->{setPrice(s);refresh();},true);
+        var icon=currencyIcon(frame.container,"SilverTray");if(icon!=null)position(icon,950,y+84);
+        labelAt(frame.container,"Silver Trays",978,y+82,92,false,MUTED,true);
+        return refresh;
+    }
     function priceFields(y:Int,buyOrder=false):Void {
         labelAt(frame.container,"Price for the entire listing",754,y,316,true);
         tabButton("Buyout",754,y+28,152,()->{if(offers){offers=false;dirty=true;}},!offers);
@@ -1239,11 +1298,18 @@ class MarketWindow {
         line(frame.container,754,SELL_FORM_Y-8,316);
         labelAt(frame.container,"Quantity to sell",754,SELL_FORM_Y+8,316,true);
         var available=c.availableToList(c.chosen);
-        counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.max(1,available)),s->quantity=s);
+        var refreshPrice:Void->Void=()->{};
+        counter(quantity,754,SELL_FORM_Y+36,132,Std.int(Math.max(1,Math.min(10000,available))),s->{quantity=s;refreshPrice();});
         labelAt(frame.container,"of "+available+" available",900,SELL_FORM_Y+44,170,false,MUTED);
-        priceFields(SELL_FORM_Y+92);
         var limited=c.listingLimitReached("sell");
-        button(limited?"Too many sell orders":"List item for sale",754,752,316,()->c.list(int(quantity),int(trays),offers),"accept",!limited);
+        var submit:Dynamic=null;
+        refreshPrice=unitPriceFields(SELL_FORM_Y+92,()->quantity,()->unitTrays,s->unitTrays=s,offers,
+            value->{offers=value;dirty=true;},false,valid->{if(submit!=null)G.call("ui.UIElement","set_enable",submit,[!limited&&valid]);});
+        submit=button(limited?"Too many sell orders":"List item for sale",754,752,316,()->{
+            var total=offers?0:MarketQuantity.totalPrice(quantity,unitTrays);
+            if(MarketQuantity.valid(quantity,1,10000)&&total!=null)c.list(int(quantity),total,offers);
+        },"accept",!limited);
+        refreshPrice();
     }
     function listingPanel(row:Dynamic):Void {
         try selectedItem(MarketExport.offer(row),row.item)catch(error:Dynamic){report("selected item details",error);}

@@ -21,7 +21,7 @@ class MarketplaceBuyOrderTest {
         b.selected={kind:kind,name:kind,category:gear?"Armor":"Consumables",subcategory:"",classes:[],rarity:"Epic",level:15,gear:gear,weapon:false,infusable:gear,
             offer:{uid:"",kind:kind,name:kind,count:1,detail:"",color:0,fingerprint:"",
                 preview:{flags:0,level:0,upgrade:0,rarity:"",infusion:"",bonus:"",mastery:"",slots:[],effects:[]}}};
-        b.level=gear?15:0;b.bonus=gear?"Vitality":"";b.prismatic=gear;b.quantity="12";b.trays="7";
+        b.level=gear?15:0;b.bonus=gear?"Vitality":"";b.prismatic=gear;b.quantity="12";b.unitTrays="7";
         return b;
     }
     public static function run():Void {
@@ -29,23 +29,28 @@ class MarketplaceBuyOrderTest {
         var b=draft(),value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.schemaVersion==2&&value.orderType=="buy"&&value.server=="europe");
         check(value.character.id=="buy-character"&&value.character.name=="Tester"&&value.gameVersion=="0.3.1.31390");
-        check(value.item.quantity==12&&value.price.mode=="fixed"&&value.price.silverTrays==7);
+        check(value.item.quantity==12&&value.price.mode=="fixed"&&value.price.silverTrays==84);
         check(value.item.native.level==15&&value.item.native.bonus=="Vitality"&&value.item.prismatic&&value.item.native.flags==2);
         check(TradePreview.valid(value.item.native)&&value.item.requiredLevel==15&&value.item.itemLevel==35);
         b.setAnyLevel(true);value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.item.native.level==0&&!Reflect.hasField(value.item,"requiredLevel")&&!Reflect.hasField(value.item,"itemLevel"));
         b.setAnyLevel(false);b.selected.weapon=true;b.setRarity("Rare");value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.item.native.rarity=="Rare"&&value.item.rarity=="Rare"&&value.item.native.level==15);
-        b=draft(false);b.offers=true;b.trays="";value=MarketExport.buySnapshot(b,"europe",app,player);
+        b=draft(false);b.offers=true;b.unitTrays="";value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.price.mode=="offers"&&!Reflect.hasField(value.price,"silverTrays"));
         check(!Reflect.hasField(value.item,"requiredLevel")&&!Reflect.hasField(value.item,"itemLevel")&&!value.item.prismatic);
-        for(field in ["quantity","trays"])for(invalid in ["","0","-1","1.5","1e3","NaN","4294967297",field=="quantity"?"10001":"200001"]) {
+        for(field in ["quantity","unitTrays"])for(invalid in ["","0","-1","1.5","1e3","NaN","4294967297",field=="quantity"?"10001":"200001"]) {
             b=draft();Reflect.setField(b,field,invalid);var rejected=false;
             try MarketExport.buySnapshot(b,"europe",app,player)catch(_:Dynamic)rejected=true;
             check(rejected);
         }
-        b=draft();b.quantity="10000";b.trays="200000";value=MarketExport.buySnapshot(b,"europe",app,player);
+        b=draft();b.quantity="10000";b.unitTrays="20";value=MarketExport.buySnapshot(b,"europe",app,player);
         check(value.item.quantity==10000&&value.price.silverTrays==200000);
+        for(pair in [["10000","21"],["2","200000"]]) {
+            b=draft();b.quantity=pair[0];b.unitTrays=pair[1];var rejected=false;
+            try MarketExport.buySnapshot(b,"europe",app,player)catch(_:Dynamic)rejected=true;
+            check(rejected);
+        }
         for(which in ["server","character","preview"]) {
             b=draft();var rejected=false;
             trade.TradeTooltips.previewAvailable=which!="preview";
@@ -61,7 +66,7 @@ class MarketplaceBuyOrderTest {
         c.submitBuy();var first=last(),body=first.body,key=first.headers.get("Idempotency-Key");
         check(c.busy&&first.method=="POST"&&first.path=="/api/v1/marketplace/listings");
         check(~/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.match(key));
-        check(haxe.Json.parse(body).orderType=="buy"&&haxe.Json.parse(body).item.quantity==12);
+        check(haxe.Json.parse(body).orderType=="buy"&&haxe.Json.parse(body).item.quantity==12&&haxe.Json.parse(body).price.silverTrays==84);
         c.submitBuy();check(MarketWorker.current.sent.length==1);
         reply(c,app,0,null);check(!c.busy&&c.buy.selected!=null&&c.buyRequestId==key);
         c.submitBuy();check(last().body==body&&last().headers.get("Idempotency-Key")==key);
@@ -70,7 +75,7 @@ class MarketplaceBuyOrderTest {
         check(!c.ownedKnown&&c.ownedBuyCount==1&&c.tab=="Buy");
         c.buy=draft();c.buy.level=16;c.submitBuy();key=last().headers.get("Idempotency-Key");
         reply(c,app,0,null);c.buy.quantity="13";c.submitBuy();
-        check(last().headers.get("Idempotency-Key")!=key&&haxe.Json.parse(last().body).item.quantity==13);
+        check(last().headers.get("Idempotency-Key")!=key&&haxe.Json.parse(last().body).item.quantity==13&&haxe.Json.parse(last().body).price.silverTrays==91);
         c.buy.quantity="14";
         reply(c,app,201,{id:"second-buy",revision:1,orderType:"buy",server:"europe"});
         check(c.buy.selected!=null&&c.buy.quantity=="14");

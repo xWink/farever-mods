@@ -48,11 +48,10 @@ class MarketExport {
     /** A requested item is detached native state, never an inventory claim. */
     public static function buySnapshot(buy:MarketBuy,server:String,app:Dynamic,player:Dynamic):Dynamic {
         if(server=="")throw "The connected server could not be identified. Reconnect before posting a buy order.";
-        var quantityValue=Std.parseFloat(buy.quantity),trayValue=Std.parseFloat(buy.trays);
-        if(!~/^[0-9]+$/.match(buy.quantity)||quantityValue<1||quantityValue>10000
-            ||(!buy.offers&&(!~/^[0-9]+$/.match(buy.trays)||trayValue<1||trayValue>200000)))
+        var total=buy.offers?0:MarketQuantity.totalPrice(buy.quantity,buy.unitTrays);
+        if(!MarketQuantity.valid(buy.quantity,1,10000)||total==null)
             throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
-        var quantity=Std.int(quantityValue),trays=buy.offers?0:Std.int(trayValue);
+        var quantity=Std.parseInt(buy.quantity),trays:Int=total;
         var character=G.text(G.field(G.field(app,"connectionInfo"),"heroID"));
         if(player==null||character==""||character=="0")throw "Your character is still loading. Try again shortly.";
         if(buy.selected==null)throw "Select an item to buy first.";

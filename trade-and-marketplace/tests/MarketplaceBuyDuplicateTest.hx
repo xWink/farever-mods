@@ -29,9 +29,9 @@ class MarketplaceBuyDuplicateTest {
         var sent=MarketWorker.current.sent.length;c.submitBuy();
         check(MarketWorker.current.sent.length==sent&&c.message==MarketController.error("duplicate_item","buy"));
 
-        c.buy.quantity="";c.buy.trays="";c.buy.offers=true;
+        c.buy.quantity="";c.buy.unitTrays="";c.buy.offers=true;
         check(c.buyAlreadyListed()); // Neither incomplete pricing nor quantities change item identity.
-        c.buy.quantity="99";c.buy.trays="12";c.buy.offers=false;check(c.buyAlreadyListed());
+        c.buy.quantity="99";c.buy.unitTrays="12";c.buy.offers=false;check(c.buyAlreadyListed());
         c.buy.setLevel("16");check(!c.buyAlreadyListed());c.buy.setLevel("15");check(c.buyAlreadyListed());
         c.buy.setAnyLevel(true);check(!c.buyAlreadyListed());c.buy.setAnyLevel(false);check(c.buyAlreadyListed());
         c.buy.bonus="Strength";c.buy.updatePreview();check(!c.buyAlreadyListed());

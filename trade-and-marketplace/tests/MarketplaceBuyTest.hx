@@ -85,6 +85,15 @@ class MarketplaceBuyTest {
         check(G.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic").length==1);
         var quantity=G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==918&&n.y==438)[0];
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");
+        var unitPrice=levelInput(668);
+        check(G.labels.filter(l->l.text=="Per unit price").length==1);
+        unitPrice.input.text="7";unitPrice.onChange();check(c.buy.unitTrays=="7"&&!view.dirty);
+        var total=node("marketOrderTotal");check(total.visible);
+        var money=total.children.filter(n->StringTools.startsWith(Std.string(n.id),"marketMoney"))[0].children.filter(n->StringTools.startsWith(Std.string(n.id),"marketMoneyContent"))[0];
+        check(G.labels.filter(l->l.parent==money&&l.text=="84").length==1);
+        unitPrice.input.text="200000";unitPrice.onChange();check(!total.visible&&!button("Place buy order").enable);
+        button("Place buy order").action();check(c.buySubmissions==0);
+        unitPrice.input.text="7";unitPrice.onChange();check(total.visible);
         button("Open to offers").action();view.update();reflow(view);check(c.buy.offers);
         button("Any").action();view.update();reflow(view);
         check(c.buy.anyLevel&&levelInput(438).input.text=="Any"&&c.buy.preview.preview.level==0);

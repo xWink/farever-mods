@@ -51,7 +51,9 @@ class MarketController {
  public function signIn():Void{}
  public var availableQuantity:Null<Int>;
  public function availableToList(item:trade.TradeTypes.TradeItem):Int return availableQuantity==null?item.count:availableQuantity;
- public function list(q:Int,t:Int,o:Bool):Void{}
+ public var listedOrder:Dynamic;
+ public var sellSubmissions=0;
+ public function list(q:Int,t:Int,o:Bool):Void {listedOrder={quantity:q,trays:t,offers:o};sellSubmissions++;}
  public var buySubmissions=0;
  public var buyDuplicate=false;
  public function buyAlreadyListed():Bool return buyDuplicate;

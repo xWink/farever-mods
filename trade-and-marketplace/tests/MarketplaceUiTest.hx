@@ -42,7 +42,7 @@ class MarketplaceUiTest {
   check(GameAccess.buttons.filter(b->Std.string(b.text).indexOf("details unavailable")>=0).length==0);
   check(GameAccess.labels.filter(l->Std.string(l.text).indexOf("Item details, price")>=0||l.text=="Select a listing").length==0);
   check(GameAccess.labels.filter(l->l.text=="Fareverly connected").length==0);
-  var name=GameAccess.labels.filter(l->l.text=="S> "+row.item.name)[0];
+  var name=GameAccess.labels.filter(l->l.text==row.item.name&&StringTools.startsWith(Std.string(l.parent.id),"marketRow"))[0];
   check(name!=null&&name.lineBreak==false&&name.useEllipsis==false&&name.maxWidthText==null);
   // A real DOMKit ItemSlot supplies one masked, non-interactive item image.
   // Its rarity frame remains native and no extra gradient is drawn underneath.
@@ -271,10 +271,10 @@ class MarketplaceUiTest {
   check(buyout.width==152&&negotiable.width==152&&buyout.selected&&!negotiable.selected&&negotiable.x>buyout.x+buyout.width);
   var inputs=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0),quantityBox=inputs[1],priceBox=inputs[2];
   priceBox.input.text="5";priceBox.onChange();
-  check(GameAccess.labels.filter(l->l.text=="5 Silver Trays").length==1&&GameAccess.labels.filter(l->l.text=="2,500 gold").length==1);
-  var conversion=GameAccess.labels.filter(l->l.text=="5 Silver Trays")[0].parent;
+  check(GameAccess.labels.filter(l->l.text=="5").length==1&&GameAccess.labels.filter(l->l.text=="2,500").length==1);
+  var conversion=GameAccess.labels.filter(l->l.text=="2,500")[0].parent;
   var conversionIcons=(cast conversion.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap");
-  check(conversionIcons[0].tile.id=="SilverTray"&&conversionIcons[1].tile.id=="Gold");
+  check(conversionIcons[0].tile.id=="Gold"&&conversionIcons[1].tile.id=="SilverTray");
   check(!view.dirty); // Updating a price must not rebuild/focus-reset the input.
   var arrows=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketCounterArrow")==0);
   check(arrows.length==2);
@@ -294,7 +294,7 @@ class MarketplaceUiTest {
   plus.onAfterReflow();var buttonX=plus.btnText.x,buttonY=plus.btnText.y;
   plus.btnText.x=15;plus.btnText.y=15;plus.btnText.needUpdateScale=true;plus.onAfterReflow();
   check(plus.btnText.x==buttonX&&plus.btnText.y==buttonY);
-  check(GameAccess.labels.filter(l->l.text=="Silver Trays").length==0);
+  check(GameAccess.labels.filter(l->l.text=="Silver Trays").length==1);
   plus.action();check(priceBox.input.text=="6");minus.action();check(priceBox.input.text=="5");
   plusTen.action();check(priceBox.input.text=="15");minusTen.action();check(priceBox.input.text=="5");
   priceBox.input.text="1";priceBox.onChange();
@@ -607,8 +607,8 @@ class MarketplaceUiTest {
   // The Browse row and details must use the viewer's translated item name.
   trade.TradeInventory.localizedNames[row.item.baseId]="Bouclier des marées";
   GameAccess.labels=[];view.dirty=true;view.update();
-  check(GameAccess.labels.filter(l->l.text=="S> Bouclier des marées").length==1
-   &&GameAccess.labels.filter(l->l.text=="Bouclier des marées").length==1);
+  check(GameAccess.labels.filter(l->l.text=="S> ").length==1
+   &&GameAccess.labels.filter(l->l.text=="Bouclier des marées").length==2);
   trade.TradeInventory.localizedNames.remove(row.item.baseId);
   // Native detail formatting retains source-specific values and colour markup.
   var nativeId:Dynamic={token:"gift-id"};
@@ -651,6 +651,7 @@ class MarketplaceUiTest {
   MarketplaceDrawerTest.run(row);
   MarketplaceScrollTest.run(row);
   MarketplaceBuyTest.run(row);
+  MarketplacePricingUiTest.run(row);
   view.open();c.tab="My listings";c.selected=row;c.rows=[row];row.item.quantity=5;row.price={mode:"fixed",silverTrays:7};
   GameAccess.buttons=[];GameAccess.nodes=[];view.dirty=true;view.update();
   GameAccess.buttons.filter(b->b.text=="Edit listing")[0].action();GameAccess.buttons=[];GameAccess.nodes=[];view.update();
