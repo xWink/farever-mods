@@ -85,7 +85,7 @@ class MarketplaceBuyTest {
         check(G.labels.filter(l->~/<[^>]*>/g.replace(Std.string(l.text),"")=="Prismatic").length==1);
         var quantity=G.nodes.filter(n->StringTools.startsWith(Std.string(n.id),"marketInput")&&n.x==918&&n.y==438)[0];
         quantity.input.text="12";quantity.onChange();check(c.buy.quantity=="12");
-        var unitPrice:Dynamic=levelInput(668);
+        var unitPrice:Dynamic=levelInput(676);
         var priceLabel:Dynamic=G.labels.filter(l->l.text=="Per unit price")[0];
         check(priceLabel!=null&&priceLabel.y>button("Buyout").y+G.number(button("Buyout").height,36)&&priceLabel.y<unitPrice.y);
         unitPrice.input.text="7";unitPrice.onChange();check(c.buy.unitTrays=="7"&&!view.dirty);

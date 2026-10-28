@@ -25,8 +25,8 @@ class MarketplacePricingUiTest {
         var c=new MarketController();c.tab="Sell";c.chosen=MarketExport.offer(example);c.availableQuantity=10000;
         var view=new MarketWindow(c);c.view=view;view.open();view.update();
         var priceLabel:Dynamic=G.labels.filter(l->l.text=="Per unit price")[0];
-        check(priceLabel!=null&&priceLabel.y>button("Buyout").y+G.number(button("Buyout").height,36)&&priceLabel.y<input(668).y);
-        var quantity=input(536),price=input(668),submit=button("List item for sale");
+        check(priceLabel!=null&&priceLabel.y>button("Buyout").y+G.number(button("Buyout").height,36)&&priceLabel.y<input(676).y);
+        var quantity=input(536),price=input(676),submit=button("List item for sale");
         change(quantity,"12");change(price,"7");
         check(showsTotal("84","42,000")&&submit.enable&&!view.dirty);
         submit.action();check(c.listedOrder.quantity==12&&c.listedOrder.trays==84&&!c.listedOrder.offers);
@@ -44,7 +44,7 @@ class MarketplacePricingUiTest {
         check(total()==null&&button("List item for sale").enable);
         button("List item for sale").action();check(c.listedOrder.quantity==10000&&c.listedOrder.offers&&c.listedOrder.trays==0);
         button("Buyout").action();view.update();check(!button("List item for sale").enable);
-        change(input(668),"20");check(showsTotal("200,000","100,000,000"));
+        change(input(676),"20");check(showsTotal("200,000","100,000,000"));
         view.close();Sys.println("Marketplace pricing UI checks passed: "+checks);
     }
 }

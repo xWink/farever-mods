@@ -484,7 +484,7 @@ class MarketWindow {
         if(priceSteps) {
             for(i in 0...4) {
                 var delta=[1,-1,10,-10][i];
-                var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y+(i%2)*24,40,()->commit(Std.string(MarketQuantity.priceStep(int(current),delta,max))),"");
+                var step=button(delta>0?"+"+delta:Std.string(delta),x+102+Std.int(i/2)*44,y-5+(i%2)*24,40,()->commit(Std.string(MarketQuantity.priceStep(int(current),delta,max))),"");
                 padding(step,0);size(step,40,22);
                 var caption=G.field(step,"btnText");absolute(step,caption);
                 afterReflow(step,()->{
@@ -1215,7 +1215,7 @@ class MarketWindow {
             labelAt(frame.container,buyOrder?"Sellers can contact you to agree on a price.":"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
             return ()->validity(MarketQuantity.valid(getQuantity(),1,10000));
         }
-        labelAt(frame.container,"Per unit price",754,y+48,316,true);
+        labelAt(frame.container,"Per unit price",754,y+56,316,true);
         var totalBox=G.field(node("element",G.field(frame.container,"dom"),[],"marketOrderTotal"+(sequence++)),"obj");
         absolute(frame.container,totalBox);padding(totalBox,0);size(totalBox,316,28);position(totalBox,754,y+128);
         var totalLabel=labelAt(totalBox,"Total:",0,0,48,true,INK,true);
@@ -1230,9 +1230,9 @@ class MarketWindow {
             else setText(warning,getQuantity()==""||getPrice()==""?"Total: —":"Total limit: 200,000 Silver Trays");
             validity(valid);
         }
-        counter(getPrice(),754,y+76,190,200000,s->{setPrice(s);refresh();},true);
-        var icon=currencyIcon(frame.container,"SilverTray");if(icon!=null)position(icon,950,y+84);
-        labelAt(frame.container,"Silver Trays",978,y+82,92,false,MUTED,true);
+        counter(getPrice(),754,y+84,190,200000,s->{setPrice(s);refresh();},true);
+        var icon=currencyIcon(frame.container,"SilverTray");if(icon!=null)position(icon,950,y+92);
+        labelAt(frame.container,"Silver Trays",978,y+90,92,false,MUTED,true);
         return refresh;
     }
     function priceFields(y:Int,buyOrder=false):Void {
