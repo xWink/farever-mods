@@ -227,7 +227,8 @@ class TerrainGlobalsCache {
             entry.add(G.field(objectChunk, "absY"));
             var ground = G.field(object, "ground");
             var shader = G.field(ground, "shader");
-            if (shader == null || G.field(ground, "needRefresh") == true
+            // New clients expose ready; older clients expose its inverse.
+            if (shader == null || G.field(ground, "ready") == false || G.field(ground, "needRefresh") == true
                 || G.field(object, "needRefresh") == true) entry.ready = false;
             entry.add(ground);
             entry.add(shader);

@@ -105,6 +105,16 @@ class TerrainCacheTest {
         cache.remember(f.terrain, f.context);
         eq(cache.reuse(f.terrain, f.context), true, "refreshed native result is reusable");
 
+        // October 28 replaces needRefresh with the inverse ready flag.
+        Reflect.deleteField(center.ground, "needRefresh");
+        center.ground.ready = false;
+        eq(cache.reuse(f.terrain, f.context), false, "new-client unready ground uses native path");
+        cache.remember(f.terrain, f.context);
+        eq(cache.reuse(f.terrain, f.context), false, "unready ground never becomes reusable");
+        center.ground.ready = true;
+        cache.remember(f.terrain, f.context);
+        eq(cache.reuse(f.terrain, f.context), true, "new-client ready ground can be reused");
+
         f.objects.remove(key(0, 0)); changed(cache, f, "chunk unload");
         f.objects.set(key(0, 0), center); changed(cache, f, "chunk arrival");
         f.chunks.remove(key(0, 0)); changed(cache, f, "terrain data removal even if old object remains");

@@ -74,6 +74,7 @@ resources.hxml
 --next
 -cp src
 -cp tests
+-cp ../shared/src
 -main WindowFlagsTest
 --interp
 

@@ -7,6 +7,7 @@ enum MockWindowFlag {
     FreeCursor;
     BlockInputs;
     BlockSkills;
+    NeedGameLayer;
 }
 
 class WindowFlagsTest {
@@ -41,6 +42,18 @@ class WindowFlagsTest {
         check(faulty.found==5&&faulty.missing[0]=="NeedLayer");
         var invalid=TradeWindowFlags.resolve(["Invalid"],_ -> "not an enum");
         check(invalid.mask==0&&invalid.found==0&&invalid.missing.length==1);
+        // October 28 renamed this variant. Resolve the new enum's actual index,
+        // not the position of NeedLayer in an older client's enum.
+        var current=TradeWindowFlags.resolve(names,name->switch(name) {
+            case "NeedLayer":null;
+            case "NeedGameLayer":MockWindowFlag.NeedGameLayer;
+            default:lookup(name);
+        });
+        check(current.found==6&&current.missing.length==0);
+        check(current.mask==((63 & ~(1<<2)) | (1<<6)));
+        var throwingLegacy=TradeWindowFlags.resolve(["NeedLayer"],name->
+            name=="NeedLayer"?throw "Removed variant":MockWindowFlag.NeedGameLayer);
+        check(throwingLegacy.found==1&&throwingLegacy.mask==(1<<6));
         trace("Window flag compatibility checks passed: "+checks);
     }
 }

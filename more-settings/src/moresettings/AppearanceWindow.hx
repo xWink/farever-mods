@@ -60,10 +60,10 @@ class AppearanceWindow {
         parts = G.array(G.field(G.current("Data", "bodyPart"), "all"));
         gradients = G.array(G.field(G.current("Data", "gradient"), "all"));
         window = G.create("ui.win.TitleWindow", ["Options", null]);
-        var flags = 0;
-        for (name in ["PreventCloseOther", "FreeCursor", "AutoRegisterLayer", "BlockInputs", "BlockSkills", "NeedLayer"])
-            flags |= 1 << Type.enumIndex(G.enumeration("ui.win.WindowFlags", name));
-        G.call("ui.win.BaseWindow", "set_windowFlags", window, [flags]);
+        var flags = modui.WindowFlags.resolve(
+            ["PreventCloseOther", "FreeCursor", "AutoRegisterLayer", "BlockInputs", "BlockSkills", "NeedLayer"],
+            name -> G.enumeration("ui.win.WindowFlags", name));
+        if (flags.found > 0) G.call("ui.win.BaseWindow", "set_windowFlags", window, [flags.mask]);
         G.call("ui.win.BaseWindow", "rebuild", window);
         root = G.field(ui, "root");
         G.call("h2d.Flow", "addChildAt", root, [window, G.call("h2d.Object", "get_numChildren", root)]);

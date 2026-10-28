@@ -321,6 +321,12 @@ class MoreSettingsMod {
     static function reduceBeeProjectileFx(projectile:Dynamic,mode:Int):HlxPrefixResult<Dynamic>
         return BeeEffects.suppressProjectile(projectile)?SkipWith(null):Continue;
 
+    // October 28 moved projectile telegraphs out of playVisuals. Keep the bee
+    // budget on that cosmetic path; launch, damage and cleanup stay native.
+    @:hlx.prefix(ent.Projectile.playTelegraph)
+    static function reduceBeeProjectileTelegraph(projectile:Dynamic):HlxPrefixResult<Void>
+        return BeeEffects.suppressProjectile(projectile)?Skip:Continue;
+
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {
         StallMetrics.suspend();

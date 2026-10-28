@@ -21,13 +21,19 @@ class PipelineReturnTest {
     static function roundTrip(label:String):Void {
         HlxRuntime.nullResult = false;
         check(checkReturn(HlxRuntime.receiver, HlxRuntime.shader, HlxRuntime.builder, false), label + ": native handle");
+        check(Reflect.callMethod(null, HlxRuntime.sourceReceiver, HlxRuntime.sourceArgs) == HlxRuntime.sourceResult,
+            label + ": compiled shader bytes");
         HlxRuntime.nullResult = true;
         check(checkReturn(HlxRuntime.receiver, HlxRuntime.shader, HlxRuntime.builder, true), label + ": null handle");
+        check(Reflect.callMethod(null, HlxRuntime.sourceReceiver, HlxRuntime.sourceArgs) == null, label + ": null shader bytes");
     }
     static function main():Void {
         // Retain/type the real DiagnosticHooks, without initializing a game or GPU.
         DiagnosticHooks.update(null, false);
         check(HlxRuntime.receiver != null, "production makePipeline receiver registered");
+        check(HlxRuntime.sourceReceiver != null, "production compileSource receiver registered");
+        check(hl.Type.getDynamic(HlxRuntime.sourceReceiver).getArgsCount() == 5,
+            "October 28 compileSource ABI includes runtime shader before shader data");
         check(!checkReturn(boxedReceiver, null, null, false), "negative control detects boxed pointer corruption");
         roundTrip("diagnostics disabled at startup");
         StallMetrics.configure(true);
@@ -47,6 +53,7 @@ class PipelineReturnTest {
         StallMetrics.configure(false);
         roundTrip("disabled after gameplay");
         check(HlxRuntime.prefixCalls == 10 && HlxRuntime.postfixCalls == 10, "production prefix and postfix ran for each call");
+        check(HlxRuntime.sourceCalls == 10, "shader compiler prefix and postfix ran for each call");
         Sys.println('Pipeline native return: $checks checks passed.');
     }
 }

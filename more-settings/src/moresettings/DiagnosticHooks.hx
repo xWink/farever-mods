@@ -217,12 +217,13 @@ class DiagnosticHooks {
 
     // compileShader is also called for cache hits; compileSource only runs when
     // native code needs source loading/compilation for a newly compiled shader.
+    // October 28 added runtimeShader ahead of the per-stage shader data.
     @:hlx.prefix(h3d.impl.DX12Driver.compileSource)
-    static function beforeSource(instance:Dynamic, shader:Dynamic, model:String, root:String):HlxPrefixResult<Dynamic> {
+    static function beforeSource(instance:Dynamic, runtimeShader:Dynamic, shader:Dynamic, model:String, root:String):HlxPrefixResult<Dynamic> {
         StallMetrics.begin(M.SHADER_SOURCE); return Continue;
     }
     @:hlx.postfix(h3d.impl.DX12Driver.compileSource)
-    static function afterSource(instance:Dynamic, shader:Dynamic, model:String, root:String, result:Dynamic):Dynamic {
+    static function afterSource(instance:Dynamic, runtimeShader:Dynamic, shader:Dynamic, model:String, root:String, result:Dynamic):Dynamic {
         StallMetrics.end(M.SHADER_SOURCE); return result;
     }
 
