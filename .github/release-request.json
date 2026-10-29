@@ -1,6 +1,6 @@
 {
-  "project": "dps-meter",
-  "version": "1.11.14",
+  "project": "minimap",
+  "version": "2.3.4",
   "commit": "5fddc20d23e58321a856d305f6e2a8fd87ba2bc6",
   "notes": "Removed version cap",
   "dry_run": false
