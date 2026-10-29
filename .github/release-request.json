@@ -1,6 +1,6 @@
 {
-  "project": "item-utilities",
-  "version": "1.15.4",
+  "project": "trade-and-marketplace",
+  "version": "1.3.4",
   "commit": "5fddc20d23e58321a856d305f6e2a8fd87ba2bc6",
   "notes": "Removed version cap",
   "dry_run": false
