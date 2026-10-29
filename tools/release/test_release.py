@@ -103,22 +103,42 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(plan['prerelease'])
         self.assertIsNone(release.stable_version(plan['version']))
 
-    def test_farever_range_is_stable_and_retained_for_nexus(self):
-        for suffix, bounds in [
-            ('max0.3.1.31995', {'maxGameVersion': '0.3.1.31995'}),
-            ('min0.3', {'minGameVersion': '0.3'}),
-            ('min0.3.1.31995-max0.3.1', {'minGameVersion': '0.3.1.31995', 'maxGameVersion': '0.3.1'}),
-        ]:
-            with self.subTest(suffix=suffix):
-                version = '1.7.1-' + suffix
-                plan = release.validate_request({**self.request, 'version': version}, self.config)
-                self.assertFalse(plan['prerelease'])
-                self.assertEqual(plan['version'], version)
-                self.assertEqual(plan['tag'], 'minimap/v' + version)
-                self.assertEqual(plan['game_versions'], bounds)
-                self.assertEqual(release.stable_version(version), (1, 7, 1))
-                with patch.object(release, 'api', side_effect=self.nexus_responses('1.7.0-max0.3.1.31617')):
+    def test_plain_releases_follow_historical_capped_versions(self):
+        historical = '1.7.0-max0.3.1.31995'
+        old = release.validate_request({**self.request, 'version': historical}, self.config)
+        self.assertFalse(old['prerelease'])
+        self.assertEqual(old['tag'], 'minimap/v' + historical)
+        self.assertEqual(release.stable_version(historical), (1, 7, 0))
+        for version in ('1.6.9', '1.7.0', '1.7.1'):
+            plan = release.validate_request({**self.request, 'version': version}, self.config)
+            self.assertFalse(plan['prerelease'])
+            self.assertEqual(plan['tag'], 'minimap/v' + version)
+            with self.subTest(version=version), patch.object(release, 'api', side_effect=self.nexus_responses(historical)):
+                if version == '1.7.1':
                     self.assertEqual(release.nexus_target(plan)['nexus_file_id'], 'file-uuid')
+                else:
+                    with self.assertRaises(ValueError):
+                        release.nexus_target(plan)
+        # Retrying an already published release retains its stable identity.
+        with patch.object(release, 'api', side_effect=self.nexus_responses(historical)):
+            self.assertEqual(release.nexus_target(old, completed=True)['nexus_file_id'], 'file-uuid')
+
+    def test_new_requests_use_plain_versions(self):
+        notes = self.root / 'notes.txt'
+        notes.write_text(self.request['notes'])
+        request = self.root / 'request.json'
+        for version in ('1.7.1', '1.7.1-rc.1', '1.7.1-max0.3.1.31995', '1.7.1-min0.3'):
+            args = ['release.py', 'request', '--project', 'minimap', '--version', version,
+                    '--commit', 'a' * 40, '--notes-file', str(notes)]
+            with self.subTest(version=version), patch.object(sys, 'argv', args), patch.object(release, 'REQUEST', request):
+                request.unlink(missing_ok=True)
+                if '-max' in version or '-min' in version:
+                    with self.assertRaises(ValueError):
+                        release.main()
+                    self.assertFalse(request.exists())
+                else:
+                    release.main()
+                    self.assertEqual(release.read_json(request)['version'], version)
 
     def test_invalid_or_ambiguous_game_ranges_are_rejected(self):
         for version in ['1.2.3-max0.3.1.31995.1', '1.2.3-max', '1.2.3-max00.3',
@@ -127,35 +147,12 @@ class ReleaseTests(unittest.TestCase):
             with self.subTest(version=version), self.assertRaises(ValueError):
                 release.validate_request({**self.request, 'version': version}, self.config)
 
-    def test_compatibility_archive_requires_matching_bytecode_and_native_gates(self):
-        project = 'dps-meter'
-        plan = release.validate_request({**self.request, 'project': project,
-                                         'version': '1.11.12-max0.3.1.31995'}, self.config)
-        package = self.package(project)
-        plugin = package / 'hlx/plugins' / project
-        plugin.mkdir(parents=True)
-        (plugin / 'dps_meter_desktop.hdll').write_bytes(b'native test plugin')
-        info = b'maxGameVersion=0.3.1.31995\n'
-        for folder in [package / 'hlx/mods' / project, plugin]:
-            with self.assertRaises(ValueError):
-                release.make_archive(package, plan)
-            (folder / 'mod.info').write_bytes(info)
-        archive = release.make_archive(package, plan)
-        with zipfile.ZipFile(archive) as zipped:
-            for kind in ('mods', 'plugins'):
-                self.assertEqual(zipped.read(f'hlx/{kind}/{project}/mod.info'), info)
-        for invalid in ['maxGameVersion=0.3.1\n', 'maxVersion=0.3.1.31995\n',
-                        'maxGameVersion=0.3.1.31995\nmaxGameVersion=0.3.1.31995\n']:
-            (plugin / 'mod.info').write_text(invalid)
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
-                release.make_archive(package, plan)
-
-    def test_production_packagers_include_game_version_metadata(self):
+    def test_production_packagers_remove_game_version_metadata(self):
         source = Path(__file__).resolve().parents[2]
         workflow = (source / '.github/workflows/_build-mod.yml').read_text()
         script = workflow.split('      - name: Package\n', 1)[1].split('        run: |\n', 1)[1].split('\n      - name:', 1)[0]
         script = textwrap.dedent(script)
-        for project in ['more-settings', 'item-utilities', 'minimap', 'trade-and-marketplace', 'dps-meter']:
+        for project in self.config:
             with self.subTest(project=project):
                 folder = self.root / project
                 build = folder / 'build' / project
@@ -164,7 +161,12 @@ class ReleaseTests(unittest.TestCase):
                 (build / 'implementation' / f'{project}.hl').write_bytes(b'HLB implementation')
                 (folder / 'configFormats.json').write_text('{}')
                 (folder / 'README.md').write_text('Test package')
-                shutil.copy2(source / project / 'mod.info', folder / 'mod.info')
+                self.assertFalse((source / project / 'mod.info').exists())
+                # Repackaging must also remove limits left by an older build.
+                for kind in ('mods', 'plugins'):
+                    stale = folder / f'package/hlx/{kind}/{project}/mod.info'
+                    stale.parent.mkdir(parents=True)
+                    stale.write_text('maxGameVersion=0.3.1.31995\n')
                 if project in ('dps-meter', 'trade-and-marketplace'):
                     (folder / 'build/native').mkdir()
                     plugin = 'dps_meter_desktop.hdll' if project == 'dps-meter' else 'trade_marketplace_desktop.hdll'
@@ -176,8 +178,14 @@ class ReleaseTests(unittest.TestCase):
                 else:
                     env = {**os.environ, 'PROJECT':project, 'MODULE':project, 'REQUIRED_SETTINGS':'true', 'REQUIREMENTS':'Test'}
                     subprocess.run(['bash', '-e', '-c', script], cwd=folder, env=env, check=True, capture_output=True)
-                plan = release.validate_request({**self.request, 'project':project, 'version':'1.0.0-max0.3.1.31995'}, self.config)
-                release.make_archive(folder / 'package', plan)
+                plan = release.validate_request({**self.request, 'project':project, 'version':'1.0.0'}, self.config)
+                self.assertFalse(plan['prerelease'])
+                archive = release.make_archive(folder / 'package', plan)
+                with zipfile.ZipFile(archive) as zipped:
+                    self.assertFalse(any(name.endswith('/mod.info') for name in zipped.namelist()))
+                    self.assertIn(f'hlx/mods/{project}/{project}.hl', zipped.namelist())
+                    if project in ('dps-meter', 'trade-and-marketplace'):
+                        self.assertIn(f'hlx/plugins/{project}/{plugin}', zipped.namelist())
 
     def test_zip_has_installable_root_and_stable_bytes(self):
         package = self.package()

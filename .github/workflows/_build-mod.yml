@@ -97,6 +97,7 @@ jobs:
           REQUIREMENTS: ${{ inputs.required-settings && 'Requires HLX Core, Better Mod Settings, and Mod Update Alerts.' || 'Requires HLX Core.' }}
           REQUIRED_SETTINGS: ${{ inputs.required-settings }}
         run: |
+          rm -rf package
           destination="package/hlx/mods/$MODULE"
           mkdir -p "$destination"
           cp "build/$MODULE/$MODULE.hl" "$destination/"
@@ -107,15 +108,9 @@ jobs:
           if [[ -f configFormats.json ]]; then
             cp configFormats.json "$destination/"
           fi
-          if [[ -f mod.info ]]; then
-            cp mod.info "$destination/"
-          fi
           if [[ "$PROJECT" == 'trade-and-marketplace' ]]; then
             mkdir -p package/hlx/plugins/trade-and-marketplace
             cp build/native/trade_marketplace_desktop.hdll package/hlx/plugins/trade-and-marketplace/
-            if [[ -f mod.info ]]; then
-              cp mod.info package/hlx/plugins/trade-and-marketplace/
-            fi
           fi
           printf '%s\n' \
             "$REQUIREMENTS" \
