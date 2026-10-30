@@ -13,7 +13,7 @@ class HistoryScrollTest {
     static var checks = 0;
     static function check(value:Bool, why:String):Void { checks++; if (!value) throw why; }
     static function main():Void {
-        viewport(); events();
+        viewport(); events(); ReportGraphFiltersTest.run();
         // Archive IO runs in the interpreter suite; the isolated native runner
         // has no fmt module (used by the archive's legacy-ID digest).
         #if !hl

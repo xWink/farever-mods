@@ -126,6 +126,7 @@ class NativeHistoryWindow {
         updateDrag();
         layout();
         if (mode == "groups" || mode == "fights") updateHistoryScroll();
+        scrolling.updateScrollbar();
         if (mode == "chart" && !pending) {
             if (recap != null) recapView.update(now);
             else if (fight != null) chart.update(fight, now);

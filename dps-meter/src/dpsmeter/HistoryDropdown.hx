@@ -51,6 +51,7 @@ class HistoryDropdown {
         G.call("ui.comp.Dropdown", "initSelectedIndex", object, [index]);
         refreshColors();
     }
+    public function select(value:String):Void setChoices(choices, value);
     public function resize(width:Int):Void {
         size(object, width, 34); size(G.field(object, "select"), width, 34);
         G.call("ui.comp.FmtText", "set_maxWidthText", G.field(object, "selectText"), [Std.int(Math.max(1, width - 44))]);

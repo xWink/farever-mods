@@ -9,6 +9,7 @@ class NativeHistoryScroll {
     public final dom:Dynamic;
     public final content:Dynamic;
     final viewport:Dynamic;
+    final scrollbar:NativeHistoryScrollbar;
     var restoreTo:Null<Float>;
     var width = -1;
     var height = -1;
@@ -22,6 +23,7 @@ class NativeHistoryScroll {
         G.call("h2d.FlowProperties", "set_isAbsolute", properties, [false]); style(content, "position", false);
         G.set(properties, "verticalAlign", top); G.set(properties, "horizontalAlign", left);
         style(content, "valign", top); style(content, "halign", left);
+        scrollbar = new NativeHistoryScrollbar(viewport);
         var previous = G.field(viewport, "onAfterReflow");
         G.set(viewport, "onAfterReflow", () -> {
             if (previous != null) Reflect.callMethod(viewport, previous, []);
@@ -45,4 +47,5 @@ class NativeHistoryScroll {
         G.call("h2d.Flow", "set_needReflow", viewport, [true]);
     }
     public function viewportHeight():Float return G.number(G.call("h2d.Flow", "get_innerHeight", viewport));
+    public function updateScrollbar():Void scrollbar.update();
 }

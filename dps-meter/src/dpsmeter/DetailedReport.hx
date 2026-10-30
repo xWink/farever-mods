@@ -142,7 +142,7 @@ class DetailedReport {
         var groupedTargets = targetGroups(all, me);
         var pageSize = request.eventPageSize == null ? PAGE_SIZE : Std.int(Math.max(1, Math.min(MAX_PAGE_SIZE, request.eventPageSize)));
         var skill = text(request.eventSkill), filter = text(request.eventFilter);
-        var source = text(request.eventSource), target = text(request.eventTarget);
+        var source = ReportGraphFilters.actor(text(request.eventSource), me), target = ReportGraphFilters.actor(text(request.eventTarget), me);
         var sources:Map<String, String> = [], targets:Map<String, String> = [];
         var search = StringTools.trim(text(request.eventSearch)).toLowerCase();
         var filtered:Array<TimelineEvent> = [];
@@ -227,7 +227,8 @@ class DetailedReport {
             if (!grouped.exists(key)) grouped[key] = {skill:e.skill, name:text(e.skillName) != "" ? e.skillName : e.skill,
                 target:e.target == me ? "You" : targetName(e, targetGroups), intervals:[]};
             var intervals:Array<Dynamic> = grouped[key].intervals;
-            if (stop > Math.max(0, e.time)) intervals.push({start:Math.max(0, e.time), end:Math.min(end, stop)});
+            var start = Math.max(0, Math.min(end, e.time)), finish = Math.max(0, Math.min(end, stop));
+            if (finish > start) intervals.push({start:start, end:finish});
         }
         for (e in events) {
             if (e.kind == "recording_stopped" || e.kind == "recording_gap" || e.kind == "recording_started") {
@@ -240,9 +241,9 @@ class DetailedReport {
             } else if (!active.exists(e.instance)) active[e.instance] = e;
         }
         for (e in active) interval(e, end);
-        // Overlapping totems share one lane; show the union of their observed
-        // status intervals without combining the underlying status instances.
-        for (key => lane in grouped) if (StringTools.endsWith(key, ":" + TIDAL_TOTEMS)) {
+        // Uptime is the union of observed intervals, never the sum of stacked
+        // or overlapping instances. The denominator is the full fight duration.
+        for (lane in grouped) {
             var intervals:Array<Dynamic> = lane.intervals;
             intervals.sort((a,b) -> Reflect.compare(a.start, b.start));
             var merged:Array<Dynamic> = [];
@@ -252,10 +253,17 @@ class DetailedReport {
                 else merged.push(span);
             }
             lane.intervals = merged;
+            var activeSeconds = 0.0;
+            for (span in merged) { var start:Float = span.start, stop:Float = span.end; activeSeconds += stop - start; }
+            lane.uptime = Math.max(0, Math.min(100, end <= 0 ? 0 : activeSeconds / end * 100));
         }
         var result = [for (lane in grouped) lane];
         result.sort((a,b) -> Reflect.compare(a.name, b.name));
         return result;
+    }
+    public static function uptimeLabel(target:String, percent:Float):String {
+        var tenths = Math.round(percent * 10), fraction = tenths % 10;
+        return target + " • Uptime: " + Std.int(tenths / 10) + (fraction == 0 ? "" : "." + fraction) + "%";
     }
     public static function timestamp(time:Float):String {
         var millis = Std.int(Math.round(Math.abs(time) * 1000));

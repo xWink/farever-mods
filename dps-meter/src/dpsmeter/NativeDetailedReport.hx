@@ -17,14 +17,14 @@ class NativeDetailedReport {
     static inline var FILTER_Y = GRAPH_Y + GRAPH_H + 12;
     static inline var LIST_Y = FILTER_Y + 78;
     public var object(default, null):Dynamic;
-    public var filter:String = "";
+    public var filter:String = "outgoing";
     public var search:String = "";
     public var metric:String = "outgoing";
     var root:Dynamic;
     var filterBox:HistoryDropdown;
     var sourceBox:HistoryDropdown;
     var targetBox:HistoryDropdown;
-    public var source:String = "";
+    public var source:String = ReportGraphFilters.YOU;
     public var target:String = "";
     var metricBox:HistoryDropdown;
     var searchBox:Dynamic;
@@ -86,17 +86,17 @@ class NativeDetailedReport {
             {value:"", name:"All events"}, {value:"outgoing", name:"Damage dealt"}, {value:"incoming", name:"Damage taken"},
             {value:"actions", name:"Skill used"}, {value:"healing", name:"Healing"}, {value:"shield", name:"Shields"},
             {value:"buffs", name:"Buffs"}, {value:"debuffs", name:"Debuffs"},
-            {value:"defense", name:"Dodges / blocks"}, {value:"health", name:"Health / deaths"}], "",
+            {value:"defense", name:"Dodges / blocks"}, {value:"health", name:"Health / deaths"}], filter,
             value -> { filter = value; reload(); });
-        sourceBox = new HistoryDropdown(root, "dpsEventSource", [{value:"", name:"All sources"}], "",
+        sourceBox = new HistoryDropdown(root, "dpsEventSource", [{value:"", name:"All sources"}, {value:ReportGraphFilters.YOU, name:"You"}], source,
             value -> { source = value; reload(); });
-        targetBox = new HistoryDropdown(root, "dpsEventTarget", [{value:"", name:"All targets"}], "",
+        targetBox = new HistoryDropdown(root, "dpsEventTarget", [{value:"", name:"All targets"}, {value:ReportGraphFilters.YOU, name:"You"}], target,
             value -> { target = value; reload(); });
         metricBox = new HistoryDropdown(root, "dpsEventGraph", [
             {value:"outgoing", name:"Damage dealt"}, {value:"incoming", name:"Damage taken"},
             {value:"healing", name:"Healing given"}, {value:"shield", name:"Shields given"},
             {value:"buffs", name:"Buff uptime"}, {value:"debuffs", name:"Debuff uptime"}], metric,
-            value -> { metric = value; lanePage = 0; reload(); });
+            value -> { selectGraph(value); reload(); });
         searchBox = G.field(node("input-box", root, [], "dpsEventSearch"), "obj");
         input = G.field(searchBox, "input");
         style(input, "color", 0xf5f0e8);
@@ -184,11 +184,18 @@ class NativeDetailedReport {
         r.includeGraph = data == null || data.graph == null || G.text(data.graph.metric) != metric;
     }
     public function reset():Void {
-        close(); search = ""; source = ""; target = ""; lanePage = 0; data = null;
+        close(); search = ""; data = null;
         scrollState.reset(); scrolling.restore(0); scrollFirst = scrollEnd = -1; busy = readFailed = false;
-        sourceBox.setChoices([{value:"", name:"All sources"}], "");
-        targetBox.setChoices([{value:"", name:"All targets"}], "");
+        sourceBox.setChoices([{value:"", name:"All sources"}, {value:ReportGraphFilters.YOU, name:"You"}], "");
+        targetBox.setChoices([{value:"", name:"All targets"}, {value:ReportGraphFilters.YOU, name:"You"}], "");
+        selectGraph("outgoing"); metricBox.select(metric);
         G.call("h2d.TextInput", "set_text", input, [""]); searchAt = -1;
+    }
+    function selectGraph(value:String):Void {
+        metric = value; lanePage = 0;
+        var preset = ReportGraphFilters.preset(value);
+        filter = preset.filter; source = preset.source; target = preset.target;
+        filterBox.select(filter); sourceBox.select(source); targetBox.select(target);
     }
     public function visible(value:Bool):Void { show(object, value); if (!value) close(); }
     public function loading():Void {
@@ -208,7 +215,8 @@ class NativeDetailedReport {
         var newGraph = value.graph != null;
         if (!newGraph && data != null) { value.graph = data.graph; value.lanes = data.lanes; }
         data = value; busy = readFailed = false;
-        sourceBox.setChoices(cast data.sources, source); targetBox.setChoices(cast data.targets, target);
+        sourceBox.setChoices(cast ReportGraphFilters.choices(cast data.sources, G.text(data.me)), source);
+        targetBox.setChoices(cast ReportGraphFilters.choices(cast data.targets, G.text(data.me)), target);
         setText(eventCount, data.total + " events");
         var events:Array<TimelineEvent> = cast data.rows;
         showTargets = data.showTargets == true;
@@ -458,7 +466,7 @@ class NativeDetailedReport {
                     position(icon, 12, GRAPH_Y + y + 4);
                 }
                 graphText(i * 2, lane.name, 46, y - 1, left - 58, "left", 21, INK);
-                graphText(i * 2 + 1, lane.target, 46, y + 20, left - 58, "left", 15, INK);
+                graphText(i * 2 + 1, DetailedReport.uptimeLabel(lane.target, lane.uptime), 46, y + 20, left - 58, "left", 15, INK);
                 rounded(graphic, 0x765b41, .1, left, y + 9, pw, 16, 3);
                 for (span in (cast lane.intervals:Array<Dynamic>)) rounded(graphic, mode == "debuffs" ? 0xae6557 : 0x5c885c, .82,
                     left + span.start / end * pw, y + 9,
@@ -492,6 +500,7 @@ class NativeDetailedReport {
     public function update(now:Float):Void {
         if (searchAt >= 0 && now >= searchAt) reload();
         renderRows();
+        scrolling.updateScrollbar();
         if (!busy && !readFailed && scrollState.needsRead(scrolling.viewportHeight())) request(scrollState.readStart(), null);
         // CSS fonts settle after DOM creation. Refit only when metrics change.
         if (now >= fontCheckAt) {
