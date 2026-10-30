@@ -164,11 +164,11 @@ class DetailedReport {
                 + " " + e.kind + " " + text(e.outcome)).toLowerCase().indexOf(search) < 0) continue;
             filtered.push(e);
         }
-        var page = request.page;
+        var page = request.page, jumpIndex = -1;
         if (request.jumpTime != null) {
             var i = 0;
             while (i < filtered.length - 1 && filtered[i].time < request.jumpTime) i++;
-            page = Std.int(i / pageSize);
+            page = Std.int(i / pageSize); jumpIndex = i;
         }
         page = Std.int(Math.max(0, Math.min(page, Math.max(0, Math.ceil(filtered.length / pageSize) - 1))));
         var duration:Float = Math.max(.001, data.duration);
@@ -176,6 +176,14 @@ class DetailedReport {
             pages:Std.int(Math.max(1, Math.ceil(filtered.length / pageSize))),
             rows:filtered.slice(page * pageSize, (page + 1) * pageSize), pageSize:pageSize,
             duration:duration, incomplete:incomplete, sources:actorChoices(sources, "All sources"), targets:actorChoices(targets, "All targets")};
+        if (request.rangeStart != null) {
+            var range = HistoryScroll.bounds(jumpIndex < 0 ? request.rangeStart : jumpIndex - HistoryScroll.PREFETCH,
+                request.rangeCount, filtered.length);
+            response.rows = filtered.slice(range.start, range.end); response.rangeStart = range.start;
+            response.jumpIndex = jumpIndex;
+            response.showTargets = Lambda.exists(filtered, e -> e.target != "");
+            response.showAmounts = Lambda.exists(filtered, e -> e.amount != null);
+        }
         // Page/filter/search changes leave the full-fight graph untouched.
         if (request.includeGraph == false) return response;
         var end = duration;

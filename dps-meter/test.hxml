@@ -7,6 +7,18 @@
 -cp src
 -cp ../shared/src
 -cp tests
+-main HistoryScrollTest
+--interp
+--next
+-cp src
+-cp tests
+-cp tests/scroll-ui
+-main NativeHistoryScrollTest
+--interp
+--next
+-cp src
+-cp ../shared/src
+-cp tests
 -main TimelineTest
 --interp
 --next

@@ -8,8 +8,8 @@ A native party damage/healing meter with fight history, detailed reports, and Fa
 
 - Party and individual damage, healing, shields, and skill breakdowns. The damage/healing toggle applies across windows.
 - Movable, lockable windows, optional hiding outside combat, and UI scaling from **50% to 150%** (100% by default).
-- Saved encounter history, including Rift Gate runs and recaps. Open history with the book button.
-- Detailed reports with graphs and event filters, including source and target.
+- Saved encounter history with infinite scrolling, including Rift Gate runs and recaps. Open history with the book button; returning from a fight restores your place in the list.
+- Detailed reports with graphs, a continuously scrolling event list, and event filters including source and target. Click the graph to jump to that time, or expand an event for its details.
 - Party Ready Check with a countdown and optional audio. The leader can type `rc`; players respond with `r` or `nr`, or use the popup buttons. Use `cancelrc` to cancel.
 
 Reports reflect events observed by your client, so totals can differ between players. Older logs may not contain every detail available in new reports.

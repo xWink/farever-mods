@@ -251,7 +251,8 @@ class FightHistoryStore {
             groups.sort((a, b) -> Reflect.compare(a.name.toLowerCase(), b.name.toLowerCase()));
             response.total = groups.length;
             response.page = page(request.page, response.total);
-            response.groups = groups.slice(response.page * FightHistory.PAGE_SIZE, (response.page + 1) * FightHistory.PAGE_SIZE);
+            var range = historyRange(request, response);
+            response.groups = groups.slice(range.start, range.end);
         } else if (request.action == "fights") {
             response.characters = HistoryOptions.characters(entries.iterator());
             var fights = [for (entry in entries) if (matches(entry, request.category)
@@ -260,7 +261,8 @@ class FightHistoryStore {
             fights.sort((a, b) -> HistoryOptions.compare(a, b, request.sortBy, request.ascending == true));
             response.total = fights.length;
             response.page = page(request.page, response.total);
-            response.entries = fights.slice(response.page * FightHistory.PAGE_SIZE, (response.page + 1) * FightHistory.PAGE_SIZE);
+            var range = historyRange(request, response);
+            response.entries = fights.slice(range.start, range.end);
         } else throw "Unknown history action.";
         return response;
     }
@@ -304,6 +306,11 @@ class FightHistoryStore {
         if (metadata != null) for (field in ["activityId", "bossKind", "phase", "difficulty", "partySize"])
             if (Reflect.field(record, field) == null || Reflect.field(record, field) == "")
                 Reflect.setField(record, field, Reflect.field(metadata, field));
+    }
+    static function historyRange(request:HistoryRequest, response:HistoryResponse):{start:Int, end:Int} {
+        if (request.rangeStart == null) return {start:response.page * FightHistory.PAGE_SIZE, end:(response.page + 1) * FightHistory.PAGE_SIZE};
+        var range = HistoryScroll.bounds(request.rangeStart, request.rangeCount, response.total);
+        response.rangeStart = range.start; return range;
     }
     static function page(requested:Int, total:Int):Int return Std.int(Math.max(0,
         Math.min(requested, Math.max(0, Math.ceil(total / FightHistory.PAGE_SIZE) - 1))));

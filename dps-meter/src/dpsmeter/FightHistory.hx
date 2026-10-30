@@ -15,10 +15,11 @@ typedef HistoryCharacter = {key:String, name:String, className:String};
 typedef HistoryRequest = {id:Int, action:String, group:String, page:Int, fightId:String,
     ?category:String, ?catalog:HistoryCatalog, ?sortBy:String, ?ascending:Bool, ?character:String, ?outcome:String,
     ?eventTarget:String, ?eventSource:String, ?eventFilter:String, ?eventSkill:String, ?eventSearch:String, ?graphMetric:String, ?jumpTime:Float,
-    ?eventPageSize:Int, ?statusMetadata:Map<String, {kind:String, hidden:Bool}>, ?skillNames:Map<String, String>, ?includeGraph:Bool};
+    ?eventPageSize:Int, ?rangeStart:Int, ?rangeCount:Int,
+    ?statusMetadata:Map<String, {kind:String, hidden:Bool}>, ?skillNames:Map<String, String>, ?includeGraph:Bool};
 typedef HistoryResponse = {
     id:Int, page:Int, total:Int, groups:Array<HistoryGroup>, entries:Array<HistoryEntry>, record:Dynamic, error:String,
-    ?characters:Array<HistoryCharacter>, ?recent:Array<HistoryRecentEntry>
+    ?characters:Array<HistoryCharacter>, ?recent:Array<HistoryRecentEntry>, ?rangeStart:Int
 };
 
 /** Detached, versioned chart snapshots. No game types or monotonic clocks on disk. */

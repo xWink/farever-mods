@@ -40,14 +40,18 @@ class NativeDetailedReport {
     var list:Dynamic;
     var empty:Dynamic;
     var rows:Array<Dynamic> = [];
-    var previous:Dynamic;
-    var next:Dynamic;
-    var pages:Dynamic;
+    var eventCount:Dynamic;
+    final scrollState = new HistoryScroll(DetailedReport.ROW_HEIGHT + DetailedReport.ROW_GAP,
+        DetailedReport.ROW_GAP, 2 * (DetailedReport.ROW_HEIGHT + DetailedReport.ROW_GAP));
+    var scrolling:NativeHistoryScroll;
+    var scrollFirst = -1;
+    var scrollEnd = -1;
+    var busy = false;
+    var readFailed = false;
     var laneNext:Dynamic;
     var lanePrevious:Dynamic;
     var laneIcons:Array<Dynamic> = [];
     var statusMetadata:Map<String, {kind:String, hidden:Bool}>;
-    var requestedPageSize:Int = 0;
     var showTargets:Bool = true;
     var showAmounts:Bool = true;
     var lanePage:Int = 0;
@@ -83,16 +87,16 @@ class NativeDetailedReport {
             {value:"actions", name:"Skill used"}, {value:"healing", name:"Healing"}, {value:"shield", name:"Shields"},
             {value:"buffs", name:"Buffs"}, {value:"debuffs", name:"Debuffs"},
             {value:"defense", name:"Dodges / blocks"}, {value:"health", name:"Health / deaths"}], "",
-            value -> { filter = value; request(0, null); });
+            value -> { filter = value; reload(); });
         sourceBox = new HistoryDropdown(root, "dpsEventSource", [{value:"", name:"All sources"}], "",
-            value -> { source = value; request(0, null); });
+            value -> { source = value; reload(); });
         targetBox = new HistoryDropdown(root, "dpsEventTarget", [{value:"", name:"All targets"}], "",
-            value -> { target = value; request(0, null); });
+            value -> { target = value; reload(); });
         metricBox = new HistoryDropdown(root, "dpsEventGraph", [
             {value:"outgoing", name:"Damage dealt"}, {value:"incoming", name:"Damage taken"},
             {value:"healing", name:"Healing given"}, {value:"shield", name:"Shields given"},
             {value:"buffs", name:"Buff uptime"}, {value:"debuffs", name:"Debuff uptime"}], metric,
-            value -> { metric = value; lanePage = 0; request(0, null); });
+            value -> { metric = value; lanePage = 0; reload(); });
         searchBox = G.field(node("input-box", root, [], "dpsEventSearch"), "obj");
         input = G.field(searchBox, "input");
         style(input, "color", 0xf5f0e8);
@@ -102,7 +106,7 @@ class NativeDetailedReport {
         G.set(graphInput, "onPush", (event:Dynamic) -> {
             G.set(event, "propagate", false);
             var time = graphTime(G.number(G.field(event, "relX")));
-            if (time != null) request(0, time);
+            if (time != null) reload(time);
         });
         G.set(graphInput, "onMove", (event:Dynamic) -> hoverGraph(G.number(G.field(event, "relX"))));
         G.set(graphInput, "onOut", (_:Dynamic) -> { G.call("h2d.Graphics", "clear", cursor); graphCaption(); });
@@ -110,38 +114,39 @@ class NativeDetailedReport {
             headingTexts.push(makeLabel(root, name, true, MUTED));
         list = node("flow", root, [], "dpsEventList", "vertical");
         padding(G.field(list, "obj"), 0); flow(list, "set_verticalSpacing", 3); style(G.field(list, "obj"), "vspacing", 3);
-        var scroll = G.enumeration("h2d.FlowOverflow", "Limit");
+        var scroll = G.enumeration("h2d.FlowOverflow", "Scroll");
         flow(list, "set_overflow", scroll); style(G.field(list, "obj"), "overflow", scroll);
-        for (i in 0...DetailedReport.MAX_PAGE_SIZE) {
-            var dom = node("flow", list, [], "dpsEventRow" + i, "vertical");
-            var obj = G.field(dom, "obj"); padding(obj, 0);
-            var row:Dynamic = {obj:obj, bg:G.create("h2d.Graphics", [obj]), time:makeLabel(dom, "", false, MUTED),
-                icon:G.create("h2d.Bitmap", [null, obj]), fallback:makeLabel(dom, "", true), title:makeLabel(dom, "", true),
-                subtitle:makeLabel(dom, "", false, MUTED), target:makeLabel(dom, ""), source:makeLabel(dom, "", false, MUTED),
-                detail:makeLabel(dom, "", false, MUTED), amount:makeLabel(dom, "", true), toggle:makeLabel(dom, "+", false, MUTED),
-                event:null, expanded:false, hovered:false, index:i, click:G.create("h2d.Interactive", [100.0, 54.0, obj, null])};
-            G.set(row.click, "onPush", (event:Dynamic) -> {
-                G.set(event, "propagate", false);
-                var expand = row.expanded != true;
-                for (other in rows) other.expanded = false;
-                row.expanded = expand; layoutRows();
-            });
-            G.set(row.click, "onOver", (_:Dynamic) -> { row.hovered = true; rowBackground(row); });
-            G.set(row.click, "onOut", (_:Dynamic) -> { row.hovered = false; rowBackground(row); });
-            for (c in [row.bg, row.time, row.icon, row.fallback, row.title, row.subtitle, row.target, row.source,
-                row.detail, row.amount, row.toggle, row.click]) absolute(obj, c);
-            rows.push(row); show(obj, false);
-        }
+        scrolling = new NativeHistoryScroll(list, "dpsEventScrollContent", scrollState);
+        rows.push(makeRow(0));
         empty = makeLabel(root, "No events match these filters.", false, MUTED); show(empty, false);
-        previous = button(root, "Previous", "dpsEventPrev", () -> { if (data != null) request(Std.int(data.page) - 1, null); });
-        next = button(root, "Next", "dpsEventNext", () -> { if (data != null) request(Std.int(data.page) + 1, null); });
-        pages = makeLabel(root, "", false, MUTED);
+        eventCount = makeLabel(root, "", false, MUTED);
         lanePrevious = button(root, "<", "dpsUptimePrevious", () -> { if (lanePage > 0) { lanePage--; drawGraph(); } });
         laneNext = button(root, ">", "dpsUptimeNext", () -> { lanePage++; drawGraph(); });
         for (i in 0...3) { var icon = G.create("h2d.Bitmap", [null, object]); absolute(object, icon); laneIcons.push(icon); show(icon, false); }
         for (c in [filterBox.object, sourceBox.object, targetBox.object, metricBox.object, searchBox, graphLabel, graphic, graphLine, cursor, graphInput,
-            G.field(list, "obj"), empty, previous, next, pages, laneNext, lanePrevious].concat(headingTexts)) absolute(object, c);
+            G.field(list, "obj"), empty, eventCount, laneNext, lanePrevious].concat(headingTexts)) absolute(object, c);
         show(object, false);
+    }
+    function makeRow(i:Int):Dynamic {
+        var dom = node("flow", scrolling.dom, [], "dpsEventRow" + i, "vertical");
+        var obj = G.field(dom, "obj"); padding(obj, 0);
+        var row:Dynamic = {obj:obj, bg:G.create("h2d.Graphics", [obj]), time:makeLabel(dom, "", false, MUTED),
+            icon:G.create("h2d.Bitmap", [null, obj]), fallback:makeLabel(dom, "", true), title:makeLabel(dom, "", true),
+            subtitle:makeLabel(dom, "", false, MUTED), target:makeLabel(dom, ""), source:makeLabel(dom, "", false, MUTED),
+            detail:makeLabel(dom, "", false, MUTED), amount:makeLabel(dom, "", true), toggle:makeLabel(dom, "+", false, MUTED),
+            event:null, expanded:false, hovered:false, index:i, click:G.create("h2d.Interactive", [100.0, 54.0, obj, null])};
+        G.set(row.click, "onPush", (event:Dynamic) -> {
+            G.set(event, "propagate", false);
+            scrolling.sync();
+            scrollState.expanded = scrollState.expanded == row.index ? -1 : row.index;
+            scrolling.resize(rowWidth()); renderRows(true);
+        });
+        G.set(row.click, "onOver", (_:Dynamic) -> { row.hovered = true; rowBackground(row); });
+        G.set(row.click, "onOut", (_:Dynamic) -> { row.hovered = false; rowBackground(row); });
+        G.set(row.click, "onWheel", (event:Dynamic) -> G.set(event, "propagate", true));
+        for (c in [row.bg, row.time, row.icon, row.fallback, row.title, row.subtitle, row.target, row.source,
+            row.detail, row.amount, row.toggle, row.click]) absolute(obj, c);
+        absolute(scrolling.content, obj); show(obj, false); return row;
     }
     static function color(t:Dynamic, value:Int):Void {
         style(t, "color", value);
@@ -173,40 +178,62 @@ class NativeDetailedReport {
     public function configureRequest(r:HistoryRequest):Void {
         r.eventSource = source; r.eventTarget = target;
         r.eventFilter = filter; r.eventSkill = ""; r.eventSearch = search; r.graphMetric = metric;
-        r.eventPageSize = capacity(); requestedPageSize = r.eventPageSize; r.statusMetadata = statusMetadata;
+        if (r.rangeStart == null) r.rangeStart = 0;
+        r.rangeCount = HistoryScroll.WINDOW; r.statusMetadata = statusMetadata; busy = true;
         r.skillNames = ["ConsumeFlask" => NativeCombatMetadata.skillName("ConsumeFlask")];
         r.includeGraph = data == null || data.graph == null || G.text(data.graph.metric) != metric;
     }
     public function reset():Void {
         close(); search = ""; source = ""; target = ""; lanePage = 0; data = null;
+        scrollState.reset(); scrolling.restore(0); scrollFirst = scrollEnd = -1; busy = readFailed = false;
         sourceBox.setChoices([{value:"", name:"All sources"}], "");
         targetBox.setChoices([{value:"", name:"All targets"}], "");
         G.call("h2d.TextInput", "set_text", input, [""]); searchAt = -1;
     }
     public function visible(value:Bool):Void { show(object, value); if (!value) close(); }
     public function loading():Void {
-        setText(pages, "Loading events...");
-        fit(pages, 112, height - 28, width - 224, 24, "center");
+        busy = true; readFailed = false; setText(eventCount, "Loading events...");
+        fit(eventCount, 0, height - 28, width, 24, "center");
+    }
+    public function failed(message:String):Void {
+        busy = false; readFailed = true; setText(eventCount, message);
+        fit(eventCount, 0, height - 28, width, 24, "center"); visible(true);
+    }
+    function reload(?jump:Float):Void {
+        searchAt = -1; scrollState.reset(); scrolling.restore(0); scrollFirst = scrollEnd = -1;
+        for (row in rows) show(row.obj, false);
+        request(0, jump);
     }
     public function display(value:Dynamic):Void {
         var newGraph = value.graph != null;
         if (!newGraph && data != null) { value.graph = data.graph; value.lanes = data.lanes; }
-        data = value;
+        data = value; busy = readFailed = false;
         sourceBox.setChoices(cast data.sources, source); targetBox.setChoices(cast data.targets, target);
-        setText(pages, "Page " + (data.page + 1) + " of " + data.pages + "  ·  " + data.total + " events");
-        show(previous, data.page > 0); show(next, data.page + 1 < data.pages);
+        setText(eventCount, data.total + " events");
         var events:Array<TimelineEvent> = cast data.rows;
-        showTargets = Lambda.exists(events, e -> e.target != "");
-        showAmounts = Lambda.exists(events, e -> e.amount != null);
+        showTargets = data.showTargets == true;
+        showAmounts = data.showAmounts == true;
         show(empty, events.length == 0);
-        for (i in 0...rows.length) {
-            var row = rows[i]; row.event = i < events.length ? events[i] : null; row.expanded = false; row.hovered = false;
-            show(row.obj, row.event != null);
-            if (row.event != null) populate(row);
-        }
-        flow(list, "set_scrollPosY", 0.0);
+        scrollState.accept(Std.int(data.rangeStart), cast events, Std.int(data.total));
+        scrolling.resize(rowWidth());
+        if (data.jumpIndex >= 0) { scrollState.offset = scrollState.y(Std.int(data.jumpIndex)); scrolling.restore(scrollState.clamp(scrolling.viewportHeight())); }
+        scrollFirst = scrollEnd = -1;
         layoutTable();
         if (newGraph) { layoutGraph(); drawGraph(); }
+    }
+    function renderRows(force = false):Void {
+        scrolling.sync(); var range = scrollState.visible(scrolling.viewportHeight());
+        if (!force && range.first == scrollFirst && range.end == scrollEnd) return;
+        scrollFirst = range.first; scrollEnd = range.end;
+        while (rows.length < range.end - range.first) rows.push(makeRow(rows.length));
+        for (i in 0...rows.length) {
+            var row = rows[i], index = range.first + i;
+            var event = index < range.end ? scrollState.get(index) : null;
+            row.event = event; row.index = index; row.expanded = index == scrollState.expanded; row.hovered = false;
+            show(row.obj, event != null);
+            if (event != null) { populate(row); position(row.obj, 0, scrollState.y(index)); }
+        }
+        layoutRows();
     }
     static function sentence(value:String):String return value == "" ? "" : value.substr(0, 1).toUpperCase() + value.substr(1).toLowerCase();
     function populate(row:Dynamic):Void {
@@ -268,10 +295,7 @@ class NativeDetailedReport {
     public function resize(w:Int, h:Int):Void {
         if (w == width && h == height) return;
         width = w; height = h; layout(); layoutPending = true;
-        if (data != null && data.pageSize != capacity() && requestedPageSize != capacity())
-            request(Std.int(data.page * data.pageSize / capacity()), null);
     }
-    function capacity():Int return height <= 0 ? DetailedReport.PAGE_SIZE : DetailedReport.pageCapacity(height - LIST_Y - 44);
     function layout():Void {
         if (width < 100) return;
         var w = width, h = height; size(object, w, h);
@@ -310,25 +334,18 @@ class NativeDetailedReport {
         fit(headingTexts[3], amount, LIST_Y - 26, rw - amount - 28, 18, "right");
         position(G.field(list, "obj"), 0, LIST_Y); size(G.field(list, "obj"), w, Std.int(Math.max(40, h - LIST_Y - 44)));
         fit(empty, 12, LIST_Y + 22, w - 24, 20, "center");
-        HistoryButtons.singleLine(previous, 100, 32); position(previous, 0, h - 32);
-        HistoryButtons.singleLine(next, 100, 32); position(next, w - 100, h - 32);
-        fit(pages, 112, h - 28, w - 224, 24, "center");
-        layoutRows();
+        fit(eventCount, 0, h - 28, w, 24, "center");
+        scrolling.resize(rowWidth()); renderRows(true);
     }
-    function rowWidth():Int return Std.int(Math.max(100, width));
+    function rowWidth():Int return Std.int(Math.max(100, width - 18));
     function targetX():Int return showTargets ? Std.int(rowWidth() * (showAmounts ? .65 : .72)) : amountX();
     function amountX():Int return rowWidth() - (showAmounts ? 112 : 28);
     function titleEnd():Int return showTargets ? targetX() : amountX();
     function layoutRows():Void {
         var w = rowWidth(), target = targetX(), amount = amountX();
-        var selected = -1, count = 0;
-        for (i in 0...rows.length) if (rows[i].event != null && i < capacity()) {
-            count++; if (rows[i].expanded == true) selected = i;
-        }
-        var range = DetailedReport.expansionRange(count, selected);
         for (i in 0...rows.length) {
             var r = rows[i];
-            var visible = r.event != null && i < capacity() && (selected < 0 || i == selected || i < range.first || i > range.last);
+            var visible = r.event != null;
             show(r.obj, visible); if (!visible) continue;
             fit(r.time, 12, 18, 80, 17);
             position(r.icon, 100, 10); fit(r.fallback, 100, 10, 34, 34, "center");
@@ -344,10 +361,8 @@ class NativeDetailedReport {
             var h = DetailedReport.ROW_HEIGHT;
             show(r.detail, r.expanded == true);
             if (r.expanded == true) {
-                // Use the next two rows when possible, then borrow only the
-                // missing space from above. Other rows stay visible and in order.
-                var slots = Std.int(Math.min(3, capacity()));
-                h = slots * DetailedReport.ROW_HEIGHT + (slots - 1) * DetailedReport.ROW_GAP;
+                // Expanded details grow in the scroll canvas without hiding neighboring events.
+                h += scrollState.expansion;
                 G.call("ui.comp.FmtText", "set_maxWidthText", r.detail, [null]);
                 G.call("h2d.Text", "set_lineBreak", r.detail, [true]);
                 G.call("h2d.Text", "set_maxWidth", r.detail, [(w - 28) / .9]);
@@ -475,7 +490,9 @@ class NativeDetailedReport {
             graphText(4, "No recorded health samples", left, PLOT_TOP + 28, pw, "center");
     }
     public function update(now:Float):Void {
-        if (searchAt >= 0 && now >= searchAt) { searchAt = -1; request(0, null); }
+        if (searchAt >= 0 && now >= searchAt) reload();
+        renderRows();
+        if (!busy && !readFailed && scrollState.needsRead(scrolling.viewportHeight())) request(scrollState.readStart(), null);
         // CSS fonts settle after DOM creation. Refit only when metrics change.
         if (now >= fontCheckAt) {
             fontCheckAt = now + .25;

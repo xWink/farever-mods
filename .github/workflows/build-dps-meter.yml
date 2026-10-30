@@ -200,6 +200,10 @@ jobs:
           ../.audio-hashlink/hl build/ready-audio-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main EquippedWeaponsTest -dce full -hl build/equipped-weapons-test.hl
           ../.audio-hashlink/hl build/equipped-weapons-test.hl
+          haxe -cp src -cp ../shared/src -cp tests -main HistoryScrollTest -dce full -hl build/history-scroll-test.hl
+          ../.audio-hashlink/hl build/history-scroll-test.hl
+          haxe -cp src -cp tests -cp tests/scroll-ui -main NativeHistoryScrollTest -dce full -hl build/native-history-scroll-test.hl
+          ../.audio-hashlink/hl build/native-history-scroll-test.hl
       - name: Download native DLL from parallel job
         uses: actions/download-artifact@v4
         with:
