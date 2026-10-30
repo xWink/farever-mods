@@ -211,7 +211,7 @@ class MarketplaceUiTest {
   var picture=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketDetailsIcon")==0)[0];
   check(picture.getTip!=null&&picture.width==60&&picture.height==60&&picture.showTipOnOver);
   check(picture.interactive!=null&&picture.interactive.onOver!=null);
-  picture.interactive.onOver();check(picture.displayedTip!=null&&picture.displayedTip.item.kind==row.item.baseId);
+  picture.interactive.onOver(null);check(picture.displayedTip!=null&&picture.displayedTip.item.kind==row.item.baseId);
   // A failing details tooltip must not close the window or remove listing actions.
   GameAccess.failNextTooltip=true;view.dirty=true;view.update();
   check(TradeFrame.active==1);check(!GameAccess.failNextTooltip);

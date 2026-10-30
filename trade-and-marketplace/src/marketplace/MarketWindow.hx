@@ -357,6 +357,7 @@ class MarketWindow {
         c.visibleListings(listingData.slice(start,end));
         for(layout in rowLayouts)tableLayouts.remove(layout);
         for(refresh in rowPresence)presenceLabels.remove(refresh);
+        badges.hideTip();
         for(child in children(listingContent))G.call("h2d.Object","remove",child);
         var layouts=tableLayouts.length,presence=presenceLabels.length;
         for(i in start...end)savedRow(listingData[i],i*ROW_HEIGHT,ROW_HEIGHT,i,listingContent);
@@ -701,6 +702,7 @@ class MarketWindow {
         partialRow=null;
     }
     function rememberListingScroll():Void {
+        badges.hideTip();
         if(listingViewport!=null&&listingScrollRestored&&listingScrollState!=null)
             listingScrollState.offset=G.number(G.field(listingViewport,"scrollPosY"));
         listingViewport=listingContent=null;listingScrollState=null;listingData=[];rowLayouts=[];rowPresence=[];
@@ -1301,7 +1303,7 @@ class MarketWindow {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketSeller"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,24);position(box,x,y);
         var badge:Dynamic=null;
-        try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")),G.field(frame.ui,"windows"))
+        try badge=badges.create(box,G.text(G.field(G.field(listing,"seller"),"badge")),G.field(frame.ui,"windows"),parent)
         catch(error:Dynamic)report("seller badge",error);
         var badgeSpace=badge==null?0:MarketBadges.SIZE+MarketBadges.GAP;
         var buyOrder=MarketOrder.isBuy(listing),roleText=MarketOrder.ownerLabel(listing).toUpperCase();

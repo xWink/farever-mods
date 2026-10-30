@@ -21,6 +21,30 @@ class GameAccess {
   var o:Dynamic={children:[],parent:parent,color:{x:1.,y:1.,z:1.}};o.dom={obj:o};
   if(parent!=null)(cast parent.children:Array<Dynamic>).push(o);return o;
  }
+ static function makeInteractive(o:Dynamic):Void {
+  if(field(o,"enableInteractive")==true)return;
+  o.enableInteractive=true;
+  var input:Dynamic={parent:o};o.interactive=input;
+  input.onOver=function(?event:Dynamic):Void {
+   if(field(o,"showTipOnOver")==true&&field(o,"getTip")!=null)o.displayedTip=o.getTip();
+   if(field(o,"onOver")!=null)o.onOver();
+  };
+  input.onOut=function(?event:Dynamic):Void {if(field(o,"onOut")!=null)o.onOut();};
+  input.onMove=input.onCheck=(event:Dynamic)->{if(field(o,"propagateOver")==true)event.propagate=true;};
+  var pressed=-1;
+  input.onPush=(event:Dynamic)->{pressed=event.button;};
+  input.onRelease=(event:Dynamic)->{
+   if(pressed==event.button&&pressed==0&&field(o,"action")!=null)o.action();
+   pressed=-1;
+  };
+  input.onWheel=(event:Dynamic)->{event.propagate=true;};
+ }
+ static function transform(o:Dynamic):{x:Float,y:Float,sx:Float,sy:Float} {
+  var x=0.,y=0.,sx=1.,sy=1.;
+  while(o!=null){var dx=number(field(o,"scaleX"),1),dy=number(field(o,"scaleY"),1);
+   x=x*dx+number(field(o,"x"));y=y*dy+number(field(o,"y"));sx*=dx;sy*=dy;o=field(o,"parent");}
+  return {x:x,y:y,sx:sx,sy:sy};
+ }
  public static function field(o:Dynamic,k:String):Dynamic return o==null?null:Reflect.field(o,k);
  public static function array(o:Dynamic,proxy=false):Array<Dynamic> return o==null?[]:cast o;
  public static function text(v:Dynamic,f=""):String return v==null?f:Std.string(v);
@@ -30,7 +54,7 @@ class GameAccess {
  public static function enumeration(t:String,n:String):Dynamic return n;
  public static function isA(o:Dynamic,t:String):Bool return field(o,"nativeType")==t||(t=="st.item.Gear"&&field(o,"nativeType")=="st.item.Weapon");
  public static function current(t:String,n:String):Dynamic return dataFields.exists(t+"."+n)?dataFields[t+"."+n]:t=="ui.BaseUI"?ui:n;
- public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Mask"?a[2]:t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h2d.Mask"){o.width=a[0];o.height=a[1];}if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];return o;}
+ public static function create(t:String,a:Array<Dynamic>):Dynamic {var parent=t=="h2d.Mask"?a[2]:t=="h2d.Bitmap"?a[1]:t=="h2d.Object"||t=="h2d.Graphics"?a[0]:null;var o=object(parent);o.nativeType=t;if(t=="h2d.Mask"){o.width=a[0];o.height=a[1];}if(t=="h3d.mat.Texture"){o.width=a[0];o.height=a[1];textures.push(o);}if(t=="h2d.Bitmap")o.tile=a[0];if(t=="ui.SimpleTip")o.text=a[0];return o;}
  public static function staticCall(t:String,n:String,a:Array<Dynamic>):Dynamic return switch(n) {
   case "fromBytes": {resourceName:a[0]};
   case "fromTexture": {texture:a[0]};
@@ -90,7 +114,12 @@ class GameAccess {
     a[0].resourceName=field(field(field(o,"tile"),"texture"),"resourceName");
     a[0].sourceTexture=field(field(o,"tile"),"texture");a[0].drawnBlend=field(o,"blendMode");null;
    case "set_colorAdd": maskWhitened=true;null;
-   case "getBounds": field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
+   case "getBounds":
+    if(field(o,"nativeType")=="h2d.Bitmap"&&a[0]!=null&&a[0]!=o) {
+     var source=transform(o),target=transform(a[0]);
+     var x=(source.x-target.x)/target.sx,y=(source.y-target.y)/target.sy;
+     {xMin:x,yMin:y,xMax:x+number(field(o.tile,"width"))*source.sx/target.sx,yMax:y+number(field(o.tile,"height"))*source.sy/target.sy};
+    } else field(o,"inkBounds")==null?call(t,"getSize",o,[null]):o.inkBounds;
    case "addChild": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).push(child);null;
    case "addChildAt": var child=a[0];if(child.parent!=null)(cast child.parent.children:Array<Dynamic>).remove(child);child.parent=o;(cast o.children:Array<Dynamic>).insert(a[1],child);null;
    case "setScale": o.scaleX=a[0];o.scaleY=a[0];null;
@@ -99,11 +128,10 @@ class GameAccess {
     o.getTip=a[0];
     // Mirror native UIElement.makeInteractive's early return. A base Flow interactive
     // already enabled here never receives the UIElement hover handlers.
-    if(field(o,"enableInteractive")!=true) {
-     o.enableInteractive=true;o.interactive={};
-     o.interactive.onOver=()->{if(o.showTipOnOver)o.displayedTip=o.getTip();};
-    }
-    null;
+    makeInteractive(o);null;
+   case "setTip":o.currentTip={content:a[0],anchor:a[1]};o.currentTip;
+   case "removeTip":if(a[0]==null||field(o.currentTip,"anchor")==a[0])o.currentTip=null;null;
+   case "set_onOver", "set_onOut":Reflect.setField(o,n.substr(4),a[0]);makeInteractive(o);null;
    case "displayDialog": dialogs++;latestDialog={title:a[0],message:a[1],descriptors:a[2],callback:a[3],buttons:[{}],allocated:true};latestDialog;
    case "getDyn": (cast o:Array<Dynamic>)[a[0]];
    case "removeWindow": a[0].allocated=false;removed.push(a[0]);null;
@@ -131,7 +159,7 @@ class GameAccess {
      o.listWindow=object(ui.root);o.listWindow.content=object(o.listWindow);
      o.items=[for(_ in (cast o.options:Array<Dynamic>))object(o.listWindow.content)];
     }null;
-   case "set_onClick": o.action=a[0];null;
+   case "set_onClick": o.action=a[0];makeInteractive(o);null;
    case "getName": "Tester";
    case "getRequiredLevel": 15;
    case "getItemAffixes": ["75 Vitality","58 Strength"];

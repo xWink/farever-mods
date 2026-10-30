@@ -8,15 +8,23 @@ class MarketBadges {
     public static inline var GAP=4;
     final textures:Map<String,Dynamic>=[];
     final failed:Map<String,Bool>=[];
+    var tip:Dynamic;
+    var tipUi:Dynamic;
+    var tipBadge:Dynamic;
 
     public function new() {}
 
-    public function create(parent:Dynamic,id:String,nativeArray:Dynamic):Dynamic {
-        switch(id) {
-            case "supporter-bronze", "supporter-silver", "supporter-gold",
-                 "supporter-ruby", "supporter-emerald", "supporter-diamond", "fareverly-creator":
+    public function create(parent:Dynamic,id:String,nativeArray:Dynamic,row:Dynamic):Dynamic {
+        var caption=switch(id) {
+            case "supporter-bronze": "Bronze Supporter";
+            case "supporter-silver": "Silver Supporter";
+            case "supporter-gold": "Gold Supporter";
+            case "supporter-ruby": "Ruby Supporter";
+            case "supporter-emerald": "Emerald Supporter";
+            case "supporter-diamond": "Diamond Supporter";
+            case "fareverly-creator": "Fareverly Creator";
             default:return null;
-        }
+        };
         if(failed.exists(id))return null;
         var texture=textures.get(id);
         if(texture==null) {
@@ -69,10 +77,51 @@ class MarketBadges {
         var bitmap=G.create("h2d.Bitmap",[tile,parent]);
         G.set(bitmap,"smooth",true);G.set(bitmap,"blendMode",G.current("h2d.BlendMode","AlphaAdd"));
         trade.TradeUi.absolute(parent,bitmap);
+        bindHover(bitmap,row,caption);
         return bitmap;
     }
 
+    function bindHover(bitmap:Dynamic,row:Dynamic,caption:String):Void {
+        // Observe the listing's existing hit target. An interactive over the badge
+        // would change native focus/hit-testing even if its events propagated.
+        var input=G.field(row,"interactive");
+        if(input==null)return;
+        var hover=(event:Dynamic)->{
+            var bounds=G.call("h2d.Object","getBounds",bitmap,[input,null]);
+            var x=G.number(G.field(event,"relX"),Math.NaN),y=G.number(G.field(event,"relY"),Math.NaN);
+            if(G.field(event,"cancel")!=true && x>=G.number(G.field(bounds,"xMin")) && x<G.number(G.field(bounds,"xMax"))
+                && y>=G.number(G.field(bounds,"yMin")) && y<G.number(G.field(bounds,"yMax"))) {
+                var ui=G.current("ui.BaseUI","current");
+                if(ui==null || (tip!=null && tipBadge==bitmap && tipUi==ui && G.field(ui,"currentTip")==tip))return;
+                hideTip();
+                var content=G.create("ui.SimpleTip",[caption,null,null]);
+                tip=G.call("ui.BaseUI","setTip",ui,[content,bitmap,null,null]);
+                tipUi=ui;tipBadge=bitmap;
+            } else hideTip(bitmap);
+        };
+        for(key in ["onOver","onMove","onCheck"]) {
+            var previous=G.field(input,key);
+            G.set(input,key,(event:Dynamic)->{
+                if(previous!=null)previous(event);
+                hover(event);
+            });
+        }
+        var previousOut=G.field(input,"onOut");
+        G.set(input,"onOut",(event:Dynamic)->{
+            hideTip(bitmap);
+            if(previousOut!=null)previousOut(event);
+        });
+    }
+
+    public function hideTip(?badge:Dynamic):Void {
+        if(badge!=null&&tipBadge!=badge)return;
+        if(tip!=null&&tipUi!=null&&G.field(tipUi,"currentTip")==tip)
+            G.call("ui.BaseUI","removeTip",tipUi,[null]);
+        tip=tipUi=tipBadge=null;
+    }
+
     public function dispose():Void {
+        hideTip();
         for(texture in textures)G.call("h3d.mat.Texture","dispose",texture);
         textures.clear();failed.clear();
     }
