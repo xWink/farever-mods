@@ -1,5 +1,8 @@
 package trade;
 import trade.GameAccess as G;
+private typedef TradePresenceAttempt = {
+    uid:String,region:String,peer:Dynamic,hero:Dynamic,layer:Dynamic,deadline:Float,approved:Bool
+};
 class TradeController {
     public var player:Dynamic;
     public var state:TradeSession;
@@ -26,6 +29,7 @@ class TradeController {
     var reportedEnd = "";
     var errorLogged = false;
     var handledInvites:Array<String> = [];
+    var presenceAttempt:TradePresenceAttempt;
     public function new() { wire = new TradeWire(StringTools.hex(Std.random(0x3fffffff))); view = new TradeWindow(this); requestPopup = new TradeRequestPopup(this); }
     public function ensure(player:Dynamic):Bool {
         if (player == null || G.field(player,"isMe") != true || G.field(player,"hero") == null) return false;
@@ -58,18 +62,49 @@ class TradeController {
         var candidates = G.array(G.field(G.field(player,name == "" ? "group" : "layer"),"players"),true);
         var matches = [for(p in candidates)
             if (p != player && (name == "" || G.text(G.call("st.Player","getName",p)).toLowerCase() == name)) p];
-        if (matches.length != 1) { chat(name == "" ? "Use /trade PlayerName to trade with a nearby player." : "No unique nearby player matches that name."); return; }
+        if (matches.length != 1) { clearPresenceAttempt();chat(name == "" ? "Use /trade PlayerName to trade with a nearby player." : "No unique nearby player matches that name."); return; }
         request(G.text(G.field(matches[0],"uid")));
     }
     public function request(uid:String):Void {
         if (!TradeMod.enabled() || !ensure(G.field(G.staticCall("GameApp","get",[]),"me"))) return;
         if (state.active()) { chat("Finish or cancel your current trade first."); return; }
+        if(presenceAttempt!=null&&presenceAttempt.uid==uid){chat("Still checking this player's Fareverly connection.");return;}
+        clearPresenceAttempt();
         var reason = environment(uid,false);
         if (reason != "") { chat(reason); return; }
-        var id = StringTools.hex(Std.random(0x3fffffff))+StringTools.hex(Std.random(0x3fffffff));
-        if (state.start(uid,id,haxe.Timer.stamp())) { begin(); flush(); }
+        var attempt:TradePresenceAttempt={uid:uid,region:TradeMod.tradeRegion(),peer:nearbyPlayer(uid),hero:inv.hero,
+            layer:G.field(player,"layer"),deadline:haxe.Timer.stamp()+15,approved:false};
+        presenceAttempt=attempt;
+        TradeMod.checkTradePresence(uid,attempt.region,(online,message)->{
+            if(presenceAttempt!=attempt)return;
+            if(!online){clearPresenceAttempt();chat(message);return;}
+            // The game thread rechecks the recipient and region immediately
+            // before starting the session and sending its first whisper.
+            if(haxe.Timer.stamp()>=attempt.deadline){clearPresenceAttempt();chat("Fareverly verification timed out. Please send the trade request again.");return;}
+            attempt.approved=true;attempt.deadline=haxe.Timer.stamp()+2;
+        });
+    }
+    function clearPresenceAttempt():Void {
+        if(presenceAttempt==null)return;
+        presenceAttempt=null;TradeMod.cancelTradePresence();
+    }
+    function updatePresenceAttempt(now:Float):Void {
+        var attempt=presenceAttempt;if(attempt==null)return;
+        if(!TradeMod.enabled()||state.active()){clearPresenceAttempt();return;}
+        if(attempt.region!=TradeMod.tradeRegion()||attempt.hero!=inv.hero||attempt.layer!=G.field(player,"layer")
+            ||attempt.peer!=nearbyPlayer(attempt.uid)) {
+            clearPresenceAttempt();chat("The player or connected region changed. Please send the trade request again.");return;
+        }
+        var reason=environment(attempt.uid,false);
+        if(reason!=""){clearPresenceAttempt();chat(reason);return;}
+        if(now>=attempt.deadline){clearPresenceAttempt();chat("Fareverly verification timed out. Please send the trade request again.");return;}
+        if(!attempt.approved||outgoing.length>0||now<nextSend)return;
+        presenceAttempt=null;
+        var id=StringTools.hex(Std.random(0x3fffffff))+StringTools.hex(Std.random(0x3fffffff));
+        if(state.start(attempt.uid,id,now)){begin();flush();}
     }
     function begin():Void {
+        clearPresenceAttempt();
         releaseMovement(); group = G.field(player,"group"); tradePartyGroup=null;
         peerName = G.text(G.call("st.Player","getName",nearbyPlayer(state.peer)),"Player");
         partySetup = null;
@@ -233,8 +268,12 @@ class TradeController {
         if (state == null || !state.editable()) return;
         state.setOffer(state.mine.filter(i->i.uid != uid),haxe.Timer.stamp()); status = ""; flush();
     }
-    public function cancelByUser():Void { if (state != null && !state.cancelByUser()) return; cancel(); }
+    public function cancelByUser():Void {
+        if(presenceAttempt!=null){clearPresenceAttempt();chat("Trade request cancelled.");return;}
+        if (state != null && !state.cancelByUser()) return; cancel();
+    }
     public function cancel(reason = "Trade cancelled."):Void {
+        clearPresenceAttempt();
         if (state != null) { state.cancel(reason); reportedEnd = state.id; }
         chat(reason); open = false; releaseMovement(); flush(); view.dispose(); requestPopup.dispose(); leaveTradeParty();
     }
@@ -251,6 +290,7 @@ class TradeController {
         if (state == null && !open) return;
         var me = G.field(app,"me");
         if (me != player || G.field(me,"hero") != (inv == null ? null : inv.hero)) { dispose(); return; }
+        updatePresenceAttempt(now);
         if (!TradeMod.enabled() && state.active()) cancel("Trade disabled.");
         if (state.active() && now >= nextCheck) {
             nextCheck = now+0.2;
@@ -308,11 +348,13 @@ class TradeController {
         G.set(label,"dropShadow",{color:0,alpha:0.9,dx:1.0,dy:1.0});
     }
     public function fail(error:Dynamic):Void {
+        clearPresenceAttempt();
         if (!errorLogged) { errorLogged = true; TradeDiagnostics.log("Error: "+error); }
         if (state != null && state.active()) cancel("Trade stopped: "+error);
         else { chat("Trade stopped: "+error); open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); }
     }
     public function dispose():Void {
+        clearPresenceAttempt();
         open = false; releaseMovement(); view.dispose(); requestPopup.dispose(); outgoing = []; announcements = []; handledInvites = [];
         partySetup = null; state = null; player = group = tradePartyGroup = null; inv = null; exchange = null; exchangeId = ""; pendingCommits = 0;
     }

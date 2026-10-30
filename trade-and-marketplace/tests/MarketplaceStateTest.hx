@@ -214,6 +214,7 @@ class MarketplaceStateTest {
         MarketplaceBuyOrderTest.run();
         MarketplaceLimitsTest.run();
         MarketplaceBuyDuplicateTest.run();
+        MarketplaceTradePresenceTest.run();
     }
 
     static function navigationDuringRequests():Void {

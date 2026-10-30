@@ -9,6 +9,7 @@ class MarketWorker {
     public function session(account:String,key:String,server=""):Int return ++generation;
     public function cancelPrefetch():Void {}
     public function cancelPresenceRead():Void {}
+    public function cancelTradePresence():Void {}
     public function send(job:Dynamic):Void sent.push(job);
     public function receive():Dynamic return incoming.shift();
 }

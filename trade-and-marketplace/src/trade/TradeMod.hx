@@ -17,6 +17,12 @@ class TradeMod {
     public static function chatError(message:String):Void {if(controller!=null)controller.chat(message);}
     public static function enabled():Bool return config.enabled;
     public static function rejectsRequests():Bool return config.rejectAllRequests;
+    public static function tradeRegion():String return marketplace.MarketController.connectedServer();
+    public static function checkTradePresence(account:String,region:String,done:(Bool,String)->Void):Void {
+        if(market==null)done(false,marketplace.MarketTradePresence.FAILED);
+        else market.checkTradePresence(account,region,done);
+    }
+    public static function cancelTradePresence():Void {if(market!=null)market.cancelTradePresence();}
     public static function requestPosition():{x:Null<Float>,y:Null<Float>} return {x:config.requestX,y:config.requestY};
     public static function saveRequestPosition(x:Float,y:Float):Void { if (config.requestX == x && config.requestY == y) return; config.requestX = x; config.requestY = y; ModConfig.save(HlxRuntime.moduleName(),config); }
     public static function tradePosition():{x:Null<Float>,y:Null<Float>} return {x:config.tradeX,y:config.tradeY};

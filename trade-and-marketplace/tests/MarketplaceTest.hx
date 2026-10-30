@@ -12,6 +12,7 @@ class MarketplaceTest {
  static function check(b:Bool):Void {checks++;if(!b)throw "Marketplace assertion "+checks;}
  static function fails(f:Void->Void):Void {var failed=false;try f()catch(_:Dynamic)failed=true;check(failed);}
  static function main():Void {
+  MarketTradePresenceTest.run();
   for(server in ["north-america","europe","latin-america","asia","mainland-china"])
    check(haxe.Json.parse(MarketPresence.body(server)).server==server);
   check(!MarketPresence.validServer("")&&!MarketPresence.validServer("unknown"));

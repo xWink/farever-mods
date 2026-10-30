@@ -2,7 +2,7 @@
 
 [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-trade-and-marketplace.yml)
 
-An in-game marketplace and native trade window for nearby players. Both players need the mod installed to trade.
+An in-game marketplace and native trade window for nearby players. Both players need the mod installed and a Fareverly connection to initiate verified trade requests.
 
 ## Installation
 
@@ -22,6 +22,8 @@ If upgrading from the earlier test build, remove `hlx/mods/trade/` so both copie
 6. The mod exchanges the items and confirms receipt. **Trade complete** includes the number of received items, counting stack quantities.
 
 A full-inventory indicator appears if the incoming offer will not fit. Capacity checks account for compatible existing stacks and space freed by outgoing items.
+
+Before sending the trade-request whisper, the mod checks Fareverly for the recipient's recent heartbeat in your connected game region. Sign in using **Login to Fareverly** in Mod Settings. An offline result displays a local message that the recipient does not have the mod or is not signed into Fareverly; verification errors also prevent the whisper. Changing recipients or regions, moving away, or cancelling invalidates a pending check. Presence reflects a recent heartbeat, so a player who just disconnected may still appear online briefly.
 
 Trade and request windows remember their positions. Incoming requests are automatically rejected during combat, NPC dialogue, another trade, or while a menu is open, with **Player is busy.** Enable **Reject all trade requests** in Mod Settings to return **Player is not accepting trade requests.** instead.
 
@@ -58,6 +60,6 @@ Press **F7** to open or close the marketplace, or type `/market` or `/marketplac
 - Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
 - Manage up to 40 active orders per region (20 sell and 20 buy) under **My listings**. Listings expire 3 days after posting. Edit a listing to change its quantity or price.
 - **Whisper seller** contacts their account. Meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
-- Signed-in players send a heartbeat on login and once per minute. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
+- Signed-in players send a heartbeat on login and about once per minute, even with no listings and with the marketplace closed. Logging out or disabling the mod stops updates; online status expires within 3 minutes.
 
 Install the entire build, including `hlx/plugins/trade-and-marketplace/trade_marketplace_desktop.hdll`. DPS Meter is not required. The mod uses Fareverly’s live listing API. The website displays the same live listings for browsing.

@@ -45,6 +45,8 @@ class MarketController {
     var visiblePresenceRows:Array<Dynamic>=[];
     var presencePollAt=0.0;
     var presenceRead:Null<{ticket:Int,path:String,feed:MarketBrowseFeed,row:Dynamic,batch:Bool}>;
+    final tradePresencePolicy=new MarketTradePresence();
+    var tradePresencePending:Null<{ticket:Int,server:String,done:(Bool,String)->Void}>;
     var ownedKnown=false;
     var ownedSellCount=0;
     var ownedBuyCount=0;
@@ -122,6 +124,7 @@ class MarketController {
         var event=worker.receive();
         while(event!=null){
             if(event.generation==generation) switch(event.op){
+                case "trade-presence":receiveTradePresence(event,now);
                 case "presence-read":receivePresenceRead(event,now);
                 case "prefetch":receivePrefetch(event,now);
                 case "request":
@@ -156,6 +159,7 @@ class MarketController {
                     view.dirty=true;
                 case "presence":ownOnlineUntil=event.onlineUntil;ownOnlineServer=event.server;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
+                    tradePresencePolicy.blocked=false;
                     if(opened&&(tab=="Sell"||tab=="Buy"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
                 case "connection-error":message=event.message;view.dirty=true;
                 case "error":ready=false;connectionIssue=true;message=event.message;view.dirty=true;
@@ -190,6 +194,7 @@ class MarketController {
     }
     static function readKey(values:Dynamic):String {var v=Reflect.field(values,"fareverlyApiKey");return Std.isOfType(v,String)?v:"";}
     function reconnect():Void {
+        cancelTradePresence(true);
         if(signingIn)view.closeFareverlyNotice();
         cancelPresenceRead();peerPresence=new MarketPresenceRefresh();
         ownOnlineUntil=0;ownOnlineServer="";
@@ -201,6 +206,7 @@ class MarketController {
         connectionIssue=!Protocol.validKey(key);message="";view.dirty=true;
     }
     public function disconnect():Void {
+        cancelTradePresence(true);
         cancelPresenceRead();peerPresence=new MarketPresenceRefresh();
         contactingSeller="";editingListingId="";
         view.close(); if(player!=null)generation=worker.session("","");
@@ -216,6 +222,36 @@ class MarketController {
     public function fail(error:Dynamic):Void {
         // A marketplace UI failure must not cancel an unrelated direct trade.
         view.recover(error);
+    }
+    public static function connectedServer():String {
+        if(G.current("lib.Network","OFFLINE_MODE")==true||G.current("lib.Network","realmId")==null)return "";
+        return MarketExport.server(G.text(G.current("Options","serverRegion")));
+    }
+    public function checkTradePresence(accountId:String,region:String,done:(Bool,String)->Void):Void {
+        var path=MarketTradePresence.path(accountId,region),now=haxe.Timer.stamp();
+        if(player==null||path==null||region!=server||region!=connectedServer()){done(false,MarketTradePresence.FAILED);return;}
+        if(!ready||!Protocol.validKey(key)){done(false,MarketTradePresence.LOGIN);return;}
+        var reason=tradePresencePolicy.unavailable(now);
+        if(reason!=""){done(false,reason);return;}
+        cancelTradePresence();
+        var work={ticket:++nextTicket,server:region,done:done};tradePresencePending=work;
+        try worker.send({generation:generation,op:"trade-presence",ticket:work.ticket,method:"GET",path:path})
+        catch(_:Dynamic) {
+            tradePresencePending=null;
+            done(false,tradePresencePolicy.completed({status:0,body:"",error:"Queue failed",retryAfter:""},now,Date.now().getTime()/1000).message);
+        }
+    }
+    public function cancelTradePresence(notify=false):Void {
+        var work=tradePresencePending;tradePresencePending=null;worker.cancelTradePresence();
+        if(notify&&work!=null)work.done(false,"Fareverly connection changed. Please send the trade request again.");
+    }
+    function receiveTradePresence(event:MarketWorker.MarketEvent,now:Float):Void {
+        var result=tradePresencePolicy.completed(event.response,now,Date.now().getTime()/1000);
+        if(tradePresencePolicy.blocked){ready=false;connectionIssue=true;view.dirty=true;}
+        if(tradePresencePending==null||event.ticket!=tradePresencePending.ticket)return;
+        var work=tradePresencePending;tradePresencePending=null;
+        if(work.server!=server||work.server!=connectedServer())work.done(false,MarketTradePresence.FAILED);
+        else work.done(result.online,result.message);
     }
     public function toggle():Void {
         if(view.isOpen())view.close();else open();

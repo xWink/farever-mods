@@ -13,6 +13,7 @@ class ControllerTest {
     }
     static function fixture(start = true):TradeController {
         locked = false; nativeAllowed = true; gateCalls = 0;
+        TradeMod.resetPresence();
         GameAccess.lines = []; TradeChat.sent = []; TradeChat.delivered = true; TradeMod.rejectAllRequests = false;
         GameAccess.ui = {windows: [], get_chat: function() return {messages: {}}};
         var item:Dynamic = {__uid: "item", kind: "Copper", getName: () -> "Copper", maxStack: () -> 99, canStack: (other:Dynamic) -> other.kind == "Copper"};
@@ -30,7 +31,7 @@ class ControllerTest {
         me.group = {players: {array: [me, peer]}}; GameAccess.app = {me: me, isInCutscene: () -> false};
         slot = {inventory: inventory, getIndex: () -> 0, dragCountOverride: 2};
         var controller = new TradeController();
-        if (start) controller.request("peer"); else controller.ensure(me);
+        if (start) {controller.request("peer");controller.update(GameAccess.app,haxe.Timer.stamp());} else controller.ensure(me);
         return controller;
     }
     static var inviteSequence = 0;
@@ -115,6 +116,7 @@ class ControllerTest {
         check(!c.open && c.state.phase == "cancelled" && latestRed() && GameAccess.lines[0].text == "Player is busy.",
             "Requester sees the rejection in red and their trade closes");
         c = fixture(false); TradeMod.rejectAllRequests = true; c.request("peer");
+        c.update(GameAccess.app,haxe.Timer.stamp());
         check(c.state.phase == "inviting", "Reject-all preference still allows initiating outgoing requests");
     }
     static function offering(c:TradeController):Void {
@@ -155,7 +157,8 @@ class ControllerTest {
         c.chat("Trade complete", true);
         var line = GameAccess.lines[GameAccess.lines.length - 1];
         check(line.color == 0x59DB70 && line.style_color == 0x59DB70, "Success remains green");
-        check(line.dropShadow.color == 0 && line.dropShadow.alpha > 0 && line.dropShadow.dx == 1.0, "Success has a dark drop shadow");
+        var shadowAlpha:Float=line.dropShadow.alpha,shadowDx:Float=line.dropShadow.dx;
+        check(line.dropShadow.color == 0 && shadowAlpha > 0 && shadowDx == 1.0, "Success has a dark drop shadow");
         c = fixture(); offering(c);
         c.inv.inventory.getFreeSize = () -> 0;
         var incoming = TradeInventory.describe(c.inv.stacks()[0].item, 95); incoming.uid = "peer-item";
@@ -177,6 +180,7 @@ class ControllerTest {
         c.fail("shadow check");
         check(latestRed() && GameAccess.lines[0].dropShadow.color == 0, "Error red also has a shadow");
         requestChecks();
+        TradePresenceTest.run();
         Sys.println("Controller and inventory checks passed: " + checks);
     }
 }

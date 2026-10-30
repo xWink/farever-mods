@@ -13,6 +13,7 @@ class MarketWorker {
     final background=new Deque<MarketJob>();
     final presenceReads=new Deque<MarketJob>();
     var presenceTicket=-1;
+    var tradePresenceTicket=-1;
     var prefetchTicket=-1;
     final mutex=new Mutex();
     var generation=0;
@@ -32,14 +33,18 @@ class MarketWorker {
             mutex.acquire();prefetchTicket=job.ticket;mutex.release();background.add(job);
         } else if(job.op=="presence-read") {
             mutex.acquire();presenceTicket=job.ticket;mutex.release();presenceReads.add(job);
-        } else jobs.add(job);
+        } else {
+            if(job.op=="trade-presence"){mutex.acquire();tradePresenceTicket=job.ticket;mutex.release();}
+            jobs.add(job);
+        }
     }
+    public function cancelTradePresence():Void {mutex.acquire();tradePresenceTicket=-1;mutex.release();}
     public function cancelPresenceRead():Void {
         mutex.acquire();presenceTicket=-1;mutex.release();
         while(presenceReads.pop(false)!=null){}
     }
     function wanted(job:MarketJob):Bool {
-        mutex.acquire();var yes=job.ticket==(job.op=="presence-read"?presenceTicket:prefetchTicket);mutex.release();return yes;
+        mutex.acquire();var yes=job.ticket==(job.op=="trade-presence"?tradePresenceTicket:job.op=="presence-read"?presenceTicket:prefetchTicket);mutex.release();return yes;
     }
     public function receive():MarketEvent return events.pop(false);
     function current(id:Int):Bool { mutex.acquire();var yes=id==generation;mutex.release();return yes; }
@@ -52,7 +57,7 @@ class MarketWorker {
             var job=jobs.pop(account=="");
             if(job==null)job=background.pop(false);
             if(job==null)job=presenceReads.pop(false);
-            if(job!=null&&(job.op=="prefetch"||job.op=="presence-read")&&!wanted(job))job=null;
+            if(job!=null&&(job.op=="prefetch"||job.op=="presence-read"||job.op=="trade-presence")&&!wanted(job))job=null;
             if(job!=null && current(job.generation)) try {
                 if(job.op=="session") {
                     id=job.generation; account=job.account; server=job.server; key=job.key; verified=false;verifyAt=0;verifyFailures=0;
@@ -67,17 +72,20 @@ class MarketWorker {
                         if(Math.isFinite(verifyAt)&&verifyAt>Date.now().getTime()/1000)
                             events.add({generation:id,op:"verification",message:"Fareverly is temporarily unavailable. Please wait before verifying again."});
                         else {verifyRequested=true;verifyAt=0;}
-                    case "request","prefetch","presence-read":
-                        var needsKey=job.method!="GET" || job.path.indexOf("mine=true")>=0;
+                    case "request","prefetch","presence-read","trade-presence":
+                        var needsKey=MarketEndpoints.requiresKey(job.method,job.path);
                         var response:Response=needsKey&&!verified?{status:401,body:'{"error":"sign_in_required"}',retryAfter:"",error:""}:
                             http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),needsKey?key:"",job.headers);
                         if(needsKey&&!verified)MarketApiLog.unexpected(job.method,job.path,401,"Account verification required",key);
+                        if(job.op=="trade-presence"&&(response.status==401||response.status==403)) {
+                            verified=false;verifyAt=Math.POSITIVE_INFINITY;
+                        }
                         if(current(id))events.add({generation:id,op:job.op,ticket:job.ticket,response:response});
                     default:
                 }
             } catch(e:Dynamic) { if(current(id)) {
                 MarketApiLog.unexpected(job.method==null?job.op:job.method,job.path==null?"/api/v1/auth/":job.path,0,"Worker failure: "+Std.string(e),key);
-                events.add({generation:id,op:job.op=="request"||job.op=="prefetch"||job.op=="presence-read"?job.op:job.op=="auth"?"auth-end":"connection-error",ticket:job.ticket,message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
+                events.add({generation:id,op:job.op=="request"||job.op=="prefetch"||job.op=="presence-read"||job.op=="trade-presence"?job.op:job.op=="auth"?"auth-end":"connection-error",ticket:job.ticket,message:"Could not complete the marketplace request. Try again.",response:{status:0,body:"",error:"Request failed",retryAfter:""}});
             } }
             if(!current(id)||account=="") { Sys.sleep(0.1);continue; }
             var now=Date.now().getTime()/1000;

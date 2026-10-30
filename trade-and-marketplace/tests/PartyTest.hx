@@ -27,6 +27,7 @@ class PartyTest {
         return g;
     }
     static function fixture():Array<TradeController> {
+        TradeMod.resetPresence();
         leaves=[];invites=joins=0;TradeChat.sent=[];TradeChat.delivered=true;TradeMod.rejectAllRequests=false;
         GameAccess.lines=[];GameAccess.ui={windows:[],get_chat:()->{messages:{}}};now=haxe.Timer.stamp();
         players=[for(id in ["alice","bob"]) {

@@ -97,3 +97,12 @@ resources.hxml
 -cp tests/item-link-stubs
 -main ItemLinkDraftTest
 --interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/controller-stubs
+-cp tests/worker-stubs
+-main MarketplaceWorkerPresenceTest
+--interp

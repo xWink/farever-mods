@@ -4,7 +4,8 @@ class GameAccess {
  public static function array(o:Dynamic,proxy=false):Array<Dynamic> return o==null?[]:cast o;
  public static function field(o:Dynamic,k:String):Dynamic return o==null?null:Reflect.field(o,k);
  public static function text(v:Dynamic,f=""):String return v==null?f:Std.string(v);
- public static function current(type:String,name:String):Dynamic return null;
+ public static var globals:Map<String,Dynamic>=[];
+ public static function current(type:String,name:String):Dynamic return globals[type+"."+name];
  public static function integer(v:Dynamic,f=0):Int return v==null?f:Std.int(v);
  public static function enumName(v:Dynamic):String return text(v);
  public static function call(type:String,name:String,o:Dynamic,?args:Array<Dynamic>):Dynamic return switch(name){case "getName":"Tester";case "getRequiredLevel":15;case "getILevel":35;case "getStack":o.content[args[0]];case "checkRequestDropIndex":field(o.content[args[0]].item,"bound")==true?"NotAllowed_":"Ok";default:null;};
