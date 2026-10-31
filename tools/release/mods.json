@@ -38,5 +38,10 @@
     "title": "Trade and Marketplace",
     "nexus_page_id": 30,
     "nexus_file_id": null
+  },
+  "group-finder": {
+    "title": "Group Finder",
+    "nexus_page_id": 37,
+    "nexus_file_id": null
   }
 }

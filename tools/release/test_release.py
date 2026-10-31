@@ -167,9 +167,12 @@ class ReleaseTests(unittest.TestCase):
                     stale = folder / f'package/hlx/{kind}/{project}/mod.info'
                     stale.parent.mkdir(parents=True)
                     stale.write_text('maxGameVersion=0.3.1.31995\n')
-                if project in ('dps-meter', 'trade-and-marketplace'):
+                plugins = {'dps-meter': 'dps_meter_desktop.hdll',
+                           'trade-and-marketplace': 'trade_marketplace_desktop.hdll',
+                           'group-finder': 'group_finder_desktop.hdll'}
+                if project in plugins:
                     (folder / 'build/native').mkdir()
-                    plugin = 'dps_meter_desktop.hdll' if project == 'dps-meter' else 'trade_marketplace_desktop.hdll'
+                    plugin = plugins[project]
                     (folder / 'build/native' / plugin).write_bytes(b'Native test plugin')
                 if project == 'dps-meter':
                     (folder / 'tools').mkdir()
@@ -184,7 +187,7 @@ class ReleaseTests(unittest.TestCase):
                 with zipfile.ZipFile(archive) as zipped:
                     self.assertFalse(any(name.endswith('/mod.info') for name in zipped.namelist()))
                     self.assertIn(f'hlx/mods/{project}/{project}.hl', zipped.namelist())
-                    if project in ('dps-meter', 'trade-and-marketplace'):
+                    if project in plugins:
                         self.assertIn(f'hlx/plugins/{project}/{plugin}', zipped.namelist())
 
     def test_zip_has_installable_root_and_stable_bytes(self):
@@ -217,6 +220,27 @@ class ReleaseTests(unittest.TestCase):
     def test_dps_native_plugin_is_required(self):
         with self.assertRaises(ValueError):
             release.validate_package(self.package('dps-meter'), 'dps-meter')
+
+    def test_group_finder_release_requires_complete_installation(self):
+        plan = release.validate_request({**self.request, 'project': 'group-finder', 'version': '1.0.0'}, self.config)
+        self.assertEqual(plan['nexus_url'], 'https://www.nexusmods.com/farever/mods/37')
+        self.assertEqual(plan['tag'], 'group-finder/v1.0.0')
+        package = self.package('group-finder')
+        implementation = package / 'hlx/mods/group-finder/implementation/group-finder.hl'
+        plugin = package / 'hlx/plugins/group-finder/group_finder_desktop.hdll'
+        implementation.parent.mkdir(parents=True)
+        plugin.parent.mkdir(parents=True)
+        plugin.write_bytes(b'Native test plugin')
+        with self.assertRaisesRegex(ValueError, 'Missing Group Finder implementation'):
+            release.make_archive(package, plan)
+        implementation.write_bytes(b'HLB implementation')
+        plugin.unlink()
+        with self.assertRaisesRegex(ValueError, 'Missing Group Finder desktop plugin'):
+            release.make_archive(package, plan)
+        plugin.write_bytes(b'Native test plugin')
+        with zipfile.ZipFile(release.make_archive(package, plan)) as archive:
+            self.assertEqual(len(archive.namelist()), 3)
+            self.assertEqual(archive.read(plugin.relative_to(package).as_posix()), b'Native test plugin')
 
     def test_more_settings_no_longer_requires_an_audio_plugin(self):
         self.assertTrue(release.validate_package(self.package('more-settings'), 'more-settings'))

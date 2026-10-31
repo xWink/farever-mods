@@ -236,6 +236,9 @@ def validate_package(package, project):
     require(f'hlx/mods/{project}/{project}.hl' in names, 'Missing compiled mod')
     if project == 'dps-meter':
         require('hlx/plugins/dps-meter/dps_meter_desktop.hdll' in names, 'Missing DPS Meter desktop plugin')
+    if project == 'group-finder':
+        require('hlx/mods/group-finder/implementation/group-finder.hl' in names, 'Missing Group Finder implementation')
+        require('hlx/plugins/group-finder/group_finder_desktop.hdll' in names, 'Missing Group Finder desktop plugin')
     return files
 
 

@@ -1,5 +1,7 @@
 # Group Finder
 
+Initial release: **1.0.0**. Download from [Nexus Mods](https://www.nexusmods.com/farever/mods/37). Subsequent releases use the shared [release pipeline](../RELEASING.md) with the `group-finder` project and `group-finder/v<version>` tags.
+
 Open with **F9**, `/lfg`, `/groupfinder`, or the button in Better Mod Settings. The hotkey is configurable. Browse Dungeons, World Events, and Other, with native scrolling and scrollbars. Listings display party members, class banners, levels, yellow leader stars, and Fareverly supporter badges.
 
 Connect through **Login to Fareverly** in Group Finder settings. **Verify Fareverly connection** checks the connection without showing the key. Credentials are shared with DPS Meter and Trade and Marketplace; an existing valid login works here too. Group Finder works independently of both mods.

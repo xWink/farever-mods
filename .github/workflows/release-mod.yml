@@ -112,8 +112,17 @@ jobs:
     with:
       source-ref: ${{ needs.prepare.outputs.source }}
 
+  group-finder:
+    needs: prepare
+    if: needs.prepare.outputs.project == 'group-finder'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-group-finder.yml
+    with:
+      source-ref: ${{ needs.prepare.outputs.source }}
+
   publish:
-    needs: [prepare, better-mod-settings, item-utilities, more-settings, fix-target-lock, dps-meter, minimap, mod-update-alerts, trade-and-marketplace]
+    needs: [prepare, better-mod-settings, item-utilities, more-settings, fix-target-lock, dps-meter, minimap, mod-update-alerts, trade-and-marketplace, group-finder]
     if: always() && needs.prepare.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     timeout-minutes: 30

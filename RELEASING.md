@@ -20,7 +20,7 @@ notes, building a test artifact, or asking about a release does not publish it.
    add a repository secret named **NEXUSMODS_API_KEY**. Enter its value directly
    there; do not put it in chat, source control, a release request, or a log.
 3. The mappings in [tools/release/mods.json](tools/release/mods.json) already
-   identify all eight existing mod pages. The workflow resolves the Nexus v3
+   identify all nine mod pages, including Group Finder (37). The workflow resolves the Nexus v3
    mod ID and main file ID through the API. Usually no other setup is needed.
 
 If a page has several main files with no unique primary download, set that
@@ -151,9 +151,13 @@ already published GitHub release. Report both platform outcomes accurately.
 | `dps-meter` | [DPS Meter](https://www.nexusmods.com/farever/mods/11) | `farever-dps-meter.zip` |
 | `minimap` | [Minimap](https://www.nexusmods.com/farever/mods/15) | `farever-minimap.zip` |
 | `mod-update-alerts` | [Mod Update Alerts](https://www.nexusmods.com/farever/mods/17) | `farever-mod-update-alerts.zip` |
+| `trade-and-marketplace` | [Trade and Marketplace](https://www.nexusmods.com/farever/mods/30) | `farever-trade-and-marketplace.zip` |
+| `group-finder` | [Group Finder](https://www.nexusmods.com/farever/mods/37) | `farever-group-finder.zip` |
 
 Each ZIP starts with `hlx/` and contains only that mod and its native plugins.
-| `trade-and-marketplace` | [Trade and Marketplace](https://www.nexusmods.com/farever/mods/30) | `farever-trade-and-marketplace.zip` |
+Group Finder releases run its request/API/UI tests and build the Windows login
+plugin at the selected source commit. The package must include both the bootstrap
+and implementation modules plus `group_finder_desktop.hdll` before publishing.
 
 Versions are independent; the repository has no shared Latest release.
 Historical releases remain linked from [MIGRATION.md](MIGRATION.md).
