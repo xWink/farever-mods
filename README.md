@@ -6,6 +6,7 @@ Visit [Fareverly](https://fareverly.com) for [mod showcases](https://fareverly.c
 
 | Mod | Downloads | Test builds |
 | --- | --- | --- |
+| [Group Finder](group-finder/) | Local prototype | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-group-finder.yml) |
 | [Better Mod Settings](better-mod-settings/) | [Releases](https://github.com/xWink/farever-mods/releases?q=better-mod-settings%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-better-mod-settings.yml) |
 | [Item Utilities](item-utilities/) | [Releases](https://github.com/xWink/farever-mods/releases?q=item-utilities%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-item-utilities.yml) |
 | [More Settings](more-settings/) | [Releases](https://github.com/xWink/farever-mods/releases?q=more-settings%2Fv&expanded=true) | [Builds](https://github.com/xWink/farever-mods/actions/workflows/build-more-settings.yml) |

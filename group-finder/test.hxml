@@ -1,0 +1,11 @@
+-cp src
+-cp tests
+-main GroupFinderTest
+--interp
+
+--next
+-cp src
+-cp tests
+-cp tests/ui-stubs
+-main GroupWindowTest
+--interp

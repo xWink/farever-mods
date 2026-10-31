@@ -1,0 +1,47 @@
+name: Group Finder
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'group-finder/**'
+      - 'shared/**'
+      - '.github/workflows/build-group-finder.yml'
+      - '.github/workflows/_build-mod.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'group-finder/**'
+      - 'shared/**'
+      - '.github/workflows/build-group-finder.yml'
+      - '.github/workflows/_build-mod.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-group-finder-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: krdlab/setup-haxe@v1
+        with:
+          haxe-version: 4.3.7
+      - name: Test local listings and request lifecycle
+        working-directory: group-finder
+        run: haxe test.hxml
+  build:
+    needs: test
+    uses: ./.github/workflows/_build-mod.yml
+    with:
+      project: group-finder
+      module: group-finder
+      title: Group Finder
+      required-settings: true

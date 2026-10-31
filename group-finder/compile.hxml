@@ -1,0 +1,15 @@
+-lib hlx-runtime
+-D hl-ver=1.16.0
+-cp src
+-cp ../shared/src
+-main groupfinder.GroupFinderMod
+-dce full
+-hl build/group-finder/implementation/group-finder.hl
+
+--next
+-D hl-ver=1.16.0
+-cp ../shared/bootstrap
+-D dependency-mod=group-finder
+-main moddependencies.Bootstrap
+-dce full
+-hl build/group-finder/group-finder.hl

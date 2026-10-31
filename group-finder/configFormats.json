@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "displayName": "Group Finder",
+  "configs": [
+    {"type": "title", "label": "General"},
+    {"type": "checkbox", "key": "enabled", "label": "Enabled"},
+    {"type": "keybinding", "key": "hotkey", "label": "Open Group Finder hotkey", "modifiers": true},
+    {"type": "button", "key": "openGroupFinder", "label": "Group Finder", "buttonText": "Open Group Finder"},
+    {"type": "title", "label": "Prototype"},
+    {"type": "checkbox", "key": "showExamples", "label": "Show sample listings", "tooltip": {"enabled": true, "tooltipText": "Display local sample groups to preview browsing and join requests. Your own listing is kept when sample groups are hidden."}}
+  ]
+}
