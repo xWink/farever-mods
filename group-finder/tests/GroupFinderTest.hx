@@ -69,7 +69,7 @@ class GroupFinderTest {
         eq(requests.answer(requests.rows[0].id,false,listing,p,api.now),"");eq(requests.rows[0].state,"declined");
         requests.add(listing,member("guest5"),false,api.now);requests.cancel(requests.rows[0].id);eq(requests.rows[0].state,"cancelled");
         ok(requests.add(listing,member("guest5"),false,api.now)!="");
-        requests.add(listing,member("guest6"),false,api.now);requests.tick(api.now+61,api.find);eq(requests.rows[0].state,"expired");
+        requests.add(listing,member("guest6"),false,api.now);requests.tick(api.now+301,api.find);eq(requests.rows[0].state,"expired");
         requests.add(listing,member("guest7"),true,api.now);api.disconnect("owner");requests.tick(api.now,api.find);eq(requests.rows[0].state,"closed");
         requests.reset();eq(requests.rows.length,0);eq(requests.add(listing,member("guest5"),false,api.now),"");
         requests.add(listing,member("invited-outgoing"),false,api.now);requests.rows[0].state="invited";

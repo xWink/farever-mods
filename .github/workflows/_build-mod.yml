@@ -92,6 +92,13 @@ jobs:
           name: marketplace-native-dll
           path: ${{ inputs.project }}/build/native
 
+      - name: Get Group Finder desktop plugin
+        if: inputs.project == 'group-finder'
+        uses: actions/download-artifact@v4
+        with:
+          name: group-finder-native-dll
+          path: ${{ inputs.project }}/build/native
+
       - name: Package
         env:
           REQUIREMENTS: ${{ inputs.required-settings && 'Requires HLX Core, Better Mod Settings, and Mod Update Alerts.' || 'Requires HLX Core.' }}
@@ -111,6 +118,10 @@ jobs:
           if [[ "$PROJECT" == 'trade-and-marketplace' ]]; then
             mkdir -p package/hlx/plugins/trade-and-marketplace
             cp build/native/trade_marketplace_desktop.hdll package/hlx/plugins/trade-and-marketplace/
+          fi
+          if [[ "$PROJECT" == 'group-finder' ]]; then
+            mkdir -p package/hlx/plugins/group-finder
+            cp build/native/group_finder_desktop.hdll package/hlx/plugins/group-finder/
           fi
           printf '%s\n' \
             "$REQUIREMENTS" \

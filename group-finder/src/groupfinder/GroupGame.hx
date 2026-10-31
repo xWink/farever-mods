@@ -25,10 +25,13 @@ class GroupGame {
         return null;
     }
     public static function notifyRequest(member:GroupMember):Void {
+        notify(member.name+" ("+GroupRules.memberText(member)+") requested to join your group. Open /lfg to review.");
+    }
+    public static function notify(text:String):Void {
         var ui=G.current("ui.BaseUI","current");if(ui==null||!G.isA(ui,"ui.GameUI"))return;
         var chat=G.call("ui.GameUI","get_chat",ui);if(chat==null)return;
         var client=G.field(chat,"chatClient");if(client==null)return;
-        var message="[Group Finder] "+member.name+" ("+GroupRules.memberText(member)+") requested to join your group. Open /lfg to review.";
+        var message="[Group Finder] "+text;
         // Client-local history only: the game timestamps, filters and lays out
         // the normal ChatBoxMessage, including wrapped lines and auto-scroll.
         // AllSystem already has a native timestamp; More Settings leaves it alone.
@@ -37,6 +40,9 @@ class GroupGame {
             notify:null,args:null,localStamp:null,localTextId:null
         }]);
     }
+    public static function connected(player:Dynamic):Bool return player!=null&&G.field(player,"isMe")==true
+        &&G.field(player,"hero")!=null&&G.field(G.field(player,"hero"),"removed")!=true
+        &&G.current("lib.Network","OFFLINE_MODE")!=true&&G.current("lib.Network","realmId")!=null;
     public static function capture(player:Dynamic):Null<GroupParty> {
         var account=G.text(G.field(player,"uid")),group=G.field(player,"group");
         if(account==""||group==null)return null;
@@ -45,7 +51,7 @@ class GroupGame {
         var members=[for(p in players)member(p)];
         var leader=G.call("st.Group","get_leader",group);
         var region=regionId(G.text(G.current("Options","serverRegion")));
-        return {accountId:account,partyId:G.text(G.field(group,"groupId")),leaderId:G.text(G.field(leader,"uid")),region:region,members:members};
+        return {accountId:account,nativePartyId:G.text(G.field(group,"groupId")),partyId:G.text(G.field(group,"groupId"))==""?"solo-"+account:G.text(G.field(group,"groupId")),leaderId:G.text(G.field(leader,"uid")),region:region,members:members};
     }
     public static function member(player:Dynamic):GroupMember {
         var hero=G.field(player,"hero"),data=G.field(player,"heroData");

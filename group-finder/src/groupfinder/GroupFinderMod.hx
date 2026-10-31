@@ -7,14 +7,13 @@ import modinput.Hotkey;
 import modinput.NativeHotkey;
 import groupfinder.GameAccess as G;
 
-typedef GroupConfig = {enabled:Bool,hotkey:Dynamic,showExamples:Bool,x:Null<Float>,y:Null<Float>};
+typedef GroupConfig = {enabled:Bool,hotkey:Dynamic,x:Null<Float>,y:Null<Float>};
 
 @:build(hlx.runtime.Mod.build())
 class GroupFinderMod {
-    @:hlx.config static var config:GroupConfig={enabled:true,hotkey:120,showExamples:true,x:null,y:null};
+    @:hlx.config static var config:GroupConfig={enabled:true,hotkey:120,x:null,y:null};
     static var controller:GroupController;
     public static function enabled():Bool return config.enabled;
-    public static function examples():Bool return config.showExamples;
     public static function report(error:String):Void trace("[Group Finder] "+error);
     public static function position():{x:Null<Float>,y:Null<Float>} return {x:config.x,y:config.y};
     public static function moved(x:Float,y:Float):Void {
@@ -42,6 +41,17 @@ class GroupFinderMod {
                 if(ui!=null&&G.call("ui.BaseUI","getFocusedTextInput",ui)==null)controller.toggle();
             }
         } catch(error:Dynamic)controller.fail(error);
+    }
+    @:hlx.prefix(st.player.ChatClient.localReceiveMessage)
+    static function receiveLocal(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
+    @:hlx.prefix(st.player.ChatClient.receiveMessage__impl)
+    static function receiveRpc(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
+    @:hlx.prefix(ui.hud.ChatBox.receiveMessage)
+    static function receiveRow(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(G.field(instance,"chatClient"),message);
+    static function receive(client:Dynamic,message:Dynamic):HlxPrefixResult<Void> {
+        var text=G.text(G.field(message,"text"));if(!GroupWire.isPacket(text))return Continue;
+        if(controller!=null)try controller.receive(client,message,text)catch(e:Dynamic)report("Group request: "+Std.string(e));
+        G.set(message,"text","");return Skip;
     }
     @:hlx.prefix(GameApp.dispose)
     static function dispose(instance:Dynamic):HlxPrefixResult<Void> {if(controller!=null)controller.disconnect();return Continue;}

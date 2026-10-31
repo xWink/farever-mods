@@ -1,23 +1,29 @@
-# Group Finder — local prototype
+# Group Finder
 
-Open **Group Finder** with **F9**, `/lfg`, `/groupfinder`, or its button in Better Mod Settings. The hotkey is configurable, including modifiers. F8 remains available to DPS Meter's mode toggle.
+Open with **F9**, `/lfg`, `/groupfinder`, or the button in Better Mod Settings. The hotkey is configurable. Browse Dungeons, World Events, and Other, with native scrolling and scrollbars. Listings display party members, class banners, levels, yellow leader stars, and Fareverly supporter badges.
 
-Browse **Dungeons**, **World Events**, and **Other** using the category sidebar. Compact listings show larger brown headings matching Marketplace item names, party members, native coloured class banners, levels, yellow leader stars, and available places. Fareverly badges are centered beside member names, before the party leader star, with the same artwork and hover labels as Marketplace. About one in five sample members and requests has a badge; real account badges will come from the future Fareverly integration. **Requests** and **Create listing / My listing** sit at the bottom of the sidebar. Requests is available only while you have an open listing, and its inbox resets when the listing closes. The window can be moved and scales to fit the screen; listings and requests use native scrolling with a visible scrollbar.
+Connect through **Login to Fareverly** in Group Finder settings. **Verify Fareverly connection** checks the connection without showing the key. Credentials are shared with DPS Meter and Trade and Marketplace; an existing valid login works here too. Group Finder works independently of both mods.
 
-Create, edit, and close listings locally. Only a solo player or the current party leader can list. Titles are limited to 50 Unicode code points, treated as plain text, and rendered through the game's profanity filter. Your real party is sampled twice per second, including when the window is closed. Listings owned by accounts on your native ignore list are hidden, and unignoring restores them without another API refresh. A full party, changed party, lost leadership, or logout closes the listing. An open listing disables requesting to join other groups until you close your listing. Closing the window keeps the listing; leaving space in a previously full party does not repost it.
+## Listings
 
-Sample groups are enabled by default; turn off **Show sample listings** in settings to test an empty browser. Creating your own listing enables **Requests → Add sample request** to preview accept/decline. Every sample click creates a unique requester. New incoming requests produce a native, timestamped system message with normal chat wrapping and spacing with the requester's name, class, and level, even when Group Finder is closed. There is no cap on distinct requesters or outstanding invitations; native party capacity will be enforced by the game when real invites are integrated. Duplicate pending requests from the same player are suppressed. Requesting a sample group previews pending/cancelled/expired requests directly on the listing. Joining a party or changing parties cancels outgoing pending requests and invitation previews, even with the window closed. Incoming requests to your listing are preserved. Requests expire after 60 seconds; repeat requests from the same player have a 10-second cooldown.
+Listings are stored on Fareverly and restricted to your connected region. Only solo players and party leaders can post, with one listing per account and party. Titles have a 50-character Unicode limit and are rendered as plain text through the viewer's profanity filter. Badges come from Fareverly, never from posted party data.
 
-This build uses an asynchronous in-memory `MockGroupService` behind `GroupService`. No HTTP calls, heartbeats, login, whispers, or real party invitations occur. Listings last only for the current game session. All sample groups and join requests are local test data. The mock models a 120-second listing lease renewed by party snapshots; these timings and the interface are prototype choices, not a finalized Fareverly API contract.
+Party state is sampled twice a second, even with the window closed. Changes are coalesced to at most one roster update per second. A full party, lost leadership, changed party/region, logout, or disabling the mod closes the listing. Closing the window keeps it. A later free slot never automatically reposts it. Native ignored leaders are hidden; sidebar counts are Fareverly's totals before local ignores. Cursor pagination loads further pages while scrolling, including pages hidden entirely by ignores. Browsing refreshes roughly every ten seconds while visible, backing off after failures.
 
-The production integration is deferred: shared Fareverly authentication, Group Finder-specific presence, server-enforced account/party uniqueness and region scope, remote updates, and whisper request/response routing with native invitations. Cross-zone and cross-instance delivery still needs verification.
+## Join requests
 
-Install the complete build archive using Vortex, or extract it into the Farever game folder. Requires HLX Core 0.0.8+, Better Mod Settings, and Mod Update Alerts. Trade and Marketplace is not required.
+Requesting fetches the latest listing before sending one private protocol message. Requests, responses, and cancellation use native game whispers; there is no HTTP request inbox. Native invitations use the game's account-ID invitation method, which supports players on other zones/instances in the same region. The requester still accepts the normal game invitation.
 
-Build with Haxe 4.3.7 and `hlx-runtime` installed:
+Requests expire after five minutes. Duplicate pending requests are suppressed, with a ten-second repeat cooldown, but distinct requests/invitations have no artificial cap or slot reservation. Joining/changing parties cancels outgoing requests even with the window closed. Closing a listing resets its inbox and notifies pending requesters. Incoming requests use timestamped native chat alerts containing the name, class, and level. Declines and unavailable groups also notify the requester. Request/Cancel buttons stay in place; only errors appear in the window footer.
 
-```sh
-cd group-finder
-haxe test.hxml
-haxe compile.hxml
-```
+## Presence and reliability
+
+Group Finder and Marketplace independently send the same `POST /api/v1/marketplace/heartbeat` body containing only the connected server. Both honor the account-wide 60-second limit and `Retry-After`; either accepted heartbeat maintains the shared 180-second presence. Heartbeats run while logged in, regardless of listings or window visibility. There is no elected owner, mod dependency, separate Group Finder heartbeat, or per-listing renewal. A rate-limit response is not treated as proof of presence on the current region: listing creation is still validated by Fareverly.
+
+HTTP/TLS and authentication run on a worker thread, with bounded responses and timeouts. Creates use UUID idempotency keys; retries retain the same payload/key after uncertain responses. Edits/party updates use revision checks and reconcile conflicts. Stale callbacks cannot update a new client session; a late/abandoned create is resolved and closed using its original credential. Cleanup retries are bounded below the API's seven-day idempotency retention. Sudden process termination relies on shared presence expiry.
+
+Install the **complete ZIP**, including `hlx/plugins/group-finder/group_finder_desktop.hdll`, using Vortex or extract into the game folder. Requires HLX Core 0.0.8+, Better Mod Settings, and Mod Update Alerts. No sample listings or simulated requests are enabled in production.
+
+## Build and verification
+
+Haxe 4.3.7 and `hlx-runtime` are required. Run `haxe test.hxml`, then `haxe compile.hxml`. Build the Windows login plugin with `bash native/build.sh` (MinGW x64). CI packages the mod and desktop plugin together. Tests use injected in-memory APIs; they do not post listings or send messages to live players. Cross-client delivery and actual account login still need an in-game check.

@@ -13,7 +13,7 @@ class GroupSocialTest {
     }
     static function titleVisible(title:String):Bool return G.labels.filter(l->l.text==title).length>0;
     public static function run():Void {
-        var c=new GroupController(),me=player("social-tester"),app:Dynamic={me:me};
+        var c=new GroupController(new groupfinder.MockGroupService()),me=player("social-tester"),app:Dynamic={me:me};
         c.update(app,0);c.open();c.update(app,0.2);
         check(c.rows.length==13&&c.visibleListings().length==13,"Initial listings are available");
         check(G.labels.filter(l->l.text=="Choose a group and request to join."||~/^\d+ groups?$/.match(G.text(l.text))).length==0,"Browse helper and group-count text are removed");

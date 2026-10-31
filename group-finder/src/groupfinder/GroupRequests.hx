@@ -2,20 +2,20 @@ package groupfinder;
 
 import groupfinder.GroupTypes;
 
-/** Local request previews. No native invitations or chat packets are sent. */
+/** Request lifecycle shared by live whispers and deterministic tests. */
 class GroupRequests {
     public var rows(default,null):Array<JoinRequest>=[];
     public var revision(default,null)=0;
     var sequence=0;
     var cooldown:Map<String,Float>=[];
     public function new() {}
-    public function add(listing:GroupListing,member:GroupMember,incoming:Bool,now:Float):String {
+    public function add(listing:GroupListing,member:GroupMember,incoming:Bool,now:Float,?id:String,?peerId:String,?peerName:String):String {
         if(listing==null)return "This listing is no longer available.";
         for(m in listing.members)if(m.accountId==member.accountId)return "You are already in this party.";
         var key=listing.id+":"+member.accountId;
         for(r in rows)if(r.listingId==listing.id&&r.member.accountId==member.accountId&&(r.state=="pending"||r.state=="invited"))return "A request is already pending.";
         if(cooldown.exists(key)&&now<cooldown[key])return "Please wait before requesting this group again.";
-        rows.unshift({id:"request-"+(++sequence),listingId:listing.id,member:GroupRules.clone(member),incoming:incoming,state:"pending",expiresAt:now+60});
+        rows.unshift({id:id==null?"request-"+(++sequence):id,listingId:listing.id,member:GroupRules.clone(member),incoming:incoming,state:"pending",expiresAt:now+GroupRules.REQUEST_TIMEOUT,peerId:peerId,peerName:peerName});
         cooldown[key]=now+10;revision++;
         return "";
     }
@@ -24,14 +24,20 @@ class GroupRequests {
         if(request==null||request.state!="pending"||request.expiresAt<=now)return "This request has expired.";
         if(listing==null||party==null||!request.incoming||request.listingId!=listing.id||listing.ownerId!=party.accountId||party.leaderId!=party.accountId)return "This listing is no longer available.";
         // Invitations do not reserve places. The native game owns party capacity.
-        request.state=accept?"invited":"declined";request.expiresAt=now+60;revision++;
+        request.state=accept?"invited":"declined";request.expiresAt=now+GroupRules.REQUEST_TIMEOUT;revision++;
         return "";
+    }
+    public function respond(id:String,listingId:String,sender:String,state:String,now:Float):Bool {
+        var r=get(id);if(r==null||r.listingId!=listingId||r.peerId!=sender||r.expiresAt<=now
+            ||(r.state!="pending"&&r.state!="invited"))return false;
+        if(r.incoming&&state!="cancelled"||!r.incoming&&["invited","declined","closed"].indexOf(state)<0)return false;
+        r.state=state;revision++;return true;
     }
     public function reset():Void {rows=[];cooldown.clear();revision++;}
     public function incoming(listingId:String):Array<JoinRequest>
         return rows.filter(r->r.incoming&&r.listingId==listingId);
     public function cancel(id:String):Void {
-        var request=get(id);if(request==null||request.state!="pending")return;
+        var request=get(id);if(request==null||(request.state!="pending"&&request.state!="invited"))return;
         request.state="cancelled";revision++;
     }
     /** Joining a party ends our outgoing requests, without clearing a leader's inbox. */
@@ -49,7 +55,7 @@ class GroupRequests {
     }
     public function tick(now:Float,find:String->Null<GroupListing>):Void {
         for(r in rows)if(r.state=="pending"||r.state=="invited") {
-            var state=find(r.listingId)==null?"closed":r.expiresAt<=now?"expired":r.state;
+            var state=find!=null&&find(r.listingId)==null?"closed":r.expiresAt<=now?"expired":r.state;
             if(state!=r.state){r.state=state;revision++;}
         }
     }

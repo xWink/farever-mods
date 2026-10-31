@@ -1,12 +1,29 @@
 -cp src
+-cp ../shared/src
 -cp tests
 -main GroupFinderTest
 --interp
 
 --next
 -cp src
+-cp ../shared/src
 -cp tests
 -cp tests/ui-stubs
 resources.hxml
 -main GroupWindowTest
+--interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-main GroupApiTest
+--interp
+
+--next
+-cp src
+-cp ../shared/src
+-cp tests
+-cp tests/worker-stubs
+-main GroupWorkerTest
 --interp

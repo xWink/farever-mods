@@ -1,6 +1,8 @@
 package groupfinder;
 /** Minimal native DOM/Flow adapter, including normal-flow versus absolute children. */
 class GameAccess {
+    public static var sent:Array<Dynamic>=[];
+    public static var invites:Array<String>=[];
     public static var ui:Dynamic={chat:{messages:{children:[]},chatClient:{}},windows:[]};
     public static var nodes:Array<Dynamic>=[];
     public static var labels:Array<Dynamic>=[];
@@ -25,6 +27,9 @@ class GameAccess {
     public static function array(value:Dynamic,proxy=false):Array<Dynamic> {
         if(proxy)value=field(value,"array");return value==null?[]:cast value;
     }
+    public static function enumValue(type:String,name:String,args:Array<Dynamic>):Dynamic return {name:name,args:args};
+    public static function enumName(value:Dynamic):String return value==null?"":Std.isOfType(value,String)?value:field(value,"name");
+    public static function enumArgument(value:Dynamic,index:Int):Dynamic return value.args[index];
     public static function enumeration(type:String,name:String):Dynamic return name;
     public static function isA(obj:Dynamic,type:String):Bool return obj==ui&&type=="ui.GameUI";
     public static function current(type:String,name:String):Dynamic return type=="ui.BaseUI"?ui:type=="Data"?{byId:units}:type=="Options"?"eu":name;
@@ -54,6 +59,10 @@ class GameAccess {
         return switch(name) {
             case "get": (cast obj:Map<String,Dynamic>).get(args[0]);
             case "get_chat":obj.chat;
+            case "getName":obj.name;
+            case "sendMessage":sent.push({to:args[0],packet:args[1]});args[2](true);null;
+            case "hasInvitePlayerAllowed":"Ok";
+            case "sendInviteGroup":invites.push(args[0]);null;
             case "localReceiveMessage":
                 if(obj!=ui.chat.chatClient)throw "Not the local chat client";
                 var message=args[0];message.localStamp=haxe.Timer.stamp();notifications.push(message);null;

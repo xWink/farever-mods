@@ -1,17 +1,17 @@
 package groupfinder;
 
 typedef GroupMember = {accountId:String, name:String, className:String, level:Int, ?badge:String};
-typedef GroupParty = {accountId:String, partyId:String, leaderId:String, region:String, members:Array<GroupMember>};
+typedef GroupParty = {accountId:String, partyId:String, leaderId:String, region:String, members:Array<GroupMember>, ?nativePartyId:String};
 typedef GroupListing = {
     id:String, ownerId:String, partyId:String, region:String, category:String, title:String,
-    members:Array<GroupMember>, updatedAt:Float, expiresAt:Float, sample:Bool
+    members:Array<GroupMember>, updatedAt:Float, expiresAt:Float, sample:Bool, ?revision:Int, ?subcategory:String
 };
 typedef GroupResult<T> = {value:Null<T>, error:String};
 typedef JoinRequest = {
-    id:String, listingId:String, member:GroupMember, incoming:Bool, state:String, expiresAt:Float
+    id:String, listingId:String, member:GroupMember, incoming:Bool, state:String, expiresAt:Float, ?peerId:String, ?peerName:String
 };
 
-/** UI-facing service boundary. The prototype implementation is entirely local. */
+/** UI-facing listing service; mock implementation is injected only by tests. */
 interface GroupService {
     public function list(region:String, done:GroupResult<Array<GroupListing>>->Void):Void;
     public function save(party:GroupParty, id:Null<String>, title:String, category:String, done:GroupResult<GroupListing>->Void):Void;
@@ -22,6 +22,7 @@ class GroupRules {
     public static final categories = ["Dungeons", "World Events", "Other"];
     public static inline var CAPACITY = 4;
     public static inline var MAX_TITLE_LENGTH = 50;
+    public static inline var REQUEST_TIMEOUT = 300;
     public static function count(text:String):Int {
         var length=0;
         for (_ in new haxe.iterators.StringIteratorUnicode(text)) length++;

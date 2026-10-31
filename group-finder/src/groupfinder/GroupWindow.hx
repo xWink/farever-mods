@@ -19,6 +19,8 @@ class GroupWindow {
     var scroll=0.0;
     var scrollKey="";
     var sequence=0;
+    var fareverlyDialog:Dynamic;
+    var fareverlyDialogOwner:Dynamic;
     var inputBox:Dynamic;
     var countLabel:Dynamic;
     var validation:Dynamic;
@@ -39,6 +41,10 @@ class GroupWindow {
         }
         if(dirty){dirty=false;render();}
         frame.layout();if(scrollbar!=null)scrollbar.update();
+        if(viewport!=null&&c.live!=null&&c.live.hasMore&&c.page=="browse") {
+            var bottom=G.number(G.field(viewport,"scrollPosY"))+G.number(G.field(viewport,"height"));
+            if(bottom>=c.visibleListings(c.category).length*110-220)c.more();
+        }
     }
     public function dispose():Void {
         badges.dispose();
@@ -84,7 +90,7 @@ class GroupWindow {
         text(sidebar,"FIND A GROUP",14,18,176,true);
         text(sidebar,GroupGame.regionName(c.party==null?"":c.party.region),14,46,176,false,MUTED);
         for(i in 0...GroupRules.categories.length) {
-            var category=GroupRules.categories[i],count=c.visibleListings(category).length;
+            var category=GroupRules.categories[i],count=c.count(category);
             button(sidebar,category+"  ("+count+")",12,86+i*46,180,()->c.choose(category),"",true,c.page=="browse"&&c.category==category);
         }
         var mine=c.mine();
@@ -137,12 +143,12 @@ class GroupWindow {
             }
         } else {
             var request=c.requests.outgoing(row.id);
-            if(request!=null&&request.state=="pending") {
+            if(request!=null&&(request.state=="pending"||request.state=="invited")) {
                 button(card,"Cancel request",570,42,164,()->c.cancel(request));
                 var status=G.field(node("element",G.field(card,"dom"),[],"groupRequestStatus"+(sequence++)),"obj");
                 absolute(card,status);padding(status,0);size(status,218,22);position(status,570,78);
                 G.call("h2d.Object","setScale",status,[0.75]);
-                text(status,"Request pending",0,0,218,false,GREEN);
+                text(status,request.state=="invited"?"Invitation sent":"Request pending",0,0,218,false,GREEN);
             } else button(card,"Request to join",570,42,164,()->c.request(row),"",c.requestError()=="");
         }
     }
@@ -274,7 +280,7 @@ class GroupWindow {
     function requests(root:Dynamic):Void {
         text(root,"Join requests",234,20,460,true);
         text(root,"Review requests to join your group.",234,51,768,false,MUTED);
-        button(root,"Add sample request",790,18,212,c.previewRequest,"",c.mine()!=null);
+        if(c.mock!=null)button(root,"Add sample request",790,18,212,c.previewRequest,"",c.mine()!=null);
         var mine=c.mine(),rows=mine==null?[]:c.requests.incoming(mine.id);
         var content=scroller(root,rows.length*126);
         if(rows.length==0) {
@@ -282,7 +288,7 @@ class GroupWindow {
             text(content,"New requests to join your group will appear here.",24,102,680,false,MUTED,true);
         }
         for(i in 0...rows.length) {
-            var request=rows[i],listing=c.mock.find(request.listingId),card=panel(content,0,i*126,750,116,0xEADDC8);
+            var request=rows[i],listing=c.mine(),card=panel(content,0,i*126,750,116,0xEADDC8);
             if(request.incoming)memberName(card,request.member,16,12,516);
             else filtered(card,listing==null?"Your join request":listing.title,16,12,516,true);
             memberDetails(card,request.member,16,40,516);
@@ -295,9 +301,24 @@ class GroupWindow {
             }
         }
     }
+    public function closeFareverlyNotice():Void {
+        if(fareverlyDialog!=null&&fareverlyDialogOwner!=null&&G.field(fareverlyDialog,"allocated")==true)
+            G.call("ui.BaseUI","removeWindow",fareverlyDialogOwner,[fareverlyDialog]);
+        fareverlyDialog=fareverlyDialogOwner=null;
+    }
+    public function showFareverlyNotice(message:String,pending=false):Void {
+        closeFareverlyNotice();var ui=G.current("ui.BaseUI","current");if(ui==null)return;
+        var buttons=G.call("hl.types.ArrayObj","slice",G.field(ui,"windows"),[0,0]);
+        G.call("hl.types.ArrayObj","pushDyn",buttons,[{ic:pending?"Cancel":"Confirm",input:null,checkEnable:null,onBack:true}]);
+        fareverlyDialogOwner=ui;
+        fareverlyDialog=G.call("ui.BaseUI","displayDialog",ui,["Fareverly",StringTools.htmlEscape(message),buttons,function(choice:String):Void {
+            fareverlyDialog=fareverlyDialogOwner=null;if(pending&&choice=="Cancel"&&c.login!=null)c.login.cancel();
+        }]);
+        if(fareverlyDialog!=null)G.call("ui.comp.Button","setText",G.call("hl.types.ArrayObj","getDyn",G.field(fareverlyDialog,"buttons"),[0]),[pending?"Cancel sign-in":"OK"]);
+    }
     static function stateLabel(state:String):String return switch(state) {
         case "pending": "Request pending";
-        case "invited": "Invitation sent (preview)";
+        case "invited": "Invitation sent";
         case "declined": "Request declined";
         case "cancelled": "Request cancelled";
         case "closed": "Listing closed";

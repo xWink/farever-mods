@@ -12,7 +12,7 @@ class GroupWindowTest {
     static function render(c:GroupController):Void c.view.update(true);
     static function pump(c:GroupController):Void {c.mock.tick(c.mock.now+0.2);render(c);}
     static function main():Void {
-        var c=new GroupController();
+        var c=new GroupController(new groupfinder.MockGroupService());
         c.party={accountId:"me",partyId:"party",leaderId:"me",region:"europe",members:[{accountId:"me",name:"Tester",className:"Mage",level:25}]};
         c.mock.observe(c.party);c.mock.examples("europe",true);c.open();pump(c);
         check(G.labels.filter(l->["LOCAL PREVIEW","YOUR PARTY","Only visible to you","Sample group"].indexOf(l.text)>=0).length==0,"Removed redundant labels");
@@ -107,6 +107,7 @@ class GroupWindowTest {
         c.close();check(G.textures.filter(t->t.disposed!=true).length==0,"Closing releases badge textures");
         check(GroupFrame.active==0,"Closing disposes native window");
         GroupSocialTest.run();
+        GroupLiveTest.run();
         trace('Group Finder UI passed ($checks checks)');
     }
 }
