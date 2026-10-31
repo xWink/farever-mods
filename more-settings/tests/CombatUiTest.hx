@@ -1,7 +1,5 @@
 import moresettings.MinionHealthBars;
-import moresettings.BarbershopButton;
 import moresettings.SettingsData;
-import moresettings.AppearanceEditor;
 import moresettings.GameAccess as G;
 
 class CombatUiTest {
@@ -110,47 +108,6 @@ class CombatUiTest {
         MinionHealthBars.clear();
     }
 
-    static function barber():Void {
-        BarbershopButton.clear(); AppearanceEditor.requests = 0;
-        var panel:Dynamic = {children:new Array<Dynamic>(), calculatedWidth:620.0}; panel.dom = {obj:panel};
-        var helmet:Dynamic = {slot:"Slot_Head", parent:{}, bounds:{xMin:55.0,xMax:115.0,yMin:150.0,yMax:210.0}};
-        var gloves:Dynamic = {slot:"Slot_Hands", parent:{}, bounds:{xMin:510.0,xMax:570.0,yMin:150.0,yMax:210.0}};
-        var page:Dynamic = {unit:G.hero, scene:{parent:panel}, buttons:{items:[helmet, gloves]}, removed:false,
-            callbacks:new Array<Float->Void>()};
-        BarbershopButton.attach(page);
-        var children:Array<Dynamic> = panel.children;
-        eq(children.length, 1, "one native button added");
-        var button = children[0];
-        eq(button.text, "Barbershop", "requested label");
-        eq(button.props.isAbsolute, true, "button does not move the model or appearance slots");
-        eq(button.minWidth, 140, "button width fits the whitespace");
-        eq(button.x, 465.0, "right margin matches the top margin");
-        eq(button.y, 15.0, "top margin mirrors the native Character button bottom offset");
-        eq(G.relativeTo == panel, true, "native panel coordinates used for UI scaling");
-        var click:Void->Void = button.onClick; click();
-        eq(AppearanceEditor.requests, 1, "click requests the existing editor");
-        gloves.bounds.xMin = 530; gloves.bounds.xMax = 590; gloves.bounds.yMin = 200;
-        panel.calculatedWidth = 640;
-        var callbacks:Array<Float->Void> = page.callbacks;
-        for (callback in callbacks) callback(0.016);
-        eq(button.x, 485.0, "native panel resize preserves the right margin");
-        eq(button.y, 15.0, "top margin stays fixed when the slots move vertically");
-        page.unit = {};
-        for (callback in callbacks) callback(0.016);
-        click();
-        eq(button.visible, false, "not offered for another player's appearance");
-        eq(AppearanceEditor.requests, 1, "stale button cannot edit another character");
-        page.unit = G.hero; page.callbacks = [];
-        BarbershopButton.attach(page);
-        eq(children.length, 1, "rebuild replaces rather than duplicates the button");
-        click();
-        eq(AppearanceEditor.requests, 1, "replaced button action is inert");
-        BarbershopButton.forget(page);
-        var nextClick:Void->Void = children[0].onClick; nextClick();
-        eq(AppearanceEditor.requests, 1, "removed page action is inert");
-        BarbershopButton.clear();
-    }
-
     static function descriptor():Void {
         var config = SettingsData.defaults();
         eq(config.damageNumberLimit,"Medium","Damage number default uses the Medium preset");
@@ -200,7 +157,7 @@ class CombatUiTest {
         }
     }
     static function main():Void {
-        minions(); lifetimeBars(); barber(); descriptor();
+        minions(); lifetimeBars(); descriptor();
         trace('Combat UI: $checks checks passed.');
     }
 }

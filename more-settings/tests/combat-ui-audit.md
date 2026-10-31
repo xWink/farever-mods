@@ -1,4 +1,4 @@
-# Combat presentation and native Barbershop
+# Combat presentation
 
 Checked against the supplied October 1 Live `hlboot.dat` (HL6), SHA-256
 `617f602066c762869d5c15a01c83714664b0026868f0d24b129bbcc850da88d8`.
@@ -42,18 +42,8 @@ visibility requests so disabling the setting restores the intended state.
 Ownership/hostility refresh is capped at five checks per second per bar, and
 disabled, unfiltered bars return without native lookups.
 
-## Appearance entry point
-
-`ui.win.GearAppearance.init()` provides `scene`, `unit`, and an array of
-`ui.win.AppearanceSlot` buttons. `scene.parent` is the native character panel;
-the `Slot_Hands` button confirms the native slot layout is ready. The top and right insets are both 15 native UI units. Horizontal placement uses the panel and button's calculated widths so it follows the panel edge on resize. The vertical inset matches `character .content.character #appearanceModeBtn`'s native `offset-y: -15` bottom positioning from the supplied resource stylesheet. The new DOMKit button uses
-panel-relative bounds and absolute positioning, without modifying the model
-viewport or adding ImGui. Only the local hero's page gets a button. Its action
-requests the existing editor on the next game update, outside UI dispatch.
-Rebuilt/removed pages invalidate old button actions.
-
-`CombatUiTest` exercises production visibility and button code with native
-adapters in both the interpreter and HashLink. It covers visibility restoration,
-hostility/ownership changes, excluded bars, local-player checks, layout changes,
-page replacement, and stale actions. Native mod compilation also passes.
-Actual button rendering and multiplayer minion presentation need in-game testing.
+`CombatUiTest` exercises production visibility code with native adapters in
+both the interpreter and HashLink. It covers visibility restoration,
+hostility/ownership changes, excluded bars, and Combat settings descriptors.
+Native mod compilation also passes. Multiplayer minion presentation needs
+in-game testing.

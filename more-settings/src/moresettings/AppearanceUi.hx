@@ -2,30 +2,8 @@ package moresettings;
 
 import moresettings.GameAccess as G;
 
-/** Native Options styling and layout helpers for the appearance window. */
+/** Shared native UI helpers for friend notes, character locks, and chat. */
 class AppearanceUi {
-    public static function prepareBody(body:Dynamic):Dynamic {
-        var object = G.field(body, "obj");
-        var options = G.field(object, "optionsList");
-        var input = G.field(object, "inputList");
-        var container = G.field(options, "container");
-        if (container == null) throw "Native Options content container was not found";
-        // Keep the native styling ancestry, but stop the settings callbacks:
-        // OptionsList watches display mode and otherwise rebuilds over our appearance controls.
-        // Do this before adding the appearance controls.
-        for (component in [object, options, input])
-            if (component != null) G.call("ui.UIElement", "clearBinds", component);
-        show(input, false);
-        show(G.field(options, "applyBtn"), false);
-        for (child in children(container)) show(child, false);
-        return container;
-    }
-    public static function bodyIntact(body:Dynamic, container:Dynamic):Bool {
-        // A native rebuild can replace children while the outer window survives.
-        return container != null && G.field(container, "removed") != true
-            && G.field(container, "parent") != null
-            && G.field(G.field(G.field(body, "obj"), "optionsList"), "container") == container;
-    }
     public static function node(component:String, parent:Dynamic, args:Array<Dynamic>, id:String, ?layout:String):Dynamic {
         // Button labels go through FmtText's XML parser too. A literal "<"
         // must be escaped before construction, not after its first reflow.
@@ -39,14 +17,6 @@ class AppearanceUi {
         if (result == null) throw "Could not create " + component;
         return result;
     }
-    public static function label(parent:Dynamic, value:String):Dynamic {
-        // DOMKit's native text component supplies the same fonts as Options.
-        var d = node("text", parent, [escape(value)], "moreSettingsAppearanceText");
-        var obj = G.field(d, "obj");
-        G.call("h2d.Text", "set_textColor", obj, [0x5b4334]);
-        return obj;
-    }
-    public static function flow(dom:Dynamic, method:String, value:Dynamic):Void G.call("h2d.Flow", method, G.field(dom, "obj"), [value]);
     public static function style(object:Dynamic, property:String, value:Dynamic):Void {
         var dom = G.field(object, "dom");
         if (dom != null) G.call("domkit.Properties", "initStyle", dom, [property, value]);
@@ -91,9 +61,6 @@ class AppearanceUi {
         if (value == null) return "";
         var text = StringTools.htmlEscape(value);
         return StringTools.replace(StringTools.replace(text, "[", "&#91;"), "$", "&#36;");
-    }
-    public static function setText(obj:Dynamic, value:String):Void {
-        if (obj != null) G.call("ui.comp.FmtText", "set_text", obj, [escape(value)]);
     }
     public static function message(ui:Dynamic, title:String, text:String):Void {
         var buttons = G.call("hl.types.ArrayObj", "slice", G.field(ui, "windows"), [0, 0]);

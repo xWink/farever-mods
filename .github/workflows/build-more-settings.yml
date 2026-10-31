@@ -42,7 +42,7 @@ jobs:
       - uses: krdlab/setup-haxe@v1
         with:
           haxe-version: 4.3.7
-      - name: Test appearance, ownership and regional presentation filters
+      - name: Test settings, ownership and regional presentation filters
         working-directory: more-settings
         run: haxe test.hxml
       - uses: actions/checkout@v4
@@ -97,13 +97,6 @@ jobs:
         run: |
           haxe -D hl-ver=1.16.0 -cp src -cp ../shared/src -cp tests/social-stubs -cp tests/character-lock-stubs -cp tests -main CharacterLocksTest -hl build/character-locks-test.hl
           ../.combat-hashlink/hl build/character-locks-test.hl
-      - name: Test appearance isolation and saving on HashLink
-        working-directory: more-settings
-        env:
-          LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink
-        run: |
-          haxe -cp src -cp ../shared/src -cp tests/appearance-stubs -cp tests -main AppearanceTest -hl build/appearance-test.hl
-          ../.combat-hashlink/hl build/appearance-test.hl
       - name: Test Social settings on HashLink
         working-directory: more-settings
         env:
@@ -131,7 +124,7 @@ jobs:
         run: |
           haxe -cp src -cp ../shared/src -cp tests/stall-stubs -cp tests -main StallOptimizationTest -hl build/stall-optimization-test.hl
           ../.combat-hashlink/hl build/stall-optimization-test.hl
-      - name: Test combat UI and Barbershop on HashLink
+      - name: Test combat UI on HashLink
         working-directory: more-settings
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/.combat-hashlink

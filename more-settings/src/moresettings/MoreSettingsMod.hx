@@ -121,16 +121,10 @@ class MoreSettingsMod {
     static function beforeIncomingHealingNumber(instance:Dynamic, damage:Dynamic):HlxPrefixResult<Void>
         return config.damageNumberLimit == "None" ? Skip : Continue;
 
-    @:hlx.postfix(ui.win.GearAppearance.init)
-    static function afterGearAppearanceInit(instance:Dynamic, result:Void):Void {
-        try BarbershopButton.attach(instance) catch (error:Dynamic) AppearanceEditor.report(error);
-    }
-
     @:hlx.postfix(ui.BaseElement.onRemove)
     static function afterElementRemoved(instance:Dynamic, result:Void):Void {
         MinionHealthBars.forget(instance);
         EnemyDistance.forget(instance);
-        BarbershopButton.forget(instance);
         ObviousSkillProcs.forget(instance);
         BuffStackOutlines.forget(instance);
     }
@@ -281,7 +275,6 @@ class MoreSettingsMod {
     static function beforeUpdate(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
         DiagnosticHooks.update(instance, config.performanceOptimization);
         PerformanceHooks.update(instance, dt);
-        AppearanceEditor.update(instance);
         AllyEffects.update(instance);
         try SelfChatBubbles.update(instance) catch (error:Dynamic) SocialHooks.report(error);
         return Continue;
@@ -339,8 +332,6 @@ class MoreSettingsMod {
         DamageSkillIcons.clear();
         ObviousSkillProcs.clear();
         BuffStackOutlines.clear();
-        AppearanceEditor.close();
-        BarbershopButton.clear();
         MinionHealthBars.clear();
         AllyEffects.dispose();
         CrabgantuaWarnings.dispose();
