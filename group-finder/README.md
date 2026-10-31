@@ -6,7 +6,7 @@ Connect through **Login to Fareverly** in Group Finder settings. **Verify Fareve
 
 ## Listings
 
-Listings are stored on Fareverly and restricted to your connected region. Only solo players and party leaders can post, with one listing per account and party. Titles have a 50-character Unicode limit and are rendered as plain text through the viewer's profanity filter. Badges come from Fareverly, never from posted party data.
+Listings are stored on Fareverly and restricted to your connected region. Only solo players and party leaders can post, with one listing per account and party. Party identity uses the replicated group UID scoped to the leader's account; the game's server-only `groupId` is not available to clients. Titles stop accepting typing or pasted characters at the 50-character Unicode limit, preserving selected-text replacement and the caret. They are rendered as plain text through the viewer's profanity filter. Badges come from Fareverly, never from posted party data. Category buttons remain mounted through navigation and data refreshes so the hovered cursor stays stable.
 
 Party state is sampled twice a second, even with the window closed. Changes are coalesced to at most one roster update per second. A full party, lost leadership, changed party/region, logout, or disabling the mod closes the listing. Closing the window keeps it. A later free slot never automatically reposts it. Native ignored leaders are hidden; sidebar counts are Fareverly's totals before local ignores. Cursor pagination loads further pages while scrolling, including pages hidden entirely by ignores. Browsing refreshes roughly every ten seconds while visible, backing off after failures.
 
@@ -14,7 +14,9 @@ Party state is sampled twice a second, even with the window closed. Changes are 
 
 Requesting fetches the latest listing before sending one private protocol message. Requests, responses, and cancellation use native game whispers; there is no HTTP request inbox. Native invitations use the game's account-ID invitation method, which supports players on other zones/instances in the same region. The requester still accepts the normal game invitation.
 
-Requests expire after five minutes. Duplicate pending requests are suppressed, with a ten-second repeat cooldown, but distinct requests/invitations have no artificial cap or slot reservation. Joining/changing parties cancels outgoing requests even with the window closed. Closing a listing resets its inbox and notifies pending requesters. Incoming requests use timestamped native chat alerts containing the name, class, and level. Declines and unavailable groups also notify the requester. Request/Cancel buttons stay in place; only errors appear in the window footer.
+Pending requests expire after five minutes. Duplicate pending requests are suppressed, with a ten-second repeat cooldown, but distinct requests/invitations have no artificial cap or slot reservation. Joining the requested party marks the request as joined; other outgoing requests are cancelled even with the window closed. Accepted requests remain in the leader's history and become **Joined group** when the player appears in the roster. A late automatic cancellation from an older requester cannot overwrite an accepted request.
+
+Declining locks that account out of reapplying to the same listing. The requester disables its button, and the leader also rejects fresh request IDs without another inbox entry or notification. This lockout survives local history resets and applies to the listing ID, so a new posting allows fresh requests. Closing a listing resets its inbox and notifies pending requesters. Incoming requests use timestamped native chat alerts containing the name, class, and level. Declines and unavailable groups also notify the requester. Request/Cancel buttons stay in place; only errors appear in the window footer.
 
 ## Presence and reliability
 

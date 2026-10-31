@@ -27,6 +27,7 @@ class GameAccess {
     public static function array(value:Dynamic,proxy=false):Array<Dynamic> {
         if(proxy)value=field(value,"array");return value==null?[]:cast value;
     }
+    public static function uid(obj:Dynamic):String return text(field(obj,"__uid"));
     public static function enumValue(type:String,name:String,args:Array<Dynamic>):Dynamic return {name:name,args:args};
     public static function enumName(value:Dynamic):String return value==null?"":Std.isOfType(value,String)?value:field(value,"name");
     public static function enumArgument(value:Dynamic,index:Int):Dynamic return value.args[index];
@@ -50,7 +51,7 @@ class GameAccess {
         if(name!="createNew")throw type+"."+name;
         var obj=object(args[1].obj);obj.id=args[3].id;nodes.push(obj);
         if(args[0]=="text"){obj.text=args[2][0];obj.testLabel=true;labels.push(obj);}
-        if(args[0]=="input-box") {obj.input=object(obj);obj.input.text="";obj.inputHint=object(obj);obj.inputHint.text="";}
+        if(args[0]=="input-box") {obj.input=object(obj);obj.input.text="";obj.input.onChange=()->{if(field(obj,"onChange")!=null)obj.onChange();};obj.inputHint=object(obj);obj.inputHint.text="";}
         if(args[0]=="icon"){obj.icon=args[2][0];obj.bmp=object(obj);}
         return obj.dom;
     }
@@ -60,6 +61,15 @@ class GameAccess {
             case "get": (cast obj:Map<String,Dynamic>).get(args[0]);
             case "get_chat":obj.chat;
             case "getName":obj.name;
+            case "setText":obj.btnText.text=args[0];obj.text=args[0];null;
+            case "getTextPos":GroupTitle.clip(obj.text,args[0]).length;
+            case "inputText":
+                var start=integer(field(obj,"cursorIndex")),end=start,selection=field(obj,"selectionRange");
+                if(selection!=null){start=selection.start;end=start+selection.length;}
+                var a=GroupTitle.clip(obj.text,start).length,b=GroupTitle.clip(obj.text,end).length;
+                var currentText=text(obj.text);
+                obj.text=currentText.substr(0,a)+args[0]+currentText.substr(b);obj.cursorIndex=start+groupfinder.GroupTypes.GroupRules.count(args[0]);obj.selectionRange=null;
+                if(field(obj,"onChange")!=null)obj.onChange();null;
             case "sendMessage":sent.push({to:args[0],packet:args[1]});args[2](true);null;
             case "hasInvitePlayerAllowed":"Ok";
             case "sendInviteGroup":invites.push(args[0]);null;

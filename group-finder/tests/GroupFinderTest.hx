@@ -16,6 +16,12 @@ class GroupFinderTest {
     }
     static function main():Void {
         eq(GroupRules.count("🌟 hello"),7);
+        var stars=[for(_ in 0...50)"🌟"].join("");
+        eq(groupfinder.GroupTitle.clip(stars+"X"),stars);
+        eq(groupfinder.GroupTitle.clip(stars,1),"🌟");
+        eq(groupfinder.GroupTitle.clip(stars,0),"");
+        eq(groupfinder.GroupTitle.insertion(stars,0,0,"extra"),"");
+        eq(groupfinder.GroupTitle.insertion(stars,0,"🌟".length,"AB"),"A");
         eq(GroupRules.titleError("   "),"Enter a listing title.");
         eq(GroupRules.titleError([for(_ in 0...50)"🌟"].join("")),"");
         ok(GroupRules.titleError([for(_ in 0...51)"x"].join(""))!="");
@@ -79,6 +85,29 @@ class GroupFinderTest {
         eq(requests.cancelOutgoing(),2);eq(incoming.state,"pending");eq(requests.rows[0].state,"declined");
         eq(requests.rows.filter(r->!r.incoming&&r.state=="cancelled").length,2);
         eq(requests.revision,oldRevision+1);eq(requests.cancelOutgoing(),0);eq(requests.revision,oldRevision+1);
+        requests=new GroupRequests();p=party();listing=create(api,p);
+        requests.add(listing,member("guest"),true,10,"accepted","guest");
+        eq(requests.answer("accepted",true,listing,p,10),"");
+        ok(!requests.respond("accepted",listing.id,"guest","cancelled",11));
+        eq(requests.get("accepted").state,"invited");
+        requests.tick(1000,null);eq(requests.get("accepted").state,"invited");
+        p.members.push(member("guest"));requests.observeParty(p,listing.id);
+        eq(requests.get("accepted").state,"joined");
+        p.members.pop();requests.observeParty(p,listing.id);eq(requests.get("accepted").state,"joined");
+        requests.add(listing,member("blocked"),true,20,"rejected","blocked");
+        eq(requests.answer("rejected",false,listing,p,20),"");
+        eq(requests.add(listing,member("blocked"),true,40,"new-id","blocked"),GroupRequests.DECLINED);
+        requests.reset();eq(requests.add(listing,member("blocked"),true,100,"after-reset","blocked"),GroupRequests.DECLINED);
+        eq(requests.add(listing,member("another"),true,100),"");
+        var repost:GroupListing=GroupRules.clone(listing);repost.id="new-listing";
+        eq(requests.add(repost,member("blocked"),true,100),"");
+        requests=new GroupRequests();
+        requests.add(listing,member("guest"),false,0,"joined","owner");
+        requests.add(repost,member("guest"),false,0,"other","another-leader");
+        p.members.push(member("guest"));
+        eq(requests.cancelOutgoing(p),2);eq(requests.get("joined").state,"joined");eq(requests.get("other").state,"cancelled");
+        ok(!requests.respond("joined",listing.id,"owner","invited",1));
+        eq(requests.get("joined").state,"joined");
         trace('Group Finder passed ($checks checks)');
     }
 }

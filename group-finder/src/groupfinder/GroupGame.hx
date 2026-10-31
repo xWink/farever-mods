@@ -51,7 +51,12 @@ class GroupGame {
         var members=[for(p in players)member(p)];
         var leader=G.call("st.Group","get_leader",group);
         var region=regionId(G.text(G.current("Options","serverRegion")));
-        return {accountId:account,nativePartyId:G.text(G.field(group,"groupId")),partyId:G.text(G.field(group,"groupId"))==""?"solo-"+account:G.text(G.field(group,"groupId")),leaderId:G.text(G.field(leader,"uid")),region:region,members:members};
+        // groupId is server-only: doSerialize/doUnserialize/networkSync omit it.
+        // Use the replicated object's full 64-bit UID, scoped to its leader so
+        // IDs from different game servers or split parties cannot collide.
+        var nativeId=G.uid(group),leaderId=G.text(G.field(leader,"uid"));
+        var identity="party-"+haxe.crypto.Sha256.encode(haxe.Json.stringify([leaderId,nativeId]));
+        return {accountId:account,nativePartyId:nativeId,partyId:identity,leaderId:leaderId,region:region,members:members};
     }
     public static function member(player:Dynamic):GroupMember {
         var hero=G.field(player,"hero"),data=G.field(player,"heroData");

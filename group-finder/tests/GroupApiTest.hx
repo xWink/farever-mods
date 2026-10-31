@@ -88,7 +88,7 @@ class GroupApiTest {
         check(wire.length<300&&packet!=null&&packet.level==25,"Join request fits one whisper");check(GroupWire.decode(GroupWire.PREFIX+"invalid")==null,"Malformed protocol ignored");check(GroupWire.decode(GroupWire.encode("declined",ID2,ID)).op=="declined","Decline roundtrip");
         var requests=new GroupRequests(),listing=P.listing(row(ID,"leader"));eq(requests.add(listing,member,false,0,ID2,"leader","Leader"),"","Outgoing request recorded");requests.tick(299,null);eq(requests.get(ID2).state,"pending","Request lasts five minutes");
         check(!requests.respond(ID2,ID,"spoofed","declined",299),"Responses match native sender");check(!requests.respond(ID2,"wrong","leader","declined",299),"Responses match listing");check(requests.respond(ID2,ID,"leader","declined",299),"Expected leader can decline");eq(requests.get(ID2).state,"declined","Rejection reaches requester");
-        requests.reset();requests.add(listing,member,false,0,ID2,"leader","Leader");requests.tick(300,null);eq(requests.get(ID2).state,"expired","Five-minute expiry enforced");
+        requests.reset(true);requests.add(listing,member,false,0,ID2,"leader","Leader");requests.tick(300,null);eq(requests.get(ID2).state,"expired","Five-minute expiry enforced");
         trace('Group Finder API and wire passed ($checks checks)');
     }
 }

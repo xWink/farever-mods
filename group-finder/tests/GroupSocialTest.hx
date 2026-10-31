@@ -9,10 +9,22 @@ class GroupSocialTest {
     static function member(id:String):Dynamic return {uid:id,name:"Same Name",heroData:{kind:"Mage",level:25}};
     static function player(id:String):Dynamic {
         var p:Dynamic={uid:id,name:"Same Name",heroData:{kind:"Mage",level:25},accountProgress:{social:{ignoreList:{array:[]}}}};
-        p.group={groupId:"solo-"+id,players:{array:[member(id)]}};return p;
+        p.group={__uid:"solo-"+id,groupId:"0",players:{array:[member(id)]}};return p;
     }
     static function titleVisible(title:String):Bool return G.labels.filter(l->l.text==title).length>0;
     public static function run():Void {
+        var a:Dynamic=player("leader-a"),b:Dynamic=player("leader-b");
+        var ga=groupfinder.GroupGame.capture(a),gb=groupfinder.GroupGame.capture(b);
+        check(ga.partyId!=gb.partyId,"Unreplicated groupId zero cannot collide across solo players");
+        b.group.__uid=a.group.__uid;gb=groupfinder.GroupGame.capture(b);
+        check(ga.partyId!=gb.partyId,"Same network UID on another server is scoped to its leader");
+        a.group.players.array.push(member("leader-b"));b.group=a.group;
+        check(groupfinder.GroupGame.capture(a).partyId==ga.partyId&&groupfinder.GroupGame.capture(b).partyId==ga.partyId,"All party members agree and roster growth retains identity");
+        a.group.players.array.pop();b.group={__uid:a.group.__uid,groupId:"0",players:{array:[member("leader-b")]}};
+        check(groupfinder.GroupGame.capture(a).partyId==ga.partyId&&groupfinder.GroupGame.capture(b).partyId!=ga.partyId,"Leaving creates an independent identity without changing the original leader's listing");
+        a.group.__uid="9223372036854775807";var full=groupfinder.GroupGame.capture(a);
+        a.group.__uid="9223372032559808511";var other=groupfinder.GroupGame.capture(a);
+        check(full.partyId!=other.partyId&&full.partyId.length<=128&&full.nativePartyId=="9223372036854775807","Party identity preserves all 64 bits and fits the API bound");
         var c=new GroupController(new groupfinder.MockGroupService()),me=player("social-tester"),app:Dynamic={me:me};
         c.update(app,0);c.open();c.update(app,0.2);
         check(c.rows.length==13&&c.visibleListings().length==13,"Initial listings are available");
@@ -40,14 +52,14 @@ class GroupSocialTest {
         var status=G.nodes.filter(n->StringTools.startsWith(n.id,"groupRequestStatus"))[0];
         check(status.y>=cancel.y+cancel.height&&G.number(status.y)+G.number(status.height)*G.number(status.scaleY)<100,"Compact pending status fits below the button inside the listing");
         c.request(c.rows[1]);check(c.requests.rows.filter(r->r.state=="pending").length==2,"Several outgoing requests can be pending");
-        c.close();var leader:Dynamic=member("leader");me.group={groupId:"joined-party",players:{array:[leader,member("social-tester")]}};
+        c.close();var leader:Dynamic=member("leader");me.group={__uid:"joined-party",groupId:"0",players:{array:[leader,member("social-tester")]}};
         c.update(app,1.5);
         check(!c.opened&&c.requests.rows.filter(r->r.state=="cancelled").length==2,"Joining cancels all outgoing requests while the window is closed");
         var revision=c.requests.revision;c.update(app,2.0);
         check(c.requests.revision==revision,"Continued party polling does not repeatedly cancel requests");
-        me.group={groupId:"solo-again",players:{array:[member("social-tester")]}};c.update(app,12.0);c.request(c.rows[0]);
+        me.group={__uid:"solo-again",groupId:"0",players:{array:[member("social-tester")]}};c.update(app,12.0);c.request(c.rows[0]);
         check(c.requests.rows[0].state=="pending","Leaving a party permits a fresh request after cooldown");
-        me.group.groupId="new-group-before-roster";c.update(app,12.5);
+        me.group.__uid="new-group-before-roster";c.update(app,12.5);
         check(c.requests.rows[0].state=="cancelled","Party-ID transition cancels even before the roster arrives");
         c.update(app,24);c.request(c.rows[1]);me.group.players.array.push(leader);c.update(app,24.5);
         check(c.requests.rows[0].state=="cancelled","Growing from solo to a group also cancels without a party-ID change");

@@ -68,7 +68,7 @@ class GroupController {
             else {
                 if(party!=null&&(party.accountId!=next.accountId||party.region!=next.region))disconnect();
                 localPlayer=me;syncIgnored();
-                if(next.members.length>1||(party!=null&&(party.partyId!=next.partyId||party.nativePartyId!=next.nativePartyId)))cancelOutgoing();
+                if(next.members.length>1||(party!=null&&(party.partyId!=next.partyId||party.nativePartyId!=next.nativePartyId)))cancelOutgoing(next);
                 var first=party==null;party=next;
                 var key=haxe.Json.stringify(next);if(key!=partyKey){partyKey=key;view.dirty=true;}
                 if(mock!=null){mock.observe(next);mock.examples(next.region,true);}
@@ -81,6 +81,7 @@ class GroupController {
         if(mock!=null)mock.tick(time);else live.tick(time);
         syncListing();
         if(time>=nextRequests) {
+            var own=mine();requests.observeParty(party,own==null?null:own.id);
             nextRequests=time+0.5;requests.tick(time,mock==null?null:mock.find);
             for(id in received.keys())if(received[id]<=now)received.remove(id);
         }
@@ -128,7 +129,7 @@ class GroupController {
         live.more(result->{if(token!=generation)return;loading=false;if(result.error!="")error(result.error);else rows=result.value;view.dirty=true;});
     }
     public function choose(value:String):Void {
-        if(busy)return;category=value;page="browse";pendingDelete=null;message="";view.resetScroll();view.dirty=true;
+        if(busy||page=="browse"&&category==value)return;category=value;page="browse";pendingDelete=null;message="";view.resetScroll();view.dirty=true;
         if(live!=null){live.category=value;live.resetBrowse();rows=[];loading=false;nextBrowse=0;refresh();}
     }
     public function edit(?listing:GroupListing):Void {
@@ -155,8 +156,9 @@ class GroupController {
             message=result.error;if(result.error==""){page="browse";refresh();}view.dirty=true;
         });
     }
-    public function requestError():String {
+    public function requestError(?listing:GroupListing):String {
         if(party==null)return "Enter the game with your character to request to join a group.";
+        if(listing!=null&&requests.isDeclined(listing.id,party.accountId))return GroupRequests.DECLINED;
         if(mine()!=null)return "Close your listing before requesting to join another group.";
         if(party.members.length!=1)return "Leave your current party before requesting to join another group.";
         return live==null?"":live.available();
@@ -164,7 +166,7 @@ class GroupController {
     public function request(listing:GroupListing):Void {
         if(busy)return;syncIgnored();
         if(listing==null||ignored.exists(listing.ownerId)){error("This listing is no longer available.");return;}
-        var reason=requestError();if(reason!=""){error(reason);return;}
+        var reason=requestError(listing);if(reason!=""){error(reason);return;}
         if(live==null){addOutgoing(mock.find(listing.id));return;}
         busy=true;view.dirty=true;var token=generation,expectedParty=party.partyId;
         live.detail(listing.id,result->{
@@ -172,7 +174,7 @@ class GroupController {
             // Recheck game state after the HTTP round trip, not just at button press.
             var current=GroupGame.capture(localPlayer);
             if(result.error!="")error(result.error);
-            else if(current==null||current.partyId!=expectedParty||current.members.length!=1||requestError()!=""||ignored.exists(result.value.ownerId))error("Your party or this listing changed. Please try again.");
+            else if(current==null||current.partyId!=expectedParty||current.members.length!=1||requestError(result.value)!=""||ignored.exists(result.value.ownerId))error("Your party or this listing changed. Please try again.");
             else addOutgoing(result.value);
             view.dirty=true;
         });
@@ -197,6 +199,12 @@ class GroupController {
     }
     public function receiveRequest(listingId:String,member:GroupMember,?id:String):Void {
         syncIgnored();var listing=mine();if(listing==null||listing.id!=listingId||ignored.exists(member.accountId))return;
+        if(requests.isDeclined(listingId,member.accountId)) {
+            // The leader enforces the lockout too, including new request IDs or a restarted requester.
+            if(id!=null)sendState({id:id,listingId:listingId,member:member,incoming:true,state:"declined",expiresAt:now,
+                peerId:member.accountId,peerName:member.name},"declined");
+            return;
+        }
         var reason=requests.add(listing,member,true,now,id,member.accountId,member.name);
         if(reason=="")try GroupGame.notifyRequest(member)catch(e:Dynamic)GroupFinderMod.report("Request notification: "+Std.string(e));
         view.dirty=true;
@@ -237,9 +245,9 @@ class GroupController {
         })catch(_:Dynamic){if(reportFailure)error("Could not deliver the response to this player.");}
     }
     public function cancel(request:JoinRequest):Void {sendState(request,"cancel");requests.cancel(request.id);message="";view.dirty=true;}
-    function cancelOutgoing():Void {
-        for(r in requests.rows)if(!r.incoming&&(r.state=="pending"||r.state=="invited"))sendState(r,"cancel");
-        if(requests.cancelOutgoing()>0)view.dirty=true;
+    function cancelOutgoing(?joinedParty:GroupParty):Void {
+        for(r in requests.rows)if(!r.incoming&&(r.state=="pending"||r.state=="invited")&&!GroupRequests.joinedGroup(r,joinedParty))sendState(r,"cancel");
+        if(requests.cancelOutgoing(joinedParty)>0)view.dirty=true;
     }
     public function showRequests():Void {if(mine()==null)return;page="requests";pendingDelete=null;message="";view.resetScroll();view.dirty=true;}
     public function disconnect():Void {

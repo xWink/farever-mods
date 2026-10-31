@@ -19,6 +19,13 @@ class GroupWindow {
     var scroll=0.0;
     var scrollKey="";
     var sequence=0;
+    var sidebar:Dynamic;
+    var regionLabel:Dynamic;
+    var requestsButton:Dynamic;
+    var listingButton:Dynamic;
+    var listingKind="";
+    var navigation:Array<{category:String,button:Dynamic}>=[];
+    var insertingTitle=false;
     var fareverlyDialog:Dynamic;
     var fareverlyDialogOwner:Dynamic;
     var inputBox:Dynamic;
@@ -48,7 +55,7 @@ class GroupWindow {
     }
     public function dispose():Void {
         badges.dispose();
-        if(frame!=null)frame.dispose();frame=null;viewport=null;scrollbar=null;inputBox=null;dirty=true;
+        if(frame!=null)frame.dispose();frame=null;viewport=null;scrollbar=null;inputBox=null;sidebar=regionLabel=requestsButton=listingButton=null;navigation=[];listingKind="";dirty=true;
     }
     function text(parent:Dynamic,value:String,x:Int,y:Int,w:Int,bold=false,color=INK,multiline=false):Dynamic {
         var obj=textAt(parent,value,x,y,w,bold);ink(obj,color);
@@ -84,27 +91,46 @@ class GroupWindow {
         else if(key!=scrollKey)scroll=0;
         scrollKey=key;
         var root=frame.container;
-        for(child in children(root))G.call("h2d.Object","remove",child);
+        for(child in children(root))if(child!=sidebar)G.call("h2d.Object","remove",child);
         viewport=null;scrollbar=null;inputBox=null;countLabel=null;validation=null;saveButton=null;categoryButtons=[];
-        var sidebar=panel(root,12,12,204,668,0xE7D8C2);
-        text(sidebar,"FIND A GROUP",14,18,176,true);
-        text(sidebar,GroupGame.regionName(c.party==null?"":c.party.region),14,46,176,false,MUTED);
-        for(i in 0...GroupRules.categories.length) {
-            var category=GroupRules.categories[i],count=c.count(category);
-            button(sidebar,category+"  ("+count+")",12,86+i*46,180,()->c.choose(category),"",true,c.page=="browse"&&c.category==category);
-        }
-        var mine=c.mine();
-        var pending=mine==null?0:c.requests.incoming(mine.id).filter(r->r.state=="pending").length;
-        button(sidebar,"Requests"+(pending>0?"  ("+pending+")":""),12,574,180,c.showRequests,"",mine!=null,c.page=="requests");
-        button(sidebar,mine==null?"Create listing":"My listing",12,620,180,()->{
-            if(c.page!="edit")c.edit(mine);
-        },mine==null?"accept":"",mine!=null||GroupRules.partyError(c.party)=="",c.page=="edit");
+        if(sidebar==null)createSidebar(root);
+        updateSidebar();
         switch(c.page) {
             case "edit": editor(root);
             case "requests": requests(root);
             default: listings(root);
         }
         if(c.message!="")text(root,c.message,234,644,774,false,INK,true);
+    }
+    function createSidebar(root:Dynamic):Void {
+        // Preserve the hovered native buttons through navigation and API refreshes.
+        // Destroying them sends a mouse-out and briefly resets the cursor every render.
+        sidebar=panel(root,12,12,204,668,0xE7D8C2);
+        text(sidebar,"FIND A GROUP",14,18,176,true);
+        regionLabel=text(sidebar,"",14,46,176,false,MUTED);
+        for(i in 0...GroupRules.categories.length) {
+            var category=GroupRules.categories[i];
+            navigation.push({category:category,button:button(sidebar,category,12,86+i*46,180,()->c.choose(category))});
+        }
+        requestsButton=button(sidebar,"Requests",12,574,180,c.showRequests);
+        listingButton=button(sidebar,"Create listing",12,620,180,()->{
+            var mine=c.mine();if(c.page!="edit"&&(mine!=null||GroupRules.partyError(c.party)==""))c.edit(mine);
+        });
+    }
+    function updateControl(control:Dynamic,label:String,enabled:Bool,selected:Bool):Void {
+        if(G.text(G.field(G.field(control,"btnText"),"text"))!=label)G.call("ui.comp.Button","setText",control,[label]);
+        if(G.field(control,"enable")!=(enabled&&!c.busy))G.call("ui.UIElement","set_enable",control,[enabled&&!c.busy]);
+        if(G.field(control,"selected")!=selected)G.call("ui.UIElement","set_selected",control,[selected]);
+    }
+    function updateSidebar():Void {
+        var region=GroupGame.regionName(c.party==null?"":c.party.region);
+        if(G.text(G.field(regionLabel,"text"))!=region)setText(regionLabel,region);
+        for(entry in navigation)updateControl(entry.button,entry.category+"  ("+c.count(entry.category)+")",true,c.page=="browse"&&c.category==entry.category);
+        var mine=c.mine(),pending=mine==null?0:c.requests.incoming(mine.id).filter(r->r.state=="pending").length;
+        updateControl(requestsButton,"Requests"+(pending>0?"  ("+pending+")":""),mine!=null,c.page=="requests");
+        updateControl(listingButton,mine==null?"Create listing":"My listing",mine!=null||GroupRules.partyError(c.party)=="",c.page=="edit");
+        var kind=mine==null?"accept":"";
+        if(kind!=listingKind){listingKind=kind;GroupFrame.setClass(listingButton,kind);}
     }
     function listings(root:Dynamic):Void {
         text(root,c.category,234,20,360,true);
@@ -149,7 +175,10 @@ class GroupWindow {
                 absolute(card,status);padding(status,0);size(status,218,22);position(status,570,78);
                 G.call("h2d.Object","setScale",status,[0.75]);
                 text(status,request.state=="invited"?"Invitation sent":"Request pending",0,0,218,false,GREEN);
-            } else button(card,"Request to join",570,42,164,()->c.request(row),"",c.requestError()=="");
+            } else {
+                var declined=c.party!=null&&c.requests.isDeclined(row.id,c.party.accountId);
+                button(card,declined?"Request declined":"Request to join",570,42,164,()->c.request(row),"",c.requestError(row)=="");
+            }
         }
     }
     function memberChip(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader:Bool):Void {
@@ -257,7 +286,11 @@ class GroupWindow {
             }
         };
         var previous=G.field(inputBox,"onAfterReflow");G.set(inputBox,"onAfterReflow",()->{if(previous!=null)Reflect.callMethod(inputBox,previous,[]);align();});align();
-        G.set(inputBox,"onChange",()->{c.draftTitle=G.text(G.field(input,"text"));updateDraft();});
+        G.set(inputBox,"onChange",()->{
+            var value=G.text(G.field(input,"text")),limited=GroupTitle.clip(value);
+            if(limited!=value){G.call("h2d.TextInput","set_text",input,[limited]);G.set(input,"selectionRange",null);}
+            c.draftTitle=limited;updateDraft();
+        });
         G.set(input,"ignoreEnter",true);G.set(input,"onEnter",()->c.save());
         validation=text(card,"",20,199,728,false,MUTED);
         saveButton=button(card,c.busy?"Saving…":c.editingId==null?"Create listing":"Save changes",20,246,232,c.save,"accept");
@@ -267,6 +300,22 @@ class GroupWindow {
             button(card,c.pendingDelete==id?"Confirm close":"Close listing",516,246,232,()->c.remove(id),"cancel");
         }
         updateDraft();
+    }
+    /** Intercept only our title editor; native insertion retains caret/selection/undo behavior. */
+    public function insertTitle(input:Dynamic,value:String):Bool {
+        if(insertingTitle||inputBox==null||G.field(inputBox,"input")!=input)return false;
+        var current=G.text(G.field(input,"text")),selection=G.field(input,"selectionRange");
+        var start=G.integer(G.field(input,"cursorIndex")),end=start;
+        if(selection!=null){start=G.integer(G.field(selection,"start"));end=start+G.integer(G.field(selection,"length"));}
+        start=G.integer(G.call("h2d.TextInput","getTextPos",input,[start]));end=G.integer(G.call("h2d.TextInput","getTextPos",input,[end]));
+        var allowed=GroupTitle.insertion(current,start,end,value);
+        if(allowed==value)return false;
+        if(allowed!="") {
+            insertingTitle=true;
+            try G.call("h2d.TextInput","inputText",input,[allowed])catch(e:Dynamic){insertingTitle=false;throw e;}
+            insertingTitle=false;
+        }
+        return true;
     }
     function updateDraft():Void {
         if(countLabel==null)return;
@@ -292,7 +341,7 @@ class GroupWindow {
             if(request.incoming)memberName(card,request.member,16,12,516);
             else filtered(card,listing==null?"Your join request":listing.title,16,12,516,true);
             memberDetails(card,request.member,16,40,516);
-            text(card,stateLabel(request.state),16,77,516,true,request.state=="invited"?GREEN:MUTED);
+            text(card,stateLabel(request.state),16,77,516,true,request.state=="invited"||request.state=="joined"?GREEN:MUTED);
             if(request.state=="pending") {
                 if(request.incoming) {
                     button(card,"Accept",564,15,168,()->c.answer(request,true),"accept");
@@ -319,6 +368,7 @@ class GroupWindow {
     static function stateLabel(state:String):String return switch(state) {
         case "pending": "Request pending";
         case "invited": "Invitation sent";
+        case "joined": "Joined group";
         case "declined": "Request declined";
         case "cancelled": "Request cancelled";
         case "closed": "Listing closed";

@@ -42,6 +42,11 @@ class GroupFinderMod {
             }
         } catch(error:Dynamic)controller.fail(error);
     }
+    @:hlx.prefix(h2d.TextInput.inputText)
+    static function limitTitle(instance:Dynamic,text:String):HlxPrefixResult<Void> {
+        if(controller!=null&&controller.view.insertTitle(instance,text))return Skip;
+        return Continue;
+    }
     @:hlx.prefix(st.player.ChatClient.localReceiveMessage)
     static function receiveLocal(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
     @:hlx.prefix(st.player.ChatClient.receiveMessage__impl)
