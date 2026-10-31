@@ -22,7 +22,7 @@ class GroupWindow {
     var countLabel:Dynamic;
     var validation:Dynamic;
     var saveButton:Dynamic;
-    var inputPreview:Dynamic;
+    var categoryButtons:Array<{category:String,button:Dynamic}>=[];
     public function new(controller:GroupController)c=controller;
     public function owns(window:Dynamic):Bool return frame!=null&&frame.window==window;
     public function resetScroll():Void {scroll=0;scrollKey="";viewport=null;}
@@ -75,7 +75,7 @@ class GroupWindow {
         scrollKey=key;
         var root=frame.container;
         for(child in children(root))G.call("h2d.Object","remove",child);
-        viewport=null;scrollbar=null;inputBox=null;countLabel=null;validation=null;saveButton=null;inputPreview=null;
+        viewport=null;scrollbar=null;inputBox=null;countLabel=null;validation=null;saveButton=null;categoryButtons=[];
         var sidebar=panel(root,12,12,204,668,0xE7D8C2);
         text(sidebar,"FIND A GROUP",14,18,176,true);
         text(sidebar,GroupGame.regionName(c.party==null?"":c.party.region),14,46,176,false,MUTED);
@@ -83,21 +83,12 @@ class GroupWindow {
             var category=GroupRules.categories[i],count=c.rows.filter(row->row.category==category).length;
             button(sidebar,category+"  ("+count+")",12,86+i*46,180,()->c.choose(category),"",true,c.page=="browse"&&c.category==category);
         }
-        var pending=c.requests.rows.filter(r->r.incoming&&r.state=="pending").length;
-        button(sidebar,"Requests"+(pending>0?"  ("+pending+")":""),12,244,180,c.showRequests,"",true,c.page=="requests");
         var mine=c.mine();
-        button(sidebar,"My listing",12,290,180,()->c.edit(mine),"",mine!=null,c.page=="edit"&&c.editingId!=null);
-        text(sidebar,"YOUR PARTY",14,351,176,true);
-        if(c.party!=null) {
-            text(sidebar,c.party.members.length+" / "+GroupRules.CAPACITY+" members",14,378,176,false,MUTED);
-            for(i in 0...c.party.members.length) {
-                var member=c.party.members[i];
-                filtered(sidebar,member.name+(member.accountId==c.party.leaderId?" (Leader)":""),14,408+i*43,176,true);
-                text(sidebar,GroupRules.memberText(member),14,428+i*43,176,false,MUTED);
-            }
-        }
-        text(sidebar,"LOCAL PREVIEW",14,604,176,true,MUTED);
-        text(sidebar,"Only visible to you",14,629,176,false,MUTED);
+        var pending=mine==null?0:c.requests.incoming(mine.id).filter(r->r.state=="pending").length;
+        button(sidebar,"Requests"+(pending>0?"  ("+pending+")":""),12,574,180,c.showRequests,"",mine!=null,c.page=="requests");
+        button(sidebar,mine==null?"Create listing":"My listing",12,620,180,()->{
+            if(c.page!="edit")c.edit(mine);
+        },mine==null?"accept":"",mine!=null||GroupRules.partyError(c.party)=="",c.page=="edit");
         switch(c.page) {
             case "edit": editor(root);
             case "requests": requests(root);
@@ -108,54 +99,71 @@ class GroupWindow {
     function listings(root:Dynamic):Void {
         text(root,c.category,234,20,360,true);
         text(root,"Choose a group and request to join.",234,51,540,false,MUTED);
-        button(root,"Refresh",694,18,112,c.refresh);
-        button(root,c.mine()==null?"Create listing":"Edit my listing",818,18,184,()->c.edit(),"accept",GroupRules.partyError(c.party)==""||c.mine()!=null);
+        button(root,"Refresh",890,18,112,c.refresh);
         var data=c.rows.filter(row->row.category==c.category);
         text(root,data.length+" group"+(data.length==1?"":"s"),234,82,400,false,MUTED);
-        var content=scroller(root,data.length*134);
+        var content=scroller(root,data.length*110);
         if(data.length==0) {
             text(content,"No groups listed yet",24,68,680,true);
             text(content,"Create a listing to start a group for "+c.category.toLowerCase()+".",24,102,680,false,MUTED,true);
         }
-        for(i in 0...data.length)listing(content,data[i],i*134);
+        for(i in 0...data.length)listing(content,data[i],i*110);
         var error=GroupRules.partyError(c.party);
         if(error!=""&&c.message=="")text(root,error,234,644,774,false,MUTED,true);
     }
     function listing(parent:Dynamic,row:GroupListing,y:Int):Void {
         var own=c.party!=null&&row.ownerId==c.party.accountId;
-        var card=panel(parent,0,y,750,124,own?0xE3E5D0:0xEADDC8);
+        var card=panel(parent,0,y,750,100,own?0xE3E5D0:0xEADDC8);
         filtered(card,row.title,16,12,530,true);
         text(card,row.members.length+" / "+GroupRules.CAPACITY+" members",570,14,164,true,MUTED);
-        text(card,own?"Your listing":row.sample?"Sample group":"Group",16,39,500,false,MUTED);
-        for(i in 0...row.members.length)memberChip(card,row.members[i],16+i*176,68,168,row.members[i].accountId==row.ownerId);
+        for(i in 0...row.members.length)memberChip(card,row.members[i],16+i*176,44,168,row.members[i].accountId==row.ownerId);
         if(own) {
             if(c.pendingDelete==row.id) {
-                button(card,"Confirm close",570,44,164,()->c.remove(row.id),"cancel");
-                button(card,"Keep listing",570,84,164,()->{c.pendingDelete=null;dirty=true;});
+                button(card,"Confirm",570,50,78,()->c.remove(row.id),"cancel");
+                button(card,"Cancel",656,50,78,()->{c.pendingDelete=null;dirty=true;});
             } else {
-                button(card,"Edit listing",570,44,164,()->c.edit(row));
-                button(card,"Close listing",570,84,164,()->c.remove(row.id),"cancel");
+                button(card,"Edit",570,50,78,()->c.edit(row));
+                button(card,"Close",656,50,78,()->c.remove(row.id),"cancel");
             }
         } else {
             var request=c.requests.outgoing(row.id);
             if(request!=null&&request.state=="pending") {
-                text(card,"Request pending",570,47,164,true,GREEN);
-                button(card,"Cancel request",570,78,164,()->c.cancel(request));
-            } else button(card,"Request to join",570,72,164,()->c.request(row),"accept",c.party!=null&&c.party.members.length==1);
+                text(card,"Request pending",570,36,164,true,GREEN);
+                button(card,"Cancel request",570,58,164,()->c.cancel(request));
+            } else button(card,"Request to join",570,50,164,()->c.request(row),"accept",c.party!=null&&c.party.members.length==1);
         }
     }
     function memberChip(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader:Bool):Void {
         filtered(parent,member.name+(leader?" ★":""),x,y,w,true);
-        text(parent,GroupRules.memberText(member),x,y+22,w,false,MUTED);
+        memberDetails(parent,member,x,y+22,w);
+    }
+    function memberDetails(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int):Void {
+        var iconId=GroupGame.classIcon(member.className),offset=0;
+        if(iconId!="") {
+            var icon=G.field(node("icon",G.field(parent,"dom"),[iconId],"groupClass"+(sequence++)),"obj");
+            absolute(parent,icon);padding(icon,0);size(icon,20,20);position(icon,x,y);
+            var bmp=G.field(icon,"bmp");
+            if(bmp!=null) {
+                absolute(icon,bmp);position(bmp,0,0);
+                G.call("h2d.Bitmap","set_width",bmp,[20.0]);G.call("h2d.Bitmap","set_height",bmp,[20.0]);G.set(bmp,"smooth",true);
+            }
+            offset=26;
+        }
+        text(parent,member.level>0?"Lv. "+member.level:"Level unavailable",x+offset,y,w-offset,false,MUTED);
+    }
+    function selectDraftCategory(value:String):Void {
+        c.draftCategory=value;
+        for(entry in categoryButtons)G.call("ui.UIElement","set_selected",entry.button,[entry.category==value]);
     }
     function editor(root:Dynamic):Void {
         text(root,c.editingId==null?"Create a listing":"Edit your listing",234,20,550,true);
         button(root,"Back to groups",818,18,184,()->c.choose(c.category));
-        var card=panel(root,234,86,768,514);
+        var card=panel(root,234,86,768,302);
         text(card,"Category",20,20,720,true);
         for(i in 0...3) {
             var category=GroupRules.categories[i];
-            button(card,category,20+i*244,48,232,()->{c.draftCategory=category;dirty=true;},"",true,c.draftCategory==category);
+            var control=button(card,category,20+i*244,48,232,()->selectDraftCategory(category),"",true,c.draftCategory==category);
+            categoryButtons.push({category:category,button:control});
         }
         text(card,"Listing title",20,114,560,true);
         countLabel=text(card,"",646,114,96,false,MUTED);
@@ -179,15 +187,11 @@ class GroupWindow {
         G.set(inputBox,"onChange",()->{c.draftTitle=G.text(G.field(input,"text"));updateDraft();});
         G.set(input,"ignoreEnter",true);G.set(input,"onEnter",()->c.save());
         validation=text(card,"",20,199,728,false,MUTED);
-        text(card,"Listing preview",20,245,728,true);
-        inputPreview=filtered(card,c.draftTitle,20,278,728,true);
-        if(c.party!=null)for(i in 0...c.party.members.length)memberChip(card,c.party.members[i],20+i*180,313,172,c.party.members[i].accountId==c.party.leaderId);
-        text(card,"Members update with your party. The listing closes when the party is full.",20,379,728,false,MUTED,true);
-        saveButton=button(card,c.busy?"Saving…":c.editingId==null?"Create listing":"Save changes",20,450,232,c.save,"accept");
-        button(card,"Cancel",264,450,160,()->c.choose(c.category));
+        saveButton=button(card,c.busy?"Saving…":c.editingId==null?"Create listing":"Save changes",20,246,232,c.save,"accept");
+        button(card,"Cancel",264,246,160,()->c.choose(c.category));
         if(c.editingId!=null) {
             var id=c.editingId;
-            button(card,c.pendingDelete==id?"Confirm close":"Close listing",516,450,232,()->c.remove(id),"cancel");
+            button(card,c.pendingDelete==id?"Confirm close":"Close listing",516,246,232,()->c.remove(id),"cancel");
         }
         updateDraft();
     }
@@ -199,21 +203,21 @@ class GroupWindow {
         if(error=="")error=GroupRules.titleError(c.draftTitle);
         setText(validation,error==""?"Up to 30 characters.":error);
         if(saveButton!=null)G.call("ui.UIElement","set_enable",saveButton,[error==""&&!c.busy]);
-        if(inputPreview!=null)G.call("ui.comp.FmtText","set_text",inputPreview,[GroupGame.filtered(c.draftTitle)]);
     }
     function requests(root:Dynamic):Void {
         text(root,"Join requests",234,20,460,true);
-        text(root,"Review requests to your group and your outgoing requests.",234,51,768,false,MUTED);
+        text(root,"Review requests to join your group.",234,51,768,false,MUTED);
         button(root,"Add sample request",790,18,212,c.previewRequest,"",c.mine()!=null);
-        var content=scroller(root,c.requests.rows.length*126);
-        if(c.requests.rows.length==0) {
+        var mine=c.mine(),rows=mine==null?[]:c.requests.incoming(mine.id);
+        var content=scroller(root,rows.length*126);
+        if(rows.length==0) {
             text(content,"No requests yet",24,68,680,true);
-            text(content,"Create a listing, then add a sample request to preview accepting and declining.",24,102,680,false,MUTED,true);
+            text(content,"New requests to join your group will appear here.",24,102,680,false,MUTED,true);
         }
-        for(i in 0...c.requests.rows.length) {
-            var request=c.requests.rows[i],listing=c.mock.find(request.listingId),card=panel(content,0,i*126,750,116,0xEADDC8);
+        for(i in 0...rows.length) {
+            var request=rows[i],listing=c.mock.find(request.listingId),card=panel(content,0,i*126,750,116,0xEADDC8);
             filtered(card,request.incoming?request.member.name+" wants to join":listing==null?"Your join request":listing.title,16,12,516,true);
-            text(card,request.incoming?GroupRules.memberText(request.member):"Outgoing request",16,40,516,false,MUTED);
+            memberDetails(card,request.member,16,40,516);
             text(card,stateLabel(request.state),16,77,516,true,request.state=="invited"?GREEN:MUTED);
             if(request.state=="pending") {
                 if(request.incoming) {

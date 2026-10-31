@@ -23,14 +23,13 @@ class GroupRequests {
         var request=get(id);
         if(request==null||request.state!="pending"||request.expiresAt<=now)return "This request has expired.";
         if(listing==null||party==null||!request.incoming||request.listingId!=listing.id||listing.ownerId!=party.accountId||party.leaderId!=party.accountId)return "This listing is no longer available.";
-        if(accept) {
-            var reservations=0;
-            for(r in rows)if(r.listingId==listing.id&&r.state=="invited"&&r.expiresAt>now)reservations++;
-            if(party.members.length+reservations>=GroupRules.CAPACITY)return "All available places already have invitations pending.";
-        }
+        // Invitations do not reserve places. The native game owns party capacity.
         request.state=accept?"invited":"declined";request.expiresAt=now+60;revision++;
         return "";
     }
+    public function reset():Void {rows=[];cooldown.clear();revision++;}
+    public function incoming(listingId:String):Array<JoinRequest>
+        return rows.filter(r->r.incoming&&r.listingId==listingId);
     public function cancel(id:String):Void {
         var request=get(id);if(request==null||request.state!="pending")return;
         request.state="cancelled";revision++;

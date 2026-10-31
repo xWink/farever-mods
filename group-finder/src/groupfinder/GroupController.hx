@@ -28,6 +28,7 @@ class GroupController {
     var now=0.0;
     var nextRequests=0.0;
     var sampleNumber=0;
+    var ownedListingId:Null<String>;
 
     public function new() {api=mock;view=new GroupWindow(this);}
     public function mine():Null<GroupListing> return party==null?null:mock.mine(party.accountId);
@@ -51,6 +52,7 @@ class GroupController {
             }
         }
         mock.tick(time);
+        syncListing();
         if(time>=nextRequests){nextRequests=time+0.5;requests.tick(time,mock.find);}
         if(seenRequests!=requests.revision){seenRequests=requests.revision;view.dirty=true;}
         if(opened&&party!=null&&seenRevision!=mock.revision&&!loading)refresh();
@@ -59,6 +61,18 @@ class GroupController {
     public function toggle():Void {if(opened)close();else open();}
     public function open():Void {if(!GroupFinderMod.enabled())return;opened=true;view.dirty=true;refresh();}
     public function close():Void {opened=false;view.dispose();}
+    /** Clear the request inbox on every removal path, even with the window closed. */
+    public function syncListing():Void {
+        var listing=mine(),id=listing==null?null:listing.id;
+        if(ownedListingId!=null&&ownedListingId!=id) {
+            requests.reset();sampleNumber=0;
+            if(page=="requests"||page=="edit"&&editingId!=null) {
+                page="browse";editingId=null;pendingDelete=null;view.resetScroll();
+            }
+            view.dirty=true;
+        }
+        ownedListingId=id;
+    }
     public function refresh():Void {
         if(party==null||loading)return;
         loading=true;var token=generation,revision=mock.revision;
@@ -88,7 +102,7 @@ class GroupController {
             if(token!=generation)return;
             busy=false;
             if(result.error!="")message=result.error;
-            else {category=result.value.category;page="browse";message=editingId==null?"Your listing has been created.":"Your listing has been updated.";editingId=null;view.resetScroll();}
+            else {syncListing();category=result.value.category;page="browse";message=editingId==null?"Your listing has been created.":"Your listing has been updated.";editingId=null;view.resetScroll();}
             refresh();view.dirty=true;
         });
     }
@@ -99,6 +113,7 @@ class GroupController {
         api.remove(party.accountId,id,result->{
             if(token!=generation)return;
             busy=false;pendingDelete=null;
+            syncListing();
             message=result.error==""?"Your listing has been closed.":result.error;
             page="browse";refresh();view.dirty=true;
         });
@@ -110,13 +125,23 @@ class GroupController {
         for(m in party.members)if(m.accountId==party.accountId)member=m;
         if(member==null)return;
         var error=requests.add(mock.find(listing.id),member,false,now);
-        message=error==""?"Request pending. This sample group is a local preview.":error;view.dirty=true;
+        message=error==""?"Request pending.":error;view.dirty=true;
     }
     public function previewRequest():Void {
         var listing=mine();if(listing==null)return;
-        var index=sampleNumber++%3;
-        var error=requests.add(listing,{accountId:"preview-applicant-"+index,name:["Willow","Flint","Coral"][index],className:["Mage","Warrior","Rogue"][index],level:25},true,now);
-        message=error==""?"A sample join request has arrived.":error;page="requests";view.resetScroll();view.dirty=true;
+        var index=sampleNumber++,names=["Willow","Flint","Coral","Aspen","Lark","Rowan","Cinder","Brook"];
+        var name=names[index%names.length]+(index<names.length?"":" "+(1+Std.int(index/names.length)));
+        receiveRequest(listing.id,{accountId:"preview-applicant-"+index,name:name,className:["Mage","Warrior","Rogue","Cleric"][index%4],level:25});
+        page="requests";view.resetScroll();view.dirty=true;
+    }
+    public function receiveRequest(listingId:String,member:GroupMember):Void {
+        var listing=mine();if(listing==null||listing.id!=listingId)return;
+        var error=requests.add(listing,member,true,now);
+        if(error=="") {
+            message=member.name+" ("+GroupRules.memberText(member)+") requested to join your group.";
+            try GroupGame.notifyRequest(member) catch(error:Dynamic)GroupFinderMod.report("Request notification: "+Std.string(error));
+        } else message=error;
+        view.dirty=true;
     }
     public function answer(request:JoinRequest,accept:Bool):Void {
         var error=requests.answer(request.id,accept,mock.find(request.listingId),party,now);
@@ -124,11 +149,11 @@ class GroupController {
         view.dirty=true;
     }
     public function cancel(request:JoinRequest):Void {requests.cancel(request.id);message="Request cancelled.";view.dirty=true;}
-    public function showRequests():Void {page="requests";pendingDelete=null;view.resetScroll();view.dirty=true;}
+    public function showRequests():Void {if(mine()==null)return;page="requests";pendingDelete=null;view.resetScroll();view.dirty=true;}
     public function disconnect():Void {
         if(party!=null)mock.disconnect(party.accountId);
         generation++;party=null;partyKey="";rows=[];seenRevision=-1;busy=loading=false;
-        requests.rows.resize(0);page="browse";editingId=null;message="";pendingDelete=null;close();
+        requests.reset();ownedListingId=null;sampleNumber=0;page="browse";editingId=null;message="";pendingDelete=null;close();
     }
     public function fail(error:Dynamic):Void {GroupFinderMod.report(Std.string(error));close();}
 }

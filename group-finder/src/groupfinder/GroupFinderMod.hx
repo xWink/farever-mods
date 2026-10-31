@@ -53,7 +53,7 @@ class GroupFinderMod {
     }
     @:hlx.prefix(ui.hud.ChatBox.handleCommand)
     static function command(instance:Dynamic,name:String,args:Dynamic):HlxPrefixResult<String> {
-        if(name==null||["groups","groupfinder"].indexOf(name.toLowerCase())<0)return Continue;
+        if(name==null||["lfg","groupfinder"].indexOf(name.toLowerCase())<0)return Continue;
         if(controller!=null)controller.open();return SkipWith(null);
     }
 }
