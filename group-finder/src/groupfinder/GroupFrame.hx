@@ -3,6 +3,7 @@ import groupfinder.GameAccess as G;
 import groupfinder.GroupUi.*;
 /** Shared native Options frame, with explicitly owned layout and drag lifetime. */
 class GroupFrame {
+    public static inline var BODY_COLOR=0xD0BBB2;
     public static var constructing = false;
     static var styledUi:Dynamic;
     public var ui:Dynamic;
@@ -62,7 +63,8 @@ class GroupFrame {
         G.call("ui.UIElement","set_onClick",closeButton,[close]);
         dragSurface = G.create("h2d.Interactive",[(width-65)*1.0,52.0,header,null]); absolute(header,dragSurface);
         G.set(dragSurface,"onPush",beginDrag); G.set(dragSurface,"cursor",G.enumeration("hxd.Cursor","Move"));
-        var inset = graphic(window); rounded(inset,4,52,width-8,height-58,0,13679538);
+        // Leave the native frame's eight-pixel sides and bottom uncovered.
+        var inset = graphic(window); rounded(inset,8,52,width-16,height-60,0,BODY_COLOR);
         G.call("h2d.Flow","addChildAt",window,[content,G.call("h2d.Object","get_numChildren",window)]);
         padding(content,0); absolute(window,content); size(content,width-16,height-60); position(content,8,52);
         body = node("options-content",dom,[0],"groupFinderBody"); container = prepareBody(body);

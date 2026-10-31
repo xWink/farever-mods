@@ -75,9 +75,9 @@ class GroupScrollbar {
         if(x!=lastX||y!=lastY||width!=lastWidth||height!=lastHeight
             ||thumbHeight!=lastThumbHeight||thumbY!=lastThumbY) {
             G.call("h2d.Graphics","clear",paint);
-            // Opaque backing masks any invisible/rectangular native background,
-            // while keeping the same paper colour as the Sell inventory card.
-            GroupFrame.rounded(paint,0,0,width,height,0,0xEFE3D1);
+            // Match the Group Finder body at the rounded caps; the Marketplace
+            // paper colour leaves pale square corners against this window.
+            GroupFrame.rounded(paint,0,0,width,height,0,GroupFrame.BODY_COLOR);
             GroupFrame.rounded(paint,0,0,width,height,width/2,0xB69B7F,0.60);
             GroupFrame.rounded(paint,0,thumbY,width,thumbHeight,width/2,0x806B5B);
             lastX=x;lastY=y;lastWidth=width;lastHeight=height;

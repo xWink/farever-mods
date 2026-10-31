@@ -1,5 +1,6 @@
 package groupfinder;
 class GroupFrame {
+ public static inline var BODY_COLOR=0xD0BBB2;
  public static var active=0;
  public static var latest:GroupFrame;
  public var ui:Dynamic;public var window:Dynamic={};public var container:Dynamic;public var header:Dynamic;public var title:Dynamic;

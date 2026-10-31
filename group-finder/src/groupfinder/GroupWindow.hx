@@ -10,7 +10,6 @@ class GroupWindow {
     static inline var INK=0x5B4334;
     static inline var MUTED=0x897360;
     static inline var GREEN=0x527F40;
-    static inline var TITLE=0x8A5F46;
     public var dirty=true;
     var c:GroupController;
     var frame:GroupFrame;
@@ -126,7 +125,7 @@ class GroupWindow {
         var heading=filtered(headingBox,row.title,0,0,424,true);
         G.call("domkit.Properties","removeClass",G.field(heading,"dom"),["bold-14"]);
         G.call("domkit.Properties","addClass",G.field(heading,"dom"),["bold-16"]);
-        ink(heading,TITLE);
+        ink(heading,INK);
         text(card,row.members.length+" / "+GroupRules.CAPACITY+" members",570,14,164,true,MUTED);
         for(i in 0...row.members.length)memberChip(card,row.members[i],16+i*176,44,168,row.members[i].accountId==row.ownerId);
         if(own) {
@@ -142,7 +141,7 @@ class GroupWindow {
             if(request!=null&&request.state=="pending") {
                 text(card,"Request pending",570,36,164,true,GREEN);
                 button(card,"Cancel request",570,58,164,()->c.cancel(request));
-            } else button(card,"Request to join",570,50,164,()->c.request(row),"accept",c.party!=null&&c.party.members.length==1);
+            } else button(card,"Request to join",570,50,164,()->c.request(row),"",c.requestError()=="");
         }
     }
     function memberChip(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader:Bool):Void {
@@ -189,18 +188,33 @@ class GroupWindow {
         }
     }
     function memberDetails(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int):Void {
+        var box=G.field(node("element",G.field(parent,"dom"),[],"groupMemberDetails"+(sequence++)),"obj");
+        absolute(parent,box);padding(box,0);size(box,w,28);position(box,x,y);
         var tile=GroupGame.classBanner(member.className),offset=0;
+        var iconHeight=0.0;
         if(tile!=null) {
-            var icon=G.field(node("bitmap",G.field(parent,"dom"),[],"groupClass"+(sequence++)),"obj");
-            absolute(parent,icon);G.call("h2d.Bitmap","set_tile",icon,[tile]);
+            var icon=G.field(node("bitmap",G.field(box,"dom"),[],"groupClass"+(sequence++)),"obj");
+            absolute(box,icon);G.call("h2d.Bitmap","set_tile",icon,[tile]);
             // Preserve the tall pennant's proportions, including any tile offset.
             var scale=Math.min(20/Math.max(1,G.number(G.field(tile,"width"))),28/Math.max(1,G.number(G.field(tile,"height"))));
             G.call("h2d.Object","setScale",icon,[scale]);
-            position(icon,x+(20-G.number(G.field(tile,"width"))*scale)/2-G.number(G.field(tile,"dx"))*scale,y-G.number(G.field(tile,"dy"))*scale);
+            position(icon,(20-G.number(G.field(tile,"width"))*scale)/2-G.number(G.field(tile,"dx"))*scale,-G.number(G.field(tile,"dy"))*scale);
             G.set(icon,"smooth",true);
+            iconHeight=G.number(G.field(tile,"height"))*scale;
             offset=26;
         }
-        text(parent,member.level>0?"Lv. "+member.level:"Level unavailable",x+offset,y+(tile==null?0:4),w-offset,false,MUTED);
+        var level=text(box,member.level>0?"Lv. "+member.level:"Level unavailable",offset,0,w-offset,false,MUTED);
+        if(tile!=null) {
+            var align=()->{
+                if(G.field(level,"needUpdateScale")==true) {
+                    G.call("ui.comp.FmtText","updateScale",level);G.set(level,"needUpdateScale",false);
+                }
+                var bounds=G.call("h2d.Object","getBounds",level,[level,null]);
+                var center=(G.number(G.field(bounds,"yMin"))+G.number(G.field(bounds,"yMax")))*G.number(G.field(level,"scaleY"),1)/2;
+                position(level,offset,iconHeight/2-center);
+            };
+            G.set(box,"onAfterReflow",align);align();
+        }
     }
     function selectDraftCategory(value:String):Void {
         c.draftCategory=value;
@@ -249,10 +263,10 @@ class GroupWindow {
     function updateDraft():Void {
         if(countLabel==null)return;
         var count=GroupRules.count(c.draftTitle);
-        setText(countLabel,count+" / 30");ink(countLabel,count>30?0xB8443A:MUTED);
+        setText(countLabel,count+" / "+GroupRules.MAX_TITLE_LENGTH);ink(countLabel,count>GroupRules.MAX_TITLE_LENGTH?0xB8443A:MUTED);
         var error=GroupRules.partyError(c.party);
         if(error=="")error=GroupRules.titleError(c.draftTitle);
-        setText(validation,error==""?"Up to 30 characters.":error);
+        setText(validation,error==""?"Up to "+GroupRules.MAX_TITLE_LENGTH+" characters.":error);
         if(saveButton!=null)G.call("ui.UIElement","set_enable",saveButton,[error==""&&!c.busy]);
     }
     function requests(root:Dynamic):Void {

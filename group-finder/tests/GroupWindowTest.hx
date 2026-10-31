@@ -23,17 +23,29 @@ class GroupWindowTest {
         check(G.nodes.filter(n->StringTools.startsWith(n.id,"groupClass")&&n.tile.id=="MageBanner").length>0,"Native coloured class pennant replaces the emblem");
         for(icon in G.nodes.filter(n->StringTools.startsWith(n.id,"groupClass"))) {
             check(icon.scaleX==icon.scaleY&&icon.tile.width*icon.scaleX<=20&&icon.tile.height*icon.scaleY<=28,"Class pennants keep their aspect ratio and fit the row");
-            check(icon.y+icon.tile.dy*icon.scaleY==66,"Native tile offsets do not shift the banner");
+            check(icon.parent.y+icon.y+icon.tile.dy*icon.scaleY==66,"Native tile offsets do not shift the banner");
+        }
+        for(box in G.nodes.filter(n->StringTools.startsWith(n.id,"groupMemberDetails"))) {
+            var icon=(cast box.children:Array<Dynamic>).filter(n->G.field(n,"tile")!=null)[0];
+            var level=(cast box.children:Array<Dynamic>).filter(n->G.field(n,"testLabel")==true)[0];
+            var center=G.number(icon.tile.height)*G.number(icon.scaleY)/2;
+            check(Math.abs(G.number(level.y)+13*G.number(level.scaleY)-center)<0.001,"Level glyphs are centered with the class banner");
+            level.inkBounds={xMin:0.,xMax:40.,yMin:3.,yMax:21.};level.nativeScale=0.65;level.needUpdateScale=true;
+            box.onAfterReflow();
+            check(Math.abs(G.number(level.y)+12*0.65-center)<0.001,"Level alignment follows native font scaling and glyph offsets");
         }
         check(groupfinder.GroupGame.classBanner("Unknown")==null,"Unknown class does not invent a banner");
         check(groupfinder.GroupGame.classBanner("Cleric").id=="PriestBanner","Cleric resolves the native Priest artwork");
         var heading=G.labels.filter(l->l.text=="Heroic dungeon runs")[0];
-        check(heading.textColor==0x8A5F46&&heading.parent.scaleX==1.25&&heading.maxWidthText*heading.parent.scaleX==530&&(cast heading.dom.classes:Array<String>).indexOf("bold-16")>=0,"Listing titles use larger warm-brown headings within the same column");
+        check(heading.textColor==0x5B4334&&heading.parent.scaleX==1.25&&heading.maxWidthText*heading.parent.scaleX==530&&(cast heading.dom.classes:Array<String>).indexOf("bold-16")>=0,"Listing titles keep their larger size and match Marketplace item-name colour");
         check(G.labels.filter(l->l.text=="Mage • Lv. 25").length==0,"Class name removed from member details");
         check(G.buttons.filter(b->StringTools.startsWith(b.text,"World Events")).length==1,"Three categories");
         var viewport=G.nodes.filter(n->StringTools.startsWith(n.id,"groupViewport"))[0];
         check(viewport.overflow=="Scroll"&&viewport.scrollBar.visible==true,"Long lists scroll");
         check(viewport.y+viewport.height<644,"Scrollbar clears footer");
+        var paints=(cast viewport.parent.children:Array<Dynamic>).filter(n->G.field(n,"shapes")!=null&&G.field(n,"visible")==true);
+        check(paints.length==1&&paints[0].shapes[0].color==0xD0BBB2,"Scrollbar cap backing matches the surrounding window body");
+        check(button("Request to join").enable&&button("Request to join").kind=="","Solo browsing uses the default enabled join button");
         GroupBadgeTest.run(c);
         button("Create listing").action();render(c);
         var input=G.nodes.filter(n->n.id=="groupTitleInput")[0];
@@ -45,10 +57,17 @@ class GroupWindowTest {
         check(G.nodes.indexOf(input)>=0&&input.input.cursorIndex==6&&input.input.text==c.draftTitle,"Category selection preserves input, text, and caret");
         check(button("World Events").selected&&!button("Dungeons").selected,"Category updates in place");
         check(button("Create listing").enable,"Valid title enables submission");
-        input.input.text=[for(_ in 0...31)"x"].join("");input.onChange();render(c);
+        input.input.text=[for(_ in 0...50)"x"].join("");input.onChange();render(c);
+        check(button("Create listing").enable&&G.labels.filter(l->l.text=="50 / 50").length==1,"Editor accepts and counts a 50-character title");
+        input.input.text=[for(_ in 0...51)"x"].join("");input.onChange();render(c);
         check(!button("Create listing").enable,"Too-long title disables submission");
         input.input.text="badword <img> [token] $token";input.onChange();button("Create listing").action();pump(c);pump(c);
         check(c.mine()!=null,"Create appears locally");
+        var join=button("Request to join"),beforeRequests=c.requests.rows.length;
+        check(!join.enable&&join.kind=="","Owning a listing disables join buttons without green styling");
+        join.action();check(c.requests.rows.length==beforeRequests,"Disabled join button cannot send a request");
+        c.request(c.rows.filter(row->row.ownerId!=c.party.accountId)[0]);
+        check(c.requests.rows.length==beforeRequests&&c.message=="Close your listing before requesting to join another group.","Request handler also rejects joining while a listing is open");
         check(G.cleaned.indexOf(input.input.text)>=0,"Listing title passes through native profanity filter");
         check(G.labels.filter(l->l.text=="******* &lt;img&gt; &#91;token] &#36;token").length==1,"Listing escapes markup and native tokens");
         check(button("Requests").enable&&button("My listing").y==620,"Own listing enables Requests and changes bottom button");
@@ -75,6 +94,7 @@ class GroupWindowTest {
         c.choose("World Events");render(c);button("Close").action();render(c);
         check(c.mine()!=null,"Close requires confirmation");button("Confirm").action();pump(c);pump(c);
         check(c.mine()==null,"Delete removes local listing");
+        check(c.requestError()==""&&button("Request to join").enable,"Closing a listing restores the ability to request to join");
         check(c.requests.rows.length==0&&!button("Requests").enable,"Closing listing clears inbox and disables Requests");
         button("Create listing").action();render(c);input=G.nodes.filter(n->n.id=="groupTitleInput")[0];
         input.input.text="Second listing";input.onChange();button("Create listing").action();pump(c);pump(c);

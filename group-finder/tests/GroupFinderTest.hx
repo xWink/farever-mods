@@ -17,8 +17,8 @@ class GroupFinderTest {
     static function main():Void {
         eq(GroupRules.count("🌟 hello"),7);
         eq(GroupRules.titleError("   "),"Enter a listing title.");
-        eq(GroupRules.titleError([for(_ in 0...30)"🌟"].join("")),"");
-        ok(GroupRules.titleError([for(_ in 0...31)"x"].join(""))!="");
+        eq(GroupRules.titleError([for(_ in 0...50)"🌟"].join("")),"");
+        ok(GroupRules.titleError([for(_ in 0...51)"x"].join(""))!="");
         ok(GroupRules.titleError("hello\nworld")!="");
         var api=new MockGroupService(),p=party();api.observe(p);
         var result:Null<GroupResult<GroupListing>>=null;

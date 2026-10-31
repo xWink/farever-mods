@@ -21,6 +21,7 @@ interface GroupService {
 class GroupRules {
     public static final categories = ["Dungeons", "World Events", "Other"];
     public static inline var CAPACITY = 4;
+    public static inline var MAX_TITLE_LENGTH = 50;
     public static function count(text:String):Int {
         var length=0;
         for (_ in new haxe.iterators.StringIteratorUnicode(text)) length++;
@@ -28,7 +29,7 @@ class GroupRules {
     }
     public static function titleError(text:String):String {
         if(StringTools.trim(text)=="")return "Enter a listing title.";
-        if(count(StringTools.trim(text))>30)return "Listing titles can contain up to 30 characters.";
+        if(count(StringTools.trim(text))>MAX_TITLE_LENGTH)return "Listing titles can contain up to "+MAX_TITLE_LENGTH+" characters.";
         if(text.indexOf("\n")>=0||text.indexOf("\r")>=0||text.indexOf("\t")>=0)return "Use a single line for your title.";
         return "";
     }

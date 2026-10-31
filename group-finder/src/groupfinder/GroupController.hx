@@ -118,9 +118,16 @@ class GroupController {
             page="browse";refresh();view.dirty=true;
         });
     }
+    public function requestError():String {
+        if(party==null)return "Enter the game with your character to request to join a group.";
+        if(mine()!=null)return "Close your listing before requesting to join another group.";
+        if(party.members.length!=1)return "Leave your current party before requesting to join another group.";
+        return "";
+    }
     public function request(listing:GroupListing):Void {
-        if(party==null)return;
-        if(party.members.length>1){message="Leave your current party before requesting to join another group.";view.dirty=true;return;}
+        if(busy)return;
+        var reason=requestError();
+        if(reason!=""){message=reason;view.dirty=true;return;}
         var member:Null<GroupMember>=null;
         for(m in party.members)if(m.accountId==party.accountId)member=m;
         if(member==null)return;
