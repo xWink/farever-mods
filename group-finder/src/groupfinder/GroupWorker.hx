@@ -102,7 +102,7 @@ class GroupWorker implements GroupTransport {
                     }
                     verifyRequested=false;
                 } else if(verified&&GroupPresence.validServer(server)&&presence.due(now)) {
-                    var r=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(GroupPresence.body(server)),key);
+                    var r=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(GroupPresence.body(server,fareverly.PresenceConfig.busy())),key);
                     if(!current(id))continue;
                     var completed=Date.now().getTime()/1000;
                     presence.completed(r.status,completed,Protocol.retryAfter(r.retryAfter,completed),Math.random()*5);

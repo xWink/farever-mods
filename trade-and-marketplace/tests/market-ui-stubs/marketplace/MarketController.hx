@@ -36,6 +36,7 @@ class MarketController {
  public function new(){}
  public var presenceOverride:Null<Bool>;
  public function listingOnline(row:Dynamic):Bool return presenceOverride!=null?presenceOverride:fareverly.Protocol.expiry(trade.GameAccess.text(trade.GameAccess.field(trade.GameAccess.field(row,"seller"),"onlineUntil")))>Date.now().getTime()/1000;
+ public function listingBusy(row:Dynamic):Bool return listingOnline(row)&&trade.GameAccess.field(trade.GameAccess.field(row,"seller"),"busy")==true;
  public function chooseTab(s:String):Void tab=s;
  public function toggleListing(row:Dynamic):Void {selected=selected!=null&&selected.id==row.id?null:row;view.dirty=true;}
  public var searchedItem=false;

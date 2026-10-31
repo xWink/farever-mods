@@ -1315,15 +1315,16 @@ class MarketWindow {
         G.call("ui.comp.FmtText","set_useEllipsis",role,[false]);
         var roleWidth=-1,captionWidth=-1;
         var caption=labelAt(box,name,0,0,width-90-badgeSpace,bold,bold?INK:MUTED,true);
-        var status=labelAt(box,online?"Online":"Offline",0,0,70,false,MUTED,true);
+        var busy=listing!=null&&c.listingBusy(listing);
+        var status=labelAt(box,online?(busy?"Busy":"Online"):"Offline",0,0,70,false,MUTED,true);
         var dot=graphic(box);
-        rounded(dot,0,0,10,10,5,online?0x426138:0x888888);
+        rounded(dot,0,0,10,10,5,online?(busy?0xB44636:0x426138):0x888888);
         if(listing!=null)presenceLabels.push(()->{
-            var current=c.listingOnline(listing);
-            if(current==online)return;
-            online=current;setText(status,current?"Online":"Offline");
+            var current=c.listingOnline(listing),currentBusy=c.listingBusy(listing);
+            if(current==online&&currentBusy==busy)return;
+            online=current;busy=currentBusy;setText(status,current?(busy?"Busy":"Online"):"Offline");
             G.call("h2d.Graphics","clear",dot);
-            rounded(dot,0,0,10,10,5,current?0x426138:0x888888);
+            rounded(dot,0,0,10,10,5,current?(busy?0xB44636:0x426138):0x888888);
         });
         afterReflow(box,()->{
             updateTextScale(role);G.call("h2d.Object","setScale",role,[0.85]);

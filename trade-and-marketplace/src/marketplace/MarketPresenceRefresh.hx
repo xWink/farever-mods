@@ -8,7 +8,7 @@ class MarketPresenceRefresh {
     public static inline var INTERVAL=60.0;
     public var next=0.0;
     var failures=0;
-    var peers:Map<String,{deadline:Float,checked:Float}>=[];
+    var peers:Map<String,{deadline:Float,checked:Float,busy:Bool}>=[];
     var missing:Map<String,Float>=[];
     public function new() {}
     static function text(value:Dynamic):String return Std.isOfType(value,String)?value:"";
@@ -24,7 +24,7 @@ class MarketPresenceRefresh {
         for(row in rows) {
             var id=key(row);
             if(id==""||!Std.isOfType(row.seller.online,Bool))continue;
-            peers[id]={deadline:row.seller.online==true?Protocol.expiry(text(row.seller.onlineUntil)):0,checked:now};
+            peers[id]={deadline:row.seller.online==true?Protocol.expiry(text(row.seller.onlineUntil)):0,checked:now,busy:row.seller.busy==true};
             missing.remove(listingKey(row));
         }
         // Query changes should not retain every player browsed this session.
@@ -36,6 +36,9 @@ class MarketPresenceRefresh {
     }
     public function deadline(row:Dynamic):Null<Float> {
         var value=peers[key(row)];return value==null?null:value.deadline;
+    }
+    public function busy(row:Dynamic):Null<Bool> {
+        var value=peers[key(row)];return value==null?null:value.busy;
     }
     public function due(row:Dynamic,now:Float):Bool {
         var id=key(row),until=missing[listingKey(row)];

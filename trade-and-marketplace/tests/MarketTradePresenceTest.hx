@@ -17,6 +17,7 @@ class MarketTradePresenceTest {
         for(server in ["","any","local"])check(MarketTradePresence.path("peer",server)==null,"A known connected region is mandatory");
         var policy=new MarketTradePresence();
         check(policy.completed(response(200,'{"online":true}'),0,0).online,"Only actual true authorizes a trade");
+        check(policy.completed(response(200,'{"online":true,"busy":true}'),0,0).online,"Busy players still count as online for trade presence");
         check(policy.next==0&&policy.unavailable(0)=="","Online results are not cached or rate-limited locally");
         var offline=policy.completed(response(200,'{"online":false}'),0,0);
         check(!offline.online&&offline.message==MarketTradePresence.OFFLINE,"Offline uses the requested explanation");

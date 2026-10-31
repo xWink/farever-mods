@@ -83,9 +83,16 @@ class GroupApiTest {
         f=setup();a=f.a;w=f.w;a.list("europe",r->result=r);j=w.take("GET","listings?");w.reply(j,{error:{code:"rate_limited"}},429,"90");tick(a);
         a.list("europe",r->result=r);check(w.jobs.filter(j->j.op=="request").length==0,"429 suppresses immediate read retries");tick(a,89);a.list("europe",r->result=r);check(w.jobs.filter(j->j.op=="request").length==0,"Retry-After is a minimum");tick(a,10);a.list("europe",r->result=r);check(w.jobs.length==1,"Polling resumes after cooldown");
         var heartbeat=new GroupPresence();heartbeat.completed(429,100,75,2);check(!heartbeat.due(176)&&heartbeat.due(177),"Shared heartbeat honors cooldown and jitter");
-        check(GroupPresence.deadline(429,'{"onlineUntil":"2099-01-01T00:00:00.000Z"}',"")==0,"429 is not acknowledged presence");eq(haxe.Json.parse(GroupPresence.body("europe")),{server:"europe"},"Both mods send identical heartbeat shape");heartbeat.completed(401,200,0,0);check(!heartbeat.due(1000),"Invalid credentials stop heartbeats");
+        check(GroupPresence.deadline(429,'{"onlineUntil":"2099-01-01T00:00:00.000Z"}',"")==0,"429 is not acknowledged presence");eq(haxe.Json.parse(GroupPresence.body("europe")),{server:"europe",busy:false},"Both mods send identical heartbeat shape");heartbeat.completed(401,200,0,0);check(!heartbeat.due(1000),"Invalid credentials stop heartbeats");
         var member={accountId:"self",name:"Wink",className:"Warrior",level:25},wire=GroupWire.encode("request",ID2,ID,member),packet=GroupWire.decode(wire);
         check(wire.length<300&&packet!=null&&packet.level==25,"Join request fits one whisper");check(GroupWire.decode(GroupWire.PREFIX+"invalid")==null,"Malformed protocol ignored");check(GroupWire.decode(GroupWire.encode("declined",ID2,ID)).op=="declined","Decline roundtrip");
+        check(packet.badge==null,"Existing requests without a badge remain compatible");
+        for(badge in ["supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"]) {
+            var token=GroupWire.encode("request",ID2,ID,{accountId:"self",name:"Wink",className:"Warrior",level:10000,badge:badge});
+            check(token.length<=300&&GroupWire.decode(token).badge==badge,"Optional applicant badge roundtrips in one whisper");
+        }
+        var unknown=GroupWire.PREFIX+haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(haxe.Json.stringify(["request",ID2,ID,"Mage",25,"<img src=bad>"])));
+        check(GroupWire.decode(unknown).badge==null,"Unrecognized badge data is ignored without dropping the application");
         var requests=new GroupRequests(),listing=P.listing(row(ID,"leader"));eq(requests.add(listing,member,false,0,ID2,"leader","Leader"),"","Outgoing request recorded");requests.tick(299,null);eq(requests.get(ID2).state,"pending","Request lasts five minutes");
         check(!requests.respond(ID2,ID,"spoofed","declined",299),"Responses match native sender");check(!requests.respond(ID2,"wrong","leader","declined",299),"Responses match listing");check(requests.respond(ID2,ID,"leader","declined",299),"Expected leader can decline");eq(requests.get(ID2).state,"declined","Rejection reaches requester");
         requests.reset(true);requests.add(listing,member,false,0,ID2,"leader","Leader");requests.tick(300,null);eq(requests.get(ID2).state,"expired","Five-minute expiry enforced");

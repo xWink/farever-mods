@@ -21,7 +21,7 @@ class MarketplacePresenceRefreshTest {
         c.update(app,now);
     }
     public static function run():Void {
-        cache(); browsing(); unavailablePages(); cancellation();
+        cache(); busyStatus(); browsing(); unavailablePages(); cancellation();
         Sys.println('Marketplace presence refresh checks passed: $checks');
     }
     static function cache():Void {
@@ -55,6 +55,26 @@ class MarketplacePresenceRefreshTest {
         var player:Dynamic={isMe:true,hero:{loadout:{banks:[]}}},app:Dynamic={me:player};
         var c=new MarketController();c.player=player;c.inv=new TradeInventory(player);c.server="europe";c.account="self";c.ready=true;
         c.open();return {c:c,app:app,now:haxe.Timer.stamp()};
+    }
+    static function busyStatus():Void {
+        var s=setup(),c=s.c,a=row(1,"a",true,"2099-01-01T00:00:00.000Z"),same=row(2,"a",true,"2099-01-01T00:00:00.000Z");
+        a.seller.busy=true;
+        respond(c,s.app,last(),{listings:[a],nextCursor:null},s.now);
+        check(c.listingOnline(a)&&c.listingBusy(a)&&c.listingBusy(same),"Busy is online and shares fresh state across a player's buy/sell rows");
+        c.filters["online"]="true";c.displayFilledBrowse(c.filledBrowse);
+        check(c.rows.length==1,"Online only keeps busy listings");
+        a.seller.busy=false;c.peerPresence.observe(a,s.now+1);
+        check(!c.listingBusy(same)&&c.listingOnline(same),"Fresh available status clears cached busy without going offline");
+        a.seller.busy=true;a.seller.online=false;c.peerPresence.observe(a,s.now+2);
+        check(!c.listingBusy(same)&&!c.listingOnline(same),"Offline overrides busy even when a stale busy flag remains");
+        a.seller.online=true;a.seller.onlineUntil="2000-01-01T00:00:00.000Z";c.peerPresence.observe(a,s.now+3);
+        check(!c.listingBusy(a),"Expired presence cannot display Busy");
+        var own=row(3,"self",true,"2099-01-01T00:00:00.000Z");
+        c.ownOnlineServer="europe";c.ownOnlineUntil=Protocol.expiry(own.seller.onlineUntil)+60;c.ownBusy=true;
+        check(c.listingBusy(own),"An acknowledged busy heartbeat updates own listings");
+        own.seller.busy=false;own.seller.onlineUntil="2099-01-01T00:03:00.000Z";c.peerPresence.observe(own,s.now+4);
+        check(!c.listingBusy(own),"A later server snapshot overrides an older own-heartbeat busy state");
+        c.disconnect();
     }
     static function browsing():Void {
         var s=setup(),c=s.c,app=s.app,t=s.now,wall=Protocol.expiry("2026-10-24T00:00:00Z");

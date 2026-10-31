@@ -27,9 +27,6 @@ class GroupFinderMod {
             config=ModConfig.load(HlxRuntime.moduleName(),config);
             config.hotkey=Hotkey.normalize(config.hotkey,120);
         });
-        Bus.subscribe("better-mod-settings/action/"+HlxRuntime.moduleName()+"/openGroupFinder",(_:Dynamic)->{
-            if(controller!=null)controller.open();
-        });
     }
     @:hlx.postfix(GameApp.update)
     static function update(instance:Dynamic,dt:Float,result:Void):Void {

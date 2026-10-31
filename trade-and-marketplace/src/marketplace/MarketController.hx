@@ -41,6 +41,7 @@ class MarketController {
     var locations:Map<String,String>=[];
     var ownOnlineUntil=0.0;
     var ownOnlineServer="";
+    var ownBusy=false;
     var peerPresence=new MarketPresenceRefresh();
     var visiblePresenceRows:Array<Dynamic>=[];
     var presencePollAt=0.0;
@@ -157,7 +158,7 @@ class MarketController {
                         if((method!="GET"||path.indexOf("mine=true")>=0)&&(response.status==401||response.status==403)){ready=false;connectionIssue=true;}
                     }
                     view.dirty=true;
-                case "presence":ownOnlineUntil=event.onlineUntil;ownOnlineServer=event.server;
+                case "presence":ownOnlineUntil=event.onlineUntil;ownOnlineServer=event.server;ownBusy=event.busy==true;
                 case "ready":ready=true;connectionIssue=false;message=event.message;view.dirty=true;
                     tradePresencePolicy.blocked=false;
                     if(opened&&(tab=="Sell"||tab=="Buy"||tab=="My listings")&&!ownedKnown&&!busy)refreshSell();
@@ -527,6 +528,14 @@ class MarketController {
         if(account!=""&&G.text(G.field(seller,"accountId"))==account&&ownOnlineServer!=""
             &&G.text(G.field(row,"server"))==ownOnlineServer)deadline=Math.max(deadline,ownOnlineUntil);
         return deadline>now;
+    }
+    public function listingBusy(row:Dynamic,?at:Float):Bool {
+        if(!listingOnline(row,at))return false;
+        var seller=G.field(row,"seller"),fresh=peerPresence.deadline(row);
+        var deadline=fresh==null?Protocol.expiry(G.text(G.field(seller,"onlineUntil"))):fresh;
+        if(account!=""&&G.text(G.field(seller,"accountId"))==account&&ownOnlineServer!=""
+            &&G.text(G.field(row,"server"))==ownOnlineServer&&ownOnlineUntil>=deadline)return ownBusy;
+        var busy=peerPresence.busy(row);return busy==null?G.field(seller,"busy")==true:busy;
     }
     function displayOwned():Void {
         var now=Date.now().getTime()/1000,id=G.text(G.field(selected,"id"),mineSelectedId);

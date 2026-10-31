@@ -45,6 +45,9 @@ jobs:
       - name: Test protocol, controller, inventory and exchange safeguards
         working-directory: trade-and-marketplace
         run: haxe test.hxml
+      - name: Test shared busy setting across both heartbeat workers
+        working-directory: shared
+        run: haxe test-presence.hxml
       - uses: actions/checkout@v4
         with:
           repository: HaxeFoundation/hashlink

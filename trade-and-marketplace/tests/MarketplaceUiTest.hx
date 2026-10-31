@@ -527,6 +527,14 @@ class MarketplaceUiTest {
   var statuses=GameAccess.labels.filter(l->l.text=="Offline");check(statuses.length>0);
   c.presenceOverride=true;@:privateAccess view.presenceCheckAt=0;view.update();
   check(statuses[0].text=="Online"&&GameAccess.labels.indexOf(statuses[0])>=0);
+  var presenceDot=statuses[0].parent.children.filter(n->n.shapes!=null)[0];
+  for(listing in c.rows)listing.seller.busy=true;
+  @:privateAccess view.presenceCheckAt=0;view.update();
+  check(statuses[0].text=="Busy"&&presenceDot.shapes[0].color==0xB44636,"Busy uses a red circle and label");
+  check(GameAccess.labels.indexOf(statuses[0])>=0&&!view.dirty,"Busy status updates without rebuilding listing controls");
+  for(listing in c.rows)listing.seller.busy=false;
+  @:privateAccess view.presenceCheckAt=0;view.update();
+  check(statuses[0].text=="Online"&&presenceDot.shapes[0].color==0x426138,"Turning busy off restores the green Online indicator");
   c.presenceOverride=false;@:privateAccess view.presenceCheckAt=0;view.update();
   check(statuses[0].text=="Offline"&&!view.dirty);c.presenceOverride=null;
   // Only the item-information viewport receives the dark tooltip background.

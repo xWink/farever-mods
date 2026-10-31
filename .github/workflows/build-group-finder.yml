@@ -47,6 +47,9 @@ jobs:
       - name: Test API integration, requests, and UI
         working-directory: group-finder
         run: haxe test.hxml
+      - name: Test shared busy setting across both heartbeat workers
+        working-directory: shared
+        run: haxe test-presence.hxml
   native:
     runs-on: ubuntu-latest
     steps:

@@ -18,12 +18,6 @@
       "modifiers": true
     },
     {
-      "type": "button",
-      "key": "openGroupFinder",
-      "label": "Group Finder",
-      "buttonText": "Open Group Finder"
-    },
-    {
       "type": "title",
       "label": "Fareverly"
     },
@@ -38,6 +32,16 @@
       "key": "fareverlyVerify",
       "label": "Verify Fareverly connection",
       "buttonText": "Verify Fareverly connection"
+    },
+    {
+      "type": "checkbox",
+      "key": "fareverlyAppearBusy",
+      "label": "Appear as busy",
+      "isCommon": true,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Appear as busy while remaining online on Fareverly. Shared with Trade and Marketplace; takes effect with the next heartbeat."
+      }
     }
   ]
 }

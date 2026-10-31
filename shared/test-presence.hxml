@@ -1,0 +1,8 @@
+-cp src
+-cp tests
+-cp ../group-finder/src
+-cp ../group-finder/tests/worker-stubs
+-cp ../trade-and-marketplace/src
+-cp ../trade-and-marketplace/tests/worker-stubs
+-main SharedPresenceTest
+--interp

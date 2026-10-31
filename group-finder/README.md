@@ -2,9 +2,9 @@
 
 Initial release: **1.0.0**. Download from [Nexus Mods](https://www.nexusmods.com/farever/mods/37). Subsequent releases use the shared [release pipeline](../RELEASING.md) with the `group-finder` project and `group-finder/v<version>` tags.
 
-Open with **F9**, `/lfg`, `/groupfinder`, or the button in Better Mod Settings. The hotkey is configurable. Browse Dungeons, World Events, and Other, with native scrolling and scrollbars. Listings display party members, class banners, levels, yellow leader stars, and Fareverly supporter badges.
+Open with **F9**, `/lfg`, or `/groupfinder`. The hotkey is configurable. Browse Dungeons, World Events, and Other, with native scrolling and scrollbars. Listings display party members, class banners, levels, yellow leader stars, and Fareverly supporter badges.
 
-Connect through **Login to Fareverly** in Group Finder settings. **Verify Fareverly connection** checks the connection without showing the key. Credentials are shared with DPS Meter and Trade and Marketplace; an existing valid login works here too. Group Finder works independently of both mods.
+Connect through **Login to Fareverly** in the **Fareverly** settings category. **Verify Fareverly connection** checks the connection without showing the key. **Appear as busy** is off by default and shares its saved value with Trade and Marketplace. Both mods read it before their next heartbeat; busy players remain online. Credentials are shared with DPS Meter and Trade and Marketplace; an existing valid login works here too. Group Finder works independently of both mods.
 
 ## Listings
 
@@ -18,6 +18,8 @@ Entering or leaving a dungeon, rift, or other instance preserves the listing and
 
 Requesting fetches the latest listing before sending one private protocol message. Requests, responses, and cancellation use native game whispers; there is no HTTP request inbox. Native invitations use the game's account-ID invitation method, which supports players on other zones/instances in the same region. The requester still accepts the normal game invitation.
 
+The Requests page displays a supporter or creator badge when the applicant data supplies a recognized `badge` ID. The request protocol accepts an optional sixth field for this badge and continues accepting the existing five-field requests. No extra badge lookup is sent. Supplying the applicant's badge data remains the responsibility of the integration producing the application.
+
 Pending requests expire after five minutes. Duplicate pending requests are suppressed, with a ten-second repeat cooldown, but distinct requests/invitations have no artificial cap or slot reservation. Joining the requested party marks the request as joined; other outgoing requests are cancelled even with the window closed. Accepted requests remain in the leader's history and become **Joined group** when the player appears in the roster. A late automatic cancellation from an older requester cannot overwrite an accepted request.
 
 Declining the native party invitation marks the application **Invitation declined** on both clients and permits an immediate fresh application. This is separate from the leader declining an application, which still prevents reapplying to that listing. Native replies are correlated by sender account ID or an unambiguous leader name for cross-zone invitations. Both players need this update to exchange invitation-decline responses.
@@ -28,7 +30,7 @@ The leader declining an application locks that account out of reapplying to the 
 
 ## Presence and reliability
 
-Group Finder and Marketplace independently send the same `POST /api/v1/marketplace/heartbeat` body containing only the connected server. Both honor the account-wide 60-second limit and `Retry-After`; either accepted heartbeat maintains the shared 180-second presence. Heartbeats run while logged in, regardless of listings or window visibility. There is no elected owner, mod dependency, separate Group Finder heartbeat, or per-listing renewal. A rate-limit response is not treated as proof of presence on the current region: listing creation is still validated by Fareverly.
+Group Finder and Marketplace independently send the same `POST /api/v1/marketplace/heartbeat` body containing the connected `server` and shared boolean `busy` setting. Both honor the account-wide 60-second limit and `Retry-After`; either accepted heartbeat maintains the shared 180-second presence. Heartbeats run while logged in, regardless of listings, window visibility, or busy status. There is no elected owner, mod dependency, separate Group Finder heartbeat, or per-listing renewal. A rate-limit response is not treated as proof of presence on the current region: listing creation is still validated by Fareverly.
 
 HTTP/TLS and authentication run on a worker thread, with bounded responses and timeouts. Creates use UUID idempotency keys; retries retain the same payload/key after uncertain responses. Edits/party updates use revision checks and reconcile conflicts. Stale callbacks cannot update a new client session; a late/abandoned create is resolved and closed using its original credential. Cleanup retries are bounded below the API's seven-day idempotency retention. Sudden process termination relies on shared presence expiry.
 

@@ -17,7 +17,7 @@ class GroupWorkerTest {
     static function main():Void {
         var w=new GroupWorker(),key="fv1_"+StringTools.lpad("","a",43),id=w.session("self",key,"europe");
         check(awaitEvent(w,"ready").generation==id,"Required scopes and account verified");
-        var heartbeat=awaitCall("POST","/heartbeat");check(heartbeat.body=='{"server":"europe"}'&&heartbeat.token==key,"Standalone heartbeat uses shared endpoint and hidden key");
+        var heartbeat=awaitCall("POST","/heartbeat"),body=haxe.Json.parse(heartbeat.body);check(body.server=="europe"&&body.busy==false&&heartbeat.token==key,"Standalone heartbeat uses shared endpoint and hidden key");
         check(awaitEvent(w,"heartbeat-attempted").generation==id,"Shared heartbeat rate limit is quiet");
         w.send({generation:id,op:"request",ticket:1,method:"GET",path:GroupProtocol.BASE+"/listings?server=europe"});
         var e=awaitEvent(w,"request");check(e.ticket==1&&e.response.status==200,"Read authenticated after verification");

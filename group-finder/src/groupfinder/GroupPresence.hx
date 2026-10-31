@@ -2,9 +2,9 @@ package groupfinder;
 /** Completion-based scheduling; a rejected heartbeat never implies online status. */
 class GroupPresence {
     public static function validServer(server:String):Bool return ["north-america","europe","latin-america","asia","mainland-china"].indexOf(server)>=0;
-    public static function body(server:String):String {
+    public static function body(server:String,busy=false):String {
         if(!validServer(server))throw "Unknown game server";
-        return haxe.Json.stringify({server:server});
+        return haxe.Json.stringify({server:server,busy:busy});
     }
     public var next = 0.0;
     public var stopped = false;

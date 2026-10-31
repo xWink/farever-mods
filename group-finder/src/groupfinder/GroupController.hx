@@ -243,7 +243,7 @@ class GroupController {
         var name=G.text(G.field(G.field(message,"sender"),"name"),"Player");
         if(packet.op=="request") {
             var dedup=sender+":"+packet.id;if(received.exists(dedup))return;received[dedup]=now+GroupRules.REQUEST_TIMEOUT+30;
-            receiveRequest(packet.listingId,{accountId:sender,name:name,className:packet.className,level:packet.level},packet.id);
+            receiveRequest(packet.listingId,{accountId:sender,name:name,className:packet.className,level:packet.level,badge:packet.badge},packet.id);
         } else if(requests.respond(packet.id,packet.listingId,sender,packet.op=="cancel"?"cancelled":packet.op,now)) {
             if(packet.op=="declined")GroupGame.notify(name+" declined your request to join their group.");
             else if(packet.op=="closed")GroupGame.notify("The group listing for your request to "+name+" has closed.");

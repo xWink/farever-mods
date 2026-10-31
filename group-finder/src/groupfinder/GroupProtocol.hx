@@ -26,6 +26,10 @@ class GroupProtocol {
             className:["Warrior","Rogue","Mage","Cleric"].indexOf(m.className)>=0?m.className:null,
             level:m.level>0&&m.level<=10000?cast(m.level,Null<Int>):null}]
     };
+    public static function badge(value:Dynamic):Null<String> {
+        return Std.isOfType(value,String)&&["supporter-bronze","supporter-silver","supporter-gold","supporter-ruby",
+            "supporter-emerald","supporter-diamond","fareverly-creator"].indexOf(value)>=0?value:null;
+    }
     public static function payload(p:GroupParty,title:String,category:String,subcategory:String):String {
         var d=roster(p);Reflect.setField(d,"title",StringTools.trim(title));
         Reflect.setField(d,"category",category);Reflect.setField(d,"subcategory",subcategory);

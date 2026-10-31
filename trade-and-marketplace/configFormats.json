@@ -27,6 +27,10 @@
       "modifiers": true
     },
     {
+      "type": "title",
+      "label": "Fareverly"
+    },
+    {
       "key": "fareverlySignIn",
       "type": "button",
       "label": "Login to Fareverly",
@@ -44,6 +48,16 @@
       "tooltip": {
         "enabled": true,
         "tooltipText": "Check your saved Fareverly connection without signing in again."
+      }
+    },
+    {
+      "type": "checkbox",
+      "key": "fareverlyAppearBusy",
+      "label": "Appear as busy",
+      "isCommon": true,
+      "tooltip": {
+        "enabled": true,
+        "tooltipText": "Appear as busy while remaining online on Fareverly. Shared with Group Finder; takes effect with the next heartbeat."
       }
     }
   ]

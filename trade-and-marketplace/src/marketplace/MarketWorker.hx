@@ -5,7 +5,7 @@ import sys.thread.Deque;
 import sys.thread.Mutex;
 import sys.thread.Thread;
 typedef MarketJob={generation:Int,op:String,?ticket:Int,?account:String,?server:String,?key:String,?method:String,?path:String,?body:String,?headers:Map<String,String>,?entropy:Bytes};
-typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float,?server:String};
+typedef MarketEvent={generation:Int,op:String,?ticket:Int,?response:Response,?message:String,?url:String,?code:String,?credential:Credential,?expectedKey:String,?onlineUntil:Float,?server:String,?busy:Bool};
 /** Foreground work takes priority over one background listing batch; presence/auth share the worker. Native objects never leave the game thread. */
 class MarketWorker {
     final jobs=new Deque<MarketJob>();
@@ -122,11 +122,12 @@ class MarketWorker {
                     verifyAt=now+Math.max(Protocol.retryAfter(response.retryAfter,now),Math.min(900,60*Math.pow(2,Math.min(verifyFailures-1,4)))); }
                 verifyRequested=false;
             } else if(verified && MarketPresence.validServer(server) && presence.due(now)) {
-                var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(MarketPresence.body(server)),key);
+                var appearBusy=fareverly.PresenceConfig.busy();
+                var response=http.authenticated("POST",Protocol.ORIGIN+"/api/v1/marketplace/heartbeat",Bytes.ofString(MarketPresence.body(server,appearBusy)),key);
                 if(!current(id))continue;
                 var completed=Date.now().getTime()/1000;
                 var deadline=MarketPresence.deadline(response.status,response.body,response.error);
-                if(deadline>completed)events.add({generation:id,op:"presence",onlineUntil:deadline,server:server});
+                if(deadline>completed)events.add({generation:id,op:"presence",onlineUntil:deadline,server:server,busy:appearBusy});
                 presence.completed(response.status,completed,Protocol.retryAfter(response.retryAfter,completed),Math.random()*5);
                 if(presence.stopped) {verified=false;verifyAt=Math.POSITIVE_INFINITY;events.add({generation:id,op:"error",message:"Fareverly sign-in expired. Sign in again to list items."});}
             }
