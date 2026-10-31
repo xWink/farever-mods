@@ -179,7 +179,7 @@ class GroupWindow {
                 var status=G.field(node("element",G.field(card,"dom"),[],"groupRequestStatus"+(sequence++)),"obj");
                 absolute(card,status);padding(status,0);size(status,218,22);position(status,570,78);
                 G.call("h2d.Object","setScale",status,[0.75]);
-                requestLabel(status,request,0,0,218,GREEN);
+                requestLabel(status,request,0,0,218,request.state=="pending"?MUTED:GREEN);
             } else {
                 var declined=c.party!=null&&c.requests.isDeclined(row.id,c.party.accountId);
                 button(card,declined?"Request declined":"Request to join",570,42,164,()->c.request(row),"",c.requestError(row)=="");
@@ -334,7 +334,8 @@ class GroupWindow {
     function requests(root:Dynamic):Void {
         text(root,"Join requests",234,20,460,true);
         text(root,"Review requests to join your group.",234,51,768,false,MUTED);
-        if(c.mock!=null)button(root,"Add sample request",790,18,212,c.previewRequest,"",c.mine()!=null);
+        button(root,"Refresh",890,18,112,c.refreshRequests);
+        if(c.mock!=null)button(root,"Add sample request",660,18,212,c.previewRequest,"",c.mine()!=null);
         var mine=c.mine(),rows=mine==null?[]:c.requests.incoming(mine.id);
         var content=scroller(root,rows.length*126);
         if(rows.length==0) {
@@ -391,6 +392,7 @@ class GroupWindow {
     static function stateLabel(state:String):String return switch(state) {
         case "pending": "Request pending";
         case "invited": "Invitation sent";
+        case "invite-declined": "Invitation declined";
         case "joined": "Joined group";
         case "declined": "Request declined";
         case "cancelled": "Request cancelled";

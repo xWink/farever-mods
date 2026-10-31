@@ -18,7 +18,7 @@ class GroupWire {
             var data:Dynamic=haxe.Json.parse(haxe.crypto.Base64.decode(text.substr(PREFIX.length)).toString());
             if(!Std.isOfType(data,Array))return null;
             var a:Array<Dynamic>=data;
-            if(a.length<3||!Std.isOfType(a[0],String)||["request","cancel","invited","declined","closed"].indexOf(a[0])<0
+            if(a.length<3||!Std.isOfType(a[0],String)||["request","cancel","invited","declined","closed","invite-declined"].indexOf(a[0])<0
                 ||!Std.isOfType(a[1],String)||!GroupProtocol.uuid(a[1])||!Std.isOfType(a[2],String)||!GroupProtocol.uuid(a[2]))return null;
             if(a[0]=="request") {
                 if(a.length!=5||!Std.isOfType(a[3],String)||["","Warrior","Rogue","Mage","Cleric"].indexOf(a[3])<0

@@ -265,6 +265,20 @@ class GroupController {
         }
         view.dirty=true;
     }
+    public function invitationSelected(notify:Dynamic,accepted:Bool,result:Dynamic):Void {
+        if(accepted||live==null||party==null||G.enumName(result)!="Ok"
+            ||G.text(G.field(notify,"kind"))!="PlayerGroupInvited"
+            ||G.text(G.field(G.field(notify,"targetPlayer"),"uid"))!=party.accountId)return;
+        var leaderId=G.text(G.field(G.field(notify,"fromPlayer"),"uid"));
+        var leaderName=G.text(G.field(G.field(notify,"args"),"leader"));
+        var matches=requests.rows.filter(r->!r.incoming&&(r.state=="pending"||r.state=="invited")&&r.expiresAt>now
+            &&(leaderId!=""?r.peerId==leaderId:leaderName!=""&&r.peerName==leaderName));
+        // Cross-zone native invitations contain the leader's name, not their ID.
+        // Only correlate an unambiguous pending request; never guess a recipient.
+        if(matches.length!=1)return;
+        var request=matches[0];
+        if(requests.invitationDeclined(request)){sendState(request,"invite-declined");message="";view.dirty=true;}
+    }
     function sendState(request:JoinRequest,state:String,reportFailure=false):Void {
         if(live==null||localPlayer==null||request.peerId==null)return;
         var token=generation;
@@ -278,6 +292,13 @@ class GroupController {
         if(requests.cancelOutgoing(joinedParty)>0)view.dirty=true;
     }
     public function showRequests():Void {if(mine()==null)return;page="requests";pendingDelete=null;message="";view.resetScroll();view.dirty=true;}
+    public function refreshRequests():Void {
+        var own=mine();if(own==null||busy)return;
+        message="";nextParty=0;
+        requests.observeParty(party,own.id);requests.tick(now,mock==null?null:mock.find);
+        if(live!=null)live.loadMine();
+        view.dirty=true;
+    }
     public function disconnect():Void {
         traveling=false;transferParty=null;endingSession=false;
         cancelOutgoing();

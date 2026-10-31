@@ -13,6 +13,7 @@ class GroupCountdownTest {
         c.mock.observe(c.party);c.mock.examples("europe",true);c.open();c.mock.tick(.2);c.view.update(true);
         c.request(c.rows[0]);c.view.update(true);
         var caption=label(),cancel=G.buttons.filter(b->b.text=="Cancel request")[0];
+        var pendingColor=caption.textColor;
         check(caption.text=="Request pending • 5:00"&&(cast caption.dom.classes:Array<String>).indexOf("bold-14")>=0,"Applicant sees a bold pending label with the five-minute timer");
         var request=c.requests.rows[0],expiry=request.expiresAt;
         c.now=1;c.view.update(true);
@@ -25,6 +26,10 @@ class GroupCountdownTest {
         var own=c.mine();c.receiveRequest(own.id,{accountId:"applicant",name:"Applicant",className:"Rogue",level:25});
         c.open();c.showRequests();c.view.update(true);caption=label();
         var accept=G.buttons.filter(b->b.text=="Accept")[0];
+        check(caption.textColor==pendingColor&&pendingColor==0x897360,"Applicant pending label and timer match the owner's colour");
+        var refresh=G.buttons.filter(b->b.text=="Refresh")[0];check(refresh!=null&&refresh.x==890,"Requests page has its own Refresh button");
+        c.message="Old error";refresh.action();c.view.update(true);caption=label();accept=G.buttons.filter(b->b.text=="Accept")[0];
+        check(c.page=="requests"&&c.message==""&&c.requests.rows.length==1,"Refreshing preserves the inbox and Requests page");
         check(caption.text=="Request pending • 5:00"&&(cast caption.dom.classes:Array<String>).indexOf("bold-14")>=0,"Owner sees the same bold pending countdown");
         c.now=240;c.view.update(true);
         check(label()==caption&&caption.text=="Request pending • 1:00"&&G.buttons.indexOf(accept)>=0,"Owner countdown ticks without moving or replacing Accept");

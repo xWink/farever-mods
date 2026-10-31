@@ -63,6 +63,14 @@ class GroupFinderMod {
     static function receiveLocal(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
     @:hlx.prefix(st.player.ChatClient.receiveMessage__impl)
     static function receiveRpc(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
+    @:hlx.postfix(st.player.NetNotify.select)
+    static function invitationSelected(instance:Dynamic,b:Bool,onDone:Dynamic,result:Dynamic):Void {
+        if(controller!=null)try controller.invitationSelected(instance,b,result)catch(e:Dynamic)report("Invitation response: "+Std.string(e));
+    }
+    @:hlx.postfix(ui.hud.ChatBoxMessage.init)
+    static function styleNotice(instance:Dynamic,result:Void):Void {
+        try GroupNotices.decorate(instance)catch(e:Dynamic)report("Notification style: "+Std.string(e));
+    }
     @:hlx.prefix(ui.hud.ChatBox.receiveMessage)
     static function receiveRow(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(G.field(instance,"chatClient"),message);
     static function receive(client:Dynamic,message:Dynamic):HlxPrefixResult<Void> {

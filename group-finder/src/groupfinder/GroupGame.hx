@@ -37,7 +37,7 @@ class GroupGame {
         // AllSystem already has a native timestamp; More Settings leaves it alone.
         G.call("st.player.ChatClient","localReceiveMessage",client,[{
             channel:G.enumeration("st.Channel","AllSystem"),sender:null,text:message,
-            notify:null,args:null,localStamp:null,localTextId:null
+            notify:null,args:{groupFinderNotice:true},localStamp:null,localTextId:null
         }]);
     }
     public static function connected(player:Dynamic):Bool return player!=null&&G.field(player,"isMe")==true

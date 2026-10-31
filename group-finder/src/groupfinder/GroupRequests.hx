@@ -34,12 +34,21 @@ class GroupRequests {
     public function respond(id:String,listingId:String,sender:String,state:String,now:Float):Bool {
         var r=get(id);if(r==null||r.listingId!=listingId||r.peerId!=sender||r.expiresAt<=now
             ||(r.state!="pending"&&r.state!="invited"))return false;
-        if(r.incoming&&state!="cancelled"||!r.incoming&&["invited","declined","closed"].indexOf(state)<0)return false;
+        if(r.incoming&&state!="cancelled"&&state!="invite-declined"||!r.incoming&&["invited","declined","closed"].indexOf(state)<0)return false;
         // Accepted requests are history, not pending applications. Older clients
         // send an automatic cancel when they join; it must not undo acceptance.
-        if(r.incoming&&r.state=="invited")return false;
+        if(r.incoming&&r.state=="invited"&&state=="cancelled")return false;
+        if(state=="invite-declined") {
+            if(r.state!="invited")return false;
+            cooldown.remove(r.listingId+":"+r.member.accountId);
+        }
         if(state=="declined")declined[r.listingId+":"+r.member.accountId]=true;
         r.state=state;revision++;return true;
+    }
+    /** Refusing a native invitation is not the leader declining an application. */
+    public function invitationDeclined(request:JoinRequest):Bool {
+        if(request==null||request.incoming||(request.state!="pending"&&request.state!="invited"))return false;
+        request.state="invite-declined";cooldown.remove(request.listingId+":"+request.member.accountId);revision++;return true;
     }
     public function isDeclined(listingId:String,accountId:String):Bool return declined.exists(listingId+":"+accountId);
     public function reset(clearDeclines=false):Void {rows=[];cooldown.clear();if(clearDeclines)declined.clear();revision++;}
