@@ -59,7 +59,7 @@ The **Fareverly** settings category contains **Login to Fareverly**, **Verify Fa
 - Browse defaults to both order types; filter by Any, Buy, or Sell. Listings show **B>** or **S>** before the item name, and My listings manages both types. Each account can have up to 20 active sell orders and 20 active buy orders per region, shared across characters. Duplicate-item limits apply separately to each order type across regions.
 - Item details read infusion and bonus names from the item's native snapshot in your game language. Buy orders that accept any infusion bonus show **Infusion bonus: Any** on applicable equipment.
 - Listing quantities combine identical tradable items across your inventory and unlocked bank tabs, whichever view you select from.
-- Set a total price in Silver Trays (500 gold each), or choose **Open to offers**.
+- Set a total price for the entire listing in Silver Trays (500 gold each), or choose **Open to offers**. Buy, Sell, and Edit show the per-unit price in gold beneath the price input; changing quantity does not change the entered total.
 - Manage up to 40 active orders per region (20 sell and 20 buy) under **My listings**. Listings expire 3 days after posting. Edit a listing to change its quantity or price.
 - **Whisper seller** contacts their account. Meet nearby to complete the trade. Items stay in their original location; withdraw bank items before trading.
 - Signed-in players send a heartbeat on login and about once per minute, even with no listings and with the marketplace closed. Logging out or disabling the mod stops updates; online status expires within 3 minutes.

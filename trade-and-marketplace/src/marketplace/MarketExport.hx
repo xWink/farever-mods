@@ -48,7 +48,7 @@ class MarketExport {
     /** A requested item is detached native state, never an inventory claim. */
     public static function buySnapshot(buy:MarketBuy,server:String,app:Dynamic,player:Dynamic):Dynamic {
         if(server=="")throw "The connected server could not be identified. Reconnect before posting a buy order.";
-        var total=buy.offers?0:MarketQuantity.totalPrice(buy.quantity,buy.unitTrays);
+        var total=buy.offers?0:MarketQuantity.totalPrice(buy.quantity,buy.totalTrays);
         if(!MarketQuantity.valid(buy.quantity,1,10000)||total==null)
             throw "Choose a valid quantity and a total price of 1 to 200,000 Silver Trays.";
         var quantity=Std.parseInt(buy.quantity),trays:Int=total;

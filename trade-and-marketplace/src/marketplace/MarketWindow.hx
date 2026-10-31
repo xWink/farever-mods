@@ -53,8 +53,7 @@ class MarketWindow {
     var px:Null<Float>;
     var py:Null<Float>;
     var quantity = "1";
-    var trays = "1";
-    var unitTrays = "1";
+    var totalTrays = "1";
     var offers = false;
     var contentY = 284;
     var buyViewport:Dynamic;
@@ -826,10 +825,10 @@ class MarketWindow {
         }
         var duplicate=c.buyAlreadyListed();
         var enabled=c.ready&&!c.busy&&!duplicate&&!c.listingLimitReached("buy"),submit:Dynamic=null;
-        refreshPrice=unitPriceFields(592,()->b.quantity,()->b.unitTrays,s->b.unitTrays=s,b.offers,
+        refreshPrice=priceFields(592,()->b.quantity,()->b.totalTrays,s->b.totalTrays=s,b.offers,
             value->{b.offers=value;dirty=true;},true,valid->{if(submit!=null)G.call("ui.UIElement","set_enable",submit,[enabled&&valid]);});
         submit=button(duplicate?"Buy order already exists":"Place buy order",754,752,316,()->{
-            if(MarketQuantity.valid(b.quantity,1,10000)&&(b.offers||MarketQuantity.totalPrice(b.quantity,b.unitTrays)!=null))c.submitBuy();
+            if(MarketQuantity.valid(b.quantity,1,10000)&&(b.offers||MarketQuantity.totalPrice(b.quantity,b.totalTrays)!=null))c.submitBuy();
         },"accept",enabled);
         refreshPrice();
     }
@@ -1209,7 +1208,7 @@ class MarketWindow {
         if(c.tab=="My listings"&&c.ready)button("Sell",64,y+94,152,()->c.chooseTab("Sell"),"",true,true);
     }
     /** Updates only the preview and submit state, preserving input focus while typing. */
-    function unitPriceFields(y:Int,getQuantity:Void->String,getPrice:Void->String,setPrice:String->Void,
+    function priceFields(y:Int,getQuantity:Void->String,getPrice:Void->String,setPrice:String->Void,
         openOffers:Bool,setOffers:Bool->Void,buyOrder:Bool,validity:Bool->Void):Void->Void {
         tabButton("Buyout",754,y+8,152,()->{if(openOffers)setOffers(false);},!openOffers);
         tabButton("Open to offers",918,y+8,152,()->{if(!openOffers)setOffers(true);},openOffers);
@@ -1217,36 +1216,17 @@ class MarketWindow {
             labelAt(frame.container,buyOrder?"Sellers can contact you to agree on a price.":"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
             return ()->validity(MarketQuantity.valid(getQuantity(),1,10000));
         }
-        labelAt(frame.container,"Per unit price",754,y+56,316,true);
-        var totalBox=G.field(node("element",G.field(frame.container,"dom"),[],"marketOrderTotal"+(sequence++)),"obj");
-        absolute(frame.container,totalBox);padding(totalBox,0);size(totalBox,316,28);position(totalBox,754,y+128);
-        var totalLabel=labelAt(totalBox,"Total:",0,0,48,true,INK,true);
-        centerControlText(totalLabel,28,0);
-        var updateTotal=currencyLine(totalBox,0,53,0,263);
-        var warning=labelAt(frame.container,"",754,y+128,316,false,MUTED,true);
+        labelAt(frame.container,"Total price",754,y+56,316,true);
+        var preview=labelAt(frame.container,"",754,y+128,316,false,MUTED,true);
         function refresh():Void {
             var total=MarketQuantity.totalPrice(getQuantity(),getPrice()),valid=total!=null;
-            G.call("h2d.Object","set_visible",totalBox,[valid]);
-            G.call("h2d.Object","set_visible",warning,[!valid]);
-            if(valid)updateTotal(total);
-            else setText(warning,getQuantity()==""||getPrice()==""?"Total: —":"Total limit: 200,000 Silver Trays");
+            setText(preview,valid?"Per unit: "+MarketText.unitGold({mode:"fixed",silverTrays:total},int(getQuantity()))+" gold":"Per unit: —");
             validity(valid);
         }
         counter(getPrice(),754,y+84,190,200000,s->{setPrice(s);refresh();},true);
         var icon=currencyIcon(frame.container,"SilverTray");if(icon!=null)position(icon,950,y+92);
         labelAt(frame.container,"Silver Trays",978,y+90,92,false,MUTED,true);
         return refresh;
-    }
-    function priceFields(y:Int,buyOrder=false):Void {
-        labelAt(frame.container,"Price for the entire listing",754,y,316,true);
-        tabButton("Buyout",754,y+28,152,()->{if(offers){offers=false;dirty=true;}},!offers);
-        tabButton("Open to offers",918,y+28,152,()->{if(!offers){offers=true;dirty=true;}},offers);
-        if(!offers) {
-            var conversion=currencyLine(frame.container,int(trays),754,y+128,316,true);
-            var box=counter(trays,754,y+76,190,200000,s->{
-                trays=s.substr(0,6);conversion(int(trays));
-            },true);
-        } else labelAt(frame.container,buyOrder?"Sellers can contact you to agree on a price.":"Buyers can contact you to agree on a price.",754,y+78,316,false,MUTED);
     }
     function sellPanel():Void {
         if(c.chosen==null)return;
@@ -1267,10 +1247,10 @@ class MarketWindow {
         labelAt(frame.container,"of "+available+" available",900,SELL_FORM_Y+44,170,false,MUTED);
         var limited=c.listingLimitReached("sell");
         var submit:Dynamic=null;
-        refreshPrice=unitPriceFields(SELL_FORM_Y+92,()->quantity,()->unitTrays,s->unitTrays=s,offers,
+        refreshPrice=priceFields(SELL_FORM_Y+92,()->quantity,()->totalTrays,s->totalTrays=s,offers,
             value->{offers=value;dirty=true;},false,valid->{if(submit!=null)G.call("ui.UIElement","set_enable",submit,[!limited&&valid]);});
         submit=button(limited?"Too many sell orders":"List item for sale",754,752,316,()->{
-            var total=offers?0:MarketQuantity.totalPrice(quantity,unitTrays);
+            var total=offers?0:MarketQuantity.totalPrice(quantity,totalTrays);
             if(MarketQuantity.valid(quantity,1,10000)&&total!=null)c.list(int(quantity),total,offers);
         },"accept",!limited);
         refreshPrice();
@@ -1281,15 +1261,21 @@ class MarketWindow {
             if(c.editingListingId==G.text(row.id)) {
                 line(frame.container,754,SELL_FORM_Y-8,316);
                 labelAt(frame.container,MarketOrder.isBuy(row)?"Quantity to buy":"Quantity to sell",754,SELL_FORM_Y+8,316,true);
-                counter(quantity,754,SELL_FORM_Y+36,132,c.editQuantityLimit,s->quantity=s);
-                priceFields(SELL_FORM_Y+92,MarketOrder.isBuy(row));
-                button("Save changes",754,752,152,()->c.edit(int(quantity),int(trays),offers),"accept",!c.busy);
+                var refreshPrice:Void->Void=()->{},save:Dynamic=null;
+                counter(quantity,754,SELL_FORM_Y+36,132,c.editQuantityLimit,s->{quantity=s;refreshPrice();});
+                refreshPrice=priceFields(SELL_FORM_Y+92,()->quantity,()->totalTrays,s->totalTrays=s,offers,
+                    value->{offers=value;dirty=true;},MarketOrder.isBuy(row),valid->{if(save!=null)G.call("ui.UIElement","set_enable",save,[!c.busy&&valid]);});
+                save=button("Save changes",754,752,152,()->{
+                    var total=offers?0:MarketQuantity.totalPrice(quantity,totalTrays);
+                    if(!c.busy&&MarketQuantity.valid(quantity,1,c.editQuantityLimit)&&total!=null)c.edit(int(quantity),total,offers);
+                },"accept",!c.busy);
                 button("Cancel",918,752,152,c.cancelEdit,"",!c.busy);
+                refreshPrice();
             } else {
                 labelAt(frame.container,"Expires "+MarketText.expiry(G.text(row.expiresAt)),754,714,316,false,MUTED);
                 button("Edit listing",754,752,152,()->{
                     if(c.beginEdit()) {
-                        quantity=Std.string(row.item.quantity);trays=Std.string(G.integer(row.price.silverTrays,1));
+                        quantity=Std.string(row.item.quantity);totalTrays=Std.string(G.integer(row.price.silverTrays,1));
                         offers=row.price.mode=="offers";dirty=true;
                     }
                 },"",c.selected!=null&&!c.busy);

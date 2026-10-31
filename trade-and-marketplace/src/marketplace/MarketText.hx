@@ -14,13 +14,17 @@ class MarketText {
         return text.substr(0,end)+result;
     }
     public static function unitPrice(price:Dynamic,quantity:Int):String {
-        if(quantity<=1||price==null||Reflect.field(price,"mode")!="fixed")return "";
+        var amount=quantity>1?unitGold(price,quantity):"";
+        return amount==""?"":amount+" gold each";
+    }
+    public static function unitGold(price:Dynamic,quantity:Int):String {
+        if(quantity<1||price==null||Reflect.field(price,"mode")!="fixed")return "";
         var gold=Std.parseFloat(Std.string(Reflect.field(price,"silverTrays")))*500/quantity;
         if(!Math.isFinite(gold)||gold<=0)return "";
-        if(gold<0.05)return "<0.1 gold each";
+        if(gold<0.05)return "<0.1";
         var rounded=Math.round(gold*10)/10;
         var parts=Std.string(rounded).split(".");
-        return number(parts[0])+(parts.length>1?"."+parts[1]:"")+" gold each";
+        return number(parts[0])+(parts.length>1?"."+parts[1]:"");
     }
     public static function count(value:Int,noun:String):String return number(value)+" "+noun+(value==1?"":"s");
     public static function price(value:Dynamic):String {

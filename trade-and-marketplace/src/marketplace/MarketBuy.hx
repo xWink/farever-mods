@@ -37,14 +37,14 @@ class MarketBuy {
     public var bonuses:Array<{id:String,name:String}>=[];
     public var prismatic=false;
     public var quantity="1";
-    public var unitTrays="1";
+    public var totalTrays="1";
     public var offers=false;
     public var preview:TradeItem;
     public var nativePreview:Dynamic;
     var loaded=false;
 
     public function new() {}
-    public function draftKey():String return haxe.Json.stringify([selected==null?"":selected.kind,level,anyLevel,rarity,bonus,prismatic,quantity,unitTrays,offers]);
+    public function draftKey():String return haxe.Json.stringify([selected==null?"":selected.kind,level,anyLevel,rarity,bonus,prismatic,quantity,totalTrays,offers]);
     public function clearSelection():Void {
         selected=null;preview=null;nativePreview=null;level=0;anyLevel=false;rarity="";bonus="";bonuses=[];prismatic=false;quantity="1";
     }
