@@ -2,6 +2,7 @@
 -D hl-ver=1.16.0
 -cp src
 -cp ../shared/src
+resources.hxml
 -main groupfinder.GroupFinderMod
 -dce full
 -hl build/group-finder/implementation/group-finder.hl

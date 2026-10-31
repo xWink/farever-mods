@@ -1,6 +1,6 @@
 package groupfinder;
 
-typedef GroupMember = {accountId:String, name:String, className:String, level:Int};
+typedef GroupMember = {accountId:String, name:String, className:String, level:Int, ?badge:String};
 typedef GroupParty = {accountId:String, partyId:String, leaderId:String, region:String, members:Array<GroupMember>};
 typedef GroupListing = {
     id:String, ownerId:String, partyId:String, region:String, category:String, title:String,

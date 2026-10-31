@@ -104,7 +104,8 @@ class MockGroupService implements GroupService {
             var titles=["Heroic dungeon runs", "Learning run — all welcome", "One more for dungeons", "Relaxed dungeon clear", "Heroic boss practice", "First clear together", "Quick dungeon run", "Looking for a healer", "World events together", "Exploring world bosses", "Event hunt — all welcome", "Exploring and gathering", "New players welcome"];
             for(i in 0...titles.length) {
                 var id="sample-"+region+"-"+i,n=1+i%3;
-                var members=[for(j in 0...n){accountId:id+"-"+j,name:names[(i+j)%4],className:classes[(i+j)%4],level:25}];
+                var members=[for(j in 0...n){accountId:id+"-"+j,name:names[(i+j)%4],className:classes[(i+j)%4],level:25,
+                    badge:[null,"supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"][(i+j)%8]}];
                 rows.push({id:id,ownerId:members[0].accountId,partyId:id,region:region,
                     category:i<8?"Dungeons":i<11?"World Events":"Other",title:titles[i],members:members,
                     updatedAt:now,expiresAt:now+120,sample:true});

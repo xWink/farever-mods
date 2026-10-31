@@ -10,6 +10,7 @@ class GroupWindow {
     static inline var INK=0x5B4334;
     static inline var MUTED=0x897360;
     static inline var GREEN=0x527F40;
+    static inline var TITLE=0x326D70;
     public var dirty=true;
     var c:GroupController;
     var frame:GroupFrame;
@@ -23,6 +24,7 @@ class GroupWindow {
     var validation:Dynamic;
     var saveButton:Dynamic;
     var categoryButtons:Array<{category:String,button:Dynamic}>=[];
+    final badges=new GroupBadges();
     public function new(controller:GroupController)c=controller;
     public function owns(window:Dynamic):Bool return frame!=null&&frame.window==window;
     public function resetScroll():Void {scroll=0;scrollKey="";viewport=null;}
@@ -39,6 +41,7 @@ class GroupWindow {
         frame.layout();if(scrollbar!=null)scrollbar.update();
     }
     public function dispose():Void {
+        badges.dispose();
         if(frame!=null)frame.dispose();frame=null;viewport=null;scrollbar=null;inputBox=null;dirty=true;
     }
     function text(parent:Dynamic,value:String,x:Int,y:Int,w:Int,bold=false,color=INK,multiline=false):Dynamic {
@@ -69,6 +72,7 @@ class GroupWindow {
         var g=graphic(obj);rounded(g,0,0,w,h,5,0xCBB496);rounded(g,1,1,w-2,h-2,4,color);return obj;
     }
     function render():Void {
+        badges.hideTip();
         var key=c.page+":"+c.category;
         if(viewport!=null&&key==scrollKey)scroll=G.number(G.field(viewport,"scrollPosY"));
         else if(key!=scrollKey)scroll=0;
@@ -114,7 +118,10 @@ class GroupWindow {
     function listing(parent:Dynamic,row:GroupListing,y:Int):Void {
         var own=c.party!=null&&row.ownerId==c.party.accountId;
         var card=panel(parent,0,y,750,100,own?0xE3E5D0:0xEADDC8);
-        filtered(card,row.title,16,12,530,true);
+        var heading=filtered(card,row.title,16,10,530,true);
+        G.call("domkit.Properties","removeClass",G.field(heading,"dom"),["bold-14"]);
+        G.call("domkit.Properties","addClass",G.field(heading,"dom"),["bold-16"]);
+        ink(heading,TITLE);
         text(card,row.members.length+" / "+GroupRules.CAPACITY+" members",570,14,164,true,MUTED);
         for(i in 0...row.members.length)memberChip(card,row.members[i],16+i*176,44,168,row.members[i].accountId==row.ownerId);
         if(own) {
@@ -134,22 +141,42 @@ class GroupWindow {
         }
     }
     function memberChip(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader:Bool):Void {
-        filtered(parent,member.name+(leader?" ★":""),x,y,w,true);
+        memberName(parent,member,x,y,w,leader);
         memberDetails(parent,member,x,y+22,w);
     }
+    function memberName(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader=false):Void {
+        var box=G.field(node("element",G.field(parent,"dom"),[],"groupMemberName"+(sequence++)),"obj");
+        absolute(parent,box);padding(box,0);size(box,w,22);position(box,x,y);
+        // Let hover tooltips share the name row without consuming clicks or scrolling.
+        G.call("h2d.Flow","set_enableInteractive",box,[true]);
+        G.set(G.field(box,"interactive"),"propagateEvents",true);
+        var badge:Dynamic=null;
+        try badge=badges.create(box,member.badge,G.field(frame.ui,"windows"),box)
+        catch(error:Dynamic)GroupFinderMod.report("Member badge: "+Std.string(error));
+        var available=w-(badge==null?0:GroupBadges.SIZE+GroupBadges.GAP);
+        var caption=filtered(box,member.name+(leader?" ★":""),0,0,available,true);
+        if(badge!=null) {
+            var align=()->{
+                var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
+                var right=G.number(G.field(bounds,"xMax"))*G.number(G.field(caption,"scaleX"),1);
+                position(badge,Math.min(available,Math.ceil(right))+GroupBadges.GAP,0);
+            };
+            G.set(box,"onAfterReflow",align);align();
+        }
+    }
     function memberDetails(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int):Void {
-        var iconId=GroupGame.classIcon(member.className),offset=0;
-        if(iconId!="") {
-            var icon=G.field(node("icon",G.field(parent,"dom"),[iconId],"groupClass"+(sequence++)),"obj");
-            absolute(parent,icon);padding(icon,0);size(icon,20,20);position(icon,x,y);
-            var bmp=G.field(icon,"bmp");
-            if(bmp!=null) {
-                absolute(icon,bmp);position(bmp,0,0);
-                G.call("h2d.Bitmap","set_width",bmp,[20.0]);G.call("h2d.Bitmap","set_height",bmp,[20.0]);G.set(bmp,"smooth",true);
-            }
+        var tile=GroupGame.classBanner(member.className),offset=0;
+        if(tile!=null) {
+            var icon=G.field(node("bitmap",G.field(parent,"dom"),[],"groupClass"+(sequence++)),"obj");
+            absolute(parent,icon);G.call("h2d.Bitmap","set_tile",icon,[tile]);
+            // Preserve the tall pennant's proportions, including any tile offset.
+            var scale=Math.min(20/Math.max(1,G.number(G.field(tile,"width"))),28/Math.max(1,G.number(G.field(tile,"height"))));
+            G.call("h2d.Object","setScale",icon,[scale]);
+            position(icon,x+(20-G.number(G.field(tile,"width"))*scale)/2-G.number(G.field(tile,"dx"))*scale,y-G.number(G.field(tile,"dy"))*scale);
+            G.set(icon,"smooth",true);
             offset=26;
         }
-        text(parent,member.level>0?"Lv. "+member.level:"Level unavailable",x+offset,y,w-offset,false,MUTED);
+        text(parent,member.level>0?"Lv. "+member.level:"Level unavailable",x+offset,y+(tile==null?0:4),w-offset,false,MUTED);
     }
     function selectDraftCategory(value:String):Void {
         c.draftCategory=value;
@@ -216,7 +243,8 @@ class GroupWindow {
         }
         for(i in 0...rows.length) {
             var request=rows[i],listing=c.mock.find(request.listingId),card=panel(content,0,i*126,750,116,0xEADDC8);
-            filtered(card,request.incoming?request.member.name+" wants to join":listing==null?"Your join request":listing.title,16,12,516,true);
+            if(request.incoming)memberName(card,request.member,16,12,516);
+            else filtered(card,listing==null?"Your join request":listing.title,16,12,516,true);
             memberDetails(card,request.member,16,40,516);
             text(card,stateLabel(request.state),16,77,516,true,request.state=="invited"?GREEN:MUTED);
             if(request.state=="pending") {

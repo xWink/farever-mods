@@ -20,12 +20,21 @@ class GroupWindowTest {
         check(button("Requests").y==574&&!button("Requests").enable,"Requests at bottom, disabled without listing");
         button("Requests").action();check(c.page=="browse","Disabled request button cannot navigate");
         c.showRequests();check(c.page=="browse","Controller guards request navigation too");
-        check(G.nodes.filter(n->StringTools.startsWith(n.id,"groupClass")&&n.icon=="MageBanner").length>0,"Native class icon replaces class label");
+        check(G.nodes.filter(n->StringTools.startsWith(n.id,"groupClass")&&n.tile.id=="MageBanner").length>0,"Native coloured class pennant replaces the emblem");
+        for(icon in G.nodes.filter(n->StringTools.startsWith(n.id,"groupClass"))) {
+            check(icon.scaleX==icon.scaleY&&icon.tile.width*icon.scaleX<=20&&icon.tile.height*icon.scaleY<=28,"Class pennants keep their aspect ratio and fit the row");
+            check(icon.y+icon.tile.dy*icon.scaleY==66,"Native tile offsets do not shift the banner");
+        }
+        check(groupfinder.GroupGame.classBanner("Unknown")==null,"Unknown class does not invent a banner");
+        check(groupfinder.GroupGame.classBanner("Cleric").id=="PriestBanner","Cleric resolves the native Priest artwork");
+        var heading=G.labels.filter(l->l.text=="Heroic dungeon runs")[0];
+        check(heading.textColor==0x326D70&&(cast heading.dom.classes:Array<String>).indexOf("bold-16")>=0,"Listing titles use teal native headings");
         check(G.labels.filter(l->l.text=="Mage • Lv. 25").length==0,"Class name removed from member details");
         check(G.buttons.filter(b->StringTools.startsWith(b.text,"World Events")).length==1,"Three categories");
         var viewport=G.nodes.filter(n->StringTools.startsWith(n.id,"groupViewport"))[0];
         check(viewport.overflow=="Scroll"&&viewport.scrollBar.visible==true,"Long lists scroll");
         check(viewport.y+viewport.height<644,"Scrollbar clears footer");
+        GroupBadgeTest.run(c);
         button("Create listing").action();render(c);
         var input=G.nodes.filter(n->n.id=="groupTitleInput")[0];
         check(!button("Create listing").enable,"Empty title disables submission");
@@ -51,9 +60,13 @@ class GroupWindowTest {
         check(c.requests.rows.length==1,"Sample request appears");
         var notification=G.text(G.notifications[0].text);
         check(G.notifications.length==1&&notification.indexOf("Willow")>=0&&notification.indexOf("Mage")>=0&&notification.indexOf("25")>=0,"New request sends chat notification with name, class and level");
+        check(G.notifications[0].channel=="AllSystem"&&G.notifications[0].sender==null&&G.notifications[0].localStamp!=null,"Alert enters native system-message timestamp and layout pipeline without impersonating a sender");
         c.receiveRequest(c.mine().id,c.requests.rows[0].member);check(G.notifications.length==1,"Duplicate request does not duplicate notification");
         button("Decline").action();render(c);check(c.requests.rows[0].state=="declined","Decline updates request");
-        button("Add sample request").action();render(c);button("Accept").action();render(c);
+        button("Add sample request").action();render(c);
+        var requestName=G.nodes.filter(n->StringTools.startsWith(n.id,"groupMemberName"))[0];
+        check((cast requestName.children:Array<Dynamic>).filter(n->G.field(n,"nativeType")=="h2d.Bitmap").length==1,"Incoming request also displays its Fareverly badge");
+        button("Accept").action();render(c);
         check(c.requests.rows[0].state=="invited"&&c.party.members.length==1,"Accept stays simulated");
         for(i in 0...10) {c.previewRequest();c.answer(c.requests.rows[0],true);}
         render(c);
@@ -71,7 +84,8 @@ class GroupWindowTest {
         c.party.leaderId=c.party.accountId;c.mock.observe(c.party);c.edit();c.draftTitle="Third listing";c.save();pump(c);pump(c);
         c.close();c.receiveRequest(c.mine().id,{accountId:"while-closed",name:"Night Owl",className:"Cleric",level:17});
         check(G.text(G.notifications[G.notifications.length-1].text).indexOf("Night Owl")>=0&&!c.opened,"Notification also works with finder closed");
-        c.close();check(GroupFrame.active==0,"Closing disposes native window");
+        c.close();check(G.textures.filter(t->t.disposed!=true).length==0,"Closing releases badge textures");
+        check(GroupFrame.active==0,"Closing disposes native window");
         trace('Group Finder UI passed ($checks checks)');
     }
 }
