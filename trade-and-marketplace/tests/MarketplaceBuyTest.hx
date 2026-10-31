@@ -89,11 +89,11 @@ class MarketplaceBuyTest {
         var priceLabel:Dynamic=G.labels.filter(l->l.text=="Total price")[0];
         check(priceLabel!=null&&priceLabel.y>button("Buyout").y+G.number(button("Buyout").height,36)&&priceLabel.y<totalPrice.y);
         totalPrice.input.text="7";totalPrice.onChange();check(c.buy.totalTrays=="7"&&!view.dirty);
-        var preview=G.labels.filter(l->StringTools.startsWith(l.text,"Per unit:"))[0];check(preview.text=="Per unit: 291.7 gold");
-        totalPrice.input.text="200000";totalPrice.onChange();check(preview.text=="Per unit: 8,333,333.3 gold"&&!button("Place buy order").enable);
-        totalPrice.input.text="";totalPrice.onChange();check(preview.text=="Per unit: —"&&!button("Place buy order").enable);
+        var preview=MarketplacePricingUiTest.preview();check(MarketplacePricingUiTest.showsUnit("291.7","0.5833"));
+        totalPrice.input.text="200000";totalPrice.onChange();check(MarketplacePricingUiTest.showsUnit("8,333,333.3","16,666.6667")&&!button("Place buy order").enable);
+        totalPrice.input.text="";totalPrice.onChange();check(MarketplacePricingUiTest.noUnit()&&!button("Place buy order").enable);
         button("Place buy order").action();check(c.buySubmissions==0);
-        totalPrice.input.text="7";totalPrice.onChange();check(preview.text=="Per unit: 291.7 gold");
+        totalPrice.input.text="7";totalPrice.onChange();check(MarketplacePricingUiTest.showsUnit("291.7","0.5833")&&preview==MarketplacePricingUiTest.preview());
         button("Open to offers").action();view.update();reflow(view);check(c.buy.offers);
         button("Any").action();view.update();reflow(view);
         check(c.buy.anyLevel&&levelInput(438).input.text=="Any"&&c.buy.preview.preview.level==0);

@@ -271,7 +271,7 @@ class MarketplaceUiTest {
   check(buyout.width==152&&negotiable.width==152&&buyout.selected&&!negotiable.selected&&negotiable.x>buyout.x+buyout.width);
   var inputs=GameAccess.nodes.filter(n->Std.string(n.id).indexOf("marketInput")==0),quantityBox=inputs[1],priceBox=inputs[2];
   priceBox.input.text="5";priceBox.onChange();
-  check(GameAccess.labels.filter(l->l.text=="Per unit: 2,500 gold").length==1);
+  check(MarketplacePricingUiTest.showsUnit("2,500","5"));
   var currency=GameAccess.labels.filter(l->l.text=="Silver Trays")[0].parent;
   var currencyIcons=(cast currency.children:Array<Dynamic>).filter(n->n.nativeType=="h2d.Bitmap"&&n.x==950);
   check(currencyIcons.length==1&&currencyIcons[0].tile.id=="SilverTray");

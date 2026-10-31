@@ -996,7 +996,7 @@ class MarketWindow {
         } else currencyLine(parent,G.integer(G.field(value,"silverTrays")),x,y,width,false,right,leftEdge);
     }
     /** Reuses the native item artwork and existing text objects when the price changes. */
-    function currencyLine(parent:Dynamic,amount:Int,x:Int,y:Int,width:Int,conversion=false,right=false,?leftEdge:Float->Void):Int->Void {
+    function currencyLine(parent:Dynamic,amount:Int,x:Int,y:Int,width:Int,conversion=false,right=false,?leftEdge:Float->Void,?unitQuantity:Void->Int):Int->Void {
         var box=G.field(node("element",G.field(parent,"dom"),[],"marketMoney"+(sequence++)),"obj");
         absolute(parent,box);padding(box,0);size(box,width,28);position(box,x,y);
         var content=G.field(node("element",G.field(box,"dom"),[],"marketMoneyContent"+(sequence++)),"obj");
@@ -1023,8 +1023,14 @@ class MarketWindow {
             if(leftEdge!=null)leftEdge(x+G.number(G.field(content,"x")));
         }
         function update(value:Int):Void {
-            setText(first,conversion?MarketText.count(value,"Silver Tray"):MarketText.number(value*500));
-            setText(second,conversion?MarketText.number(value*500)+" gold":MarketText.number(value));
+            if(unitQuantity!=null) {
+                var quantity=unitQuantity();
+                setText(first,MarketText.unitGold({mode:"fixed",silverTrays:value},quantity));
+                setText(second,MarketText.unitSilverTrays(value,quantity));
+            } else {
+                setText(first,conversion?MarketText.count(value,"Silver Tray"):MarketText.number(value*500));
+                setText(second,conversion?MarketText.number(value*500)+" gold":MarketText.number(value));
+            }
             layout();
         }
         afterReflow(box,layout);
@@ -1217,10 +1223,17 @@ class MarketWindow {
             return ()->validity(MarketQuantity.valid(getQuantity(),1,10000));
         }
         labelAt(frame.container,"Total price",754,y+56,316,true);
-        var preview=labelAt(frame.container,"",754,y+128,316,false,MUTED,true);
+        var preview=G.field(node("element",G.field(frame.container,"dom"),[],"marketOrderUnit"+(sequence++)),"obj");
+        absolute(frame.container,preview);padding(preview,0);size(preview,316,28);position(preview,754,y+128);
+        var caption=labelAt(preview,"Per unit:",0,0,74,true,INK,true);
+        centerControlText(caption,28,0);
+        var updateUnit=currencyLine(preview,0,79,0,237,false,false,null,()->int(getQuantity()));
+        var warning=labelAt(frame.container,"Per unit: —",754,y+128,316,false,MUTED,true);
         function refresh():Void {
             var total=MarketQuantity.totalPrice(getQuantity(),getPrice()),valid=total!=null;
-            setText(preview,valid?"Per unit: "+MarketText.unitGold({mode:"fixed",silverTrays:total},int(getQuantity()))+" gold":"Per unit: —");
+            G.call("h2d.Object","set_visible",preview,[valid]);
+            G.call("h2d.Object","set_visible",warning,[!valid]);
+            if(valid)updateUnit(total);
             validity(valid);
         }
         counter(getPrice(),754,y+84,190,200000,s->{setPrice(s);refresh();},true);

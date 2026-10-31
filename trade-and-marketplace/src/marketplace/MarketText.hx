@@ -26,6 +26,12 @@ class MarketText {
         var parts=Std.string(rounded).split(".");
         return number(parts[0])+(parts.length>1?"."+parts[1]:"");
     }
+    /** Four decimals retain the minimum one-tray price split across 10,000 items. */
+    public static function unitSilverTrays(total:Int,quantity:Int):String {
+        if(total<1||quantity<1)return "";
+        var parts=Std.string(Math.round(total/quantity*10000)/10000).split(".");
+        return number(parts[0])+(parts.length>1?"."+parts[1]:"");
+    }
     public static function count(value:Int,noun:String):String return number(value)+" "+noun+(value==1?"":"s");
     public static function price(value:Dynamic):String {
         if(value==null)return "Price unavailable";
