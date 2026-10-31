@@ -38,11 +38,11 @@ class NativeHistoryScrollTest {
         check(paint.visible && paint.absolute && paint.parent == viewport.parent && paint.x == 824 && paint.y == 100,
             "Visible graphics are an absolute sibling rather than a child of native scrollbar flows");
         var draws:Array<Array<Dynamic>> = paint.draws;
-        check(draws.length == 2 && draws[1][1] == 180 && draws[1][3] == 40, "Skin follows native thumb geometry exactly");
+        check(draws.length == 6 && draws[5][1] == 180 && draws[5][3] == 40, "Skin follows native thumb geometry exactly, with two soft edge layers");
         var clears:Int = paint.clears; view.updateScrollbar();
         check(paint.clears == clears, "Stationary scrollbars are not repainted every frame");
         thumb.y = 320.; view.updateScrollbar(); draws = paint.draws;
-        check(draws[1][1] == 320, "Wheel scrolling and dragging move the painted thumb");
+        check(draws[5][1] == 320, "Wheel scrolling and dragging move the painted thumb");
         viewport.visible = false; view.updateScrollbar(); check(!paint.visible, "Changing history views hides the scrollbar skin");
         viewport.visible = true; bar.visible = false; view.updateScrollbar(); check(!paint.visible, "Lists that fit need no scrollbar");
         Sys.println('Native history scroll: $checks checks passed');
