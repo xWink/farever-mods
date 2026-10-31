@@ -66,7 +66,7 @@ class GroupApi implements GroupService {
     }
     public function auth(op:String,?entropy:haxe.io.Bytes):Void worker.send({generation:generation,op:op,entropy:entropy});
     public function categoryCount(name:String):Int return counts.exists(name)?counts[name]:0;
-    function bucket(method:String,path:String):String return method=="DELETE"?"close":method=="GET"?"read":StringTools.endsWith(path,"/party")?"party":"write";
+    function bucket(method:String,path:String):String return path==GroupProtocol.BADGES?"badges":method=="DELETE"?"close":method=="GET"?"read":StringTools.endsWith(path,"/party")?"party":"write";
     function allowed(method:String,path:String):Bool {var t=cooldown[bucket(method,path)];return t==null||now>=t;}
     function request(method:String,path:String,body:Null<String>,headers:Null<Map<String,String>>,done:(Response,Dynamic)->Void):Void {
         if(!allowed(method,path)){done({status:429,body:"",error:"",retryAfter:""},null);return;}
@@ -93,7 +93,7 @@ class GroupApi implements GroupService {
                             var count=failures.exists(b)?failures[b]+1:1;failures[b]=count;
                             cooldown[b]=now+Math.max(Protocol.retryAfter(r.retryAfter,Date.now().getTime()/1000),Math.min(300,5*Math.pow(2,Math.min(count-1,6))))+Math.random()*3;
                         } else if(ok(r)){failures.remove(b);}
-                        if(r.status==401||r.status==403)ready=false;
+                        if(b!="badges"&&(r.status==401||r.status==403))ready=false;
                         try p.done(r,d)catch(_:Dynamic){cooldown[b]=now+60;onError("Unsupported Fareverly response. Update Group Finder and try again.");}
                     }
                 default:onEvent(e);
@@ -106,6 +106,20 @@ class GroupApi implements GroupService {
         if(own!=null&&!writing&&!mineLoading&&now>=nextParty&&allowed("PATCH",GroupProtocol.BASE+"/listings/"+own.id+"/party"))syncParty();
     }
     function hasPending(path:String):Bool {for(p in pending)if(p.path==path)return true;return false;}
+    /** Public, optional decoration: a failed lookup must not interrupt group requests. */
+    public function applicantBadges(accounts:Array<String>,done:Null<Map<String,String>>->Void):Void {
+        var ids:Array<String>=[];
+        for(id in accounts)if(Protocol.validAccount(id)&&ids.indexOf(id)<0&&ids.length<50)ids.push(id);
+        if(ids.length==0){done([]);return;}
+        request("POST",GroupProtocol.BADGES,haxe.Json.stringify({accounts:ids}),null,(r,d)->{
+            if(!ok(r)||!Reflect.isObject(d)||Std.isOfType(d,Array)||Std.isOfType(d,String)){done(null);return;}
+            var badges:Dynamic=Reflect.field(d,"badges");
+            if(!Reflect.isObject(badges)||Std.isOfType(badges,Array)||Std.isOfType(badges,String)){done(null);return;}
+            var result:Map<String,String>=[];
+            for(id in ids){var badge=GroupProtocol.badge(Reflect.field(badges,id));if(badge!=null)result[id]=badge;}
+            done(result);
+        });
+    }
     function loadMetadata():Void request("GET",GroupProtocol.BASE+"/categories",null,null,(r,d)->{
         if(!ok(r)){onError(GroupProtocol.error(r));return;}
         if(d.capacity!=GroupRules.CAPACITY||d.maxTitleLength!=GroupRules.MAX_TITLE_LENGTH||d.requestTimeoutSeconds!=GroupRules.REQUEST_TIMEOUT

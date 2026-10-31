@@ -45,7 +45,8 @@ class GroupWorker implements GroupTransport {
                             if(Math.isFinite(verifyAt)&&verifyAt>now)events.add({generation:id,op:"verification",message:"Fareverly is temporarily unavailable. Please try again shortly."});
                             else {verifyRequested=true;verifyAt=0;}
                         case "request":
-                            var response:Response=verified?http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),key,job.headers)
+                            var publicBadges=job.method=="POST"&&job.path==GroupProtocol.BADGES;
+                            var response:Response=verified||publicBadges?http.authenticated(job.method,Protocol.ORIGIN+job.path,job.body==null?null:Bytes.ofString(job.body),publicBadges?"":key,job.headers)
                                 :{status:401,body:"",retryAfter:"",error:""};
                             if(current(id))events.add({generation:id,op:"request",ticket:job.ticket,response:response});
                             else if(job.method=="POST"&&job.path==GroupProtocol.BASE+"/listings") {

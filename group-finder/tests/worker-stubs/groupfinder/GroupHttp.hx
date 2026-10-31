@@ -19,6 +19,7 @@ class GroupHttp {
             return {status:200,body:haxe.Json.stringify({account_id:"self",scopes:scopes}),error:"",retryAfter:""};
         }
         if(StringTools.endsWith(url,"/heartbeat"))return {status:heartbeatStatus,body:'{"error":"heartbeat_too_soon"}',error:"",retryAfter:"60"};
+        if(method=="POST"&&StringTools.endsWith(url,"/badges"))return {status:200,body:'{"badges":{"applicant":"supporter-silver"}}',error:"",retryAfter:""};
         if(method=="POST"&&StringTools.endsWith(url,"/listings")) {
             var hold=holdCreate;holdCreate=null;if(hold!=null&&!hold.wait(5))throw "Test did not release create";return createResponse;
         }

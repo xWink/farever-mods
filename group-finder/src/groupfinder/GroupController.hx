@@ -40,6 +40,10 @@ class GroupController {
     var ignored:Map<String,Bool>=[];
     var ignoredKey="";
     var received:Map<String,Float>=[];
+    var badgeCache:Map<String,{badge:Null<String>,until:Float}>=[];
+    var badgeEpoch=0;
+    var badgesLoading=false;
+    var nextBadges=0.;
 
     public function new(?mock:MockGroupService,?live:GroupApi) {
         this.mock=mock;this.live=mock==null?(live==null?new GroupApi():live):null;
@@ -112,6 +116,7 @@ class GroupController {
             for(id in received.keys())if(received[id]<=now)received.remove(id);
         }
         if(seenRequests!=requests.revision){seenRequests=requests.revision;view.dirty=true;}
+        updateApplicantBadges();
         var revision=mock!=null?mock.revision:live.revision;
         if(opened&&page=="browse"&&party!=null&&!loading&&(live==null?seenRevision!=revision:time>=nextBrowse&&live.available()==""))refresh();
         if(seenRevision!=revision){seenRevision=revision;view.dirty=true;}
@@ -119,7 +124,7 @@ class GroupController {
     }
     public function reconnect():Void {
         if(live==null||party==null)return;
-        generation++;busy=loading=false;live.connect(party,GroupLogin.readKey(),false);nextBrowse=0;view.dirty=true;
+        generation++;resetApplicantBadges();busy=loading=false;live.connect(party,GroupLogin.readKey(),false);nextBrowse=0;view.dirty=true;
     }
     public function toggle():Void {if(opened)close();else open();}
     public function open():Void {
@@ -130,6 +135,7 @@ class GroupController {
     public function close():Void {opened=false;if(live!=null){live.pauseBrowse();loading=false;}view.dispose();}
     public function syncListing():Void {
         var listing=mine(),id=listing==null?null:listing.id;
+        if(ownedListingId!=id)resetApplicantBadges();
         if(ownedListingId!=null&&ownedListingId!=id) {
             for(r in requests.rows)if(r.incoming&&(r.state=="pending"||r.state=="invited"))sendState(r,"closed");
             requests.reset();sampleNumber=0;
@@ -137,6 +143,33 @@ class GroupController {
             nextBrowse=0;view.dirty=true;
         }
         ownedListingId=id;
+    }
+    function resetApplicantBadges():Void {badgeEpoch++;badgeCache.clear();badgesLoading=false;nextBadges=0;}
+    function applyApplicantBadges(listingId:String):Void {
+        for(r in requests.incoming(listingId)) {
+            var cached=badgeCache[r.member.accountId];
+            if(cached!=null&&cached.until>now&&r.member.badge!=cached.badge){r.member.badge=cached.badge;view.dirty=true;}
+        }
+    }
+    function updateApplicantBadges():Void {
+        if(live==null||!live.ready||!opened||page!="requests"||badgesLoading||now<nextBadges)return;
+        var listing=mine();if(listing==null)return;
+        nextBadges=now+1;applyApplicantBadges(listing.id);
+        var accounts:Array<String>=[];
+        for(r in requests.incoming(listing.id)) {
+            var id=r.member.accountId,cached=badgeCache[id];
+            if((cached==null||cached.until<=now)&&fareverly.Protocol.validAccount(id)&&accounts.indexOf(id)<0)accounts.push(id);
+            if(accounts.length==50)break;
+        }
+        if(accounts.length==0)return;
+        badgesLoading=true;var epoch=badgeEpoch,token=generation,id=listing.id;
+        live.applicantBadges(accounts,result->{
+            if(epoch!=badgeEpoch||token!=generation||mine()==null||mine().id!=id)return;
+            badgesLoading=false;
+            if(result==null){nextBadges=now+30;return;}
+            for(account in accounts)badgeCache[account]={badge:result[account],until:now+300};
+            applyApplicantBadges(id);
+        });
     }
     public function refresh():Void {
         if(party==null||loading)return;
@@ -243,7 +276,7 @@ class GroupController {
         var name=G.text(G.field(G.field(message,"sender"),"name"),"Player");
         if(packet.op=="request") {
             var dedup=sender+":"+packet.id;if(received.exists(dedup))return;received[dedup]=now+GroupRules.REQUEST_TIMEOUT+30;
-            receiveRequest(packet.listingId,{accountId:sender,name:name,className:packet.className,level:packet.level,badge:packet.badge},packet.id);
+            receiveRequest(packet.listingId,{accountId:sender,name:name,className:packet.className,level:packet.level},packet.id);
         } else if(requests.respond(packet.id,packet.listingId,sender,packet.op=="cancel"?"cancelled":packet.op,now)) {
             if(packet.op=="declined")GroupGame.notify(name+" declined your request to join their group.");
             else if(packet.op=="closed")GroupGame.notify("The group listing for your request to "+name+" has closed.");
@@ -300,6 +333,7 @@ class GroupController {
         view.dirty=true;
     }
     public function disconnect():Void {
+        resetApplicantBadges();
         traveling=false;transferParty=null;endingSession=false;
         cancelOutgoing();
         for(r in requests.rows)if(r.incoming&&(r.state=="pending"||r.state=="invited"))sendState(r,"closed");

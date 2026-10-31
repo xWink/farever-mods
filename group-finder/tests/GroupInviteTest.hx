@@ -31,12 +31,7 @@ class GroupInviteTest {
         var apiCalls=owner.w.jobs.length;
         applicant.c.requests.add(listing,member,false,.2,GroupApiTest.ID2,"leader","leader");
         receive(owner.c,owner.me,"applicant",GroupWire.encode("request",GroupApiTest.ID2,listing.id,member));
-        check(owner.c.requests.rows[0].member.badge=="supporter-gold"&&owner.w.jobs.length==apiCalls,"Supplied applicant badge survives receipt without extra API work");
-        owner.c.showRequests();owner.c.view.update(true);
-        var nameBoxes=G.nodes.filter(n->StringTools.startsWith(n.id,"groupMemberName"));
-        var images:Array<Dynamic>=(cast nameBoxes[0].children:Array<Dynamic>).filter(n->G.field(n,"nativeType")=="h2d.Bitmap");
-        check(images.length==1&&images[0].tile.texture.resourceName=="supporter-gold.png","Requests page shows the supplied badge beside the applicant name");
-        owner.c.view.dispose();
+        check(owner.c.requests.rows[0].member.badge==null&&owner.w.jobs.length==apiCalls,"Incoming applications work immediately without waiting for a badge lookup");
         var incoming=owner.c.requests.rows[0],outgoing=applicant.c.requests.rows[0];owner.c.answer(incoming,true);
         var invited=lastWire();receive(applicant.c,applicant.me,"leader",invited);
         check(incoming.state=="invited"&&outgoing.state=="invited","Both clients record the native invitation");

@@ -6,6 +6,7 @@ import fareverly.Protocol;
 /** Strict wire adapters. Game snapshots and returned badges never become write fields. */
 class GroupProtocol {
     public static inline var BASE="/api/v1/group-finder";
+    public static inline var BADGES="/api/v1/badges";
     public static function uuid(value:String):Bool return value!=null&&~/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.match(value);
     public static function newId(bytes:haxe.io.Bytes):String {
         var b=bytes.sub(0,16);b.set(6,(b.get(6)&15)|64);b.set(8,(b.get(8)&63)|128);
@@ -15,7 +16,7 @@ class GroupProtocol {
         if(!StringTools.startsWith(url,Protocol.ORIGIN+"/api/"))return false;
         var p=url.substr(Protocol.ORIGIN.length).split("?")[0];
         return ["/api/v1/account","/api/v1/auth/device","/api/v1/auth/token","/api/v1/marketplace/heartbeat",
-            BASE+"/categories",BASE+"/listings",BASE+"/listings/mine"].indexOf(p)>=0
+            BADGES,BASE+"/categories",BASE+"/listings",BASE+"/listings/mine"].indexOf(p)>=0
             || ~/^\/api\/v1\/group-finder\/listings\/[a-f0-9-]{36}(\/party)?$/.match(p);
     }
     public static function categoryId(name:String):String return switch(name) {case "Dungeons":"dungeons";case "World Events":"world-events";case "Other":"other";default:"";};

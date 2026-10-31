@@ -31,6 +31,10 @@ class GroupWorkerTest {
         id=w.session("self",key,"europe");check(awaitEvent(w,"error").generation==id,"Missing write scope rejected");
         w.send({generation:id,op:"request",ticket:3,method:"GET",path:GroupProtocol.BASE+"/categories"});
         e=awaitEvent(w,"request");check(e.response.status==401,"Unverified key never sends API work");
+        w.send({generation:id,op:"request",ticket:4,method:"POST",path:GroupProtocol.BADGES,body:'{"accounts":["applicant"]}'});
+        var badges=awaitCall("POST","/badges");e=awaitEvent(w,"request");
+        check(badges.token==""&&haxe.Json.parse(badges.body).accounts[0]=="applicant","Public badge lookup sends account IDs without credentials even when unverified");
+        check(e.ticket==4&&e.response.status==200&&haxe.Json.parse(e.response.body).badges.applicant=="supporter-silver","Public badge response reaches its callback");
         trace('Group Finder worker passed ($checks checks)');Sys.exit(0);
     }
 }

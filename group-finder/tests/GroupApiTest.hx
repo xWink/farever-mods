@@ -89,7 +89,7 @@ class GroupApiTest {
         check(packet.badge==null,"Existing requests without a badge remain compatible");
         for(badge in ["supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"]) {
             var token=GroupWire.encode("request",ID2,ID,{accountId:"self",name:"Wink",className:"Warrior",level:10000,badge:badge});
-            check(token.length<=300&&GroupWire.decode(token).badge==badge,"Optional applicant badge roundtrips in one whisper");
+            check(token.length<=300&&GroupWire.decode(token).badge==null,"Applications do not send client-claimed badges");
         }
         var unknown=GroupWire.PREFIX+haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(haxe.Json.stringify(["request",ID2,ID,"Mage",25,"<img src=bad>"])));
         check(GroupWire.decode(unknown).badge==null,"Unrecognized badge data is ignored without dropping the application");

@@ -9,7 +9,6 @@ class GroupWire {
         var values:Array<Dynamic>=[op,id,listingId];
         if(op=="request") {
             values.push(member.className);values.push(member.level);
-            var badge=GroupProtocol.badge(member.badge);if(badge!=null)values.push(badge);
         }
         var result=PREFIX+haxe.crypto.Base64.encode(haxe.io.Bytes.ofString(haxe.Json.stringify(values)));
         if(result.length>300)throw "Group request is too long";
@@ -24,6 +23,7 @@ class GroupWire {
             if(a.length<3||!Std.isOfType(a[0],String)||["request","cancel","invited","declined","closed","invite-declined"].indexOf(a[0])<0
                 ||!Std.isOfType(a[1],String)||!GroupProtocol.uuid(a[1])||!Std.isOfType(a[2],String)||!GroupProtocol.uuid(a[2]))return null;
             if(a[0]=="request") {
+                // Accept the earlier optional field for compatibility; live badges come from Fareverly.
                 if((a.length!=5&&a.length!=6)||!Std.isOfType(a[3],String)||["","Warrior","Rogue","Mage","Cleric"].indexOf(a[3])<0
                     ||!Std.isOfType(a[4],Int)||a[4]<0||a[4]>10000)return null;
             }else if(a.length!=3)return null;

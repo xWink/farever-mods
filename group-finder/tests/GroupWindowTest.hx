@@ -127,6 +127,7 @@ class GroupWindowTest {
         GroupTravelTest.run();
         GroupCountdownTest.run();
         GroupInviteTest.run();
+        GroupApplicantBadgeTest.run();
         GroupNoticeTest.run();
         trace('Group Finder UI passed ($checks checks)');
     }
