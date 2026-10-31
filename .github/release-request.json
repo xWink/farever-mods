@@ -1,7 +1,7 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.4.0",
-  "notes": "- Tooltips for supporter badges\n- Sending a trade request now first checks that the recipient has the Trade and Marketplace mod before sending the request\n  - This prevents players without the mod from receiving unsolicited whispers\n  - Trade now requires login to Fareverly",
+  "project": "more-settings",
+  "version": "1.23.0",
   "commit": "0f6b67d28cf17499b7f2ff01edc88d42db2e1cfb",
+  "notes": "- Removed barbershop (shut down by Shiro)",
   "dry_run": false
 }
