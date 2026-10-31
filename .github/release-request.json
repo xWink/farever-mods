@@ -1,7 +1,7 @@
 {
-  "project": "more-settings",
-  "version": "1.23.0",
+  "project": "better-mod-settings",
+  "version": "1.7.2",
   "commit": "0f6b67d28cf17499b7f2ff01edc88d42db2e1cfb",
-  "notes": "- Removed barbershop (shut down by Shiro)",
+  "notes": "- Fixed an issue where the Mod Settings window wouldn't open while in the Main Menu (character select screen)\n- Fixed an issue where dropdowns wouldn't close when scrolling",
   "dry_run": false
 }
