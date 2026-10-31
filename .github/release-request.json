@@ -1,7 +1,7 @@
 {
-  "project": "minimap",
-  "version": "2.3.4",
-  "commit": "5fddc20d23e58321a856d305f6e2a8fd87ba2bc6",
-  "notes": "Removed version cap",
+  "project": "dps-meter",
+  "version": "1.12.0",
+  "commit": "0f6b67d28cf17499b7f2ff01edc88d42db2e1cfb",
+  "notes": "- Combat history now uses a scrollbar instead of pages\n- Events in detailed reports are now scrollable instead of using pages\n- Events in detailed reports now automatically filter to match the graphed information in the top portion of the page\n- Detailed report graphs for buffs and debuffs now also display % uptime",
   "dry_run": false
 }
