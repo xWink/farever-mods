@@ -65,6 +65,10 @@ jobs:
           ../.text-hashlink/hl build/secret-text-test.hl
           haxe -cp src -cp tests -cp tests/native-stubs -main WindowLayoutTest -hl build/window-layout-test.hl
           ../.text-hashlink/hl build/window-layout-test.hl
+          haxe -cp src -cp tests -cp tests/native-stubs -main NativeSettingsWindowTest -hl build/native-settings-window-test.hl
+          ../.text-hashlink/hl build/native-settings-window-test.hl
+          haxe -cp src -cp tests -cp tests/native-stubs -main NativeDropdownTest -hl build/native-dropdown-test.hl
+          ../.text-hashlink/hl build/native-dropdown-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main CommonSettingsTest -hl build/common-settings-test.hl
           ../.text-hashlink/hl build/common-settings-test.hl
           haxe -cp src -cp ../shared/src -cp tests -main DropdownSettingTest -hl build/dropdown-setting-test.hl

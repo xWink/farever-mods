@@ -2,7 +2,15 @@ import hlx.runtime.ResolvedMember;
 
 /** Minimal UI boundary for exercising production secret controls and window order. */
 class HlxRuntime {
+    public static var liveWorld = false;
+    public static var failWindowConstruction = false;
+    public static var ui:Dynamic = {target:null};
+    public static var topElementReads = 0;
     public static function resolveType(name:String):String return name;
+    public static function resolveStaticField(type:String, field:String):Dynamic {
+        if (type == "ui.BaseUI" && field == "current") return ui;
+        throw "Unexpected static field: " + type + "." + field;
+    }
     public static function constructEnum(type:String, name:String, args:Array<Dynamic>):Dynamic return name;
     public static function resolveField(object:Dynamic, field:String):Dynamic return Reflect.field(object, field);
     public static function setField(object:Dynamic, field:String, value:Dynamic):Void Reflect.setField(object, field, value);
@@ -10,6 +18,16 @@ class HlxRuntime {
     public static function resolveStaticMember(typeName:String, method:String):ResolvedMember return resolveMember(typeName, method);
     public static function constructInstanceByName(typeName:String, count:Int, args:Array<Dynamic>):Dynamic {
         return switch (typeName) {
+            case "ui.win.TitleWindow":
+                // Native BaseElement calls virtual rebuild during construction.
+                // BaseWindow skips its DOM when default flags require a world.
+                var window:Dynamic = {windowFlags:1 | 65536, dom:null, allocated:false};
+                bettermodsettings.NativeSettingsWindow.beforeRebuild(window);
+                if (failWindowConstruction) throw "Simulated native constructor failure";
+                if (liveWorld || (window.windowFlags & 65536) == 0) {
+                    window.dom = {obj:window}; window.allocated = true;
+                }
+                window;
             case "h2d.Graphics":
                 var graphic:Dynamic = {commands:[]};
                 Reflect.setField(args[0], "graphic", graphic);
@@ -19,7 +37,7 @@ class HlxRuntime {
         };
     }
     public static function callResolved(member:ResolvedMember, args:Array<Dynamic>):Dynamic {
-        var object = args[0];
+        var object:Dynamic = args[0];
         if (member.typeName == "h2d.Graphics") {
             if (member.method == "clear") Reflect.setField(object, "commands", []);
             else {
@@ -30,6 +48,24 @@ class HlxRuntime {
             return null;
         }
         return switch (member.typeName + "." + member.method) {
+            case "ui.win.BaseWindow.set_windowFlags":
+                object.setFlagsOnce = true; object.windowFlags = args[1]; args[1];
+            case "hl.types.ArrayObj.slice":
+                var items:Array<Dynamic> = object; items.slice(args[1], args[2]);
+            case "hl.types.ArrayObj.pushDyn":
+                var items:Array<Dynamic> = object; items.push(args[1]); null;
+            case "ui.comp.Dropdown.set_options": object.items = args[1]; args[1];
+            case "ui.comp.Dropdown.initSelectedIndex": object.selectedIndex = args[1]; null;
+            case "ui.comp.Dropdown.isOpen": object.open;
+            case "ui.comp.Dropdown.close": object.open = false; object.closes++; null;
+            case "ui.BaseUI.getTopInteractiveElement": topElementReads++; object.target;
+            case "h2d.Object.contains":
+                var target:Dynamic = args[1], found = false;
+                while (target != null) {
+                    if (target == object) { found = true; break; }
+                    target = Reflect.field(target, "parent");
+                }
+                found;
             case "domkit.Properties.createNew":
                 if (args[0] != "button") throw "Secret control must create a button";
                 var dom:Dynamic = {obj:{}, styles:{}, parent:args[1]};

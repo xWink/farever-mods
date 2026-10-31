@@ -12,9 +12,10 @@ Requires HLX Core 0.0.8+. Download from [Nexus Mods](https://www.nexusmods.com/f
 
 ## Usage
 
-- Open **Game Menu → Mod Settings** and select a mod's tab.
+- Open **Game Menu → Mod Settings** from character select or while in game, and select a mod's tab.
 - Changes save automatically. Compatible mods apply them immediately.
 - Click a hotkey control to assign a key or modifier combination; right-click to clear it.
+- Open dropdowns close when you scroll the settings window.
 - Use the eye button to show or hide a secret field. Masking hides text on screen; it does not encrypt the saved value.
 
 ## For mod authors

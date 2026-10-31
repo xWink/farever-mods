@@ -35,6 +35,18 @@
 --interp
 --next
 -cp src
+-cp tests
+-cp tests/native-stubs
+-main NativeSettingsWindowTest
+--interp
+--next
+-cp src
+-cp tests
+-cp tests/native-stubs
+-main NativeDropdownTest
+--interp
+--next
+-cp src
 -cp ../shared/src
 -cp tests
 -main DropdownSettingTest

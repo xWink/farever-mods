@@ -17,7 +17,6 @@ class BetterModSettingsMod {
     static var activeEscapeMenu:Dynamic;
     static var modSettingsButton:Dynamic;
     static var nativeSettingsWindow:Dynamic;
-    static var openingNativeSettingsWindow:Bool = false;
     static var compatibleMods:Array<Dynamic> = [];
     static final commonControls = new CommonSettingControls();
     static var commonSettingsChanged = false;
@@ -46,7 +45,6 @@ class BetterModSettingsMod {
     static var componentType:hl.Bytes;
     static var uiElementType:hl.Bytes;
     static var h2dObjectType:hl.Bytes;
-    static var titleWindowType:hl.Bytes;
     static var baseUIType:hl.Bytes;
     static var flowType:hl.Bytes;
     static var flowAlignType:hl.Bytes;
@@ -147,8 +145,9 @@ class BetterModSettingsMod {
         return captureInput.consume(kind, key, keyFrame()) ? Skip : Continue;
     }
 
-    @:hlx.prefix(GameApp.update)
-    static function beforeGameAppUpdate(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
+    @:hlx.prefix(App.update)
+    static function beforeAppUpdate(instance:Dynamic, dt:Float):HlxPrefixResult<Void> {
+        // App is shared by MenuApp and GameApp: settings also run before login.
         // Closing the settings window also cancels its pending assignment.
         if (nativeSettingsWindow == null
             || HlxRuntime.resolveField(nativeSettingsWindow, "allocated") != true) {
@@ -168,18 +167,24 @@ class BetterModSettingsMod {
     }
 
     @:hlx.postfix(hxd.SceneEvents.emitEvent)
-    static function dismissDropdownsOnClick(instance:Dynamic, event:Dynamic, result:Void):Void {
+    static function dismissDropdownsOnPointerEvent(instance:Dynamic, event:Dynamic, result:Void):Void {
         // The native scene has now refreshed the hit target for this press.
         // Release still selects an option or toggles the dropdown normally.
         NativeDropdown.onPointerEvent(event);
         NativeSettingTooltip.onPointerEvent(event);
     }
 
+    @:hlx.postfix(h2d.Flow.set_scrollPosY)
+    static function dismissDropdownsOnScroll(instance:Dynamic, value:Float, result:Float):Float {
+        NativeDropdown.onScroll(instance, result);
+        return result;
+    }
+
     @:hlx.postfix(ui.Tooltip.sync)
     static function positionSettingTooltip(instance:Dynamic, context:Dynamic, result:Void):Void
         NativeSettingTooltip.fit(instance);
 
-    @:hlx.prefix(GameApp.dispose)
+    @:hlx.prefix(App.dispose)
     static function resetKeyCapture(instance:Dynamic):HlxPrefixResult<Void> {
         NativeDropdown.closeAll(true);
         NativeSecretText.hideAll(true);
@@ -217,8 +222,8 @@ class BetterModSettingsMod {
         return sliceKeyStateMember != null && getKeyStateMember != null && getKeyFrameMember != null;
     }
 
-    @:hlx.postfix(GameApp.update)
-    static function afterGameAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
+    @:hlx.postfix(App.update)
+    static function afterAppUpdate(instance:Dynamic, dt:Float, result:Void):Void {
         capturePressedKey();
         refreshPendingOptionLabelStyles();
         refreshPendingTabPagination();
@@ -235,9 +240,15 @@ class BetterModSettingsMod {
         // TitleWindow auto-displays from inside its constructor. At that point
         // nativeSettingsWindow has not yet been assigned, so guard the brief
         // construction phase and prevent only the active Game Menu from closing.
-        return openingNativeSettingsWindow && instance == activeEscapeMenu
+        return NativeSettingsWindow.creating && instance == activeEscapeMenu
             ? SkipWith(false)
             : Continue;
+    }
+
+    @:hlx.prefix(ui.win.BaseWindow.rebuild)
+    static function prepareSettingsWindow(instance:Dynamic):HlxPrefixResult<Void> {
+        NativeSettingsWindow.beforeRebuild(instance);
+        return Continue;
     }
 
     @:hlx.postfix(ui.win.EscapeMenu.init)
@@ -371,37 +382,17 @@ class BetterModSettingsMod {
             if (!resolveUiMembers() || activeEscapeMenu == null)
                 return;
 
-            if (titleWindowType == null)
-                titleWindowType = HlxRuntime.resolveType("ui.win.TitleWindow");
-            if (titleWindowType == null) {
-                trace("[BetterModSettings] Native TitleWindow type was not resolved");
-                return;
-            }
-
             NativeDropdown.closeAll(true);
             NativeSecretText.hideAll(true);
             commonControls.clear();
             // TitleWindow auto-displays before its constructor returns. The
             // prefix above must be active during that call so BaseUI keeps the
             // EscapeMenu beside this companion window.
-            openingNativeSettingsWindow = true;
-            nativeSettingsWindow = HlxRuntime.constructInstanceByName(
-                titleWindowType,
-                2,
-                ["Options", null]
-            );
-            openingNativeSettingsWindow = false;
+            nativeSettingsWindow = NativeSettingsWindow.create(activeEscapeMenu);
             if (nativeSettingsWindow == null) {
                 trace("[BetterModSettings] Native Mod Settings window creation returned null");
                 return;
             }
-
-            // After construction, keep the same long-term behavior as the
-            // native Options window and EscapeMenu. The constructor-time prefix
-            // handled the one display pass that occurred before this assignment.
-            var windowFlags:Dynamic = HlxRuntime.resolveField(activeEscapeMenu, "windowFlags");
-            if (windowFlags != null)
-                HlxRuntime.setField(nativeSettingsWindow, "windowFlags", windowFlags);
 
             var windowProperties:Dynamic = HlxRuntime.resolveField(nativeSettingsWindow, "dom");
             if (windowProperties == null) {
@@ -425,7 +416,6 @@ class BetterModSettingsMod {
             displayNativeSettingsWindow();
 
         } catch (error:Dynamic) {
-            openingNativeSettingsWindow = false;
             NativeDropdown.closeAll(true);
             NativeSecretText.hideAll(true);
             commonControls.clear();
@@ -779,6 +769,7 @@ class BetterModSettingsMod {
             // because it is the native Options scroll container, but hide its
             // generated option rows before inserting our mod panels into it.
             var nativeContainer:Dynamic = HlxRuntime.resolveField(optionsList, "container");
+            NativeDropdown.watchScroll(nativeContainer);
             nativeOptionLabelStyle = findFirstTextObject(nativeContainer, 4);
             hideNativeOptionsRows(nativeContainer);
 

@@ -9,9 +9,10 @@ class NativeDropdown {
     static var initIndex:hlx.runtime.ResolvedMember;
     static var isOpen:hlx.runtime.ResolvedMember;
     static var close:hlx.runtime.ResolvedMember;
-    static var baseUI:hl.Bytes;
     static var topElement:hlx.runtime.ResolvedMember;
     static var contains:hlx.runtime.ResolvedMember;
+    static var scrollContainer:Dynamic;
+    static var scrollPosition = 0.;
 
     public static function configure(control:Dynamic, setting:DropdownSetting, value:Dynamic, save:String->Bool):Dynamic->Void {
         if (arraySlice == null) arraySlice = member("hl.types.ArrayObj", "slice");
@@ -20,7 +21,6 @@ class NativeDropdown {
         if (initIndex == null) initIndex = member("ui.comp.Dropdown", "initSelectedIndex");
         if (isOpen == null) isOpen = member("ui.comp.Dropdown", "isOpen");
         if (close == null) close = member("ui.comp.Dropdown", "close");
-        if (baseUI == null) baseUI = HlxRuntime.resolveType("ui.BaseUI");
         if (topElement == null) topElement = member("ui.BaseUI", "getTopInteractiveElement");
         if (contains == null) contains = member("h2d.Object", "contains");
         // The constructor's items array is native ArrayObj. A local
@@ -54,14 +54,16 @@ class NativeDropdown {
 
     /** Run after native hit testing, without consuming or changing the click. */
     public static function onPointerEvent(event:Dynamic):Void {
-        if (controls.length == 0
-            || Type.enumConstructor(HlxRuntime.resolveField(event, "kind")) != "EPush") return;
+        if (controls.length == 0) return;
+        var kind = Type.enumConstructor(HlxRuntime.resolveField(event, "kind"));
+        if (kind == "EWheel") { closeAll(); return; }
+        if (kind != "EPush") return;
         var target:Dynamic = null;
         var targetResolved = false;
         for (control in controls) try {
             if (HlxRuntime.callResolved(isOpen, [control]) != true) continue;
             if (!targetResolved) {
-                var ui = HlxRuntime.resolveStaticField(baseUI, "current");
+                var ui = HlxRuntime.resolveStaticField(HlxRuntime.resolveType("ui.BaseUI"), "current");
                 if (ui == null) return;
                 target = HlxRuntime.callResolved(topElement, [ui, null]);
                 targetResolved = true;
@@ -80,6 +82,17 @@ class NativeDropdown {
         return root != null && target != null
             && (root == target || HlxRuntime.callResolved(contains, [root, target]) == true);
 
+    public static function watchScroll(container:Dynamic):Void {
+        scrollContainer = container;
+        scrollPosition = container == null ? 0 : HlxRuntime.resolveField(container, "scrollPosY");
+    }
+
+    public static function onScroll(container:Dynamic, position:Float):Void {
+        if (scrollContainer == null || container != scrollContainer || position == scrollPosition) return;
+        scrollPosition = position;
+        closeAll();
+    }
+
     public static function closeAll(clear:Bool = false):Void {
         for (control in controls) try {
             if (HlxRuntime.callResolved(isOpen, [control]) == true)
@@ -87,7 +100,7 @@ class NativeDropdown {
         } catch (error:Dynamic) {
             trace("[BetterModSettings] Could not close dropdown: " + Std.string(error));
         }
-        if (clear) controls = [];
+        if (clear) { controls = []; watchScroll(null); }
     }
 
     static function member(typeName:String, name:String):hlx.runtime.ResolvedMember {
