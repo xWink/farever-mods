@@ -124,6 +124,8 @@ class GroupWindowTest {
         check(GroupFrame.active==0,"Closing disposes native window");
         GroupSocialTest.run();
         GroupLiveTest.run();
+        GroupTravelTest.run();
+        GroupCountdownTest.run();
         trace('Group Finder UI passed ($checks checks)');
     }
 }

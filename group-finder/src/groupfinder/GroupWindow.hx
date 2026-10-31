@@ -33,6 +33,8 @@ class GroupWindow {
     var validation:Dynamic;
     var saveButton:Dynamic;
     var categoryButtons:Array<{category:String,button:Dynamic}>=[];
+    var pendingLabels:Array<{label:Dynamic,request:JoinRequest}>=[];
+    var countdownSecond=-1;
     final badges=new GroupBadges();
     public function new(controller:GroupController)c=controller;
     public function owns(window:Dynamic):Bool return frame!=null&&frame.window==window;
@@ -47,6 +49,7 @@ class GroupWindow {
             dirty=true;
         }
         if(dirty){dirty=false;render();}
+        updateCountdowns();
         frame.layout();if(scrollbar!=null)scrollbar.update();
         if(viewport!=null&&c.live!=null&&c.live.hasMore&&c.page=="browse") {
             var bottom=G.number(G.field(viewport,"scrollPosY"))+G.number(G.field(viewport,"height"));
@@ -55,6 +58,7 @@ class GroupWindow {
     }
     public function dispose():Void {
         badges.dispose();
+        pendingLabels=[];countdownSecond=-1;
         if(frame!=null)frame.dispose();frame=null;viewport=null;scrollbar=null;inputBox=null;sidebar=regionLabel=requestsButton=listingButton=null;navigation=[];listingKind="";dirty=true;
     }
     function text(parent:Dynamic,value:String,x:Int,y:Int,w:Int,bold=false,color=INK,multiline=false):Dynamic {
@@ -93,6 +97,7 @@ class GroupWindow {
         var root=frame.container;
         for(child in children(root))if(child!=sidebar)G.call("h2d.Object","remove",child);
         viewport=null;scrollbar=null;inputBox=null;countLabel=null;validation=null;saveButton=null;categoryButtons=[];
+        pendingLabels=[];countdownSecond=-1;
         if(sidebar==null)createSidebar(root);
         updateSidebar();
         switch(c.page) {
@@ -174,7 +179,7 @@ class GroupWindow {
                 var status=G.field(node("element",G.field(card,"dom"),[],"groupRequestStatus"+(sequence++)),"obj");
                 absolute(card,status);padding(status,0);size(status,218,22);position(status,570,78);
                 G.call("h2d.Object","setScale",status,[0.75]);
-                text(status,request.state=="invited"?"Invitation sent":"Request pending",0,0,218,false,GREEN);
+                requestLabel(status,request,0,0,218,GREEN);
             } else {
                 var declined=c.party!=null&&c.requests.isDeclined(row.id,c.party.accountId);
                 button(card,declined?"Request declined":"Request to join",570,42,164,()->c.request(row),"",c.requestError(row)=="");
@@ -341,13 +346,31 @@ class GroupWindow {
             if(request.incoming)memberName(card,request.member,16,12,516);
             else filtered(card,listing==null?"Your join request":listing.title,16,12,516,true);
             memberDetails(card,request.member,16,40,516);
-            text(card,stateLabel(request.state),16,77,516,true,request.state=="invited"||request.state=="joined"?GREEN:MUTED);
+            requestLabel(card,request,16,77,516,request.state=="invited"||request.state=="joined"?GREEN:MUTED);
             if(request.state=="pending") {
                 if(request.incoming) {
                     button(card,"Accept",564,15,168,()->c.answer(request,true),"accept");
                     button(card,"Decline",564,65,168,()->c.answer(request,false),"cancel");
                 } else button(card,"Cancel request",564,65,168,()->c.cancel(request));
             }
+        }
+    }
+    function requestLabel(parent:Dynamic,request:JoinRequest,x:Int,y:Int,width:Int,color:Int):Void {
+        var label=text(parent,requestText(request,c.now),x,y,width,true,color);
+        if(request.state=="pending")pendingLabels.push({label:label,request:request});
+    }
+    static function requestText(request:JoinRequest,now:Float):String {
+        var label=stateLabel(request.state);
+        if(request.state!="pending")return label;
+        var seconds=Std.int(Math.max(0,Math.ceil(request.expiresAt-now)));
+        return label+" • "+Std.int(seconds/60)+":"+StringTools.lpad(Std.string(seconds%60),"0",2);
+    }
+    function updateCountdowns():Void {
+        var second=Std.int(c.now);if(second==countdownSecond)return;countdownSecond=second;
+        // Update just the text once per second; preserve hovered controls and scroll.
+        for(entry in pendingLabels) {
+            var value=requestText(entry.request,c.now);
+            if(G.text(G.field(entry.label,"text"))!=value)setText(entry.label,value);
         }
     }
     public function closeFareverlyNotice():Void {

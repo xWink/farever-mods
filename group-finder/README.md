@@ -10,11 +10,15 @@ Listings are stored on Fareverly and restricted to your connected region. Only s
 
 Party state is sampled twice a second, even with the window closed. Changes are coalesced to at most one roster update per second. A full party, lost leadership, changed party/region, logout, or disabling the mod closes the listing. Closing the window keeps it. A later free slot never automatically reposts it. Native ignored leaders are hidden; sidebar counts are Fareverly's totals before local ignores. Cursor pagination loads further pages while scrolling, including pages hidden entirely by ignores. Browsing refreshes roughly every ten seconds while visible, backing off after failures.
 
+Entering or leaving a dungeon, rift, or other instance preserves the listing and request history. Native transfer/loading hooks pause party sampling while objects are being replaced, then rebind the same account, region, and leader to the existing listing identity. Heartbeats continue during loading. A real party change, loss of leadership, logout, or failed connection still closes the listing.
+
 ## Join requests
 
 Requesting fetches the latest listing before sending one private protocol message. Requests, responses, and cancellation use native game whispers; there is no HTTP request inbox. Native invitations use the game's account-ID invitation method, which supports players on other zones/instances in the same region. The requester still accepts the normal game invitation.
 
 Pending requests expire after five minutes. Duplicate pending requests are suppressed, with a ten-second repeat cooldown, but distinct requests/invitations have no artificial cap or slot reservation. Joining the requested party marks the request as joined; other outgoing requests are cancelled even with the window closed. Accepted requests remain in the leader's history and become **Joined group** when the player appears in the roster. A late automatic cancellation from an older requester cannot overwrite an accepted request.
+
+Both the applicant's listing card and the leader's Requests view show a bold **Request pending • 4:59** countdown. Only the text updates once a second; rows, buttons, and scrolling are preserved. The timer disappears when the request is answered, cancelled, or expires.
 
 Declining locks that account out of reapplying to the same listing. The requester disables its button, and the leader also rejects fresh request IDs without another inbox entry or notification. This lockout survives local history resets and applies to the listing ID, so a new posting allows fresh requests. Closing a listing resets its inbox and notifies pending requesters. Incoming requests use timestamped native chat alerts containing the name, class, and level. Declines and unavailable groups also notify the requester. Request/Cancel buttons stay in place; only errors appear in the window footer.
 

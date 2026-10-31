@@ -32,7 +32,7 @@ class GroupFrame {
  }
  public static function setClass(o:Dynamic,kind:String):Void {o.kind=kind;}
  public static function textAt(p:Dynamic,s:String,x:Float,y:Float,w:Int,b=false):Dynamic {
-  var o=GameAccess.object(p);o.text=s;o.testLabel=true;o.maxWidthText=w;o.x=x;o.y=y;GameAccess.labels.push(o);return o;
+  var o=GameAccess.object(p);o.text=s;o.testLabel=true;o.maxWidthText=w;o.x=x;o.y=y;if(b)o.dom.classes.push("bold-14");GameAccess.labels.push(o);return o;
  }
  public static function ink(o:Dynamic,color:Int):Void {o.textColor=color;}
  public static function graphic(p:Dynamic):Dynamic return GameAccess.object(p);

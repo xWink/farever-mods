@@ -29,7 +29,10 @@ class GroupController {
     var loading=false;
     var generation=0;
     var partyKey="";
-    var now=0.;
+    public var now(default,null)=0.;
+    public var traveling(default,null)=false;
+    var transferParty:Null<GroupParty>;
+    var endingSession=false;
     var nextRequests=0.;
     var sampleNumber=0;
     var ownedListingId:Null<String>;
@@ -57,19 +60,42 @@ class GroupController {
         var key=ids.join("\n");if(key==ignoredKey)return;
         ignoredKey=key;ignored=[for(id in ids)id=>true];view.dirty=true;
     }
+    /** connectTo tears down native objects without ending the game session. */
+    public function beginTravel():Void {
+        if(party==null)return;
+        if(!traveling)transferParty=GroupRules.clone(party);
+        traveling=true;localPlayer=null;
+    }
+    public function finishTravel():Void {traveling=false;nextParty=0;}
+    public function endSession():Void {disconnect();endingSession=true;}
+    function captureParty(player:Dynamic):Null<GroupParty> {
+        var next=GroupGame.capture(player);
+        if(next==null||party==null)return next;
+        // Keep the listing's identity when the same leader's party is re-created
+        // on another instance server. Outside an announced transfer, a new
+        // native group still counts as a genuine party change.
+        var anchor=transferParty==null?party:transferParty;
+        if(next.accountId==anchor.accountId&&next.region==anchor.region&&next.leaderId==anchor.leaderId
+            &&(transferParty!=null||next.nativePartyId==anchor.nativePartyId))next.partyId=anchor.partyId;
+        return next;
+    }
     public function update(app:Dynamic,time:Float):Void {
         now=time;
+        // A failed transfer can leave a disconnected GameApp behind an error
+        // dialog until it is disposed. Do not restart presence from its old player.
+        if(endingSession){if(live!=null)live.tick(time);return;}
         if(!GroupFinderMod.enabled()){if(party!=null||opened)disconnect();if(live!=null)live.tick(time);return;}
-        if(time>=nextParty) {
+        if(!traveling&&time>=nextParty) {
             nextParty=time+0.5;
-            var me=G.field(app,"me"),next=GroupGame.capture(me);
+            var me=G.field(app,"me"),next=captureParty(me);
             if(live!=null&&!GroupGame.connected(me))next=null;
             if(next==null) {if(party!=null)disconnect();}
             else {
                 if(party!=null&&(party.accountId!=next.accountId||party.region!=next.region))disconnect();
                 localPlayer=me;syncIgnored();
-                if(next.members.length>1||(party!=null&&(party.partyId!=next.partyId||party.nativePartyId!=next.nativePartyId)))cancelOutgoing(next);
+                if(next.members.length>1||(party!=null&&party.partyId!=next.partyId))cancelOutgoing(next);
                 var first=party==null;party=next;
+                transferParty=null;
                 var key=haxe.Json.stringify(next);if(key!=partyKey){partyKey=key;view.dirty=true;}
                 if(mock!=null){mock.observe(next);mock.examples(next.region,true);}
                 else {
@@ -157,6 +183,7 @@ class GroupController {
         });
     }
     public function requestError(?listing:GroupListing):String {
+        if(traveling)return "Wait until you finish entering the area to request to join a group.";
         if(party==null)return "Enter the game with your character to request to join a group.";
         if(listing!=null&&requests.isDeclined(listing.id,party.accountId))return GroupRequests.DECLINED;
         if(mine()!=null)return "Close your listing before requesting to join another group.";
@@ -172,7 +199,7 @@ class GroupController {
         live.detail(listing.id,result->{
             if(token!=generation)return;busy=false;syncIgnored();
             // Recheck game state after the HTTP round trip, not just at button press.
-            var current=GroupGame.capture(localPlayer);
+            var current=captureParty(localPlayer);
             if(result.error!="")error(result.error);
             else if(current==null||current.partyId!=expectedParty||current.members.length!=1||requestError(result.value)!=""||ignored.exists(result.value.ownerId))error("Your party or this listing changed. Please try again.");
             else addOutgoing(result.value);
@@ -225,8 +252,9 @@ class GroupController {
     }
     public function answer(request:JoinRequest,accept:Bool):Void {
         if(request.state!="pending")return;
+        if(traveling){error("Wait until you finish entering the area to answer this request.");return;}
         if(live!=null) {
-            var current=GroupGame.capture(localPlayer);
+            var current=captureParty(localPlayer);
             if(current==null||mine()==null||current.partyId!=mine().partyId||current.leaderId!=current.accountId){error("You no longer lead this group.");return;}
             party=current;
         }
@@ -251,6 +279,7 @@ class GroupController {
     }
     public function showRequests():Void {if(mine()==null)return;page="requests";pendingDelete=null;message="";view.resetScroll();view.dirty=true;}
     public function disconnect():Void {
+        traveling=false;transferParty=null;endingSession=false;
         cancelOutgoing();
         for(r in requests.rows)if(r.incoming&&(r.state=="pending"||r.state=="invited"))sendState(r,"closed");
         if(mock!=null&&party!=null)mock.disconnect(party.accountId);if(live!=null)live.disconnect();

@@ -47,6 +47,18 @@ class GroupFinderMod {
         if(controller!=null&&controller.view.insertTitle(instance,text))return Skip;
         return Continue;
     }
+    @:hlx.prefix(GameApp.connectTo)
+    static function beginTravel(instance:Dynamic,connectionInfo:Dynamic):HlxPrefixResult<Void> {
+        if(controller!=null)controller.beginTravel();return Continue;
+    }
+    @:hlx.postfix(GameApp.finishedLoading)
+    static function finishTravel(instance:Dynamic,result:Void):Void {
+        if(controller!=null)controller.finishTravel();
+    }
+    @:hlx.prefix(GameApp.leaveGame)
+    static function leaveGame(instance:Dynamic,errorMessage:String):HlxPrefixResult<Void> {
+        if(controller!=null)controller.endSession();return Continue;
+    }
     @:hlx.prefix(st.player.ChatClient.localReceiveMessage)
     static function receiveLocal(instance:Dynamic,message:Dynamic):HlxPrefixResult<Void> return receive(instance,message);
     @:hlx.prefix(st.player.ChatClient.receiveMessage__impl)
