@@ -132,7 +132,7 @@ class GroupController {
         var index=sampleNumber++,names=["Willow","Flint","Coral","Aspen","Lark","Rowan","Cinder","Brook"];
         var name=names[index%names.length]+(index<names.length?"":" "+(1+Std.int(index/names.length)));
         receiveRequest(listing.id,{accountId:"preview-applicant-"+index,name:name,className:["Mage","Warrior","Rogue","Cleric"][index%4],level:25,
-            badge:[null,"supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"][index%8]});
+            badge:MockGroupService.sampleBadge(index)});
         page="requests";view.resetScroll();view.dirty=true;
     }
     public function receiveRequest(listingId:String,member:GroupMember):Void {

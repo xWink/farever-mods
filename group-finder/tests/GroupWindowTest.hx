@@ -28,7 +28,7 @@ class GroupWindowTest {
         check(groupfinder.GroupGame.classBanner("Unknown")==null,"Unknown class does not invent a banner");
         check(groupfinder.GroupGame.classBanner("Cleric").id=="PriestBanner","Cleric resolves the native Priest artwork");
         var heading=G.labels.filter(l->l.text=="Heroic dungeon runs")[0];
-        check(heading.textColor==0x326D70&&(cast heading.dom.classes:Array<String>).indexOf("bold-16")>=0,"Listing titles use teal native headings");
+        check(heading.textColor==0x8A5F46&&heading.parent.scaleX==1.25&&heading.maxWidthText*heading.parent.scaleX==530&&(cast heading.dom.classes:Array<String>).indexOf("bold-16")>=0,"Listing titles use larger warm-brown headings within the same column");
         check(G.labels.filter(l->l.text=="Mage • Lv. 25").length==0,"Class name removed from member details");
         check(G.buttons.filter(b->StringTools.startsWith(b.text,"World Events")).length==1,"Three categories");
         var viewport=G.nodes.filter(n->StringTools.startsWith(n.id,"groupViewport"))[0];

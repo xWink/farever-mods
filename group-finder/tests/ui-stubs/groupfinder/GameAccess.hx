@@ -69,9 +69,11 @@ class GameAccess {
             case "set_enableInteractive":obj.enableInteractive=args[0];obj.interactive=object(obj);null;
             case "setTip":obj.currentTip={content:args[0],anchor:args[1]};obj.currentTip;
             case "removeTip":obj.currentTip=null;null;
+            case "updateScale":obj.scaleX=number(field(obj,"nativeScale"),1);obj.scaleY=obj.scaleX;obj.needUpdateScale=false;null;
             case "getBounds":
+                if(field(obj,"inkBounds")!=null)obj.inkBounds;else
                 if(field(obj,"nativeType")=="h2d.Bitmap")
-                    {xMin:obj.x,yMin:obj.y,xMax:obj.x+obj.tile.width,yMax:obj.y+obj.tile.height};
+                    {xMin:obj.x-number(field(args[0],"x")),yMin:obj.y-number(field(args[0],"y")),xMax:obj.x+obj.tile.width-number(field(args[0],"x")),yMax:obj.y+obj.tile.height-number(field(args[0],"y"))};
                 else {xMin:0.,yMin:4.,xMax:Math.min(text(obj.text).length*8.,number(field(obj,"maxWidthText"),1000)),yMax:22.};
             case "getProperties":
                 var child=args[0];if(field(child,"flowProperties")==null)child.flowProperties={};child.flowProperties;

@@ -10,7 +10,7 @@ class GroupWindow {
     static inline var INK=0x5B4334;
     static inline var MUTED=0x897360;
     static inline var GREEN=0x527F40;
-    static inline var TITLE=0x326D70;
+    static inline var TITLE=0x8A5F46;
     public var dirty=true;
     var c:GroupController;
     var frame:GroupFrame;
@@ -118,7 +118,12 @@ class GroupWindow {
     function listing(parent:Dynamic,row:GroupListing,y:Int):Void {
         var own=c.party!=null&&row.ownerId==c.party.accountId;
         var card=panel(parent,0,y,750,100,own?0xE3E5D0:0xEADDC8);
-        var heading=filtered(card,row.title,16,10,530,true);
+        // Scale a containing element so FmtText's own ellipsis/reflow cannot
+        // reset the heading size. The 16px native font displays at 20px.
+        var headingBox=G.field(node("element",G.field(card,"dom"),[],"groupHeading"+(sequence++)),"obj");
+        absolute(card,headingBox);padding(headingBox,0);size(headingBox,424,26);position(headingBox,16,7);
+        G.call("h2d.Object","setScale",headingBox,[1.25]);
+        var heading=filtered(headingBox,row.title,0,0,424,true);
         G.call("domkit.Properties","removeClass",G.field(heading,"dom"),["bold-14"]);
         G.call("domkit.Properties","addClass",G.field(heading,"dom"),["bold-16"]);
         ink(heading,TITLE);
@@ -153,13 +158,32 @@ class GroupWindow {
         var badge:Dynamic=null;
         try badge=badges.create(box,member.badge,G.field(frame.ui,"windows"),box)
         catch(error:Dynamic)GroupFinderMod.report("Member badge: "+Std.string(error));
-        var available=w-(badge==null?0:GroupBadges.SIZE+GroupBadges.GAP);
-        var caption=filtered(box,member.name+(leader?" ★":""),0,0,available,true);
-        if(badge!=null) {
+        var available=w-(badge==null?0:GroupBadges.SIZE+GroupBadges.GAP)-(leader?20:0);
+        var caption=filtered(box,member.name,0,0,available,true);
+        var star=leader?text(box,"★",0,0,16,true,MUTED):null;
+        if(badge!=null||star!=null) {
             var align=()->{
+                // Resolve native font scaling before measuring visible glyphs.
+                for(label in [caption,star])if(label!=null&&G.field(label,"needUpdateScale")==true) {
+                    G.call("ui.comp.FmtText","updateScale",label);G.set(label,"needUpdateScale",false);
+                }
                 var bounds=G.call("h2d.Object","getBounds",caption,[caption,null]);
-                var right=G.number(G.field(bounds,"xMax"))*G.number(G.field(caption,"scaleX"),1);
-                position(badge,Math.min(available,Math.ceil(right))+GroupBadges.GAP,0);
+                var sx=G.number(G.field(caption,"scaleX"),1),sy=G.number(G.field(caption,"scaleY"),1);
+                var right=Math.min(available,Math.ceil(G.number(G.field(bounds,"xMax"))*sx));
+                var center=(G.number(G.field(bounds,"yMin"))+G.number(G.field(bounds,"yMax")))*sy/2;
+                if(badge!=null) {
+                    position(badge,right+GroupBadges.GAP,Math.round(center-GroupBadges.SIZE/2));
+                    right+=GroupBadges.GAP+GroupBadges.SIZE;
+                    var input=G.field(box,"interactive"),top=Math.min(0,G.number(G.field(badge,"y")));
+                    // Keep the hover area over the entire badge if its top sits
+                    // above the text's origin after centering on a small font.
+                    G.set(input,"y",top);G.set(input,"height",Math.max(22,G.number(G.field(badge,"y"))+GroupBadges.SIZE)-top);
+                }
+                if(star!=null) {
+                    var b=G.call("h2d.Object","getBounds",star,[star,null]);
+                    position(star,right+4-G.number(G.field(b,"xMin"))*G.number(G.field(star,"scaleX"),1),
+                        center-(G.number(G.field(b,"yMin"))+G.number(G.field(b,"yMax")))*G.number(G.field(star,"scaleY"),1)/2);
+                }
             };
             G.set(box,"onAfterReflow",align);align();
         }

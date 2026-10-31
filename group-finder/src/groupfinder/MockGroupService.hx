@@ -94,6 +94,11 @@ class MockGroupService implements GroupService {
         for(row in rows)if(row.ownerId==accountId)return GroupRules.clone(row);
         return null;
     }
+    /** About one in five example players supports Fareverly. */
+    public static function sampleBadge(index:Int):Null<String> {
+        if(index%5!=1)return null;
+        return ["supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"][Std.int(index/5)%7];
+    }
     public function examples(region:String,enabled:Bool):Void {
         if(region==""||exampleRegions[region]==enabled)return;
         exampleRegions[region]=enabled;
@@ -102,10 +107,11 @@ class MockGroupService implements GroupService {
             var names=["Bramble", "Mistral", "Ember", "Pebble"];
             var classes=["Warrior", "Mage", "Rogue", "Cleric"];
             var titles=["Heroic dungeon runs", "Learning run — all welcome", "One more for dungeons", "Relaxed dungeon clear", "Heroic boss practice", "First clear together", "Quick dungeon run", "Looking for a healer", "World events together", "Exploring world bosses", "Event hunt — all welcome", "Exploring and gathering", "New players welcome"];
+            var memberIndex=0;
             for(i in 0...titles.length) {
                 var id="sample-"+region+"-"+i,n=1+i%3;
                 var members=[for(j in 0...n){accountId:id+"-"+j,name:names[(i+j)%4],className:classes[(i+j)%4],level:25,
-                    badge:[null,"supporter-bronze","supporter-silver","supporter-gold","supporter-ruby","supporter-emerald","supporter-diamond","fareverly-creator"][(i+j)%8]}];
+                    badge:sampleBadge(memberIndex++)}];
                 rows.push({id:id,ownerId:members[0].accountId,partyId:id,region:region,
                     category:i<8?"Dungeons":i<11?"World Events":"Other",title:titles[i],members:members,
                     updatedAt:now,expiresAt:now+120,sample:true});
