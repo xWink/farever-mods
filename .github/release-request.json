@@ -1,7 +1,7 @@
 {
-  "project": "better-mod-settings",
-  "version": "1.7.2",
-  "commit": "0f6b67d28cf17499b7f2ff01edc88d42db2e1cfb",
-  "notes": "- Fixed an issue where the Mod Settings window wouldn't open while in the Main Menu (character select screen)\n- Fixed an issue where dropdowns wouldn't close when scrolling",
+  "project": "trade-and-marketplace",
+  "version": "1.4.1",
+  "commit": "18db8fe26a9cc650cae17241a224f79ca04a677e",
+  "notes": "Added an option to appear as busy, for when you are online but might not reply to trade requests",
   "dry_run": false
 }
