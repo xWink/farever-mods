@@ -1,7 +1,7 @@
 {
-  "project": "dps-meter",
-  "version": "1.12.0",
+  "project": "trade-and-marketplace",
+  "version": "1.4.0",
+  "notes": "- Tooltips for supporter badges\n- Sending a trade request now first checks that the recipient has the Trade and Marketplace mod before sending the request\n  - This prevents players without the mod from receiving unsolicited whispers\n  - Trade now requires login to Fareverly",
   "commit": "0f6b67d28cf17499b7f2ff01edc88d42db2e1cfb",
-  "notes": "- Combat history now uses a scrollbar instead of pages\n- Events in detailed reports are now scrollable instead of using pages\n- Events in detailed reports now automatically filter to match the graphed information in the top portion of the page\n- Detailed report graphs for buffs and debuffs now also display % uptime",
   "dry_run": false
 }
