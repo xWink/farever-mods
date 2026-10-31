@@ -29,17 +29,34 @@ class GroupController {
     var nextRequests=0.0;
     var sampleNumber=0;
     var ownedListingId:Null<String>;
+    var localPlayer:Dynamic;
+    var ignored:Map<String,Bool>=[];
+    var ignoredKey="";
 
     public function new() {api=mock;view=new GroupWindow(this);}
     public function mine():Null<GroupListing> return party==null?null:mock.mine(party.accountId);
+    public function visibleListings(?category:String):Array<GroupListing>
+        return rows.filter(row->!ignored.exists(row.ownerId)&&(category==null||row.category==category));
+    function syncIgnored():Void {
+        var ids=GroupGame.ignoredAccounts(localPlayer);ids.sort(Reflect.compare);
+        var key=ids.join("\n");if(key==ignoredKey)return;
+        ignoredKey=key;ignored=[for(id in ids)id=>true];view.dirty=true;
+    }
     public function update(app:Dynamic,time:Float):Void {
         now=time;
         if(!GroupFinderMod.enabled()) {if(party!=null||opened)disconnect();return;}
         if(time>=nextParty) {
             nextParty=time+0.5;
-            var next=GroupGame.capture(G.field(app,"me"));
+            var me=G.field(app,"me"),next=GroupGame.capture(me);
             if(next!=null) {
                 if(party!=null&&(party.accountId!=next.accountId||party.region!=next.region))disconnect();
+                localPlayer=me;syncIgnored();
+                if(next.members.length>1||(party!=null&&party.partyId!=next.partyId)) {
+                    if(requests.cancelOutgoing()>0) {
+                        message="Your pending join requests were cancelled because your party changed.";
+                        view.dirty=true;
+                    }
+                }
                 var before=mine();party=next;
                 var key=haxe.Json.stringify(next);
                 if(key!=partyKey){partyKey=key;view.dirty=true;}
@@ -59,7 +76,7 @@ class GroupController {
         view.update(opened);
     }
     public function toggle():Void {if(opened)close();else open();}
-    public function open():Void {if(!GroupFinderMod.enabled())return;opened=true;view.dirty=true;refresh();}
+    public function open():Void {if(!GroupFinderMod.enabled())return;syncIgnored();opened=true;view.dirty=true;refresh();}
     public function close():Void {opened=false;view.dispose();}
     /** Clear the request inbox on every removal path, even with the window closed. */
     public function syncListing():Void {
@@ -126,6 +143,8 @@ class GroupController {
     }
     public function request(listing:GroupListing):Void {
         if(busy)return;
+        syncIgnored();
+        if(listing==null||ignored.exists(listing.ownerId)){message="This listing is no longer available.";view.dirty=true;return;}
         var reason=requestError();
         if(reason!=""){message=reason;view.dirty=true;return;}
         var member:Null<GroupMember>=null;
@@ -161,6 +180,7 @@ class GroupController {
     public function disconnect():Void {
         if(party!=null)mock.disconnect(party.accountId);
         generation++;party=null;partyKey="";rows=[];seenRevision=-1;busy=loading=false;
+        localPlayer=null;ignored.clear();ignoredKey="";
         requests.reset();ownedListingId=null;sampleNumber=0;page="browse";editingId=null;message="";pendingDelete=null;close();
     }
     public function fail(error:Dynamic):Void {GroupFinderMod.report(Std.string(error));close();}

@@ -4,6 +4,15 @@ import groupfinder.GameAccess as G;
 import groupfinder.GroupTypes;
 
 class GroupGame {
+    /** Same account-ID list used by st.Player.isIgnoring and the Social window. */
+    public static function ignoredAccounts(player:Dynamic):Array<String> {
+        var social=G.field(G.field(player,"accountProgress"),"social");
+        var result:Array<String>=[];
+        for(entry in G.array(G.field(social,"ignoreList"),true)) {
+            var id=G.text(G.field(entry,"uid"));if(id!="")result.push(id);
+        }
+        return result;
+    }
     /** The unit artwork is the coloured pennant; bannerIcon is only its emblem. */
     public static function classBanner(className:String):Dynamic {
         var units=G.field(G.current("Data","unit"),"byId");if(units==null)return null;

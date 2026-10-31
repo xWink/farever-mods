@@ -22,7 +22,9 @@ class GameAccess {
     public static function text(value:Dynamic,fallback=""):String return value==null?fallback:Std.string(value);
     public static function number(value:Dynamic,fallback:Float=0):Float return value==null?fallback:value;
     public static function integer(value:Dynamic,fallback=0):Int return value==null?fallback:Std.int(value);
-    public static function array(value:Dynamic,proxy=false):Array<Dynamic> return value==null?[]:cast value;
+    public static function array(value:Dynamic,proxy=false):Array<Dynamic> {
+        if(proxy)value=field(value,"array");return value==null?[]:cast value;
+    }
     public static function enumeration(type:String,name:String):Dynamic return name;
     public static function isA(obj:Dynamic,type:String):Bool return obj==ui&&type=="ui.GameUI";
     public static function current(type:String,name:String):Dynamic return type=="ui.BaseUI"?ui:type=="Data"?{byId:units}:type=="Options"?"eu":name;
@@ -90,7 +92,7 @@ class GameAccess {
             case "setPosition": obj.x=args[0];obj.y=args[1];null;
             case "get_outerHeight": obj.height;
             case "get_outerWidth": obj.width;
-            case "get_leader": (cast obj.players:Array<Dynamic>)[0];
+            case "get_leader": array(obj.players,true)[0];
             case "get_level": obj.level;
             case "set_overflow":
                 obj.overflow=args[0];

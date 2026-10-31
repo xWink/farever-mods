@@ -72,6 +72,13 @@ class GroupFinderTest {
         requests.add(listing,member("guest6"),false,api.now);requests.tick(api.now+61,api.find);eq(requests.rows[0].state,"expired");
         requests.add(listing,member("guest7"),true,api.now);api.disconnect("owner");requests.tick(api.now,api.find);eq(requests.rows[0].state,"closed");
         requests.reset();eq(requests.rows.length,0);eq(requests.add(listing,member("guest5"),false,api.now),"");
+        requests.add(listing,member("invited-outgoing"),false,api.now);requests.rows[0].state="invited";
+        requests.add(listing,member("incoming"),true,api.now);var incoming=requests.rows[0];
+        requests.add(listing,member("declined-outgoing"),false,api.now);requests.rows[0].state="declined";
+        var oldRevision=requests.revision;
+        eq(requests.cancelOutgoing(),2);eq(incoming.state,"pending");eq(requests.rows[0].state,"declined");
+        eq(requests.rows.filter(r->!r.incoming&&r.state=="cancelled").length,2);
+        eq(requests.revision,oldRevision+1);eq(requests.cancelOutgoing(),0);eq(requests.revision,oldRevision+1);
         trace('Group Finder passed ($checks checks)');
     }
 }

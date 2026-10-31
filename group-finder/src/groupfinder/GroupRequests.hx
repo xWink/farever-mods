@@ -34,6 +34,15 @@ class GroupRequests {
         var request=get(id);if(request==null||request.state!="pending")return;
         request.state="cancelled";revision++;
     }
+    /** Joining a party ends our outgoing requests, without clearing a leader's inbox. */
+    public function cancelOutgoing():Int {
+        var count=0;
+        for(request in rows)if(!request.incoming&&(request.state=="pending"||request.state=="invited")) {
+            request.state="cancelled";count++;
+        }
+        if(count>0)revision++;
+        return count;
+    }
     public function get(id:String):Null<JoinRequest> {for(r in rows)if(r.id==id)return r;return null;}
     public function outgoing(listingId:String):Null<JoinRequest> {
         for(r in rows)if(!r.incoming&&r.listingId==listingId)return r;return null;

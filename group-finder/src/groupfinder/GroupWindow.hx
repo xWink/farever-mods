@@ -10,6 +10,7 @@ class GroupWindow {
     static inline var INK=0x5B4334;
     static inline var MUTED=0x897360;
     static inline var GREEN=0x527F40;
+    static inline var LEADER=0xD6A516;
     public var dirty=true;
     var c:GroupController;
     var frame:GroupFrame;
@@ -83,7 +84,7 @@ class GroupWindow {
         text(sidebar,"FIND A GROUP",14,18,176,true);
         text(sidebar,GroupGame.regionName(c.party==null?"":c.party.region),14,46,176,false,MUTED);
         for(i in 0...GroupRules.categories.length) {
-            var category=GroupRules.categories[i],count=c.rows.filter(row->row.category==category).length;
+            var category=GroupRules.categories[i],count=c.visibleListings(category).length;
             button(sidebar,category+"  ("+count+")",12,86+i*46,180,()->c.choose(category),"",true,c.page=="browse"&&c.category==category);
         }
         var mine=c.mine();
@@ -101,11 +102,9 @@ class GroupWindow {
     }
     function listings(root:Dynamic):Void {
         text(root,c.category,234,20,360,true);
-        text(root,"Choose a group and request to join.",234,51,540,false,MUTED);
         button(root,"Refresh",890,18,112,c.refresh);
-        var data=c.rows.filter(row->row.category==c.category);
-        text(root,data.length+" group"+(data.length==1?"":"s"),234,82,400,false,MUTED);
-        var content=scroller(root,data.length*110);
+        var data=c.visibleListings(c.category);
+        var content=scroller(root,data.length*110,70);
         if(data.length==0) {
             text(content,"No groups listed yet",24,68,680,true);
             text(content,"Create a listing to start a group for "+c.category.toLowerCase()+".",24,102,680,false,MUTED,true);
@@ -139,9 +138,12 @@ class GroupWindow {
         } else {
             var request=c.requests.outgoing(row.id);
             if(request!=null&&request.state=="pending") {
-                text(card,"Request pending",570,36,164,true,GREEN);
-                button(card,"Cancel request",570,58,164,()->c.cancel(request));
-            } else button(card,"Request to join",570,50,164,()->c.request(row),"",c.requestError()=="");
+                button(card,"Cancel request",570,42,164,()->c.cancel(request));
+                var status=G.field(node("element",G.field(card,"dom"),[],"groupRequestStatus"+(sequence++)),"obj");
+                absolute(card,status);padding(status,0);size(status,218,22);position(status,570,78);
+                G.call("h2d.Object","setScale",status,[0.75]);
+                text(status,"Request pending",0,0,218,false,GREEN);
+            } else button(card,"Request to join",570,42,164,()->c.request(row),"",c.requestError()=="");
         }
     }
     function memberChip(parent:Dynamic,member:GroupMember,x:Int,y:Int,w:Int,leader:Bool):Void {
@@ -159,7 +161,7 @@ class GroupWindow {
         catch(error:Dynamic)GroupFinderMod.report("Member badge: "+Std.string(error));
         var available=w-(badge==null?0:GroupBadges.SIZE+GroupBadges.GAP)-(leader?20:0);
         var caption=filtered(box,member.name,0,0,available,true);
-        var star=leader?text(box,"★",0,0,16,true,MUTED):null;
+        var star=leader?text(box,"★",0,0,16,true,LEADER):null;
         if(badge!=null||star!=null) {
             var align=()->{
                 // Resolve native font scaling before measuring visible glyphs.
@@ -302,9 +304,9 @@ class GroupWindow {
         case "expired": "Request expired";
         default: state;
     };
-    function scroller(root:Dynamic,height:Int):Dynamic {
+    function scroller(root:Dynamic,height:Int,topY=112):Dynamic {
         viewport=G.field(node("flow",G.field(root,"dom"),[],"groupViewport"+(sequence++),"vertical"),"obj");
-        absolute(root,viewport);padding(viewport,0);size(viewport,774,516);position(viewport,234,112);
+        absolute(root,viewport);padding(viewport,0);size(viewport,774,628-topY);position(viewport,234,topY);
         var vertical=G.enumeration("h2d.FlowLayout","Vertical"),overflow=G.enumeration("h2d.FlowOverflow","Scroll");
         G.call("h2d.Flow","set_layout",viewport,[vertical]);style(viewport,"layout",vertical);
         G.call("h2d.Flow","set_multiline",viewport,[false]);style(viewport,"multiline",false);

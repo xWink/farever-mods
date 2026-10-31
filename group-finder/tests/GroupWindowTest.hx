@@ -106,6 +106,7 @@ class GroupWindowTest {
         check(G.text(G.notifications[G.notifications.length-1].text).indexOf("Night Owl")>=0&&!c.opened,"Notification also works with finder closed");
         c.close();check(G.textures.filter(t->t.disposed!=true).length==0,"Closing releases badge textures");
         check(GroupFrame.active==0,"Closing disposes native window");
+        GroupSocialTest.run();
         trace('Group Finder UI passed ($checks checks)');
     }
 }

@@ -23,7 +23,7 @@ class GroupBadgeTest {
             var box=boxes()[0],badge=images(box)[0],label=labels(box)[0],star=labels(box)[1];
             check(badge.tile.texture.resourceName==ids[i]+".png","Correct badge artwork");
             check(G.pngLoads.filter(s->s==ids[i]+".png").length==1,"Each badge texture loads once per window");
-            check(label.text==member.name&&star.text=="★","Leader star is separate from the player name");
+            check(label.text==member.name&&star.text=="★"&&star.textColor==0xD6A516,"Yellow leader star is separate from the player name");
             check(label.maxWidthText+GroupBadges.SIZE+GroupBadges.GAP+20==box.width,"Badge and star space is reserved within the member column");
             check(badge.x==Math.min(label.maxWidthText,G.text(label.text).length*8)+4&&star.x==badge.x+26&&star.x+16<=box.width,"Name, badge, and leader star remain in order inside the column");
             check(Math.abs(badge.y+11-13*label.scaleY)<=0.5,"Badge center matches visible name glyphs");
