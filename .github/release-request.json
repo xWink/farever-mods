@@ -1,7 +1,7 @@
 {
   "project": "trade-and-marketplace",
-  "version": "1.4.2",
-  "commit": "9b7c999bba05fd60dce3a3390f13198ac17385ba",
-  "notes": "Listing an item is now done by setting the total price. a Per Unit price preview is visible under the total",
+  "version": "1.4.3",
+  "commit": "a850a7ba66a1e14852c9d3d74d9fcfb3803496f9",
+  "notes": "Fixed an issue where daylight savings timezones caused players to incorrectly appear offline",
   "dry_run": false
 }
