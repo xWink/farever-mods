@@ -1,6 +1,6 @@
 {
-  "project": "trade-and-marketplace",
-  "version": "1.4.3",
+  "project": "group-finder",
+  "version": "1.0.1",
   "commit": "a850a7ba66a1e14852c9d3d74d9fcfb3803496f9",
   "notes": "Fixed an issue where daylight savings timezones caused players to incorrectly appear offline",
   "dry_run": false
