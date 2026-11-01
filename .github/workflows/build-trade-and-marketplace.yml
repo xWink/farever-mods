@@ -63,6 +63,17 @@ jobs:
           python trade-and-marketplace/recovery/tools/patch_oracle_runtime.py .trade-oracle-hashlink
           make -C .trade-oracle-hashlink -j2 hl
           python trade-and-marketplace/tests/build-item-link-fmt.py .trade-oracle-hashlink
+      - name: Test shared Fareverly UTC timestamps and presence across timezones
+        working-directory: shared
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/.trade-oracle-hashlink
+        run: |
+          mkdir -p build
+          haxe test-time.hxml --interp
+          haxe test-time.hxml -hl build/fareverly-time-test.hl
+          for timezone in UTC "PST8PDT,M3.2.0/2,M11.1.0/2" "EST5EDT,M3.2.0/2,M11.1.0/2" "CET-1CEST,M3.5.0/2,M10.5.0/3" Australia/Lord_Howe Asia/Kathmandu; do
+            TZ="$timezone" ../.trade-oracle-hashlink/hl build/fareverly-time-test.hl
+          done
       - name: Compare with surviving original bytecode
         working-directory: trade-and-marketplace
         env:
@@ -98,6 +109,7 @@ jobs:
           ../.trade-oracle-hashlink/hl build/marketplace-ui-test.hl
           haxe -cp src -cp ../shared/src -cp tests -cp tests/market-stubs -cp tests/market-state-stubs -main MarketplaceStateTest -hl build/marketplace-state-test.hl
           ../.trade-oracle-hashlink/hl build/marketplace-state-test.hl
+          TZ="PST8PDT,M3.2.0/2,M11.1.0/2" ../.trade-oracle-hashlink/hl build/marketplace-state-test.hl
           haxe -cp src -cp tests -main MarketplaceTimeTest -hl build/marketplace-time-test.hl
           for timezone in UTC "PST8PDT,M3.2.0/2,M11.1.0/2" Asia/Kathmandu; do
             TZ="$timezone" ../.trade-oracle-hashlink/hl build/marketplace-time-test.hl

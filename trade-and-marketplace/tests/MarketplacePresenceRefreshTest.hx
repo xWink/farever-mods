@@ -21,8 +21,25 @@ class MarketplacePresenceRefreshTest {
         c.update(app,now);
     }
     public static function run():Void {
-        cache(); busyStatus(); browsing(); unavailablePages(); cancellation();
+        cache(); busyStatus(); daylightSavingPresence(); browsing(); unavailablePages(); cancellation();
         Sys.println('Marketplace presence refresh checks passed: $checks');
+    }
+    static function daylightSavingPresence():Void {
+        // Independent UTC epochs from the live API response during the outage.
+        var now=1793493731.0,until=1793493850.374,iso="2026-11-01T00:44:10.374Z";
+        var c=new MarketController();c.account="self";c.server="north-america";
+        var peer=row(1,"peer",true,iso,c.server);peer.seller.busy=true;
+        check(c.listingOnline(peer,now),"A fresh online listing stays online around DST");
+        c.peerPresence.observe(peer,0);
+        check(c.listingOnline(peer,now)&&c.listingBusy(peer,now),"Cached Busy presence stays online around DST");
+        check(!c.listingOnline(peer,until)&&!c.listingBusy(peer,until),"Online and Busy expire at the real UTC deadline");
+        var own=row(2,"self",false,"",c.server);
+        c.ownOnlineServer=c.server;
+        c.ownOnlineUntil=marketplace.MarketPresence.deadline(200,haxe.Json.stringify({onlineUntil:iso}),"");
+        check(c.listingOnline(own,now),"An acknowledged own heartbeat overrides an older offline listing");
+        check(!c.listingOnline(own,until),"Own acknowledgement does not extend presence past expiry");
+        peer.seller.online=false;c.peerPresence.observe(peer,1);
+        check(!c.listingOnline(peer,now),"Explicit offline still clears peer presence");
     }
     static function cache():Void {
         var p=new MarketPresenceRefresh(),a=row(1,"a"),b=row(2,"a"),wall=Protocol.expiry("2026-10-24T00:00:00Z");
