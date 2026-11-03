@@ -7,12 +7,12 @@ Adds a configurable minimap and enhances the main overworld map with detailed ma
 ## Features
 
 - Markers for resources, enemies, companions, activities, players, NPCs, chests, and secret orbs, with hover details and distance.
-- Unopened world chests appear throughout discovered regions, beyond entity rendering range, with character completion and respawn timing. Chest markers use the same world-chest classification as the game's chest counter, excluding activity rewards before they enter rendering range.
+- Unopened regular, recipe, and vault chests appear throughout discovered regions, beyond entity rendering range, with character completion and respawn timing. Each native chest family is recognized independently; activity rewards remain excluded before they enter rendering range.
 - Quest NPCs use the game's native markers for available quests, quests in progress, and quests ready to turn in.
 - Filter buttons: left-click to toggle a category; right-click for subfilters where available. The minimap's gear shows or hides its filter buttons. **Filter button position** places it on the left (default) or right, with matching mirrored animations for either shape.
 - **Use same filters for both maps** is enabled by default. Turn it off for independent filters; turning it back on copies the main map's filters to the minimap.
 - Ordinary players are hidden by default; party members and friends are shown. Completed enemy mastery, collected companions, and completed activities are hidden by default.
-- Activities include subfilters for dungeons, rifts, and soulstones. NPCs include subfilters for obelisks, respawns, faction merchants, and stations. Your own marker stays visible.
+- Activities include subfilters for dungeons, rifts, and soulstones. NPCs include subfilters for obelisks, respawns, faction merchants, and stations. Chests include Regular, Recipe, and Vault subfilters, all enabled by default. Your own marker stays visible.
 - The main map shows the next rift countdown beneath its marker, highlights the Heroic Bonus Dungeon with a green plus, and supports additional zoom, marker scaling, and optional character movement/auto-run while open.
 - Activity, faction merchant, and guild merchant markers have thin, uniform dark outlines for readability, cached once per appearance on both maps.
 - Click the Heroic Bonus Dungeon card to smoothly center the main map on its entrance, even when dungeon markers are filtered out. Initial panning runs at one eighth of the native speed, with a faster final approach. Manual panning and zooming take over immediately.

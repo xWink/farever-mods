@@ -58,7 +58,10 @@ class MainMapFiltersTest {
             {category:'enemies', key:'targetDummy', kinds:['targetDummy']},
             {category:'companions', key:'regular', kinds:['companion']},
             {category:'activities', key:'activity', kinds:['activity']},
-            {category:'activities', key:'ascension', kinds:['ascension']}
+            {category:'activities', key:'ascension', kinds:['ascension']},
+            {category:'chests', key:'regular', kinds:['chest']},
+            {category:'chests', key:'recipe', kinds:['recipeChest']},
+            {category:'chests', key:'vault', kinds:['vaultChest']}
         ];
         for (subtype in subtypes) {
             filters.setEnabled(subtype.category, subtype.key, false);
@@ -84,8 +87,12 @@ class MainMapFiltersTest {
         filters.setEnabled('npcs', null, false);
         eq(filters.settings().showNpcs, false, 'NPC category can still hide all NPC services');
         filters.setEnabled('npcs', null, true);
-        for (category in MainMapFilters.CATEGORIES) if (['chests', 'secretOrbs'].indexOf(category.key) >= 0)
-            eq(category.items.length, 0, category.label + ' has no subfilters');
+        for (category in MainMapFilters.CATEGORIES) {
+            if (category.key == 'secretOrbs') eq(category.items.length, 0, category.label + ' has no subfilters');
+            if (category.key == 'chests') eq([for (item in category.items) item.key].join(','),
+                'regular,recipe,vault', 'All three chest families have subfilters');
+        }
+        filters.setEnabled('chests', 'recipe', false);
         filters.setEnabled('ore', 'copper', false);
         filters.setEnabled('ore', null, false);
         var reloaded:MinimapSettings = haxe.Json.parse(haxe.Json.stringify(config));
@@ -97,7 +104,13 @@ class MainMapFiltersTest {
         eq(reopened.settings().hideMasteredCodexEnemies, false, 'Explicit saved mastery preference is preserved on reload');
         eq(reopened.settings().showSecretOrbs, true, 'Old orb exclusion stays retired after reload');
         for (kind in ['chest', 'vaultChest', 'recipeChest'])
-            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old chest exclusion stays retired after reload: ' + kind);
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), kind != 'recipeChest',
+                'New recipe preference survives reload independently of retired exclusions: ' + kind);
+        reopened.setEnabled('chests', null, false);
+        for (kind in ['chest', 'vaultChest', 'recipeChest'])
+            eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), false, 'Chest category hides ' + kind);
+        reopened.setEnabled('chests', null, true);
+        eq(reopened.accepts({kind:'recipeChest', x:0, y:0, z:0}), false, 'Category cycling preserves recipe subfilter');
         for (kind in minimap.NpcMarkers.KINDS)
             eq(reopened.accepts({kind:kind, x:0, y:0, z:0}), true, 'Old NPC exclusion stays retired after reload: ' + kind);
         var oldSettings = reopened.settings();

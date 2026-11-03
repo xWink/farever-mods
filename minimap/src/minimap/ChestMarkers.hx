@@ -25,16 +25,19 @@ class ChestMarkers {
         world = [];
         activityChests = [];
         worldKinds = [];
+        kinds = [];
     }
 
     public function isWorldChest(inf:Dynamic):Bool {
         if (inf == null) return false;
         var id = G.text(G.field(inf, "id"));
         if (id != "" && worldKinds.exists(id)) return worldKinds[id];
-        // MapWindow.getZoneChests -> DataCache.getDynamicObjectiveTargets uses
-        // this exact native ancestry check. A generic Chest entity type or a
-        // missing activity parent does not establish world-chest membership.
-        var result = G.staticCall("HElement", "isOfType", [inf, "LEVEL_WorldChest"]) == true;
+        // The native zone chest counter only checks LEVEL_WorldChest. Our map
+        // also displays recipe and vault families, which must not depend on
+        // that ordinary-chest ancestry. Keep a positive family check so detached
+        // ancient/camp activity rewards are still excluded before streaming in.
+        var result = G.staticCall("HElement", "isOfType", [inf, "LEVEL_WorldChest"]) == true
+            || kind(inf) != "chest";
         if (id != "") worldKinds[id] = result;
         return result;
     }

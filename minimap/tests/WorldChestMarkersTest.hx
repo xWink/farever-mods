@@ -18,8 +18,8 @@ class WorldChestMarkersTest {
         return def;
     }
     static function main():Void {
-        G.globals['elementTypes'] = ['VaultChest'=>{id:'VaultChest',inherit:'LEVEL_WorldChest'},
-            'Recipe_Chest_Root'=>{id:'Recipe_Chest_Root',inherit:'LEVEL_WorldChest'}];
+        G.globals['elementTypes'] = ['VaultChest'=>{id:'VaultChest'},
+            'Recipe_Chest_Root'=>{id:'Recipe_Chest_Root'}];
         var chest = definition('chest'), recipe = definition('recipe'), vault = definition('vault');
         recipe.inf.inherit = 'Recipe_Chest_Root'; vault.inf.inherit = 'VaultChest';
         var hidden = definition('hidden'); hidden.inf.props.interactible = {hidden:true};
@@ -57,6 +57,31 @@ class WorldChestMarkersTest {
         eq(sample(), 'chest,recipe,vault', 'Distant world chests appear without entities; unavailable rewards do not');
         var kinds = [for (p in markers.points) p.kind]; kinds.sort(Reflect.compare);
         eq(kinds.join(','), 'chest,recipeChest,vaultChest', 'World chests retain native families');
+        // Both map collectors apply subtype filters to distant and live chests.
+        var filterConfig = BigMapTest.config();
+        var main = new minimap.MainMapFilters(), hud = new minimap.MainMapFilters(null, true);
+        main.bind(filterConfig); hud.bind(filterConfig);
+        var originalSettings = settings;
+        var liveRecipe:Dynamic = {family:'chest',kind:'recipe',inf:recipe.inf,enabled:true,
+            state:0,posx:100.,posy:200.,posz:5.};
+        for (loaded in [false, true]) {
+            layer.interactibles = loaded ? [liveRecipe] : [];
+            for (subtype in [{key:'regular',id:'chest'}, {key:'recipe',id:'recipe'}, {key:'vault',id:'vault'}]) {
+                main.setEnabled('chests', subtype.key, false); hud.bind(filterConfig);
+                for (filters in [main,hud]) {
+                    settings = filters == main ? filters.settings() : filters.minimapSettings();
+                    markers.pointFilter = filters.accepts;
+                    eq(sample(), [for (id in ['chest','recipe','vault']) if (id != subtype.id) id].join(','),
+                        'Subfilter hides only ' + subtype.key + ' with live entities=' + loaded);
+                }
+                main.setEnabled('chests', subtype.key, true); hud.bind(filterConfig);
+            }
+        }
+        markers.pointFilter = null; settings = originalSettings; layer.interactibles = [];
+        states['recipe'] = {completed:100.}; states['vault'] = {completed:100.};
+        eq(sample(), 'chest', 'Independent recipe and vault families still respect completion');
+        states.remove('recipe'); states.remove('vault');
+        eq(sample(), 'chest,recipe,vault', 'Unopened special families are restored');
         var reads = G.prefabReads, scans = G.elementScans, classifications = G.worldChestChecks;
         eq(sample(), 'chest,recipe,vault', 'Stable refresh');
         eq(G.prefabReads, reads, 'No repeated prefab transforms');
@@ -173,6 +198,20 @@ class WorldChestMarkersTest {
         eq(sample(), '', 'A rejected live activity variant cannot reappear from the distant cache');
         G.globals['elements'] = []; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
         eq(sample(), '', 'Changing world definitions discards old chest cache');
+        // Adding special families must not bypass activity ownership checks.
+        var recipeReward = definition('recipeReward'); recipeReward.inf.inherit = 'Recipe_Chest_Root';
+        recipeReward.prefab.parent = {cdbType:'activity'};
+        var vaultReward = definition('vaultReward'); vaultReward.inf.inherit = 'VaultChest';
+        vaultReward.prefab.parent = {cdbType:'activity'};
+        G.globals['elements'] = [recipeReward,vaultReward];
+        G.globals['HElement.allElements'] = new Map<String,Dynamic>();
+        eq(sample(), '', 'Recipe and vault activity rewards stay excluded from distant markers');
+        layer.interactibles = [for (def in [recipeReward,vaultReward])
+            {family:'chest',kind:def.inf.id,inf:def.inf,enabled:true,state:0,posx:100.,posy:200.,posz:5.}];
+        eq(sample(), '', 'Special activity reward ownership remains known when loaded');
+        G.globals['elements'] = []; G.globals['HElement.allElements'] = new Map<String,Dynamic>();
+        for (element in G.array(layer.interactibles)) element.activity = {};
+        eq(sample(), '', 'Native live activity ownership excludes special families without prefab parents');
         Sys.println('World chest markers: $checks checks passed.');
     }
 }

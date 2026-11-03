@@ -28,11 +28,10 @@ class ChestMarkersTest {
         eq(markers.kind({inherit: "Recipe_Chest_Root"}), "recipeChest", "unnamed native recipe variant");
         eq(markers.kind({inherit: "VaultChest"}), "vaultChest", "unnamed variants do not share a cache entry");
         G.elements["LEVEL_WorldChest"] = {id:"LEVEL_WorldChest"};
-        G.elements["VaultChest"].inherit = "LEVEL_WorldChest";
-        G.elements["Recipe_Chest_Root"].inherit = "LEVEL_WorldChest";
+        // Special chest families must not need ordinary world-chest ancestry.
         eq(markers.isWorldChest({id:"ordinary",inherit:"LEVEL_WorldChest"}),true,"Native world-chest root");
-        eq(markers.isWorldChest({id:"vault",inherit:"VaultChest"}),true,"Native world vault ancestry");
-        eq(markers.isWorldChest({id:"recipe",inherit:"RegionalRecipe"}),true,"World recipe ancestry follows multiple parents");
+        eq(markers.isWorldChest({id:"vault",inherit:"VaultChest"}),true,"Standalone vault ancestry");
+        eq(markers.isWorldChest({id:"recipe",inherit:"RegionalRecipe"}),true,"Standalone recipe ancestry follows multiple parents");
         eq(markers.isWorldChest({id:"ancient",type:2,texts:{name:"Ancient Chest"}}),false,"Generic ancient chest without world ancestry is excluded before loading");
         eq(markers.isWorldChest({id:"camp",type:2,texts:{name:"Camp Chest"}}),false,"Generic camp reward without world ancestry is excluded before loading");
         eq(markers.isWorldChest({id:"localized",type:2,texts:{name:"Coffre"}}),false,"Classification does not depend on English names");

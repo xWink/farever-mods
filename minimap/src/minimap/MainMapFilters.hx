@@ -16,7 +16,10 @@ class MainMapFilters {
         category("players", "Players", "player", ["regular", "party", "friends"], ["Players", "Party members", "Friends"]),
         category("npcs", "NPCs", "npc", ["obelisk", "respawn", "factionMerchant", "station"],
             ["Obelisks", "Respawns", "Faction merchants", "Stations"]),
-        category("chests", "Chests", "chest", [], []),
+        // New keys keep retired chest/vaultChest/recipeChest exclusions from
+        // silently hiding markers when these controls become available again.
+        category("chests", "Chests", "chest", ["regular", "recipe", "vault"],
+            ["Regular chests", "Recipe chests", "Vault chests"]),
         category("secretOrbs", "Secret orbs", "secretOrb", [], [])
     ];
     var source:MinimapSettings;
@@ -155,6 +158,9 @@ class MainMapFilters {
         case "obelisk", "respawn": enabled("npcs") && enabled("npcs", point.kind);
         case "demon", "pilgrim", "glory": enabled("npcs") && enabled("npcs", "factionMerchant");
         case "craft", "upgrade", "recycler", "infusion", "soulWell": enabled("npcs") && enabled("npcs", "station");
+        case "chest": enabled("chests") && enabled("chests", "regular");
+        case "recipeChest": enabled("chests") && enabled("chests", "recipe");
+        case "vaultChest": enabled("chests") && enabled("chests", "vault");
         default: true;
     };
 }
