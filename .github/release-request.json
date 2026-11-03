@@ -1,7 +1,7 @@
 {
-  "project": "group-finder",
-  "version": "1.0.1",
-  "commit": "a850a7ba66a1e14852c9d3d74d9fcfb3803496f9",
-  "notes": "Fixed an issue where daylight savings timezones caused players to incorrectly appear offline",
+  "project": "minimap",
+  "version": "2.4.0",
+  "commit": "a807e18c94145904d9b1894b27973ff9b4b58896",
+  "notes": "- Added sub-filters for chests\n- Fixed an issue where vault and recipe chest markers were missing",
   "dry_run": false
 }
